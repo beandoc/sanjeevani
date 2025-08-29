@@ -9,16 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
-export default function InnovationsPage() {
+export default function ImplementationPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <Button variant="outline" asChild>

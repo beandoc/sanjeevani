@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function PalliativeCarePage() {
+export default function PredictiveValuePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>

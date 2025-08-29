@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ReactNode } from 'react';
-import { NextIntlClientProvider } from 'next-intl';
+import { NextIntlClientProvider, AbstractIntlMessages } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages as AbstractIntlMessages}>
           {children}
         </NextIntlClientProvider>
         <Toaster />

@@ -2,7 +2,7 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, ChevronDown, User, HeartHandshake } from 'lucide-react';
+import { Bell, HeartHandshake, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +10,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import { useRole } from '@/context/role-context';
@@ -23,9 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTranslations } from 'next-intl';
 
 export function Header() {
   const { role, setRole } = useRole();
+  const t = useTranslations('Header');
 
   const roles = [
     {
@@ -73,7 +73,7 @@ export function Header() {
               key={r.value}
               variant={role === r.value ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setRole(r.value)}
+              onClick={() => setRole(r.value as 'caregiver' | 'professional')}
               className={cn(
                 'transition-all',
                 role === r.value
@@ -91,7 +91,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t('notifications')}</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -109,12 +109,12 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem>{t('profile')}</DropdownMenuItem>
+            <DropdownMenuItem>{t('settings')}</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem>{t('logout')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
