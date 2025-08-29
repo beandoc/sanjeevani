@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import Image from 'next/image';
 
 export default function AssessmentGuidePage() {
   return (
@@ -66,6 +65,7 @@ export default function AssessmentGuidePage() {
           </p>
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Core Components of Assessment</CardTitle>
@@ -109,7 +109,9 @@ export default function AssessmentGuidePage() {
             activities to screen for it.
           </p>
 
-          <h3 className="font-semibold text-lg">Polypharmacy (Multiple Medications)</h3>
+          <h3 className="font-semibold text-lg">
+            Polypharmacy (Multiple Medications)
+          </h3>
           <p className="text-muted-foreground">
             Older adults often take many medications, which increases the risk
             of side effects and interactions. We review all medications
@@ -125,6 +127,7 @@ export default function AssessmentGuidePage() {
           </p>
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Frailty</CardTitle>
@@ -132,11 +135,12 @@ export default function AssessmentGuidePage() {
         <CardContent className="space-y-4">
           <h3 className="font-semibold text-lg">What is Frailty?</h3>
           <p className="mt-2 text-muted-foreground">
-            Frailty is a state of increased vulnerability to health problems. It's not just about age; it's a mix of weakness, low energy, and slow movement. Frail individuals have a higher risk of falls, hospital stays, and other negative outcomes.
+            Frailty is a state of increased vulnerability to health problems. It's
+            not just about age; it's a mix of weakness, low energy, and slow
+            movement. Frail individuals have a higher risk of falls, hospital
+            stays, and other negative outcomes.
           </p>
-          <h3 className="font-semibold text-lg">
-            What does this mean?
-          </h3>
+          <h3 className="font-semibold text-lg">What does this mean?</h3>
           <p className="mt-2 text-muted-foreground">
             A diagnosis of frailty helps identify older adults who are at the
             highest risk of negative health outcomes. For these individuals,
@@ -146,6 +150,7 @@ export default function AssessmentGuidePage() {
           </p>
         </CardContent>
       </Card>
+      
       <Card>
         <CardHeader>
           <CardTitle>Information Gathering Tools</CardTitle>
