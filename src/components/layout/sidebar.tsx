@@ -21,24 +21,19 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const t = useTranslations('AppSidebar');
 
   const links = [
-    { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-    { href: '/modules', label: t('modules'), icon: GraduationCap },
-    { href: '/simulations', label: t('simulations'), icon: Bot },
-    { href: '/videos', label: t('videoLibrary'), icon: Video },
-    { href: '/podcasts', label: t('podcasts'), icon: Mic },
-    { href: '/assessment-guide', label: t('assessmentGuide'), icon: FileText },
-    { href: '/resources', label: t('resources'), icon: BookMarked },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/modules', label: 'Modules', icon: GraduationCap },
+    { href: '/simulations', label: 'Simulations', icon: Bot },
+    { href: '/videos', label: 'Video Library', icon: Video },
+    { href: '/podcasts', label: 'Podcasts', icon: Mic },
+    { href: '/assessment-guide', label: 'Assessment Guide', icon: FileText },
+    { href: '/resources', label: 'Resources', icon: BookMarked },
   ];
-
-  // Remove the locale from the pathname for comparison
-  const barePathname = pathname.replace(/^\/(en|hi|mr)/, '');
 
   return (
     <Sidebar
@@ -57,7 +52,7 @@ export function AppSidebar() {
               'text-xl font-bold font-headline text-sidebar-foreground group-data-[collapsible=icon]:hidden'
             )}
           >
-            {t('title')}
+            Eldercare Pro
           </h1>
         </Link>
       </SidebarHeader>
@@ -68,8 +63,8 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={
-                  barePathname === link.href ||
-                  (link.href !== '/dashboard' && barePathname.startsWith(link.href))
+                  pathname === link.href ||
+                  (link.href !== '/dashboard' && pathname.startsWith(link.href))
                 }
                 tooltip={{ children: link.label }}
               >
