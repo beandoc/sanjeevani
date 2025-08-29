@@ -1,3 +1,7 @@
+
+'use client';
+
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,11 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
-  generatePersonalizedPath,
-  type PersonalizedPathInput,
-  type PersonalizedPathOutput,
-} from '@/ai/flows/personalized-learning-path';
-import {
   BrainCircuit,
   HeartPulse,
   Activity,
@@ -22,8 +21,12 @@ import {
   ArrowRight,
   BookOpenCheck,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
+import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslations } from 'next-intl';
 
 const iconMap: { [key: string]: React.ElementType } = {
   Dementia: BrainCircuit,
@@ -40,42 +43,58 @@ const modules = [
   { title: 'Stroke Rehabilitation', progress: 10, topic: 'Stroke' },
 ];
 
-export default async function DashboardPage() {
-  const personalizedPathInput: PersonalizedPathInput = {
-    skillLevel: 'intermediate',
-    performanceHistory: [
-      { moduleId: 'dementia-care', score: 75, timeSpent: 120 },
-      { moduleId: 'heart-failure-management', score: 40, timeSpent: 90 },
-    ],
-    caregivingScenario:
-      'Caring for an elderly person who recently had a stroke and needs help with moving around and seems a little confused.',
-  };
+function PersonalizedPathSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
+          <Skeleton className="h-12 w-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  let personalizedPath: PersonalizedPathOutput | null = null;
-  let personalizedPathError = false;
-  try {
-    personalizedPath = await generatePersonalizedPath(personalizedPathInput);
-  } catch (error) {
-    console.error('Error fetching personalized path:', error);
-    personalizedPathError = true;
-  }
+export default function DashboardPage() {
+  const t = useTranslations('DashboardPage');
+  const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
+  useEffect(() => {
+    async function fetchPersonalizedPath() {
+      try {
+        const response = await fetch('/api/personalized-path');
+        if (!response.ok) {
+          throw new Error('Failed to fetch personalized path');
+        }
+        const data = await response.json();
+        setPersonalizedPath(data);
+      } catch (err) {
+        setError(true);
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchPersonalizedPath();
+  }, []);
 
   return (
     <div className="container mx-auto p-0">
       <div className="grid gap-6">
         <Card className="col-span-1 lg:col-span-3">
           <CardHeader>
-            <CardTitle className="font-headline text-3xl">Welcome, Caregiver!</CardTitle>
-            <CardDescription>
-              Your personalized dashboard to guide you in providing the best care.
-            </CardDescription>
+            <CardTitle className="font-headline text-3xl">{t('welcome')}</CardTitle>
+            <CardDescription>{t('description')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>
-              Here you can find your learning modules, track your progress, and run
-              simulations to practice your skills.
-            </p>
+            <p>{t('intro')}</p>
           </CardContent>
         </Card>
 
@@ -83,9 +102,7 @@ export default async function DashboardPage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="font-headline text-2xl">
-                  Personalized Learning Path
-                </CardTitle>
+                <CardTitle className="font-headline text-2xl">{t('learningPathTitle')}</CardTitle>
                 <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
               </div>
               {personalizedPath && (
@@ -93,16 +110,16 @@ export default async function DashboardPage() {
               )}
             </CardHeader>
             <CardContent className="space-y-4">
-              {personalizedPathError ? (
-                  <div className="flex items-center gap-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-                    <AlertTriangle className="h-6 w-6" />
-                    <div className="flex-1">
-                      <h3 className="font-semibold">Could not load learning path</h3>
-                      <p className="text-sm">
-                        There was an error fetching your personalized learning path. Please try again later.
-                      </p>
-                    </div>
+              {isLoading ? (
+                <PersonalizedPathSkeleton />
+              ) : error ? (
+                <div className="flex items-center gap-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+                  <AlertTriangle className="h-6 w-6" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{t('learningPathError')}</h3>
+                    <p className="text-sm">{t('learningPathErrorMessage')}</p>
                   </div>
+                </div>
               ) : (
                 personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.topic] || BookOpenCheck;
@@ -138,8 +155,8 @@ export default async function DashboardPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="font-headline text-2xl">Active Modules</CardTitle>
-                <CardDescription>Continue where you left off.</CardDescription>
+                <CardTitle className="font-headline text-2xl">{t('activeModulesTitle')}</CardTitle>
+                <CardDescription>{t('activeModulesDescription')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {modules.map((mod) => {
@@ -162,20 +179,16 @@ export default async function DashboardPage() {
 
             <Card className="bg-gradient-to-br from-primary to-blue-600 text-primary-foreground">
               <CardHeader>
-                <CardTitle className="font-headline text-2xl">
-                  Practice Scenarios
-                </CardTitle>
+                <CardTitle className="font-headline text-2xl">{t('practiceScenariosTitle')}</CardTitle>
                 <CardDescription className="text-primary-foreground/80">
-                  Hone your skills with real-world simulations.
+                  {t('practiceScenariosDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="mb-4">
-                  Test your decision-making in a safe, controlled environment.
-                </p>
+                <p className="mb-4">{t('practiceScenariosIntro')}</p>
                 <Button variant="secondary" className="w-full" asChild>
                   <Link href="/simulations">
-                    Start a Simulation <ArrowRight className="ml-2 h-4 w-4" />
+                    {t('startSimulation')} <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </CardContent>
