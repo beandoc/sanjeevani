@@ -31,6 +31,7 @@ import {
   Brain,
   Droplets,
   Footprints,
+  Bone,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -105,6 +106,13 @@ const caregiverModules = [
       'Learn the basics of foot care for older adults to maintain mobility and prevent complications.',
     icon: Footprints,
   },
+  {
+    id: 'joint-problems-caregiver',
+    title: 'Understanding Joint Pain & Arthritis',
+    description:
+      'Learn about common joint problems like arthritis and gout and how to manage them at home.',
+    icon: Bone,
+  },
 ];
 
 const professionalModules = [
@@ -120,7 +128,7 @@ const professionalModules = [
     title: 'Geriatric Rehabilitation',
     description:
       'Understand the interventions that help restore function and independence in older adults.',
-    icon: Recycle,
+    icon: PersonStanding,
   },
   {
     id: 'strength-training',
@@ -156,6 +164,13 @@ const professionalModules = [
     description:
       'A clinical review of common foot pathologies, assessment, and management in older adults.',
     icon: Footprints,
+  },
+  {
+    id: 'joint-problems-professional',
+    title: 'Management of Rheumatic Disorders',
+    description:
+      'A clinical review of OA, RA, Gout, and other common rheumatic conditions in older adults.',
+    icon: Bone,
   },
 ];
 
