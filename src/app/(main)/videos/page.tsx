@@ -11,38 +11,6 @@ import { Badge } from '@/components/ui/badge';
 
 const videos = [
   {
-    id: 1,
-    title: 'Safe Lifting and Transfer Techniques',
-    description:
-      'Learn the proper way to lift and transfer patients to prevent injury to both caregiver and patient.',
-    category: 'Mobility',
-    youtubeId: 'S-41623vjCg',
-  },
-  {
-    id: 2,
-    title: 'Managing Medications Effectively',
-    description:
-      'A step-by-step guide to organizing and administering medications for patients with complex schedules.',
-    category: 'Medication',
-    youtubeId: 'BrG3tD3gA4o',
-  },
-  {
-    id: 3,
-    title: 'Basic Wound Care at Home',
-    description:
-      'How to clean, dress, and monitor minor wounds to prevent infection.',
-    category: 'First Aid',
-    youtubeId: 'j9JvJcMfp3o',
-  },
-  {
-    id: 4,
-    title: 'Communication Strategies for Dementia',
-    description:
-      'Effective techniques to communicate with individuals experiencing memory loss and confusion.',
-    category: 'Dementia',
-    youtubeId: '1fhrvikubOw',
-  },
-  {
     id: 5,
     title: 'Stand Pivot Transfer',
     description:
