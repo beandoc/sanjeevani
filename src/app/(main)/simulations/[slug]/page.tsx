@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -137,11 +138,12 @@ const simulationsData: {
   },
 };
 
-// IMPORTANT: Update the Props type for params to be a Promise
-export default async function SimulationPage({ params }: { params: Promise<{ slug: string }> }) {
-  // Await the params Promise to get the actual slug value
-  const resolvedParams = await params;
-  const simData = simulationsData[resolvedParams.slug];
+type Props = {
+  params: { slug: string };
+};
+
+export default function SimulationPage({ params }: Props) {
+  const simData = simulationsData[params.slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);

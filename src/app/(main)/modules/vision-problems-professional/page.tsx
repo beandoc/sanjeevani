@@ -53,7 +53,7 @@ export default function VisionProblemsProfessionalPage() {
                     <li>Ciliary flush (a ring of hyperemia around the limbus)</li>
                     <li>Corneal opacification or epithelial disruption (visible with fluorescein)</li>
                     <li>Pupil abnormalities (fixed, irregular)</li>
-                    <li>Elevated intraocular pressure (IOP > 40 mmHg is an emergency)</li>
+                    <li>Elevated intraocular pressure (IOP &gt; 40 mmHg is an emergency)</li>
                 </ul>
                 <h4 className="font-semibold mt-4">Common Benign Causes:</h4>
                 <p>Conditions like blepharitis, dry eye syndrome, subconjunctival hemorrhage, and most cases of conjunctivitis can often be managed initially in the primary care setting. Treatment includes warm compresses, artificial tears, and topical antibiotics if a bacterial cause is strongly suspected.</p>

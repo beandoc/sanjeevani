@@ -1,24 +1,18 @@
+
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-// Update the Props type to reflect that params and searchParams are Promises
 type Props = {
-  params: Promise<{ id: string }>; // params is now a Promise
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>; // searchParams is also a Promise
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
-// Make the component an async function to await the params
-export default async function ModuleDetailPage({
+export default function ModuleDetailPage({
   params,
-  // searchParams is part of Props but not directly used in this component,
-  // so we don't need to await it unless its values were needed.
-  // We still declare it in the type for correctness.
 }: Props) {
-  // Await the params Promise to get the actual id object
-  const resolvedParams = await params;
-  const title = resolvedParams.id
+  const title = params.id
     .replace(/-/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 
