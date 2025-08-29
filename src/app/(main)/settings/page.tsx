@@ -1,3 +1,4 @@
+'use client';
 
 import {
   Card,
@@ -16,8 +17,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useProfile, SkillLevel } from '@/context/role-context';
+
 
 export default function SettingsPage() {
+  const { 
+    skillLevel, 
+    setSkillLevel, 
+    caregivingScenario, 
+    setCaregivingScenario 
+  } = useProfile();
+
   const patientConditions = [
     'General Frailty',
     'Dementia',
@@ -71,7 +81,10 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="experience">Your Experience Level</Label>
-              <Select defaultValue="intermediate">
+              <Select 
+                value={skillLevel} 
+                onValueChange={(value) => setSkillLevel(value as SkillLevel)}
+              >
                 <SelectTrigger id="experience">
                   <SelectValue placeholder="Select your experience level" />
                 </SelectTrigger>
@@ -90,13 +103,16 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="condition">Primary Care Condition</Label>
-              <Select>
+              <Select
+                value={caregivingScenario}
+                onValueChange={setCaregivingScenario}
+              >
                 <SelectTrigger id="condition">
                   <SelectValue placeholder="Select a primary condition" />
                 </SelectTrigger>
                 <SelectContent>
                   {patientConditions.map((condition) => (
-                    <SelectItem key={condition} value={condition.toLowerCase().replace(/ /g, '-')}>
+                    <SelectItem key={condition} value={condition}>
                       {condition}
                     </SelectItem>
                   ))}

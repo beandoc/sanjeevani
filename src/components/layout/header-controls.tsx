@@ -14,11 +14,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useRole } from '@/context/role-context';
+import { useProfile } from '@/context/role-context';
 
 export function HeaderControls() {
   const { setTheme } = useTheme();
-  const { role, setRole } = useRole();
+  const { role, setRole } = useProfile();
 
   const handleRoleChange = (checked: boolean) => {
     setRole(checked ? 'professional' : 'caregiver');

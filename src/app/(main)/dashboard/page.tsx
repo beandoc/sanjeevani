@@ -1,3 +1,4 @@
+'use client';
 
 import {
   Card,
@@ -8,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import DashboardClient from './dashboard-client';
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
   return (
     <div className="container mx-auto p-0 space-y-6">
         <Card>

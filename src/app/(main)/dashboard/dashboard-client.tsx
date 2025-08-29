@@ -25,10 +25,16 @@ import {
   Recycle,
   Stethoscope,
   Users,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRole } from '@/context/role-context';
-import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
+import { useProfile } from '@/context/role-context';
+import {
+  generatePersonalizedPath,
+  type PersonalizedPathOutput,
+  type ModulePerformance,
+} from '@/ai/flows/personalized-learning-path';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -42,66 +48,7 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Geriatric Rehabilitation': Recycle,
   'Geriatric Depression': Stethoscope,
   'Palliative Care Professional': Users,
-};
-
-const caregiverLearningPath: PersonalizedPathOutput = {
-  reasoning: '',
-  suggestedModules: [
-    {
-      moduleId: 'fall-prevention',
-      title: 'Fall Prevention',
-      description: 'Learn to identify risks and create a safe environment to prevent falls, a critical skill for any caregiver.',
-      estimatedDuration: 20,
-      topic: 'Fall Prevention',
-      focusArea: 'Safety',
-    },
-    {
-      moduleId: 'dementia-care',
-      title: 'Dementia Care Basics',
-      description: 'Understand techniques for communicating with and caring for individuals with dementia.',
-      estimatedDuration: 30,
-      topic: 'Dementia Care',
-      focusArea: 'Communication',
-    },
-    {
-      moduleId: 'palliative-care-caregiver',
-      title: 'Intro to Palliative Care',
-      description: 'A compassionate guide to understanding palliative care and improving quality of life.',
-      estimatedDuration: 25,
-      topic: 'Palliative Care',
-      focusArea: 'Comfort Care',
-    },
-  ],
-};
-
-const professionalLearningPath: PersonalizedPathOutput = {
-  reasoning: '',
-  suggestedModules: [
-    {
-      moduleId: 'geriatric-depression-professional',
-      title: 'Geriatric Depression in Primary Care',
-      description: 'A review of the detection and management of depression in older adults for primary care providers.',
-      estimatedDuration: 45,
-      topic: 'Geriatric Depression',
-      focusArea: 'Clinical Management',
-    },
-    {
-      moduleId: 'geriatric-rehabilitation',
-      title: 'Geriatric Rehabilitation',
-      description: 'Understand the interventions that help restore function and independence in older adults.',
-      estimatedDuration: 35,
-      topic: 'Geriatric Rehabilitation',
-      focusArea: 'Functional Restoration',
-    },
-    {
-      moduleId: 'palliative-care-professional',
-      title: 'Principles of Geriatric Palliative Care',
-      description: 'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
-      estimatedDuration: 40,
-      topic: 'Palliative Care Professional',
-      focusArea: 'Advanced Care',
-    },
-  ],
+  'Dementia': BrainCircuit,
 };
 
 const initialActiveModules = [
@@ -110,9 +57,18 @@ const initialActiveModules = [
   { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
 
+// Dummy performance data
+const performanceHistory: ModulePerformance[] = [
+    { moduleId: 'fall-prevention', score: 75, timeSpent: 30 },
+    { moduleId: 'dementia-care', score: 88, timeSpent: 45 },
+];
+
+
 export default function DashboardClient() {
-  const { role } = useRole();
-  const personalizedPath = role === 'professional' ? professionalLearningPath : caregiverLearningPath;
+  const { role, skillLevel, caregivingScenario } = useProfile();
+  const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeModules, setActiveModules] = useState(initialActiveModules);
 
   useEffect(() => {
@@ -123,6 +79,26 @@ export default function DashboardClient() {
     }));
     setActiveModules(randomizedModules);
   }, []);
+
+  useEffect(() => {
+    async function getPath() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const path = await generatePersonalizedPath({
+          skillLevel,
+          performanceHistory,
+          caregivingScenario,
+        });
+        setPersonalizedPath(path);
+      } catch (err) {
+        console.error(err);
+        setError('There was an error fetching your personalized learning path. Please try again later.');
+      }
+      setIsLoading(false);
+    }
+    getPath();
+  }, [skillLevel, caregivingScenario, role]);
 
 
   return (
@@ -135,7 +111,22 @@ export default function DashboardClient() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {personalizedPath?.suggestedModules.map((module) => {
+              {isLoading && (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-4 text-muted-foreground">Generating your learning path...</p>
+                </div>
+              )}
+              {error && (
+                 <Alert variant="destructive">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertTitle>Could not load learning path</AlertTitle>
+                    <AlertDescription>
+                        {error}
+                    </AlertDescription>
+                </Alert>
+              )}
+              {!isLoading && !error && personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.topic] || BookOpenCheck;
                   return (
                     <div

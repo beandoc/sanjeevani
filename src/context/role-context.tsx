@@ -2,29 +2,45 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 
-type Role = 'caregiver' | 'professional';
+export type Role = 'caregiver' | 'professional';
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
 
-type RoleContextType = {
+type ProfileContextType = {
   role: Role;
   setRole: (role: Role) => void;
+  skillLevel: SkillLevel;
+  setSkillLevel: (level: SkillLevel) => void;
+  caregivingScenario: string;
+  setCaregivingScenario: (scenario: string) => void;
 };
 
-const RoleContext = createContext<RoleContextType | undefined>(undefined);
+const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>('caregiver');
+  const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
+  const [caregivingScenario, setCaregivingScenario] = useState('General Frailty');
 
   return (
-    <RoleContext.Provider value={{ role, setRole: setRole as (role: Role) => void }}>
+    <ProfileContext.Provider
+      value={{
+        role,
+        setRole: setRole as (role: Role) => void,
+        skillLevel,
+        setSkillLevel: setSkillLevel as (level: SkillLevel) => void,
+        caregivingScenario,
+        setCaregivingScenario,
+      }}
+    >
       {children}
-    </RoleContext.Provider>
+    </ProfileContext.Provider>
   );
 }
 
-export function useRole() {
-  const context = useContext(RoleContext);
+export function useProfile() {
+  const context = useContext(ProfileContext);
   if (context === undefined) {
-    throw new Error('useRole must be used within a RoleProvider');
+    throw new Error('useProfile must be used within a RoleProvider');
   }
   return context;
 }
