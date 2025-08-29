@@ -74,6 +74,13 @@ const videos = [
     category: 'Mobility',
     youtubeId: 'DPksvXhLY1U',
   },
+  {
+    id: 9,
+    title: 'Bed to Chair Transfer',
+    description: 'A tutorial on safely transferring a person from a bed to a chair.',
+    category: 'Mobility',
+    youtubeId: 'FjHtL7gIQLk',
+  },
 ];
 
 export default function VideosPage() {
