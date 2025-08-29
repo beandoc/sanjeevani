@@ -90,9 +90,6 @@ export default function DashboardClient() {
                 <CardTitle className="font-headline text-2xl">Personalized Learning Path</CardTitle>
                 <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
               </div>
-              {personalizedPath && (
-                <CardDescription>{personalizedPath.reasoning}</CardDescription>
-              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {isLoading ? (
@@ -170,7 +167,6 @@ export default function DashboardClient() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="mb-4">Test your decision-making in a safe, controlled environment.</p>
                 <Button variant="secondary" className="w-full" asChild>
                   <Link href="/simulations">
                     Start a Simulation <ArrowRight className="ml-2 h-4 w-4" />
