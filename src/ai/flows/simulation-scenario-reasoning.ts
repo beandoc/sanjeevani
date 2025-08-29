@@ -26,13 +26,18 @@ const SimulationScenarioInputSchema = z.object({
 export type SimulationScenarioInput = z.infer<typeof SimulationScenarioInputSchema>;
 
 const SimulationScenarioOutputSchema = z.object({
+  feedback: z
+    .string()
+    .describe('Feedback on the caregiver\'s action, explaining if it was correct or incorrect and why.'),
+  recommendation: z
+    .string()
+    .describe('A clear recommendation for the best course of action in the given scenario.'),
   scenarioUpdate: z
     .string()
-    .describe('An updated description of the scenario, including any complications or changes in patient condition.'),
-  llmReasoning: z
-    .string()
-    .optional()
-    .describe('The LLM reasoning behind the updated scenario and complications.'),
+    .describe('An updated description of the scenario, including any complications or changes in patient condition resulting from the action.'),
+  nextOptions: z
+    .array(z.string())
+    .describe('A list of 3-4 multiple-choice options for the next action the caregiver should take.'),
 });
 export type SimulationScenarioOutput = z.infer<typeof SimulationScenarioOutputSchema>;
 
@@ -44,15 +49,22 @@ const scenarioReasoningPrompt = ai.definePrompt({
   name: 'scenarioReasoningPrompt',
   input: {schema: SimulationScenarioInputSchema},
   output: {schema: SimulationScenarioOutputSchema},
-  prompt: `You are simulating a care scenario for an elderly patient. The caregiver has provided the following initial scenario and their action:
+  prompt: `You are a medical simulation AI for training caregivers. Your role is to create a realistic, evolving scenario and provide educational feedback.
 
-Initial Scenario: {{{scenarioDescription}}}
-Caregiver Action: {{{caregiverAction}}}
+  Current Scenario:
+  "{{{scenarioDescription}}}"
 
-Based on the caregiver's action, determine if any complications or changes in the patient's condition should arise.  Provide an updated scenario description, incorporating these changes. Explain your reasoning for the changes in the llmReasoning field. If the patient condition is available, take it into account when determining complications.
+  Patient's underlying conditions:
+  "{{{patientCondition}}}"
 
-Patient Condition: {{{patientCondition}}}
-Updated Scenario Description:`, //Ensure the updated description continues the scenario from the caregiver's perspective
+  The caregiver chose the following action:
+  "{{{caregiverAction}}}"
+
+  Based on the caregiver's action, you must do the following:
+  1.  **Provide Feedback**: In the 'feedback' field, evaluate the caregiver's action. Was it the best choice? Was it dangerous? Explain the immediate consequences and reasoning in a clear, concise, and educational manner.
+  2.  **Give a Recommendation**: In the 'recommendation' field, state what the best practice or optimal first step would have been in this situation.
+  3.  **Update the Scenario**: In the 'scenarioUpdate' field, describe the outcome of the caregiver's action. What happens next? How does the patient's condition change? Make it a logical progression of the story.
+  4.  **Generate Next Options**: In the 'nextOptions' field, provide 3-4 distinct, plausible multiple-choice options for the caregiver's next action based on the *new* scenario update. One option should be clearly the best choice, while others should be plausible but less ideal or incorrect.`,
 });
 
 const simulationScenarioFlow = ai.defineFlow(
