@@ -76,7 +76,7 @@ export default function StrokeRehabModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Helping with Mobility and Daily Activities</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -140,7 +140,7 @@ export default function StrokeRehabModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Adapting the Home for Safety and Independence</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -169,7 +169,7 @@ export default function StrokeRehabModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Long-Term Health Management</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
