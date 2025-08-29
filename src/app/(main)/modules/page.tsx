@@ -29,6 +29,7 @@ import {
   Users,
   Stethoscope,
   Brain,
+  Droplets,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -89,6 +90,13 @@ const caregiverModules = [
       'A compassionate guide to understanding and navigating palliative care for a loved one.',
     icon: HeartHandshake,
   },
+  {
+    id: 'benign-prostate-care',
+    title: 'Urinary Problems in Men',
+    description:
+      'Understand common urinary issues like BPH and learn practical tips for management.',
+    icon: Droplets,
+  },
 ];
 
 const professionalModules = [
@@ -126,6 +134,13 @@ const professionalModules = [
     description:
       'A review of the detection and management of depression in older adults for primary care providers.',
     icon: Stethoscope,
+  },
+  {
+    id: 'benign-prostate-professional',
+    title: 'Benign Prostatic Conditions',
+    description:
+      'A clinical review of the evaluation and management of BPH and prostatitis in older men.',
+    icon: Droplets,
   },
 ];
 
