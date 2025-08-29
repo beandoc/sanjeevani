@@ -20,6 +20,8 @@ import {
   PersonStanding,
   Recycle,
   Dumbbell,
+  HeartHandshake,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -83,6 +85,18 @@ const modules = [
     title: 'Strength Training for Health',
     description: 'Learn the principles and benefits of strength training for older adults.',
     icon: Dumbbell,
+  },
+  {
+    id: 'palliative-care-professional',
+    title: 'Palliative Care for Professionals',
+    description: 'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
+    icon: Users,
+  },
+  {
+    id: 'palliative-care-caregiver',
+    title: 'Palliative Care: A Guide for Caregivers',
+    description: 'A compassionate guide to understanding and navigating palliative care for a loved one.',
+    icon: HeartHandshake,
   },
 ];
 
