@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -54,17 +53,17 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 const allModules = [
-    { moduleId: 'fall-prevention', title: 'Fall Prevention', description: 'Learn to identify risks and create a safe environment.', estimatedDuration: 20, topic: 'Fall Prevention' },
-    { moduleId: 'bed-bound-care', title: 'Bed Bound Patient Care', description: 'Essential care for bed-bound patients, including hygiene and pressure sore prevention.', estimatedDuration: 30, topic: 'Bed Bound Care' },
-    { moduleId: 'dementia-care', title: 'Dementia Care', description: 'Techniques for communicating with and caring for individuals with dementia.', estimatedDuration: 45, topic: 'Dementia' },
-    { moduleId: 'heart-failure', title: 'Heart Failure Management', description: 'Managing heart failure, including medication, fluid balance, and lifestyle.', estimatedDuration: 35, topic: 'Heart Failure' },
-    { moduleId: 'stroke-rehab', title: 'Stroke Rehabilitation', description: 'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.', estimatedDuration: 40, topic: 'Stroke' },
-    { moduleId: 'parkinsonism-care', title: 'Parkinsonism Care', description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
-    { moduleId: 'kidney-failure', title: 'Kidney Failure on Dialysis', description: 'Managing patients with kidney failure, including dialysis specifics and diet.', estimatedDuration: 40, topic: 'Kidney Failure' },
-    { moduleId: 'vision-problems-caregiver', title: 'Vision and Eye Problems', description: 'Learn to recognize common eye issues, red flags, and when to see a doctor.', estimatedDuration: 15, topic: 'Vision Problems' },
-    { moduleId: 'joint-problems-caregiver', title: 'Understanding Joint Pain & Arthritis', description: 'Learn about common joint problems like arthritis and gout and how to manage them.', estimatedDuration: 20, topic: 'Joint Problems' },
-    { moduleId: 'benign-prostate-care', title: 'Urinary Problems in Men', description: 'Understand common urinary issues like BPH and learn practical tips for management.', estimatedDuration: 15, topic: 'Urinary Problems' },
-    { moduleId: 'nutrition-caregiver', title: 'Nutrition and Feeding Issues', description: 'Learn about malnutrition, feeding problems, and strategies to improve nutrition.', estimatedDuration: 20, topic: 'Nutrition' },
+  { moduleId: 'fall-prevention', title: 'Fall Prevention', description: 'Learn to identify risks and create a safe environment.', estimatedDuration: 20, topic: 'Fall Prevention' },
+  { moduleId: 'bed-bound-care', title: 'Bed Bound Patient Care', description: 'Essential care for bed-bound patients, including hygiene and pressure sore prevention.', estimatedDuration: 30, topic: 'Bed Bound Care' },
+  { moduleId: 'dementia-care', title: 'Dementia Care', description: 'Techniques for communicating with and caring for individuals with dementia.', estimatedDuration: 45, topic: 'Dementia' },
+  { moduleId: 'heart-failure', title: 'Heart Failure Management', description: 'Managing heart failure, including medication, fluid balance, and lifestyle.', estimatedDuration: 35, topic: 'Heart Failure' },
+  { moduleId: 'stroke-rehab', title: 'Stroke Rehabilitation', description: 'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.', estimatedDuration: 40, topic: 'Stroke' },
+  { moduleId: 'parkinsonism-care', title: 'Parkinsonism Care', description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
+  { moduleId: 'kidney-failure', title: 'Kidney Failure on Dialysis', description: 'Managing patients with kidney failure, including dialysis specifics and diet.', estimatedDuration: 40, topic: 'Kidney Failure' },
+  { moduleId: 'vision-problems-caregiver', title: 'Vision and Eye Problems', description: 'Learn to recognize common eye issues, red flags, and when to see a doctor.', estimatedDuration: 15, topic: 'Vision Problems' },
+  { moduleId: 'joint-problems-caregiver', title: 'Understanding Joint Pain & Arthritis', description: 'Learn about common joint problems like arthritis and gout and how to manage them.', estimatedDuration: 20, topic: 'Joint Problems' },
+  { moduleId: 'benign-prostate-care', title: 'Urinary Problems in Men', description: 'Understand common urinary issues like BPH and learn practical tips for management.', estimatedDuration: 15, topic: 'Urinary Problems' },
+  { moduleId: 'nutrition-caregiver', title: 'Nutrition and Feeding Issues', description: 'Learn about malnutrition, feeding problems, and strategies to improve nutrition.', estimatedDuration: 20, topic: 'Nutrition' },
 ];
 
 const getStaticPersonalizedPath = (
@@ -93,18 +92,24 @@ const getStaticPersonalizedPath = (
   if (skillLevel === 'beginner') {
     suggestedModules.push(...allModules.filter(m => m.moduleId === 'fall-prevention' || m.moduleId === 'bed-bound-care'));
   } else if (skillLevel === 'intermediate') {
-     suggestedModules.push(...allModules.filter(m => m.moduleId === 'nutrition-caregiver' || m.moduleId === 'joint-problems-caregiver'));
+      suggestedModules.push(...allModules.filter(m => m.moduleId === 'nutrition-caregiver' || m.moduleId === 'joint-problems-caregiver'));
   } else {
-     suggestedModules.push(...allModules.filter(m => m.moduleId === 'vision-problems-caregiver' || m.moduleId === 'benign-prostate-care'));
+      suggestedModules.push(...allModules.filter(m => m.moduleId === 'vision-problems-caregiver' || m.moduleId === 'benign-prostate-care'));
   }
   
   // Remove duplicates and limit to 3
   const uniqueModules = Array.from(new Set(suggestedModules.map(m => m.moduleId)))
-                             .map(id => suggestedModules.find(m => m.moduleId === id)!)
-                             .slice(0, 3);
+                          .map(id => suggestedModules.find(m => m.moduleId === id)!)
+                          .slice(0, 3);
+  
+  // Fix: Add the missing `focusArea` property to each module
+  const modulesWithFocusArea = uniqueModules.map(module => ({
+    ...module,
+    focusArea: caregivingScenario
+  }));
 
   return {
-    suggestedModules: uniqueModules,
+    suggestedModules: modulesWithFocusArea,
     reasoning: `Based on your selection of ${skillLevel} experience and the focus on ${caregivingScenario}, we've selected these modules for you.`
   };
 };
@@ -151,7 +156,7 @@ export default function DashboardClient() {
             <CardContent className="space-y-4">
               {!personalizedPath?.suggestedModules.length && (
                  <div className="flex items-center justify-center py-10">
-                    <p className="text-muted-foreground">Select your learning profile in settings to see personalized modules.</p>
+                   <p className="text-muted-foreground">Select your learning profile in settings to see personalized modules.</p>
                  </div>
               )}
 
