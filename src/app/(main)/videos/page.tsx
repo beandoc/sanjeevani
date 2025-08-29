@@ -58,6 +58,14 @@ const videos = [
     category: 'Mobility',
     youtubeId: 'kP6LMw67LvM',
   },
+  {
+    id: 7,
+    title: 'Moving a Fallen Person',
+    description:
+      'Learn the proper technique for helping someone up from the floor after a fall.',
+    category: 'First Aid',
+    youtubeId: '9I1IvLoiOx4',
+  },
 ];
 
 export default function VideosPage() {
