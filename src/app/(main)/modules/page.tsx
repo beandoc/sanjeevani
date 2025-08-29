@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import {
   ShieldAlert,
   Accessibility,
   PersonStanding,
+  Recycle,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -68,6 +70,12 @@ const modules = [
     title: 'Staying Steady and Safe: Fall Prevention',
     description: 'Learn to identify risks and create a safe environment to prevent falls.',
     icon: PersonStanding,
+  },
+  {
+    id: 'geriatric-rehabilitation',
+    title: 'Geriatric Rehabilitation',
+    description: 'Understand the interventions that help restore function and independence in older adults.',
+    icon: Recycle,
   },
 ];
 
