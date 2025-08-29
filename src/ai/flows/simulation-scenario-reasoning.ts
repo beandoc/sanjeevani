@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -42,39 +43,12 @@ const SimulationScenarioOutputSchema = z.object({
 export type SimulationScenarioOutput = z.infer<typeof SimulationScenarioOutputSchema>;
 
 export async function simulateScenario(input: SimulationScenarioInput): Promise<SimulationScenarioOutput> {
-  return simulationScenarioFlow(input);
+  // This is a fallback and should not be relied upon.
+  // The frontend should use the static data.
+  return {
+    feedback: 'This is static feedback. The AI flow is disabled.',
+    recommendation: 'This is a static recommendation.',
+    scenarioUpdate: 'The scenario has been updated statically.',
+    nextOptions: ['Option 1', 'Option 2', 'Option 3'],
+  };
 }
-
-const scenarioReasoningPrompt = ai.definePrompt({
-  name: 'scenarioReasoningPrompt',
-  input: {schema: SimulationScenarioInputSchema},
-  output: {schema: SimulationScenarioOutputSchema},
-  prompt: `You are a medical simulation AI for training caregivers. Your role is to create a realistic, evolving scenario and provide educational feedback.
-
-  Current Scenario:
-  "{{{scenarioDescription}}}"
-
-  Patient's underlying conditions:
-  "{{{patientCondition}}}"
-
-  The caregiver chose the following action:
-  "{{{caregiverAction}}}"
-
-  Based on the caregiver's action, you must do the following:
-  1.  **Provide Feedback**: In the 'feedback' field, evaluate the caregiver's action. Was it the best choice? Was it dangerous? Explain the immediate consequences and reasoning in a clear, concise, and educational manner.
-  2.  **Give a Recommendation**: In the 'recommendation' field, state what the best practice or optimal first step would have been in this situation.
-  3.  **Update the Scenario**: In the 'scenarioUpdate' field, describe the outcome of the caregiver's action. What happens next? How does the patient's condition change? Make it a logical progression of the story.
-  4.  **Generate Next Options**: In the 'nextOptions' field, provide 3-4 distinct, plausible multiple-choice options for the caregiver's next action based on the *new* scenario update. One option should be clearly the best choice, while others should be plausible but less ideal or incorrect.`,
-});
-
-const simulationScenarioFlow = ai.defineFlow(
-  {
-    name: 'simulationScenarioFlow',
-    inputSchema: SimulationScenarioInputSchema,
-    outputSchema: SimulationScenarioOutputSchema,
-  },
-  async input => {
-    const {output} = await scenarioReasoningPrompt(input);
-    return output!;
-  }
-);
