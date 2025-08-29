@@ -47,8 +47,8 @@ type HistoryItem = {
   reasoning?: string;
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
-  const simData = simulationsData[params.slug] || {
+export default function SimulationPage({ params: { slug } }: { params: { slug: string } }) {
+  const simData = simulationsData[slug] || {
     title: 'Simulation',
     scenario: 'Scenario not found.',
     condition: '',
