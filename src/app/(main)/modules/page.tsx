@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-const modules = [
+const caregiverModules = [
   {
     id: 'kidney-failure',
     title: 'Kidney Failure on Dialysis',
@@ -76,6 +76,15 @@ const modules = [
     icon: PersonStanding,
   },
   {
+    id: 'palliative-care-caregiver',
+    title: 'Palliative Care: A Guide for Caregivers',
+    description: 'A compassionate guide to understanding and navigating palliative care for a loved one.',
+    icon: HeartHandshake,
+  },
+];
+
+const professionalModules = [
+  {
     id: 'geriatric-rehabilitation',
     title: 'Geriatric Rehabilitation',
     description: 'Understand the interventions that help restore function and independence in older adults.',
@@ -93,12 +102,6 @@ const modules = [
     description: 'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
     icon: Users,
   },
-  {
-    id: 'palliative-care-caregiver',
-    title: 'Palliative Care: A Guide for Caregivers',
-    description: 'A compassionate guide to understanding and navigating palliative care for a loved one.',
-    icon: HeartHandshake,
-  },
    {
     id: 'geriatric-depression-professional',
     title: 'Geriatric Depression in Primary Care',
@@ -109,39 +112,76 @@ const modules = [
 
 export default function ModulesPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold font-headline">Learning Modules</h1>
         <p className="text-muted-foreground">
           Explore our comprehensive library of caregiving topics.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {modules.map((module) => {
-          const Icon = module.icon;
-          return (
-            <Card key={module.id} className="flex flex-col">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="font-headline text-xl">{module.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <CardDescription>{module.description}</CardDescription>
-              </CardContent>
-              <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href={`/modules/${module.id}`}>
-                    Start Module <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          );
-        })}
+      
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold font-headline mb-4">For Family Caregivers</h2>
+           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {caregiverModules.map((module) => {
+              const Icon = module.icon;
+              return (
+                <Card key={module.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                        <Icon className="h-6 w-6 text-primary" />
+                      </div>
+                      <CardTitle className="font-headline text-xl">{module.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <CardDescription>{module.description}</CardDescription>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild className="w-full">
+                      <Link href={`/modules/${module.id}`}>
+                        Start Module <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold font-headline mb-4">For Health Professionals</h2>
+           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {professionalModules.map((module) => {
+              const Icon = module.icon;
+              return (
+                <Card key={module.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
+                        <Icon className="h-6 w-6 text-accent" />
+                      </div>
+                      <CardTitle className="font-headline text-xl">{module.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <CardDescription>{module.description}</CardDescription>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild className="w-full">
+                      <Link href={`/modules/${module.id}`}>
+                        Start Module <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
