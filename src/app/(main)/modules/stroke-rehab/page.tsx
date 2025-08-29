@@ -40,7 +40,7 @@ export default function StrokeRehabModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>What Happens After a Stroke</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <p>
                   A stroke can impact many functions, including movement, speech, and thinking. Recovery is a unique journey for each person and requires patience and consistent support.
@@ -108,7 +108,7 @@ export default function StrokeRehabModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Strategies for Effective Interaction</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>

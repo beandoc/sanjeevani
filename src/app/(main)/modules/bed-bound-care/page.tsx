@@ -40,7 +40,7 @@ export default function BedBoundCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>The Importance of Skin Care</CardTitle>
-              </CardHeader>
+              </Header>
               <CardContent className="space-y-4">
                 <p>
                   Pressure sores are injuries to the skin and underlying tissue resulting from prolonged pressure. They are a primary concern for bed-bound individuals.
