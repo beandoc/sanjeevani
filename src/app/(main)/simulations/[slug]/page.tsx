@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, use } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -138,8 +138,8 @@ const simulationsData: {
   },
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
-  const simData = simulationsData[params.slug];
+export default function SimulationPage({ params: { slug } }: { params: { slug: string } }) {
+  const simData = simulationsData[slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
