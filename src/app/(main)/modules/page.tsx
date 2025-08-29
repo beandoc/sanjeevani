@@ -30,6 +30,7 @@ import {
   Stethoscope,
   Brain,
   Droplets,
+  Foot,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -97,6 +98,13 @@ const caregiverModules = [
       'Understand common urinary issues like BPH and learn practical tips for management.',
     icon: Droplets,
   },
+   {
+    id: 'foot-care',
+    title: 'Foot Care Essentials',
+    description:
+      'Learn the basics of foot care for older adults to maintain mobility and prevent complications.',
+    icon: Foot,
+  },
 ];
 
 const professionalModules = [
@@ -141,6 +149,13 @@ const professionalModules = [
     description:
       'A clinical review of the evaluation and management of BPH and prostatitis in older men.',
     icon: Droplets,
+  },
+   {
+    id: 'foot-care-professional',
+    title: 'Podogeriatrics: Clinical Foot Care',
+    description:
+      'A clinical review of common foot pathologies, assessment, and management in older adults.',
+    icon: Foot,
   },
 ];
 
