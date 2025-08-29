@@ -42,7 +42,7 @@ const SimulationScenarioOutputSchema = z.object({
 });
 export type SimulationScenarioOutput = z.infer<typeof SimulationScenarioOutputSchema>;
 
-export async function simulateScenario(input: SimulationScenarioInput): Promise<SimulationScenarioOutput> {
+export function simulateScenario(input: SimulationScenarioInput): SimulationScenarioOutput {
   // This is a fallback and should not be relied upon.
   // The frontend should use the static data.
   return {
