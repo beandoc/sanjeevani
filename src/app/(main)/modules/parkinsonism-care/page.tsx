@@ -176,7 +176,7 @@ export default function ParkinsonismCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Practical Tips</CardTitle>
-              </CardHeader>
+              </Header>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
