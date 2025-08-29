@@ -111,28 +111,46 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-              <h4 className="font-semibold text-lg">Alpha-Blockers</h4>
-              <p>Target the dynamic component by relaxing smooth muscle. All are considered to have equal clinical effectiveness.</p>
-              <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>Non-selective (Terazosin, Doxazosin):</strong> Require dose titration and BP monitoring.</li>
-                  <li><strong>Alpha-1A Selective (Tamsulosin, Silodosin):</strong> Minimal effects on BP, but higher rates of ejaculatory dysfunction. Silodosin is highly selective.</li>
-                  <li><strong>Alfuzosin:</strong> Lacks subtype selectivity but has minimal BP effects and low rates of ejaculatory dysfunction.</li>
-                  <li><strong>Clinical Pearl:</strong> Warn patients about Intraoperative Floppy Iris Syndrome (IFIS) if cataract surgery is planned. It's prudent to delay initiation until after surgery.</li>
-              </ul>
+            <Card>
+              <CardHeader>
+                <CardTitle>Alpha-Blockers</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Target the dynamic component by relaxing smooth muscle. All are considered to have equal clinical effectiveness.</p>
+                <ul className="list-disc space-y-2 pl-5 mt-2">
+                    <li><strong>Non-selective (Terazosin, Doxazosin):</strong> Require dose titration and BP monitoring.</li>
+                    <li><strong>Alpha-1A Selective (Tamsulosin, Silodosin):</strong> Minimal effects on BP, but higher rates of ejaculatory dysfunction. Silodosin is highly selective.</li>
+                    <li><strong>Alfuzosin:</strong> Lacks subtype selectivity but has minimal BP effects and low rates of ejaculatory dysfunction.</li>
+                    <li><strong>Clinical Pearl:</strong> Warn patients about Intraoperative Floppy Iris Syndrome (IFIS) if cataract surgery is planned. It's prudent to delay initiation until after surgery.</li>
+                </ul>
+              </CardContent>
+            </Card>
 
-              <h4 className="font-semibold text-lg mt-4">5-Alpha-Reductase Inhibitors (Finasteride, Dutasteride)</h4>
-              <p>Target the static component by reducing prostate size. Best for larger prostates (>40g). May take up to 6 months for full effect. Reduces risk of acute retention and need for surgery.</p>
-               <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>Side Effects:</strong> Primarily sexual (decreased libido, ED).</li>
-                  <li><strong>PSA Levels:</strong> Reduce serum PSA by ~50% after 6 months; a new baseline is needed for cancer screening.</li>
-              </ul>
+            <Card>
+              <CardHeader>
+                <CardTitle>5-Alpha-Reductase Inhibitors (Finasteride, Dutasteride)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Target the static component by reducing prostate size. Best for larger prostates (&gt;40g). May take up to 6 months for full effect. Reduces risk of acute retention and need for surgery.</p>
+                <ul className="list-disc space-y-2 pl-5 mt-2">
+                    <li><strong>Side Effects:</strong> Primarily sexual (decreased libido, ED).</li>
+                    <li><strong>PSA Levels:</strong> Reduce serum PSA by ~50% after 6 months; a new baseline is needed for cancer screening.</li>
+                </ul>
+              </CardContent>
+            </Card>
               
-              <h4 className="font-semibold text-lg mt-4">Combination & Other Therapies</h4>
-               <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>Alpha-blocker + 5-ARI:</strong> More effective than monotherapy for men with large prostates in reducing clinical progression.</li>
-                  <li><strong>Alpha-blocker + Anticholinergic:</strong> Can be used safely for predominant storage symptoms in men with PVR <250 mL.</li>
-                  <li><strong>PDE-5 Inhibitors (Tadalafil):</strong> FDA-approved for LUTS, improves IPSS score but not peak flow rate.</li>
-              </ul>
+            <Card>
+              <CardHeader>
+                <CardTitle>Combination & Other Therapies</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Alpha-blocker + 5-ARI:</strong> More effective than monotherapy for men with large prostates in reducing clinical progression.</li>
+                    <li><strong>Alpha-blocker + Anticholinergic:</strong> Can be used safely for predominant storage symptoms in men with PVR &lt;250 mL.</li>
+                    <li><strong>PDE-5 Inhibitors (Tadalafil):</strong> FDA-approved for LUTS, improves IPSS score but not peak flow rate.</li>
+                </ul>
+              </CardContent>
+            </Card>
           </AccordionContent>
         </AccordionItem>
         
@@ -152,10 +170,10 @@ export default function BenignProstateProfessionalPage() {
                     <strong>TURP (Transurethral Resection of the Prostate):</strong> The long-standing gold standard. Bipolar TURP is safer as it avoids TUR syndrome.
                 </li>
                 <li>
-                    <strong>TUIP (Transurethral Incision):</strong> Effective for smaller glands (<30g) with lower risk of retrograde ejaculation.
+                    <strong>TUIP (Transurethral Incision):</strong> Effective for smaller glands (&lt;30g) with lower risk of retrograde ejaculation.
                 </li>
                 <li>
-                    <strong>Open Prostatectomy:</strong> Reserved for very large glands (>80g).
+                    <strong>Open Prostatectomy:</strong> Reserved for very large glands (&gt;80g).
                 </li>
                  <li>
                     <strong>Laser Therapies & TUMT:</strong> Evolving technologies that offer similar efficacy to TURP with potentially fewer side effects. Laser vaporization is the fastest-growing modality.
@@ -179,7 +197,7 @@ export default function BenignProstateProfessionalPage() {
              <ul className="list-disc space-y-2 pl-5">
                 <li><strong>Category I (Acute Bacterial):</strong> Presents with acute UTI/systemic symptoms. Swollen, tender prostate on DRE. Prostatic massage is contraindicated. Treat with bactericidal antibiotics (e.g., fluoroquinolones, cephalosporins), parenterally if severe.</li>
                 <li><strong>Category II (Chronic Bacterial):</strong> Recurrent UTIs with the same organism. Requires a prolonged course (4-6 weeks) of oral antibiotics (fluoroquinolones).</li>
-                <li><strong>Category III (CP/CPPS):</strong> Most common type (>90%). Primary symptom is urologic pain. Diagnosis of exclusion. Management is multimodal and phenotype-based (UPOINT system), using analgesics, anti-inflammatories, alpha-blockers, and non-pharmacologic approaches like cognitive behavioral therapy and acupuncture.</li>
+                <li><strong>Category III (CP/CPPS):</strong> Most common type (&gt;90%). Primary symptom is urologic pain. Diagnosis of exclusion. Management is multimodal and phenotype-based (UPOINT system), using analgesics, anti-inflammatories, alpha-blockers, and non-pharmacologic approaches like cognitive behavioral therapy and acupuncture.</li>
                 <li><strong>Category IV (Asymptomatic Inflammatory):</strong> Incidental finding of leukocytes. No treatment required.</li>
             </ul>
           </AccordionContent>
