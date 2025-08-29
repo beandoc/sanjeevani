@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -104,15 +104,26 @@ const professionalLearningPath: PersonalizedPathOutput = {
   ],
 };
 
-const activeModules = [
-  { title: 'Dementia Care', progress: 75, topic: 'Dementia Care' },
-  { title: 'Heart Failure Management', progress: 40, topic: 'Heart Failure' },
-  { title: 'Stroke Rehabilitation', progress: 10, topic: 'Stroke' },
+const initialActiveModules = [
+  { title: 'Dementia Care', progress: 0, topic: 'Dementia Care' },
+  { title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
+  { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
 
 export default function DashboardClient() {
   const { role } = useRole();
   const personalizedPath = role === 'professional' ? professionalLearningPath : caregiverLearningPath;
+  const [activeModules, setActiveModules] = useState(initialActiveModules);
+
+  useEffect(() => {
+    // Simulate dynamic progress by randomizing it on mount
+    const randomizedModules = initialActiveModules.map(mod => ({
+      ...mod,
+      progress: Math.floor(Math.random() * 81) + 10, // Random progress between 10 and 90
+    }));
+    setActiveModules(randomizedModules);
+  }, []);
+
 
   return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
