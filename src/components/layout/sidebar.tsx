@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from 'next-intl/link';
+import { usePathname } from 'next-intl/client';
 import {
   Sidebar,
   SidebarHeader,
@@ -21,19 +21,21 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const links = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/modules', label: 'Modules', icon: GraduationCap },
-  { href: '/simulations', label: 'Simulations', icon: Bot },
-  { href: '/videos', label: 'Video Library', icon: Video },
-  { href: '/podcasts', label: 'Podcasts', icon: Mic },
-  { href: '/assessment-guide', label: 'Assessment Guide', icon: FileText },
-  { href: '/resources', label: 'Resources', icon: BookMarked },
-];
+import { useTranslations } from 'next-intl';
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const t = useTranslations('Sidebar');
+
+  const links = [
+    { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { href: '/modules', label: t('modules'), icon: GraduationCap },
+    { href: '/simulations', label: t('simulations'), icon: Bot },
+    { href: '/videos', label: t('video_library'), icon: Video },
+    { href: '/podcasts', label: t('podcasts'), icon: Mic },
+    { href: '/assessment-guide', label: t('assessment_guide'), icon: FileText },
+    { href: '/resources', label: t('resources'), icon: BookMarked },
+  ];
 
   return (
     <Sidebar
@@ -52,7 +54,7 @@ export function AppSidebar() {
               'text-xl font-bold font-headline text-sidebar-foreground group-data-[collapsible=icon]:hidden'
             )}
           >
-            Eldercare Pro
+            {t('title')}
           </h1>
         </Link>
       </SidebarHeader>

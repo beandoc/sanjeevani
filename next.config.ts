@@ -1,7 +1,7 @@
 import type {NextConfig} from 'next';
 import createWithNextIntl from 'next-intl/plugin';
 
-const withNextIntl = createWithNextIntl('./src/i18n.ts');
+const withNextIntl = createWithNextIntl();
 
 const nextConfig: NextConfig = {
   /* config options here */

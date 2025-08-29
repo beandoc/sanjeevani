@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
 import { NextIntlClientProvider, useMessages } from 'next-intl';
+import { ReactNode } from 'react';
 
 export default function LocaleLayout({
   children,
@@ -9,11 +9,14 @@ export default function LocaleLayout({
   params: { locale: string };
 }) {
   const messages = useMessages();
+
   return (
     <html lang={locale} className="dark">
-      <NextIntlClientProvider locale={locale} messages={messages}>
-        {children}
-      </NextIntlClientProvider>
+      <body>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

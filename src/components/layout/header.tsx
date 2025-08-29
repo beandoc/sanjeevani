@@ -12,18 +12,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { usePathname, useRouter } from 'next-intl/client';
+import { useLocale, useTranslations } from 'next-intl';
 
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
+  const t = useTranslations('Header');
 
   const handleLocaleChange = (newLocale: string) => {
-    // The pathname contains the current locale, so we need to remove it.
-    const newPath = pathname.startsWith(`/${locale}`) ? pathname.substring(`/${locale}`.length) || '/' : pathname;
-    router.replace(`/${newLocale}${newPath}`);
+    router.replace(pathname, { locale: newLocale });
   };
 
   return (
@@ -37,11 +36,11 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Globe className="h-5 w-5" />
-              <span className="sr-only">Change language</span>
+              <span className="sr-only">{t('language')}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Language</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('language')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => handleLocaleChange('en')}>English</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleLocaleChange('hi')}>हिन्दी</DropdownMenuItem>
@@ -50,7 +49,7 @@ export function Header() {
         </DropdownMenu>
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t('notifications')}</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -68,12 +67,12 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('account')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem>{t('profile')}</DropdownMenuItem>
+            <DropdownMenuItem>{t('settings')}</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem>{t('logout')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
