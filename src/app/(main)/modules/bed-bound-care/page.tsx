@@ -40,7 +40,7 @@ export default function BedBoundCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>The Importance of Skin Care</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <p>
                   Pressure sores are injuries to the skin and underlying tissue resulting from prolonged pressure. They are a primary concern for bed-bound individuals.
@@ -108,7 +108,7 @@ export default function BedBoundCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Preventing Stiffness and Complications</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <p>
                   Even if a person cannot get out of bed, movement is crucial to prevent joint stiffness, muscle shortening (contractures), and blood clots.
@@ -140,7 +140,7 @@ export default function BedBoundCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Fueling the Body for Health</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <p>Good nutrition is essential for maintaining skin integrity, fighting infection, and overall well-being.</p>
                 <ul className="list-disc space-y-2 pl-5">

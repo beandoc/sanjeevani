@@ -113,7 +113,7 @@ export default function FallPreventionModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Maintaining strength and balance through exercise</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -142,7 +142,7 @@ export default function FallPreventionModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>How diet supports fall prevention</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -171,7 +171,7 @@ export default function FallPreventionModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Having a plan of action</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
