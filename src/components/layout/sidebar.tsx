@@ -63,7 +63,7 @@ export function AppSidebar() {
               'text-xl font-bold font-headline text-sidebar-foreground group-data-[collapsible=icon]:hidden'
             )}
           >
-            Eldercare Pro
+            Sanjeevani
           </h1>
         </Link>
       </SidebarHeader>

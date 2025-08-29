@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'Eldercare Pro',
+  title: 'Sanjeevani',
   description:
     'Advanced training and simulation for geriatric patient caregivers.',
 };
