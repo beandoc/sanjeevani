@@ -11,8 +11,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import { useRole } from '@/context/role-context';
@@ -24,16 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTranslations } from 'next-intl';
-import { usePathname, useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
 
 export function Header() {
   const { role, setRole } = useRole();
-  const t = useTranslations('Header');
-  const router = useRouter();
-  const pathname = usePathname();
-  const locale = useLocale();
 
   const roles = [
     {
@@ -47,13 +38,6 @@ export function Header() {
       icon: User,
     },
   ];
-
-  const handleLocaleChange = (newLocale: string) => {
-    // This will replace the current locale in the pathname
-    const newPath = pathname.replace(/^\/[^/]+/, `/${newLocale}`);
-    router.replace(newPath);
-  };
-
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-8">
@@ -104,22 +88,9 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">{t('language')}</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuRadioGroup value={locale} onValueChange={handleLocaleChange}>
-              <DropdownMenuRadioItem value="en">{t('english')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="hi">{t('hindi')}</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="mr">{t('marathi')}</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
-          <span className="sr-only">{t('notifications')}</span>
+          <span className="sr-only">Notifications</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -137,12 +108,12 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>{t('profile')}</DropdownMenuItem>
-            <DropdownMenuItem>{t('settings')}</DropdownMenuItem>
+            <DropdownMenuItem>Profile</DropdownMenuItem>
+            <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>{t('logout')}</DropdownMenuItem>
+            <DropdownMenuItem>Logout</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

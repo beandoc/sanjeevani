@@ -22,22 +22,18 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const t = useTranslations('AppSidebar');
-  const locale = useLocale();
 
   const links = [
-    { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
-    { href: `/${locale}/modules`, label: t('modules'), icon: GraduationCap },
-    { href: `/${locale}/simulations`, label: t('simulations'), icon: Bot },
-    { href: `/${locale}/videos`, label: t('videoLibrary'), icon: Video },
-    { href: `/${locale}/podcasts`, label: t('podcasts'), icon: Mic },
-    { href: `/${locale}/assessment-guide`, label: t('assessmentGuide'), icon: FileText },
-    { href: `/${locale}/resources`, label: t('resources'), icon: BookMarked },
+    { href: `/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
+    { href: `/modules`, label: 'Modules', icon: GraduationCap },
+    { href: `/simulations`, label: 'Simulations', icon: Bot },
+    { href: `/videos`, label: 'Video Library', icon: Video },
+    { href: `/podcasts`, label: 'Podcasts', icon: Mic },
+    { href: `/assessment-guide`, label: 'Assessment Guide', icon: FileText },
+    { href: `/resources`, label: 'Resources', icon: BookMarked },
   ];
 
   // A helper function to check if a link is active
@@ -58,7 +54,7 @@ export function AppSidebar() {
     >
       <SidebarHeader className="p-4">
         <Link
-          href={`/${locale}/dashboard`}
+          href={`/dashboard`}
           className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center"
         >
           <LifeBuoy className="h-8 w-8 text-primary" />
@@ -67,7 +63,7 @@ export function AppSidebar() {
               'text-xl font-bold font-headline text-sidebar-foreground group-data-[collapsible=icon]:hidden'
             )}
           >
-            {t('title')}
+            Eldercare Pro
           </h1>
         </Link>
       </SidebarHeader>

@@ -6,29 +6,21 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { getMessages, getTranslations } from 'next-intl/server';
 import DashboardClient from './dashboard-client';
-import { pick } from 'next-intl';
-import { NextIntlClientProvider } from 'next-intl';
 
 export default async function DashboardPage() {
-  const t = await getTranslations('DashboardPage');
-  const messages = await getMessages();
-  
   return (
     <div className="container mx-auto p-0 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-3xl">{t('welcome')}</CardTitle>
-            <CardDescription>{t('description')}</CardDescription>
+            <CardTitle className="font-headline text-3xl">Welcome, Caregiver!</CardTitle>
+            <CardDescription>Your personalized dashboard to guide you in providing the best care.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>{t('intro')}</p>
+            <p>Here you can find your learning modules, track your progress, and run simulations to practice your skills.</p>
           </CardContent>
         </Card>
-        <NextIntlClientProvider messages={pick(messages, 'DashboardPage')}>
-          <DashboardClient />
-        </NextIntlClientProvider>
+        <DashboardClient />
     </div>
   );
 }

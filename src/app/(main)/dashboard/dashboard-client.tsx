@@ -25,7 +25,6 @@ import {
 import Link from 'next/link';
 import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTranslations } from 'next-intl';
 
 const iconMap: { [key: string]: React.ElementType } = {
   Dementia: BrainCircuit,
@@ -60,7 +59,6 @@ function PersonalizedPathSkeleton() {
 }
 
 export default function DashboardClient() {
-  const t = useTranslations('DashboardPage');
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -89,7 +87,7 @@ export default function DashboardClient() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="font-headline text-2xl">{t('learningPathTitle')}</CardTitle>
+                <CardTitle className="font-headline text-2xl">Personalized Learning Path</CardTitle>
                 <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
               </div>
               {personalizedPath && (
@@ -103,8 +101,8 @@ export default function DashboardClient() {
                 <div className="flex items-center gap-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
                   <AlertTriangle className="h-6 w-6" />
                   <div className="flex-1">
-                    <h3 className="font-semibold">{t('learningPathError')}</h3>
-                    <p className="text-sm">{t('learningPathErrorMessage')}</p>
+                    <h3 className="font-semibold">Could not load learning path</h3>
+                    <p className="text-sm">There was an error fetching your personalized learning path. Please try again later.</p>
                   </div>
                 </div>
               ) : (
@@ -142,8 +140,8 @@ export default function DashboardClient() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="font-headline text-2xl">{t('activeModulesTitle')}</CardTitle>
-                <CardDescription>{t('activeModulesDescription')}</CardDescription>
+                <CardTitle className="font-headline text-2xl">Active Modules</CardTitle>
+                <CardDescription>Continue where you left off.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {modules.map((mod) => {
@@ -166,16 +164,16 @@ export default function DashboardClient() {
 
             <Card className="bg-gradient-to-br from-primary to-blue-600 text-primary-foreground">
               <CardHeader>
-                <CardTitle className="font-headline text-2xl">{t('practiceScenariosTitle')}</CardTitle>
+                <CardTitle className="font-headline text-2xl">Practice Scenarios</CardTitle>
                 <CardDescription className="text-primary-foreground/80">
-                  {t('practiceScenariosDescription')}
+                  Hone your skills with real-world simulations.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="mb-4">{t('practiceScenariosIntro')}</p>
+                <p className="mb-4">Test your decision-making in a safe, controlled environment.</p>
                 <Button variant="secondary" className="w-full" asChild>
                   <Link href="/simulations">
-                    {t('startSimulation')} <ArrowRight className="ml-2 h-4 w-4" />
+                    Start a Simulation <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </CardContent>
