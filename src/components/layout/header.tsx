@@ -49,7 +49,8 @@ export function Header() {
   ];
 
   const handleLocaleChange = (newLocale: string) => {
-    const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
+    // This will replace the current locale in the pathname
+    const newPath = pathname.replace(/^\/[^/]+/, `/${newLocale}`);
     router.replace(newPath);
   };
 

@@ -23,20 +23,32 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('AppSidebar');
+  const locale = useLocale();
 
   const links = [
-    { href: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-    { href: '/modules', label: t('modules'), icon: GraduationCap },
-    { href: '/simulations', label: t('simulations'), icon: Bot },
-    { href: '/videos', label: t('videoLibrary'), icon: Video },
-    { href: '/podcasts', label: t('podcasts'), icon: Mic },
-    { href: '/assessment-guide', label: t('assessmentGuide'), icon: FileText },
-    { href: '/resources', label: t('resources'), icon: BookMarked },
+    { href: `/${locale}/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
+    { href: `/${locale}/modules`, label: t('modules'), icon: GraduationCap },
+    { href: `/${locale}/simulations`, label: t('simulations'), icon: Bot },
+    { href: `/${locale}/videos`, label: t('videoLibrary'), icon: Video },
+    { href: `/${locale}/podcasts`, label: t('podcasts'), icon: Mic },
+    { href: `/${locale}/assessment-guide`, label: t('assessmentGuide'), icon: FileText },
+    { href: `/${locale}/resources`, label: t('resources'), icon: BookMarked },
   ];
+
+  // A helper function to check if a link is active
+  const isActive = (href: string) => {
+    // Exact match for dashboard
+    if (href.endsWith('/dashboard')) {
+      return pathname.endsWith('/dashboard');
+    }
+    // Broader match for nested routes
+    return pathname.startsWith(href);
+  };
 
   return (
     <Sidebar
@@ -46,7 +58,7 @@ export function AppSidebar() {
     >
       <SidebarHeader className="p-4">
         <Link
-          href="/dashboard"
+          href={`/${locale}/dashboard`}
           className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center"
         >
           <LifeBuoy className="h-8 w-8 text-primary" />
@@ -65,9 +77,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton
                 asChild
-                isActive={
-                  pathname.endsWith(link.href) || (pathname.includes(link.href) && link.href !== '/dashboard')
-                }
+                isActive={isActive(link.href)}
                 tooltip={{ children: link.label }}
               >
                 <Link href={link.href}>

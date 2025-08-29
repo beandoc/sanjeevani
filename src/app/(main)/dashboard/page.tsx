@@ -16,9 +16,8 @@ export default async function DashboardPage() {
   const messages = await getMessages();
   
   return (
-    <div className="container mx-auto p-0">
-      <div className="grid gap-6">
-        <Card className="col-span-1 lg:col-span-3">
+    <div className="container mx-auto p-0 space-y-6">
+        <Card>
           <CardHeader>
             <CardTitle className="font-headline text-3xl">{t('welcome')}</CardTitle>
             <CardDescription>{t('description')}</CardDescription>
@@ -30,7 +29,6 @@ export default async function DashboardPage() {
         <NextIntlClientProvider messages={pick(messages, 'DashboardPage')}>
           <DashboardClient />
         </NextIntlClientProvider>
-      </div>
     </div>
   );
 }
