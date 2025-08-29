@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   User,
   ShieldAlert,
   Accessibility,
+  PersonStanding,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -60,6 +62,12 @@ const modules = [
     description:
       "Guidance on managing Parkinson's symptoms, including medication, mobility, and support.",
     icon: User,
+  },
+  {
+    id: 'fall-prevention',
+    title: 'Staying Steady and Safe: Fall Prevention',
+    description: 'Learn to identify risks and create a safe environment to prevent falls.',
+    icon: PersonStanding,
   },
 ];
 
