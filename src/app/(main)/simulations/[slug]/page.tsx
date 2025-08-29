@@ -138,8 +138,7 @@ const simulationsData: {
   },
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default function SimulationPage({ params: { slug } }: { params: { slug: string } }) {
   const simData = simulationsData[slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
