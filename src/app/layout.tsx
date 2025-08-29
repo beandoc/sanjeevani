@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ReactNode } from 'react';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/layout/sidebar';
+import { Header } from '@/components/layout/header';
 
 export const metadata: Metadata = {
   title: 'Eldercare Pro',
@@ -15,8 +18,7 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    // The lang attribute is managed by src/app/[locale]/layout.tsx
-    <html>
+    <html lang="en" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -30,7 +32,15 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <SidebarProvider>
+            <div className="flex">
+              <AppSidebar />
+              <div className="flex flex-1 flex-col min-h-screen bg-background">
+                <Header />
+                <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+              </div>
+            </div>
+        </SidebarProvider>
         <Toaster />
       </body>
     </html>

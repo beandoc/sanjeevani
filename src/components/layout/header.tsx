@@ -12,19 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next-intl/client';
-import { useLocale, useTranslations } from 'next-intl';
 
 export function Header() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const locale = useLocale();
-  const t = useTranslations('Header');
-
-  const handleLocaleChange = (newLocale: string) => {
-    router.replace(pathname, { locale: newLocale });
-  };
-
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-8">
       <div className="md:hidden">
@@ -36,20 +25,20 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Globe className="h-5 w-5" />
-              <span className="sr-only">{t('language')}</span>
+              <span className="sr-only">Language</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('language')}</DropdownMenuLabel>
+            <DropdownMenuLabel>Language</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => handleLocaleChange('en')}>English</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleLocaleChange('hi')}>हिन्दी</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleLocaleChange('mr')}>मराठी</DropdownMenuItem>
+            <DropdownMenuItem>English</DropdownMenuItem>
+            <DropdownMenuItem>हिन्दी</DropdownMenuItem>
+            <DropdownMenuItem>मराठी</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
-          <span className="sr-only">{t('notifications')}</span>
+          <span className="sr-only">Notifications</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -67,12 +56,12 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t('account')}</DropdownMenuLabel>
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>{t('profile')}</DropdownMenuItem>
-            <DropdownMenuItem>{t('settings')}</DropdownMenuItem>
+            <DropdownMenuItem>Profile</DropdownMenuItem>
+            <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>{t('logout')}</DropdownMenuItem>
+            <DropdownMenuItem>Logout</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
