@@ -11,15 +11,13 @@ export const metadata: Metadata = {
     'Advanced training and simulation for geriatric patient caregivers.',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
   params: { locale },
 }: {
   children: ReactNode;
   params: { locale: string };
 }) {
-  const messages = await getMessages();
-
   return (
     <html lang={locale} className="dark">
       <head>
@@ -35,10 +33,8 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <NextIntlClientProvider messages={messages}>
-          {children}
-          <Toaster />
-        </NextIntlClientProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );

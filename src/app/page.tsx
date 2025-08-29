@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
-
-// This page only renders for the root `/` URL
+import {redirect} from 'next/navigation';
+ 
 export default function RootPage() {
   redirect('/dashboard');
 }
