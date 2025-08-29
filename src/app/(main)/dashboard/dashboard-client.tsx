@@ -25,21 +25,19 @@ import {
   Recycle,
   Stethoscope,
   Users,
-  Loader2,
+  Eye,
+  Bone,
+  Droplets,
+  Utensils,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
-import {
-  generatePersonalizedPath,
-  type PersonalizedPathOutput,
-  type ModulePerformance,
-} from '@/ai/flows/personalized-learning-path';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
   'Heart Failure': HeartPulse,
-  Stroke: Activity,
+  'Stroke': Activity,
   'Parkinsonism Care': User,
   'Kidney Failure': ShieldAlert,
   'Bed Bound Care': Accessibility,
@@ -49,7 +47,68 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Geriatric Depression': Stethoscope,
   'Palliative Care Professional': Users,
   'Dementia': BrainCircuit,
+  'Vision Problems': Eye,
+  'Joint Problems': Bone,
+  'Urinary Problems': Droplets,
+  'Nutrition': Utensils,
 };
+
+const allModules = [
+    { moduleId: 'fall-prevention', title: 'Fall Prevention', description: 'Learn to identify risks and create a safe environment.', estimatedDuration: 20, topic: 'Fall Prevention' },
+    { moduleId: 'bed-bound-care', title: 'Bed Bound Patient Care', description: 'Essential care for bed-bound patients, including hygiene and pressure sore prevention.', estimatedDuration: 30, topic: 'Bed Bound Care' },
+    { moduleId: 'dementia-care', title: 'Dementia Care', description: 'Techniques for communicating with and caring for individuals with dementia.', estimatedDuration: 45, topic: 'Dementia' },
+    { moduleId: 'heart-failure', title: 'Heart Failure Management', description: 'Managing heart failure, including medication, fluid balance, and lifestyle.', estimatedDuration: 35, topic: 'Heart Failure' },
+    { moduleId: 'stroke-rehab', title: 'Stroke Rehabilitation', description: 'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.', estimatedDuration: 40, topic: 'Stroke' },
+    { moduleId: 'parkinsonism-care', title: 'Parkinsonism Care', description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
+    { moduleId: 'kidney-failure', title: 'Kidney Failure on Dialysis', description: 'Managing patients with kidney failure, including dialysis specifics and diet.', estimatedDuration: 40, topic: 'Kidney Failure' },
+    { moduleId: 'vision-problems-caregiver', title: 'Vision and Eye Problems', description: 'Learn to recognize common eye issues, red flags, and when to see a doctor.', estimatedDuration: 15, topic: 'Vision Problems' },
+    { moduleId: 'joint-problems-caregiver', title: 'Understanding Joint Pain & Arthritis', description: 'Learn about common joint problems like arthritis and gout and how to manage them.', estimatedDuration: 20, topic: 'Joint Problems' },
+    { moduleId: 'benign-prostate-care', title: 'Urinary Problems in Men', description: 'Understand common urinary issues like BPH and learn practical tips for management.', estimatedDuration: 15, topic: 'Urinary Problems' },
+    { moduleId: 'nutrition-caregiver', title: 'Nutrition and Feeding Issues', description: 'Learn about malnutrition, feeding problems, and strategies to improve nutrition.', estimatedDuration: 20, topic: 'Nutrition' },
+];
+
+const getStaticPersonalizedPath = (
+  skillLevel: string,
+  caregivingScenario: string
+): PersonalizedPathOutput => {
+  let suggestedModules = [];
+
+  // Rule 1: Scenario-specific module
+  const scenarioMap: { [key: string]: string } = {
+    'Dementia': 'dementia-care',
+    'Heart Failure': 'heart-failure',
+    'Stroke Recovery': 'stroke-rehab',
+    'Parkinson\'s Disease': 'parkinsonism-care',
+    'Kidney Failure / Dialysis': 'kidney-failure',
+  };
+  const scenarioModuleId = scenarioMap[caregivingScenario];
+  if (scenarioModuleId) {
+    const mainModule = allModules.find(m => m.moduleId === scenarioModuleId);
+    if (mainModule) {
+        suggestedModules.push(mainModule);
+    }
+  }
+
+  // Rule 2: Skill-level based modules
+  if (skillLevel === 'beginner') {
+    suggestedModules.push(...allModules.filter(m => m.moduleId === 'fall-prevention' || m.moduleId === 'bed-bound-care'));
+  } else if (skillLevel === 'intermediate') {
+     suggestedModules.push(...allModules.filter(m => m.moduleId === 'nutrition-caregiver' || m.moduleId === 'joint-problems-caregiver'));
+  } else {
+     suggestedModules.push(...allModules.filter(m => m.moduleId === 'vision-problems-caregiver' || m.moduleId === 'benign-prostate-care'));
+  }
+  
+  // Remove duplicates and limit to 3
+  const uniqueModules = Array.from(new Set(suggestedModules.map(m => m.moduleId)))
+                             .map(id => suggestedModules.find(m => m.moduleId === id)!)
+                             .slice(0, 3);
+
+  return {
+    suggestedModules: uniqueModules,
+    reasoning: `Based on your selection of ${skillLevel} experience and the focus on ${caregivingScenario}, we've selected these modules for you.`
+  };
+};
+
 
 const initialActiveModules = [
   { title: 'Dementia Care', progress: 0, topic: 'Dementia Care' },
@@ -57,18 +116,9 @@ const initialActiveModules = [
   { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
 
-// Dummy performance data
-const performanceHistory: ModulePerformance[] = [
-    { moduleId: 'fall-prevention', score: 75, timeSpent: 30 },
-    { moduleId: 'dementia-care', score: 88, timeSpent: 45 },
-];
-
-
 export default function DashboardClient() {
   const { role, skillLevel, caregivingScenario } = useProfile();
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeModules, setActiveModules] = useState(initialActiveModules);
 
   useEffect(() => {
@@ -81,23 +131,8 @@ export default function DashboardClient() {
   }, []);
 
   useEffect(() => {
-    async function getPath() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const path = await generatePersonalizedPath({
-          skillLevel,
-          performanceHistory,
-          caregivingScenario,
-        });
-        setPersonalizedPath(path);
-      } catch (err) {
-        console.error(err);
-        setError('There was an error fetching your personalized learning path. Please try again later.');
-      }
-      setIsLoading(false);
-    }
-    getPath();
+    const path = getStaticPersonalizedPath(skillLevel, caregivingScenario);
+    setPersonalizedPath(path);
   }, [skillLevel, caregivingScenario, role]);
 
 
@@ -109,24 +144,18 @@ export default function DashboardClient() {
                 <CardTitle className="font-headline text-2xl">Personalized Learning Path</CardTitle>
                 <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
               </div>
+               <CardDescription>
+                {personalizedPath?.reasoning}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isLoading && (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-4 text-muted-foreground">Generating your learning path...</p>
-                </div>
+              {!personalizedPath?.suggestedModules.length && (
+                 <div className="flex items-center justify-center py-10">
+                    <p className="text-muted-foreground">Select your learning profile in settings to see personalized modules.</p>
+                 </div>
               )}
-              {error && (
-                 <Alert variant="destructive">
-                    <ShieldAlert className="h-4 w-4" />
-                    <AlertTitle>Could not load learning path</AlertTitle>
-                    <AlertDescription>
-                        {error}
-                    </AlertDescription>
-                </Alert>
-              )}
-              {!isLoading && !error && personalizedPath?.suggestedModules.map((module) => {
+
+              {personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.topic] || BookOpenCheck;
                   return (
                     <div
