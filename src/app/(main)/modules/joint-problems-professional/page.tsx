@@ -100,7 +100,7 @@ export default function JointProblemsProfessionalPage() {
                         <strong>Polymyalgia Rheumatica (PMR):</strong> Acute onset of pain/stiffness in shoulder and hip girdles. Markedly elevated ESR/CRP. Must screen for Giant-Cell Arteritis (GCA).
                     </li>
                 </ul>
-                <p className="font-bold">The Role of Arthrocentesis: Joint fluid analysis is crucial to differentiate inflammatory vs. noninflammatory arthritis and to rule out septic arthritis. A WBC count >2,000 indicates inflammation.</p>
+                <p className="font-bold">The Role of Arthrocentesis: Joint fluid analysis is crucial to differentiate inflammatory vs. noninflammatory arthritis and to rule out septic arthritis. A WBC count &gt;2,000 indicates inflammation.</p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -133,7 +133,7 @@ export default function JointProblemsProfessionalPage() {
                <ul className="list-disc space-y-2 pl-5">
                   <li><strong>First-Line:</strong> Early referral to rheumatology for Disease-Modifying Antirheumatic Drugs (DMARDs), often triple therapy (e.g., methotrexate, hydroxychloroquine, sulfasalazine).</li>
                   <li><strong>Biologics:</strong> For patients who fail DMARDs. Require screening for TB and hepatitis before initiation.</li>
-                  <li><strong>Steroids:</strong> Used as a bridge to DMARDs, but not for long-term therapy. Prophylaxis for osteoporosis is critical if used for >3 months.</li>
+                  <li><strong>Steroids:</strong> Used as a bridge to DMARDs, but not for long-term therapy. Prophylaxis for osteoporosis is critical if used for &gt;3 months.</li>
               </ul>
           </AccordionContent>
         </AccordionItem>
