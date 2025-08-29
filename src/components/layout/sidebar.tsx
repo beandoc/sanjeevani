@@ -38,11 +38,12 @@ export function AppSidebar() {
 
   // A helper function to check if a link is active
   const isActive = (href: string) => {
-    // Exact match for dashboard
-    if (href.endsWith('/dashboard')) {
-      return pathname.endsWith('/dashboard');
+    // Exact match for the dashboard page
+    if (href === '/dashboard') {
+      return pathname === href;
     }
-    // Broader match for nested routes
+    // For all other links, check if the current path starts with the link's href.
+    // This handles nested routes correctly (e.g., /simulations/managing-a-fall).
     return pathname.startsWith(href);
   };
 
