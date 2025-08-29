@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, Target, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { Lightbulb, Target, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -168,6 +168,13 @@ export default function SimulationPage({ params }: { params: { slug: string } })
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <Button variant="outline" asChild>
+        <Link href="/simulations">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Simulations
+        </Link>
+      </Button>
+
       <h1 className="text-3xl font-bold font-headline">{simData.title}</h1>
       <Card>
         <CardHeader>
@@ -251,3 +258,5 @@ export default function SimulationPage({ params }: { params: { slug: string } })
     </div>
   );
 }
+
+    
