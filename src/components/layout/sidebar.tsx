@@ -18,6 +18,7 @@ import {
   Mic,
   BookMarked,
   LifeBuoy,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ const links = [
   { href: '/simulations', label: 'Simulations', icon: Bot },
   { href: '/videos', label: 'Video Library', icon: Video },
   { href: '/podcasts', label: 'Podcasts', icon: Mic },
+  { href: '/assessment-guide', label: 'Assessment Guide', icon: FileText },
   { href: '/resources', label: 'Resources', icon: BookMarked },
 ];
 
