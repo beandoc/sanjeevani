@@ -193,7 +193,6 @@ export default function ParkinsonismCareModulePage() {
             </Card>
           </AccordionContent>
         </AccordionItem>
-        
       </Accordion>
     </div>
   );
