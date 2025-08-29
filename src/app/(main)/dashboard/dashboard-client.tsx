@@ -25,7 +25,7 @@ import {
 import Link from 'next/link';
 import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTranslations, AbstractIntlMessages } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 const iconMap: { [key: string]: React.ElementType } = {
   Dementia: BrainCircuit,
@@ -59,7 +59,7 @@ function PersonalizedPathSkeleton() {
   );
 }
 
-export default function DashboardClient({messages}: {messages: AbstractIntlMessages}) {
+export default function DashboardClient() {
   const t = useTranslations('DashboardPage');
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);

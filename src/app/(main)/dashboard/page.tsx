@@ -6,13 +6,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { getTranslations } from 'next-intl/server';
+import { getMessages, getTranslations } from 'next-intl/server';
 import DashboardClient from './dashboard-client';
 import { pick } from 'next-intl';
+import { NextIntlClientProvider } from 'next-intl';
 
 export default async function DashboardPage() {
   const t = await getTranslations('DashboardPage');
-  const messages = pick(await getMessages(), ['DashboardPage']);
+  const messages = await getMessages();
   
   return (
     <div className="container mx-auto p-0">
@@ -26,9 +27,9 @@ export default async function DashboardPage() {
             <p>{t('intro')}</p>
           </CardContent>
         </Card>
-
-        <DashboardClient messages={messages} />
-
+        <NextIntlClientProvider messages={pick(messages, 'DashboardPage')}>
+          <DashboardClient />
+        </NextIntlClientProvider>
       </div>
     </div>
   );
