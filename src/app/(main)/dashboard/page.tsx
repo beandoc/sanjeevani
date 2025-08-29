@@ -99,7 +99,7 @@ export default async function DashboardPage() {
                     <div className="flex-1">
                       <h3 className="font-semibold">Could not load learning path</h3>
                       <p className="text-sm">
-                        There was an error fetching your personalized learning path. Please ensure your Gemini API key is configured correctly.
+                        There was an error fetching your personalized learning path. Please try again later.
                       </p>
                     </div>
                   </div>

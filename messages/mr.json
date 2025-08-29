@@ -1,0 +1,20 @@
+{
+  "Header": {
+    "language": "भाषा",
+    "account": "माझे खाते",
+    "profile": "प्रोफाइल",
+    "settings": "सेटिंग्ज",
+    "logout": "लॉगआउट",
+    "notifications": "सूचना"
+  },
+  "Sidebar": {
+    "title": "एल्डरकेअर प्रो",
+    "dashboard": "डॅशबोर्ड",
+    "modules": "मॉड्यूल्स",
+    "simulations": "सिम्युलेशन",
+    "video_library": "व्हिडिओ लायब्ररी",
+    "podcasts": "पॉडकास्ट",
+    "assessment_guide": "मूल्यांकन मार्गदर्शक",
+    "resources": "संसाधने"
+  }
+}
