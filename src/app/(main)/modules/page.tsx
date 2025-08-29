@@ -22,6 +22,7 @@ import {
   Dumbbell,
   HeartHandshake,
   Users,
+  Stethoscope,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -97,6 +98,12 @@ const modules = [
     title: 'Palliative Care: A Guide for Caregivers',
     description: 'A compassionate guide to understanding and navigating palliative care for a loved one.',
     icon: HeartHandshake,
+  },
+   {
+    id: 'geriatric-depression-professional',
+    title: 'Geriatric Depression in Primary Care',
+    description: 'A review of the detection and management of depression in older adults for primary care providers.',
+    icon: Stethoscope,
   },
 ];
 
