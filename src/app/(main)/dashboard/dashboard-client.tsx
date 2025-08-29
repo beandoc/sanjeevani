@@ -20,51 +20,99 @@ import {
   Accessibility,
   ArrowRight,
   BookOpenCheck,
-  AlertTriangle,
   PersonStanding,
-  HeartHandshake
+  HeartHandshake,
+  Recycle,
+  Stethoscope,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRole } from '@/context/role-context';
 import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const iconMap: { [key: string]: React.ElementType } = {
-  Dementia: BrainCircuit,
+  'Dementia Care': BrainCircuit,
   'Heart Failure': HeartPulse,
   Stroke: Activity,
-  Parkinsonism: User,
+  'Parkinsonism Care': User,
   'Kidney Failure': ShieldAlert,
-  'Bed Bound': Accessibility,
+  'Bed Bound Care': Accessibility,
   'Fall Prevention': PersonStanding,
   'Palliative Care': HeartHandshake,
+  'Geriatric Rehabilitation': Recycle,
+  'Geriatric Depression': Stethoscope,
+  'Palliative Care Professional': Users,
 };
 
-const modules = [
-  { title: 'Dementia Care', progress: 75, topic: 'Dementia' },
+const caregiverLearningPath: PersonalizedPathOutput = {
+  reasoning: '',
+  suggestedModules: [
+    {
+      moduleId: 'fall-prevention',
+      title: 'Fall Prevention',
+      description: 'Learn to identify risks and create a safe environment to prevent falls, a critical skill for any caregiver.',
+      estimatedDuration: 20,
+      topic: 'Fall Prevention',
+      focusArea: 'Safety',
+    },
+    {
+      moduleId: 'dementia-care',
+      title: 'Dementia Care Basics',
+      description: 'Understand techniques for communicating with and caring for individuals with dementia.',
+      estimatedDuration: 30,
+      topic: 'Dementia Care',
+      focusArea: 'Communication',
+    },
+    {
+      moduleId: 'palliative-care-caregiver',
+      title: 'Intro to Palliative Care',
+      description: 'A compassionate guide to understanding palliative care and improving quality of life.',
+      estimatedDuration: 25,
+      topic: 'Palliative Care',
+      focusArea: 'Comfort Care',
+    },
+  ],
+};
+
+const professionalLearningPath: PersonalizedPathOutput = {
+  reasoning: '',
+  suggestedModules: [
+    {
+      moduleId: 'geriatric-depression-professional',
+      title: 'Geriatric Depression in Primary Care',
+      description: 'A review of the detection and management of depression in older adults for primary care providers.',
+      estimatedDuration: 45,
+      topic: 'Geriatric Depression',
+      focusArea: 'Clinical Management',
+    },
+    {
+      moduleId: 'geriatric-rehabilitation',
+      title: 'Geriatric Rehabilitation',
+      description: 'Understand the interventions that help restore function and independence in older adults.',
+      estimatedDuration: 35,
+      topic: 'Geriatric Rehabilitation',
+      focusArea: 'Functional Restoration',
+    },
+    {
+      moduleId: 'palliative-care-professional',
+      title: 'Principles of Geriatric Palliative Care',
+      description: 'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
+      estimatedDuration: 40,
+      topic: 'Palliative Care Professional',
+      focusArea: 'Advanced Care',
+    },
+  ],
+};
+
+const activeModules = [
+  { title: 'Dementia Care', progress: 75, topic: 'Dementia Care' },
   { title: 'Heart Failure Management', progress: 40, topic: 'Heart Failure' },
   { title: 'Stroke Rehabilitation', progress: 10, topic: 'Stroke' },
 ];
 
-function PersonalizedPathSkeleton() {
-  return (
-    <div className="space-y-4">
-      {[...Array(2)].map((_, i) => (
-        <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
-          <Skeleton className="h-12 w-12 rounded-lg" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function DashboardClient({ personalizedPath }: { personalizedPath: PersonalizedPathOutput | null }) {
-  const [isLoading] = useState(false);
-  const [error] = useState(!personalizedPath);
+export default function DashboardClient() {
+  const { role } = useRole();
+  const personalizedPath = role === 'professional' ? professionalLearningPath : caregiverLearningPath;
 
   return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -76,18 +124,7 @@ export default function DashboardClient({ personalizedPath }: { personalizedPath
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isLoading ? (
-                <PersonalizedPathSkeleton />
-              ) : error ? (
-                <div className="flex items-center gap-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-                  <AlertTriangle className="h-6 w-6" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold">Could not load learning path</h3>
-                    <p className="text-sm">There was an error fetching your personalized learning path. Please try again later.</p>
-                  </div>
-                </div>
-              ) : (
-                personalizedPath?.suggestedModules.map((module) => {
+              {personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.topic] || BookOpenCheck;
                   return (
                     <div
@@ -113,8 +150,7 @@ export default function DashboardClient({ personalizedPath }: { personalizedPath
                       </Button>
                     </div>
                   );
-                })
-              )}
+                })}
             </CardContent>
           </Card>
 
@@ -125,7 +161,7 @@ export default function DashboardClient({ personalizedPath }: { personalizedPath
                 <CardDescription>Continue where you left off.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {modules.map((mod) => {
+                {activeModules.map((mod) => {
                   const Icon = iconMap[mod.topic];
                   return (
                     <div key={mod.title}>
