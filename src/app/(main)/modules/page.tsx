@@ -19,6 +19,7 @@ import {
   Accessibility,
   PersonStanding,
   Recycle,
+  Dumbbell,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -76,6 +77,12 @@ const modules = [
     title: 'Geriatric Rehabilitation',
     description: 'Understand the interventions that help restore function and independence in older adults.',
     icon: Recycle,
+  },
+  {
+    id: 'strength-training',
+    title: 'Strength Training for Health',
+    description: 'Learn the principles and benefits of strength training for older adults.',
+    icon: Dumbbell,
   },
 ];
 
