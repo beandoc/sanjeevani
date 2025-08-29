@@ -42,6 +42,14 @@ const videos = [
     category: 'Dementia',
     youtubeId: '1fhrvikubOw',
   },
+  {
+    id: 5,
+    title: 'Stand Pivot Transfer',
+    description:
+      'A demonstration of the stand pivot transfer technique for helping someone with mobility challenges.',
+    category: 'Mobility',
+    youtubeId: '2i_rjQ9SGa0',
+  }
 ];
 
 export default function VideosPage() {
