@@ -11,13 +11,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-  params: { locale },
 }: {
   children: ReactNode;
-  params: { locale: string };
 }) {
   return (
-    <html lang={locale} className="dark">
+    // The lang attribute is managed by src/app/[locale]/layout.tsx
+    <html>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

@@ -10,8 +10,10 @@ export default function LocaleLayout({
 }) {
   const messages = useMessages();
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      {children}
-    </NextIntlClientProvider>
+    <html lang={locale} className="dark">
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </html>
   );
 }
