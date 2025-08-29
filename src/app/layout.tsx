@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ReactNode } from 'react';
+import { ThemeProvider } from '@/context/theme-context';
 
 export const metadata: Metadata = {
   title: 'Sanjeevani',
@@ -17,7 +18,7 @@ export default async function RootLayout({
 }) {
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -31,8 +32,15 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
-        <Toaster />
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+            {children}
+            <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

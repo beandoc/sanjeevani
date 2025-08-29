@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import Link from 'next/link';
+import { HeaderControls } from './header-controls';
 
 export function Header() {
 
@@ -27,6 +28,7 @@ export function Header() {
 
 
       <div className="flex items-center gap-4">
+        <HeaderControls />
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
