@@ -76,7 +76,7 @@ export default function ParkinsonismCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>The Importance of Timing</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                  <p>Medications for Parkinson's are the primary way to manage symptoms, but they must be managed carefully.</p>
                  <ul className="list-disc space-y-2 pl-5">
@@ -144,7 +144,7 @@ export default function ParkinsonismCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Staying Active and Engaged</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -176,7 +176,7 @@ export default function ParkinsonismCareModulePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Practical Tips</CardTitle>
-              </Header>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>

@@ -7,7 +7,7 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookOpen, Target, Puzzle, GitBranch, Globe, Users, HeartHandshake, Bot, Cpu } from 'lucide-react';
+import { ArrowRight, BookOpen, Globe, Users, HeartHandshake, Cpu } from 'lucide-react';
 import Link from 'next/link';
 
 const lessons = [
