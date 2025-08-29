@@ -1,5 +1,3 @@
-
-
 import {
   Card,
   CardContent,
@@ -9,6 +7,12 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import {
   ArrowRight,
   BrainCircuit,
@@ -72,13 +76,15 @@ const caregiverModules = [
   {
     id: 'fall-prevention',
     title: 'Staying Steady and Safe: Fall Prevention',
-    description: 'Learn to identify risks and create a safe environment to prevent falls.',
+    description:
+      'Learn to identify risks and create a safe environment to prevent falls.',
     icon: PersonStanding,
   },
   {
     id: 'palliative-care-caregiver',
     title: 'Palliative Care: A Guide for Caregivers',
-    description: 'A compassionate guide to understanding and navigating palliative care for a loved one.',
+    description:
+      'A compassionate guide to understanding and navigating palliative care for a loved one.',
     icon: HeartHandshake,
   },
 ];
@@ -87,25 +93,29 @@ const professionalModules = [
   {
     id: 'geriatric-rehabilitation',
     title: 'Geriatric Rehabilitation',
-    description: 'Understand the interventions that help restore function and independence in older adults.',
+    description:
+      'Understand the interventions that help restore function and independence in older adults.',
     icon: Recycle,
   },
   {
     id: 'strength-training',
     title: 'Strength Training for Health',
-    description: 'Learn the principles and benefits of strength training for older adults.',
+    description:
+      'Learn the principles and benefits of strength training for older adults.',
     icon: Dumbbell,
   },
   {
     id: 'palliative-care-professional',
     title: 'Palliative Care for Professionals',
-    description: 'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
+    description:
+      'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
     icon: Users,
   },
-   {
+  {
     id: 'geriatric-depression-professional',
     title: 'Geriatric Depression in Primary Care',
-    description: 'A review of the detection and management of depression in older adults for primary care providers.',
+    description:
+      'A review of the detection and management of depression in older adults for primary care providers.',
     icon: Stethoscope,
   },
 ];
@@ -119,11 +129,14 @@ export default function ModulesPage() {
           Explore our comprehensive library of caregiving topics.
         </p>
       </div>
-      
-      <div className="space-y-8">
-        <div>
-          <h2 className="text-2xl font-bold font-headline mb-4">For Family Caregivers</h2>
-           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+
+      <Tabs defaultValue="caregiver" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="caregiver">For Family Caregivers</TabsTrigger>
+          <TabsTrigger value="professional">For Health Professionals</TabsTrigger>
+        </TabsList>
+        <TabsContent value="caregiver">
+          <div className="grid grid-cols-1 gap-6 pt-4 sm:grid-cols-2 lg:grid-cols-3">
             {caregiverModules.map((module) => {
               const Icon = module.icon;
               return (
@@ -133,7 +146,9 @@ export default function ModulesPage() {
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                         <Icon className="h-6 w-6 text-primary" />
                       </div>
-                      <CardTitle className="font-headline text-xl">{module.title}</CardTitle>
+                      <CardTitle className="font-headline text-xl">
+                        {module.title}
+                      </CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -150,11 +165,9 @@ export default function ModulesPage() {
               );
             })}
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-bold font-headline mb-4">For Health Professionals</h2>
-           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        </TabsContent>
+        <TabsContent value="professional">
+          <div className="grid grid-cols-1 gap-6 pt-4 sm:grid-cols-2 lg:grid-cols-3">
             {professionalModules.map((module) => {
               const Icon = module.icon;
               return (
@@ -164,7 +177,9 @@ export default function ModulesPage() {
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
                         <Icon className="h-6 w-6 text-accent" />
                       </div>
-                      <CardTitle className="font-headline text-xl">{module.title}</CardTitle>
+                      <CardTitle className="font-headline text-xl">
+                        {module.title}
+                      </CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -181,8 +196,8 @@ export default function ModulesPage() {
               );
             })}
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
