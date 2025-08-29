@@ -66,6 +66,14 @@ const videos = [
     category: 'First Aid',
     youtubeId: '9I1IvLoiOx4',
   },
+  {
+    id: 8,
+    title: 'Bed to Bedside Commode Transfer',
+    description:
+      'Learn how to safely transfer a person from a bed to a bedside commode.',
+    category: 'Mobility',
+    youtubeId: 'DPksvXhLY1U',
+  },
 ];
 
 export default function VideosPage() {
