@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -78,7 +77,7 @@ const simulationsData: {
     condition:
       'Patient has known memory problems and takes multiple critical medications, including diuretics and beta-blockers.',
     options: [
-       {
+      {
         text: 'Give them the pills from the box anyway to ensure they take them.',
         isCorrect: false,
         feedback: 'Incorrect. This could lead to a dangerous double dose if they are mistaken, potentially causing severe side effects like dangerously low blood pressure or heart rate.',
@@ -110,7 +109,7 @@ const simulationsData: {
       'While helping a person with COPD get dressed, they suddenly say it is very hard to breathe and their chest feels tight.',
     condition: 'Patient has a history of smoking and an irregular heartbeat. They use supplemental oxygen as needed.',
     options: [
-       {
+      {
         text: 'Have them lie down flat on their back.',
         isCorrect: false,
         feedback: 'Incorrect. Lying flat can make it harder to breathe for someone with COPD or heart failure as it increases pressure on the diaphragm.',
@@ -122,7 +121,7 @@ const simulationsData: {
         feedback: 'Incorrect. While this might be needed, it\'s not the best *first* action. Immediate comfort measures can often stabilize the situation. A premature 911 call could be unnecessary.',
         recommendation: 'First, take immediate steps to ease their breathing (sit them up, ensure oxygen is on, encourage calm breathing). If these actions do not provide rapid relief, then call for emergency help.'
       },
-       {
+      {
         text: 'Tell them to take deep, fast breaths to catch their breath.',
         isCorrect: false,
         feedback: 'Incorrect. Fast, panicked breathing is counterproductive and can worsen the feeling of breathlessness and anxiety.',
@@ -138,8 +137,11 @@ const simulationsData: {
   },
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
-  const simData = simulationsData[params.slug];
+// IMPORTANT: Update the Props type for params to be a Promise
+export default async function SimulationPage({ params }: { params: Promise<{ slug: string }> }) {
+  // Await the params Promise to get the actual slug value
+  const resolvedParams = await params;
+  const simData = simulationsData[resolvedParams.slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -160,10 +162,10 @@ export default function SimulationPage({ params }: { params: { slug: string } })
     setSelectedOption(option);
     setIsAnswered(true);
   };
-  
+
   const handleReset = () => {
-      setSelectedOption(null);
-      setIsAnswered(false);
+    setSelectedOption(null);
+    setIsAnswered(false);
   }
 
   return (
@@ -185,7 +187,7 @@ export default function SimulationPage({ params }: { params: { slug: string } })
           <p className="text-sm text-muted-foreground">{simData.condition}</p>
         </CardContent>
       </Card>
-      
+
       <Card className="bg-background">
         <CardHeader>
           <CardTitle>Scenario</CardTitle>
@@ -238,7 +240,7 @@ export default function SimulationPage({ params }: { params: { slug: string } })
                 <AlertTitle>Feedback</AlertTitle>
                 <AlertDescription>{selectedOption.feedback}</AlertDescription>
               </Alert>
-             
+
               <Alert variant="default" className="border-blue-500/50 bg-blue-500/10 text-primary-foreground">
                 <Target className="h-4 w-4 text-blue-500" />
                 <AlertTitle className="text-blue-400">Recommendation</AlertTitle>
