@@ -48,7 +48,7 @@ export default async function DashboardPage() {
       { moduleId: 'heart-failure-management', score: 40, timeSpent: 90 },
     ],
     caregivingScenario:
-      'Caring for a 78-year-old male who recently had a stroke and is showing signs of mobility challenges and mild confusion.',
+      'Caring for an elderly person who recently had a stroke and needs help with moving around and seems a little confused.',
   };
 
   let personalizedPath: PersonalizedPathOutput | null = null;

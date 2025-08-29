@@ -23,21 +23,21 @@ const simulationsData: {
   'managing-a-fall': {
     title: 'Managing a Fall',
     scenario:
-      'You enter the living room and find Mr. Smith, an 82-year-old with mild dementia, on the floor next to his chair. He is conscious and appears distressed.',
-    condition: 'Patient has a history of osteoporosis and is on blood thinners.',
+      'You enter the living room and find an elderly person on the floor next to a chair. They are awake and seem worried.',
+    condition: 'Patient has a history of weak bones and is on blood thinners.',
   },
   'medication-confusion': {
     title: 'Medication Confusion',
     scenario:
-      'Mrs. Davis, who has heart failure, tells you she thinks she already took her morning pills, but you see the pillbox is still full. She seems agitated.',
+      'A person with heart failure tells you they think they already took their morning pills, but you see the pillbox is still full. They seem upset.',
     condition:
-      'Patient has documented memory issues and a complex medication schedule.',
+      'Patient has known memory problems and takes many different medicines.',
   },
   'sudden-shortness-of-breath': {
     title: 'Sudden Shortness of Breath',
     scenario:
-      'While helping Mr. Chen get dressed, he suddenly complains of severe shortness of breath and chest tightness. He has a history of COPD.',
-    condition: 'Patient is a smoker and has a recent diagnosis of atrial fibrillation.',
+      'While helping a person get dressed, they suddenly say it is very hard to breathe and their chest feels tight. They have a history of breathing problems (COPD).',
+    condition: 'Patient has a history of smoking and an irregular heartbeat.',
   },
 };
 
@@ -151,7 +151,7 @@ export default function SimulationPage({ params }: { params: { slug: string } })
               id="action"
               value={action}
               onChange={(e) => setAction(e.target.value)}
-              placeholder="e.g., 'I will first check if the patient is responsive and check for any visible injuries...'"
+              placeholder="e.g., 'I will first check if the person is responsive and check for any visible injuries...'"
               rows={4}
               disabled={isLoading}
             />
