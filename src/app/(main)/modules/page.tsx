@@ -32,6 +32,7 @@ import {
   Droplets,
   Footprints,
   Bone,
+  Utensils,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -113,6 +114,13 @@ const caregiverModules = [
       'Learn about common joint problems like arthritis and gout and how to manage them at home.',
     icon: Bone,
   },
+  {
+    id: 'nutrition-caregiver',
+    title: 'Nutrition and Feeding Issues',
+    description:
+      'Learn about malnutrition, feeding problems, and strategies to improve nutrition.',
+    icon: Utensils,
+  },
 ];
 
 const professionalModules = [
@@ -171,6 +179,13 @@ const professionalModules = [
     description:
       'A clinical review of OA, RA, Gout, and other common rheumatic conditions in older adults.',
     icon: Bone,
+  },
+  {
+    id: 'nutrition-care-professional',
+    title: 'Clinical Nutrition in Older Adults',
+    description:
+        'A review of malnutrition, screening, assessment, and management strategies for clinicians.',
+    icon: Utensils,
   },
 ];
 
