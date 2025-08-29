@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -27,6 +28,7 @@ import {
   HeartHandshake,
   Users,
   Stethoscope,
+  Brain,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -90,6 +92,13 @@ const caregiverModules = [
 ];
 
 const professionalModules = [
+  {
+    id: 'dementia-care-professional',
+    title: 'Dementia Care for Professionals',
+    description:
+      'An evidence-based module on the diagnosis, management, and treatment of dementia for clinicians.',
+    icon: Brain,
+  },
   {
     id: 'geriatric-rehabilitation',
     title: 'Geriatric Rehabilitation',
