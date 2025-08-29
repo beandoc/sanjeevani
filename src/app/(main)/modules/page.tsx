@@ -33,6 +33,7 @@ import {
   Footprints,
   Bone,
   Utensils,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -121,6 +122,13 @@ const caregiverModules = [
       'Learn about malnutrition, feeding problems, and strategies to improve nutrition.',
     icon: Utensils,
   },
+  {
+    id: 'vision-problems-caregiver',
+    title: 'Vision and Eye Problems',
+    description:
+      'Learn to recognize common eye issues, red flags, and when to see a doctor.',
+    icon: Eye,
+  },
 ];
 
 const professionalModules = [
@@ -186,6 +194,13 @@ const professionalModules = [
     description:
         'A review of malnutrition, screening, assessment, and management strategies for clinicians.',
     icon: Utensils,
+  },
+  {
+    id: 'vision-problems-professional',
+    title: 'Clinical Geriatric Ophthalmology',
+    description:
+        'A review of common age-related eye diseases, diagnosis, and management for clinicians.',
+    icon: Eye,
   },
 ];
 
