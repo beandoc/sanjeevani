@@ -49,7 +49,15 @@ const videos = [
       'A demonstration of the stand pivot transfer technique for helping someone with mobility challenges.',
     category: 'Mobility',
     youtubeId: '2i_rjQ9SGa0',
-  }
+  },
+  {
+    id: 6,
+    title: 'Using a Patient Transfer Board',
+    description:
+      'A short demonstration on how to safely use a transfer board for elderly patient transfers.',
+    category: 'Mobility',
+    youtubeId: 'kP6LMw67LvM',
+  },
 ];
 
 export default function VideosPage() {
