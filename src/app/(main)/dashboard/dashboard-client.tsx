@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -21,6 +21,8 @@ import {
   ArrowRight,
   BookOpenCheck,
   AlertTriangle,
+  PersonStanding,
+  HeartHandshake
 } from 'lucide-react';
 import Link from 'next/link';
 import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
@@ -33,6 +35,8 @@ const iconMap: { [key: string]: React.ElementType } = {
   Parkinsonism: User,
   'Kidney Failure': ShieldAlert,
   'Bed Bound': Accessibility,
+  'Fall Prevention': PersonStanding,
+  'Palliative Care': HeartHandshake,
 };
 
 const modules = [
@@ -58,29 +62,9 @@ function PersonalizedPathSkeleton() {
   );
 }
 
-export default function DashboardClient() {
-  const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    async function fetchPersonalizedPath() {
-      try {
-        const response = await fetch('/api/personalized-path');
-        if (!response.ok) {
-          throw new Error('Failed to fetch personalized path');
-        }
-        const data = await response.json();
-        setPersonalizedPath(data);
-      } catch (err) {
-        setError(true);
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchPersonalizedPath();
-  }, []);
+export default function DashboardClient({ personalizedPath }: { personalizedPath: PersonalizedPathOutput | null }) {
+  const [isLoading] = useState(false);
+  const [error] = useState(!personalizedPath);
 
   return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

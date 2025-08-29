@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -61,12 +62,19 @@ const prompt = ai.definePrompt({
   - Caregiving Scenario: Prioritize modules that are directly relevant to the current scenario.
 
   Available Modules:
-  Kidney Failure on Dialysis Module: Focuses on the specifics of managing patients with kidney failure undergoing dialysis, including medication management, dietary restrictions, and emergency procedures.
-  Dementia Care Module: Covers techniques for communicating with and caring for individuals with dementia, including managing behavioral symptoms, creating a safe environment, and providing cognitive stimulation.
-  Stroke Rehabilitation Module: Addresses the principles of stroke rehabilitation, including mobility assistance, speech therapy exercises, and strategies for preventing complications.
-  Heart Failure Management Module: Focuses on the management of heart failure in elderly patients, including medication adherence, fluid balance monitoring, and lifestyle modifications.
-  Bed Bound Patient Care Module: Covers essential aspects of caring for bed-bound patients, including pressure ulcer prevention, hygiene, and mobility assistance.
-  Parkinsonism Care Module: Provides guidance on managing Parkinson's symptoms, including medication management, mobility support, and strategies for addressing motor and non-motor symptoms.
+  - Kidney Failure on Dialysis Module (moduleId: 'kidney-failure'): Focuses on the specifics of managing patients with kidney failure undergoing dialysis, including medication management, dietary restrictions, and emergency procedures.
+  - Dementia Care Module (moduleId: 'dementia-care'): Covers techniques for communicating with and caring for individuals with dementia, including managing behavioral symptoms, creating a safe environment, and providing cognitive stimulation.
+  - Stroke Rehabilitation Module (moduleId: 'stroke-rehab'): Addresses the principles of stroke rehabilitation, including mobility assistance, speech therapy exercises, and strategies for preventing complications.
+  - Heart Failure Management Module (moduleId: 'heart-failure'): Focuses on the management of heart failure in elderly patients, including medication adherence, fluid balance monitoring, and lifestyle modifications.
+  - Bed Bound Patient Care Module (moduleId: 'bed-bound-care'): Covers essential aspects of caring for bed-bound patients, including pressure ulcer prevention, hygiene, and mobility assistance.
+  - Parkinsonism Care Module (moduleId: 'parkinsonism-care'): Provides guidance on managing Parkinson's symptoms, including medication management, mobility support, and strategies for addressing motor and non-motor symptoms.
+  - Fall Prevention Module (moduleId: 'fall-prevention'): Teaches how to identify risks and create a safe environment to prevent falls.
+  - Palliative Care for Caregivers Module (moduleId: 'palliative-care-caregiver'): A compassionate guide to understanding and navigating palliative care for a loved one.
+  - Geriatric Rehabilitation Module (moduleId: 'geriatric-rehabilitation'): Understand the interventions that help restore function and independence in older adults.
+  - Strength Training for Health Module (moduleId: 'strength-training'): Learn the principles and benefits of strength training for older adults.
+  - Palliative Care for Professionals Module (moduleId: 'palliative-care-professional'): An evidence-based overview of geriatric palliative care principles and practice for clinicians.
+  - Geriatric Depression in Primary Care Module (moduleId: 'geriatric-depression-professional'): A review of the detection and management of depression in older adults for primary care providers.
+
 
   Return the 'suggestedModules' as a list of modules best suited for the caregiver given their current situation.
   Explain your reasoning for selecting the modules in the 'reasoning' field.
@@ -81,7 +89,12 @@ const personalizedLearningPathFlow = ai.defineFlow(
     outputSchema: PersonalizedPathOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+        const {output} = await prompt(input);
+        return output!;
+    } catch (error) {
+        console.error("Error in personalizedLearningPathFlow: ", error);
+        return { suggestedModules: [], reasoning: "There was an error generating the learning path." };
+    }
   }
 );

@@ -5,6 +5,7 @@ import {
 } from '@/ai/flows/personalized-learning-path';
 import { NextResponse } from 'next/server';
 
+// This route is no longer used by the dashboard but can be kept for other potential uses.
 export async function GET() {
   const personalizedPathInput: PersonalizedPathInput = {
     skillLevel: 'intermediate',
@@ -24,4 +25,3 @@ export async function GET() {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
-
