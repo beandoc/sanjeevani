@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Foot, Eye, ShieldCheck, Sun, Droplets } from 'lucide-react';
+import { ArrowLeft, Footprints, Eye, ShieldCheck, Sun, Droplets } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -130,7 +130,7 @@ export default function FootCarePage() {
         <AccordionItem value="item-4">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Foot className="h-6 w-6 text-primary" />
+              <Footprints className="h-6 w-6 text-primary" />
               Footwear and Socks
             </div>
           </AccordionTrigger>

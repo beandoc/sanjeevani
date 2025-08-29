@@ -30,7 +30,7 @@ import {
   Stethoscope,
   Brain,
   Droplets,
-  Foot,
+  Footprints,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -103,7 +103,7 @@ const caregiverModules = [
     title: 'Foot Care Essentials',
     description:
       'Learn the basics of foot care for older adults to maintain mobility and prevent complications.',
-    icon: Foot,
+    icon: Footprints,
   },
 ];
 
@@ -155,7 +155,7 @@ const professionalModules = [
     title: 'Podogeriatrics: Clinical Foot Care',
     description:
       'A clinical review of common foot pathologies, assessment, and management in older adults.',
-    icon: Foot,
+    icon: Footprints,
   },
 ];
 
