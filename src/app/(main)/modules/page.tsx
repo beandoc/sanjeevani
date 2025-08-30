@@ -35,6 +35,7 @@ import {
   Utensils,
   Eye,
   Smile,
+  Pill,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -141,10 +142,22 @@ const caregiverModules = [
     title: 'Supporting Physical Activity',
     description: 'A caregiver\'s guide to encouraging exercise and physical fitness for older adults.',
     icon: Dumbbell,
+  },
+  {
+    id: 'medication-management-caregiver',
+    title: 'Medication Management: A Guide for Caregivers',
+    description: 'Helping you navigate the risks of polypharmacy and prevent medication-related problems.',
+    icon: Pill,
   }
 ];
 
 const professionalModules = [
+  {
+    id: 'polypharmacy-professional',
+    title: 'Polypharmacy & Deprescribing',
+    description: 'A review of the risks of polypharmacy and evidence-based tools for medication management.',
+    icon: Pill,
+  },
   {
     id: 'dementia-care-professional',
     title: 'Dementia Care for Professionals',
