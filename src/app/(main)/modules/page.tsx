@@ -57,9 +57,9 @@ const caregiverModules = [
   },
   {
     id: 'dementia-care',
-    title: 'Dementia Care',
+    title: "A Caregiver's Guide to Delirium",
     description:
-      'Techniques for communicating with and caring for individuals with dementia, managing symptoms and safety.',
+      'Learn to recognize, prevent, and respond to sudden confusion in a loved one.',
     icon: BrainCircuit,
   },
   {
@@ -85,7 +85,7 @@ const caregiverModules = [
   },
   {
     id: 'parkinsonism-care',
-    title: 'Parkinson\'s Disease: A Caregiver Guide',
+    title: 'Living with Parkinson\'s Disease: A Detailed Guide',
     description:
       "A detailed guide to understanding symptoms, managing medications, and supporting daily life with PD.",
     icon: User,
@@ -186,9 +186,9 @@ const professionalModules = [
   },
   {
     id: 'dementia-care-professional',
-    title: 'Clinical Management of Dementia',
+    title: 'A Comprehensive Nursing Guide to Delirium',
     description:
-      'An evidence-based module on the diagnosis, management, and treatment of dementia for clinicians.',
+      'A detailed clinical framework for the assessment, diagnosis, and complex management of delirium.',
     icon: Brain,
   },
   {

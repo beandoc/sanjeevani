@@ -6,11 +6,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Stethoscope, BrainCircuit, Pill, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Brain, Shield, Pill, Activity, Microscope } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function DementiaCareProfessionalPage() {
+export default function DeliriumProfessionalPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -21,10 +21,10 @@ export default function DementiaCareProfessionalPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Clinical Management of Dementia
+          A Comprehensive Nursing Guide to Delirium in the Older Adult
         </h1>
         <p className="text-muted-foreground">
-          An evidence-based module for healthcare professionals on the diagnosis and management of dementia syndromes.
+          This lesson provides a detailed clinical framework for the assessment, differential diagnosis, and complex management of delirium in geriatric patients.
         </p>
       </div>
 
@@ -32,55 +32,35 @@ export default function DementiaCareProfessionalPage() {
         <AccordionItem value="item-1">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Stethoscope className="h-6 w-6 text-primary" />
-              Diagnosis and Differential
+              <Brain className="h-6 w-6 text-primary" />
+              Chapter 1: The Foundations of Delirium
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Establishing a Diagnosis</CardTitle>
+                <CardTitle>1.1 Defining Delirium: Acute Brain Failure</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  A thorough diagnostic workup is essential. This includes a detailed history from the patient and a reliable informant, a complete physical and neurological exam, cognitive testing, and selected laboratory studies.
+                  Delirium is a complex and acute neuropsychiatric syndrome, often described as acute brain failure. It represents a final common pathway for many acute illnesses and is characterized by a disturbance in attention, awareness, and cognition. Its presentation is highly variable, ranging from hypoactive lethargy to hyperactive agitation.
                 </p>
-                <h4 className="font-semibold">Key Diagnostic Steps:</h4>
-                 <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Clinical History:</strong> Onset, duration, and progression of symptoms. Focus on changes in memory, language, executive function, and behavior. Review medications.
-                    </li>
-                    <li>
-                        <strong>Cognitive Assessment:</strong> Use validated screening tools (e.g., MMSE, MoCA, Mini-Cog) and consider neuropsychological testing for complex cases.
-                    </li>
-                    <li>
-                        <strong>Laboratory Workup:</strong> At minimum, CBC, comprehensive metabolic panel, TSH, and Vitamin B12 level to rule out reversible causes.
-                    </li>
-                    <li>
-                        <strong>Neuroimaging:</strong> Non-contrast head CT or MRI is recommended in most cases to rule out structural lesions (e.g., tumor, subdural hematoma, normal pressure hydrocephalus) and evaluate for cerebrovascular disease.
-                    </li>
-                </ul>
               </CardContent>
             </Card>
-             <Card className="mt-4">
+            <Card>
               <CardHeader>
-                <CardTitle>Differential Diagnosis of Major Dementias</CardTitle>
+                <CardTitle>1.2 Epidemiology and Consequences</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Alzheimer's Disease (AD):</strong> Most common type. Insidious onset with prominent early impairment in recent memory (amnestic presentation).
-                    </li>
-                    <li>
-                        <strong>Vascular Dementia (VaD):</strong> Stepwise decline associated with clinical or radiographic evidence of cerebrovascular disease. Executive dysfunction is often prominent.
-                    </li>
-                    <li>
-                        <strong>Lewy Body Dementia (LBD):</strong> Characterized by fluctuating cognition, visual hallucinations, and spontaneous parkinsonism. Severe neuroleptic sensitivity is a key feature.
-                    </li>
-                    <li>
-                        <strong>Frontotemporal Dementia (FTD):</strong> Presents with prominent changes in personality and behavior (behavioral variant FTD) or progressive, fluent or non-fluent aphasia (primary progressive aphasia).
-                    </li>
-                </ul>
+                 <p>Delirium is a medical emergency associated with significant morbidity, mortality, and cost. It can accelerate cognitive decline, increase the risk of institutionalization, and lead to poorer functional outcomes.</p>
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader>
+                <CardTitle>1.3 Delirium Phenotypes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <p>Recognizing motor subtypes (hypoactive, hyperactive, mixed) and clinical phenotypes (Postoperative Delirium, Delirium Superimposed on Dementia) is useful as they may have different etiologies and management strategies.</p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -89,64 +69,93 @@ export default function DementiaCareProfessionalPage() {
         <AccordionItem value="item-2">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Pill className="h-6 w-6 text-primary" />
-              Pharmacological Management
+              <Microscope className="h-6 w-6 text-primary" />
+              Chapter 2: Pathophysiology and Risk Factors
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <h4 className="font-semibold text-lg">Cognitive Enhancers</h4>
-            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Cholinesterase Inhibitors (Donepezil, Rivastigmine, Galantamine):</strong> First-line for mild to moderate AD. May provide modest, temporary benefit in cognition, function, and behavior. Use with caution in patients with bradycardia or conduction abnormalities. Common side effects are gastrointestinal.
-                </li>
-                <li>
-                    <strong>NMDA Receptor Antagonists (Memantine):</strong> Approved for moderate to severe AD, often used as an adjunct to a cholinesterase inhibitor. Generally well-tolerated.
-                </li>
-                 <li>
-                    <strong>Anti-Amyloid Monoclonal Antibodies (Lecanemab, Donanemab):</strong> For patients with mild cognitive impairment or mild dementia due to AD with confirmed amyloid pathology. Requires careful patient selection and monitoring (e.g., for ARIA - Amyloid-Related Imaging Abnormalities).
-                </li>
-            </ul>
-
-            <h4 className="font-semibold text-lg mt-4">Managing Behavioral Symptoms (BPSD)</h4>
-             <p className="text-muted-foreground">Behavioral and Psychological Symptoms of Dementia (BPSD) are common and cause significant distress. The first-line approach should always be non-pharmacological.</p>
-             <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Non-Pharmacological First:</strong> Identify and treat underlying causes (pain, infection, constipation, etc.). Modify the environment, simplify tasks, and use behavioral strategies (e.g., distraction, redirection).
-                </li>
-                <li>
-                    <strong>Pharmacological (use with caution):</strong>
-                    <ul className="list-disc space-y-2 pl-8 mt-2">
-                        <li><strong>Antidepressants:</strong> SSRIs (e.g., Citalopram, Sertraline) can be effective for depression, anxiety, and agitation.</li>
-                        <li><strong>Antipsychotics:</strong> Carry a black box warning for increased mortality in dementia. Reserve for severe, refractory aggression or psychosis that poses a risk of harm. Use the lowest possible dose for the shortest possible time.</li>
-                        <li><strong>Avoid Benzodiazepines:</strong> Generally should be avoided due to risks of falls, sedation, and paradoxical agitation.</li>
-                    </ul>
-                </li>
-            </ul>
+            <Card>
+              <CardHeader>
+                <CardTitle>2.1 Pathophysiology</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>The Systems Integration Failure Hypothesis (SIFH) suggests delirium results from a breakdown in neuronal network connectivity, driven by factors like neuronal aging, neuroinflammation, and neurotransmitter imbalances. This complexity helps explain why single-agent pharmacological treatments have failed.</p>
+              </CardContent>
+            </Card>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>2.2 Predisposing and Precipitating Factors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                 <p>A patient's risk is a function of their baseline vulnerability (predisposing factors like dementia or frailty) and the acute insults they endure (precipitating factors like infection or new medications). Use mnemonics like "DELIRIUM IS VERY PAINFUL" to recall common triggers.</p>
+              </CardContent>
+            </Card>
           </AccordionContent>
         </AccordionItem>
         
         <AccordionItem value="item-3">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <ShieldAlert className="h-6 w-6 text-primary" />
-              Safety and Care Planning
+              <Stethoscope className="h-6 w-6 text-primary" />
+              Chapter 3: Clinical Identification and Diagnosis
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <ul className="list-disc space-y-2 pl-5">
-                <li>
-                    <strong>Driving Safety:</strong> Assess and discuss driving safety early and regularly. This is a major safety concern. Report to the DMV as required by local regulations if the patient is unsafe to drive.
-                </li>
-                <li>
-                    <strong>Home Safety Evaluation:</strong> Recommend a home safety evaluation to reduce the risk of falls, burns, and wandering.
-                </li>
-                <li>
-                    <strong>Advance Care Planning:</strong> Initiate conversations about goals of care and advance directives while the patient still has decision-making capacity. Encourage designation of a healthcare proxy.
-                </li>
-                <li>
-                    <strong>Caregiver Support:</strong> Dementia care is extremely stressful. Assess for caregiver burnout and connect them to resources like the Alzheimer's Association and local support groups. Provide education on the disease process and behavioral management.
-                </li>
+            <Card>
+                <CardHeader><CardTitle>Screening vs. Diagnosis</CardTitle></CardHeader>
+                <CardContent>
+                    <p>The gold standard for diagnosis remains the DSM-5 criteria. Daily screening of all hospitalized older adults is essential for early detection. The Confusion Assessment Method (CAM) is the most widely used tool, requiring (1) Acute Onset and Fluctuating Course and (2) Inattention, plus either (3) Disorganized Thinking or (4) Altered Level of Consciousness.</p>
+                </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="item-4">
+          <AccordionTrigger className="text-xl font-semibold">
+            <div className="flex items-center gap-3">
+              <Shield className="h-6 w-6 text-primary" />
+              Chapter 4: Prevention - The First Line of Defense
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2 space-y-4">
+            <p>Up to 40% of delirium cases are preventable through multicomponent, non-pharmacological interventions.</p>
+            <h4 className="font-semibold mt-2">4.1 Evidence-Based Prevention Models</h4>
+            <ul className="list-disc pl-5 space-y-2">
+                <li><strong>Hospital Elder Life Program (HELP):</strong> A protocol-driven program targeting six key risk factors: cognitive impairment, sleep deprivation, immobility, vision impairment, hearing impairment, and dehydration.</li>
+                <li><strong>ABCDEF Bundle (for ICU):</strong> A mnemonic for a comprehensive bundle of care practices including pain management, early mobility, and family engagement.</li>
             </ul>
+            <h4 className="font-semibold mt-4">4.2 Medication Management as Prevention</h4>
+             <ul className="list-disc pl-5 space-y-2">
+                <li><strong>Avoid High-Risk Medications:</strong> Scrutinize the medication list for anticholinergics (diphenhydramine), benzodiazepines, and other psychoactive drugs.</li>
+                <li><strong>Judicious Deprescribing:</strong> Taper chronic benzodiazepines or certain antidepressants to avoid withdrawal syndromes that can precipitate delirium.</li>
+            </ul>
+          </AccordionContent>
+        </AccordionItem>
+
+         <AccordionItem value="item-5">
+          <AccordionTrigger className="text-xl font-semibold">
+            <div className="flex items-center gap-3">
+              <Activity className="h-6 w-6 text-primary" />
+              Chapter 5: Management of Delirium
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2 space-y-4">
+             <Card>
+                <CardHeader><CardTitle>5.1 Non-Pharmacological Management: The Mainstay of Treatment</CardTitle></CardHeader>
+                <CardContent>
+                    <p>Once delirium occurs, non-pharmacological measures are the primary treatment. The T-A-DA (Tolerate, Anticipate, Don't Agitate) method is a useful behavioral management approach. This involves tolerating non-dangerous behaviors, anticipating patient needs, and minimizing agitating triggers.</p>
+                </CardContent>
+            </Card>
+            <Card className="mt-4">
+                <CardHeader><CardTitle>5.2 Pharmacological Management: A Limited and High-Risk Role</CardTitle></CardHeader>
+                <CardContent>
+                    <p className="font-semibold">No agents are approved by the FDA for the treatment of delirium.</p>
+                    <ul className="list-disc pl-5 space-y-2 mt-2">
+                        <li><strong>Benzodiazepines:</strong> Should not be used, as they can worsen delirium. The only exceptions are deliria due to alcohol or benzodiazepine withdrawal.</li>
+                        <li><strong>Antipsychotics (e.g., Haloperidol):</strong> Have failed to show efficacy in reducing delirium duration or severity. They carry a Black Box warning for increased mortality in patients with dementia. Their use should be reserved only for cases where severe agitation poses an imminent danger, and only after all non-pharmacological methods have failed.</li>
+                    </ul>
+                </CardContent>
+            </Card>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
