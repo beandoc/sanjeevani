@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,6 +29,11 @@ import {
   Bone,
   Droplets,
   Utensils,
+  Pill,
+  Smile,
+  Dumbbell,
+  Siren,
+  Brain,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
@@ -49,72 +55,69 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Joint Problems': Bone,
   'Urinary Problems': Droplets,
   'Nutrition': Utensils,
+  'Alzheimer\'s Disease': BrainCircuit,
+  'Heart Disease': HeartPulse,
+  'Delirium': Brain,
+  'Hypertension': HeartPulse,
+  'Medication Safety': Pill,
+  'Oral Health': Smile,
+  'Exercise': Dumbbell,
+  'Constipation': Utensils,
+  'Pneumonia': Siren,
 };
 
 const allModules = [
   { moduleId: 'fall-prevention', title: 'Fall Prevention', description: 'Learn to identify risks and create a safe environment.', estimatedDuration: 20, topic: 'Fall Prevention' },
   { moduleId: 'bed-bound-care', title: 'Bed Bound Patient Care', description: 'Essential care for bed-bound patients, including hygiene and pressure sore prevention.', estimatedDuration: 30, topic: 'Bed Bound Care' },
-  { moduleId: 'dementia-care', title: 'Dementia Care', description: 'Techniques for communicating with and caring for individuals with dementia.', estimatedDuration: 45, topic: 'Dementia' },
+  { moduleId: 'dementia-care', title: 'Delirium Care', description: 'Techniques for communicating with and caring for individuals with delirium.', estimatedDuration: 45, topic: 'Delirium' },
   { moduleId: 'heart-failure', title: 'Heart Failure Management', description: 'Managing heart failure, including medication, fluid balance, and lifestyle.', estimatedDuration: 35, topic: 'Heart Failure' },
   { moduleId: 'stroke-rehab', title: 'Stroke Rehabilitation', description: 'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.', estimatedDuration: 40, topic: 'Stroke' },
-  { moduleId: 'parkinsonism-care', title: 'Parkinsonism Care', description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
+  { moduleId: 'parkinsonism-care', title: "Living with Parkinson's Disease", description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
   { moduleId: 'vision-problems-caregiver', title: 'Vision and Eye Problems', description: 'Learn to recognize common eye issues, red flags, and when to see a doctor.', estimatedDuration: 15, topic: 'Vision Problems' },
   { moduleId: 'joint-problems-caregiver', title: 'Understanding Joint Pain & Arthritis', description: 'Learn about common joint problems like arthritis and gout and how to manage them.', estimatedDuration: 20, topic: 'Joint Problems' },
   { moduleId: 'benign-prostate-care', title: 'Urinary Problems in Men', description: 'Understand common urinary issues like BPH and learn practical tips for management.', estimatedDuration: 15, topic: 'Urinary Problems' },
   { moduleId: 'nutrition-caregiver', title: 'Nutrition and Feeding Issues', description: 'Learn about malnutrition, feeding problems, and strategies to improve nutrition.', estimatedDuration: 20, topic: 'Nutrition' },
+  { moduleId: 'ischaemic-heart-disease-caregiver', title: 'Caring for a Loved One with Heart Disease', description: 'A practical guide for families on recognizing symptoms and supporting heart health.', estimatedDuration: 25, topic: 'Heart Disease' },
+  { moduleId: 'lung-infections-caregiver', title: 'Protecting Your Loved One from Pneumonia', description: 'A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it.', estimatedDuration: 20, topic: 'Pneumonia' },
+  { moduleId: 'alzheimers-caregiver', title: "A Caregiver's Guide to Alzheimer's Disease", description: 'An in-depth guide to understanding the stages, diagnosis, and behavioral changes of Alzheimer\'s.', estimatedDuration: 40, topic: 'Alzheimer\'s Disease' }
 ];
 
-const getStaticPersonalizedPath = (
+// Function to shuffle an array
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
+
+const getDynamicPersonalizedPath = (
   skillLevel: string,
   caregivingScenario: string
 ): PersonalizedPathOutput => {
-  let suggestedModules = [];
-
-  // Rule 1: Scenario-specific module
-  const scenarioMap: { [key: string]: string } = {
-    'Dementia': 'dementia-care',
-    'Heart Failure': 'heart-failure',
-    'Stroke Recovery': 'stroke-rehab',
-    'Parkinson\'s Disease': 'parkinsonism-care',
-    'Kidney Failure / Dialysis': 'kidney-failure',
-  };
-  const scenarioModuleId = scenarioMap[caregivingScenario];
-  if (scenarioModuleId) {
-    const mainModule = allModules.find(m => m.moduleId === scenarioModuleId);
-    if (mainModule) {
-        suggestedModules.push(mainModule);
-    }
-  }
-
-  // Rule 2: Skill-level based modules
-  if (skillLevel === 'beginner') {
-    suggestedModules.push(...allModules.filter(m => m.moduleId === 'fall-prevention' || m.moduleId === 'bed-bound-care'));
-  } else if (skillLevel === 'intermediate') {
-      suggestedModules.push(...allModules.filter(m => m.moduleId === 'nutrition-caregiver' || m.moduleId === 'joint-problems-caregiver'));
-  } else {
-      suggestedModules.push(...allModules.filter(m => m.moduleId === 'vision-problems-caregiver' || m.moduleId === 'benign-prostate-care'));
-  }
+  // Shuffle the array of all modules
+  const shuffledModules = shuffleArray(allModules);
   
-  // Remove duplicates and limit to 3
-  const uniqueModules = Array.from(new Set(suggestedModules.map(m => m.moduleId)))
-                          .map(id => suggestedModules.find(m => m.moduleId === id)!)
-                          .slice(0, 3);
+  // Take the first 3 modules from the shuffled list
+  const suggestedModules = shuffledModules.slice(0, 3);
   
-  // Fix: Add the missing `focusArea` property to each module
-  const modulesWithFocusArea = uniqueModules.map(module => ({
+  // Add the missing `focusArea` property to each module
+  const modulesWithFocusArea = suggestedModules.map(module => ({
     ...module,
-    focusArea: caregivingScenario
+    focusArea: caregivingScenario // You might want to make this more dynamic later
   }));
 
   return {
     suggestedModules: modulesWithFocusArea,
-    reasoning: `Based on your selection of ${skillLevel} experience and the focus on ${caregivingScenario}, we've selected these modules for you.`
+    reasoning: `Based on your profile, we've selected these modules for you to explore. They change periodically!`
   };
 };
 
 
 const initialActiveModules = [
-  { title: 'Dementia Care', progress: 0, topic: 'Dementia Care' },
+  { title: 'Dementia Care', progress: 0, topic: 'Dementia' },
   { title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
   { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
@@ -134,7 +137,7 @@ export default function DashboardClient() {
   }, []);
 
   useEffect(() => {
-    const path = getStaticPersonalizedPath(skillLevel, caregivingScenario);
+    const path = getDynamicPersonalizedPath(skillLevel, caregivingScenario);
     setPersonalizedPath(path);
   }, [skillLevel, caregivingScenario, role]);
 
@@ -196,7 +199,7 @@ export default function DashboardClient() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {activeModules.map((mod) => {
-                  const Icon = iconMap[mod.topic];
+                  const Icon = iconMap[mod.topic] || BookOpenCheck;
                   return (
                     <div key={mod.title}>
                       <div className="mb-1 flex items-center justify-between text-sm">
