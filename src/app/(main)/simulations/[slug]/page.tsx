@@ -136,6 +136,161 @@ const simulationsData: {
       },
     ],
   },
+   'hypertension-dizziness': {
+    title: 'Managing Hypertension Side Effects',
+    scenario: 'An 85-year-old person, who recently started a new blood pressure medication, tells you they feel dizzy every time they stand up from their chair.',
+    condition: 'Patient is frail and has a history of falls.',
+    options: [
+      {
+        text: 'Tell them this is a normal side effect and it will pass.',
+        isCorrect: false,
+        feedback: 'Incorrect. While dizziness can be a side effect, dismissing it is dangerous in a frail older adult. This symptom (orthostatic hypotension) is a major risk factor for falls and injury.',
+        recommendation: 'Never normalize symptoms that increase fall risk. The priority is to ensure safety and communicate the issue to the healthcare provider for potential medication adjustment.'
+      },
+      {
+        text: 'Advise them to stand up more slowly and ensure the area is clear of trip hazards.',
+        isCorrect: false,
+        feedback: 'Incorrect. While good advice, this is not a complete solution. It manages the symptom but does not address the root cause, which is a potentially dangerous medication side effect. It leaves the patient at ongoing risk.',
+        recommendation: 'Safety measures are important, but they must be combined with medical consultation. The most critical action is to report the side effect to the doctor or nurse.'
+      },
+      {
+        text: 'Check their blood pressure while sitting and then immediately after standing, and report the findings to their doctor.',
+        isCorrect: true,
+        feedback: 'Correct. This is the best course of action. It involves assessing for orthostatic hypotension, gathering objective data, and communicating it to the healthcare provider, who can make an informed decision about the medication.',
+        recommendation: 'Measuring sitting and standing blood pressure provides crucial clinical information. Reporting these numbers allows the doctor to safely adjust the medication, balancing blood pressure control with fall prevention.'
+      },
+      {
+        text: 'Suggest they stop taking the medication until they can see the doctor.',
+        isCorrect: false,
+        feedback: 'Incorrect. Abruptly stopping a blood pressure medication can cause a dangerous rebound in blood pressure. Medication changes should only be made by a healthcare professional.',
+        recommendation: 'Never advise a patient to stop prescribed medication. The correct protocol is to report the side effect and allow the prescriber to make the necessary adjustments safely.'
+      }
+    ]
+  },
+  'polypharmacy-prescribing-cascade': {
+    title: 'Spotting a Prescribing Cascade',
+    scenario: 'A patient started a new blood pressure pill (a calcium channel blocker) a month ago. Today, they are complaining of new, significant swelling in their ankles. Their pill list is very long.',
+    condition: 'Patient has multiple chronic conditions, including heart failure and arthritis.',
+    options: [
+      {
+        text: 'Assume the swelling is from their heart failure and ask the doctor for a "water pill" (diuretic).',
+        isCorrect: false,
+        feedback: 'Incorrect. While possible, this assumption can lead to a classic prescribing cascade. Adding a diuretic to treat a medication side effect adds another drug, increases complexity, and can cause its own side effects (like dizziness or dehydration).',
+        recommendation: 'When a new symptom appears after a new drug is started, always suspect the new drug first. The primary goal is to simplify, not add more medications.'
+      },
+      {
+        text: 'Tell the patient to elevate their legs and reduce their salt intake.',
+        isCorrect: false,
+        feedback: 'Incorrect. This is a partial answer. While these are good general recommendations for swelling, they fail to address the likely root cause: the new medication. This could delay the correct solution.',
+        recommendation: 'Lifestyle advice is helpful, but it should not replace a medication review. The most important step is to question if the new symptom is linked to a recent medication change.'
+      },
+      {
+        text: 'Suggest they start wearing compression stockings.',
+        isCorrect: false,
+        feedback: 'Incorrect. This is another example of treating the symptom, not the cause. It adds another intervention and complexity to the patient\'s life without addressing the underlying medication issue.',
+        recommendation: 'Avoid adding new treatments or interventions until the possibility of a medication side effect has been thoroughly investigated. The simplest solution is often to change or stop the offending drug.'
+      },
+      {
+        text: 'Recognize this might be a side effect and ask the doctor if the new blood pressure pill could be the cause.',
+        isCorrect: true,
+        feedback: 'Correct. This action correctly identifies the potential for a prescribing cascade. Ankle swelling is a well-known side effect of calcium channel blockers. Questioning the new medication is the most critical and safest first step.',
+        recommendation: 'This demonstrates excellent clinical judgment. Always think "medication side effect" first when a new symptom arises in a patient on multiple drugs. This prevents the prescribing cascade and leads to safer care.'
+      }
+    ]
+  },
+  'exercise-hesitancy': {
+    title: 'Encouraging Safe Exercise',
+    scenario: 'An older adult with osteoarthritis in their knees tells you they have stopped walking because "it hurts too much" and they are afraid of making their arthritis worse.',
+    condition: 'Patient is becoming more sedentary and is at risk for deconditioning and functional decline.',
+    options: [
+      {
+        text: 'Agree with them that they should rest their knees and avoid walking to prevent more damage.',
+        isCorrect: false,
+        feedback: 'Incorrect. While well-intentioned, this advice can worsen their condition. Inactivity leads to muscle weakness, increased stiffness, and more pain, creating a vicious cycle of decline.',
+        recommendation: 'The principle for osteoarthritis is "motion is lotion." Rest is appropriate for an acute flare, but long-term inactivity is detrimental. The goal is to find safe ways to stay active.'
+      },
+      {
+        text: 'Tell them to push through the pain because exercise is important.',
+        isCorrect: false,
+        feedback: 'Incorrect. Telling someone to "push through the pain" can lead to injury and reinforces the idea that exercise is an unpleasant or unsafe activity, reducing their motivation to continue.',
+        recommendation: 'Exercise should be challenging but not cause sharp pain. Acknowledge their pain and work with them to find a comfortable starting point and alternative activities.'
+      },
+      {
+        text: 'Suggest non-weight-bearing exercises like swimming or a stationary bike, and recommend seeing a physical therapist.',
+        isCorrect: true,
+        feedback: 'Correct. This is the best approach. It validates their pain while offering a practical, safe solution (non-weight-bearing exercise) and directing them to a professional (a physical therapist) who can create a tailored, safe strengthening program.',
+        recommendation: 'For joint pain, focus on strengthening the muscles around the joint. A physical therapist is the ideal professional to guide this. Suggesting alternatives like aquatic exercise shows an understanding of their limitations and provides a path forward.'
+      },
+      {
+        text: 'Advise them to just take pain medication before they walk.',
+        isCorrect: false,
+        feedback: 'Incorrect. While pain medication has its place, using it to simply mask pain during an activity can lead to overexertion and joint damage. It does not address the underlying issue of muscle weakness or poor biomechanics.',
+        recommendation: 'The focus should be on therapeutic exercise to improve function, not just masking pain to perform an activity. A long-term solution involves strengthening and unload the joint.'
+      }
+    ]
+  },
+  'constipation-management': {
+    title: 'Managing Chronic Constipation',
+    scenario: 'A family caregiver calls you, frustrated. Their loved one, who is bed-bound, has not had a bowel movement in 5 days despite using a fiber supplement daily.',
+    condition: 'Patient is immobile and takes opioid pain medication.',
+    options: [
+      {
+        text: 'Advise them to double the dose of the fiber supplement to make it work better.',
+        isCorrect: false,
+        feedback: 'Incorrect. This is dangerous advice. In a bed-bound person, especially one on opioids, increasing fiber without adequate fluid can turn the fiber into a cement-like mass, causing a severe blockage (impaction).',
+        recommendation: 'Bulking agents like fiber are inappropriate and potentially harmful for immobile patients with opioid-induced constipation. They require a different management strategy.'
+      },
+      {
+        text: 'Tell them to try a stimulant laxative like senna or bisacodyl.',
+        isCorrect: false,
+        feedback: 'Incorrect. While a stimulant may be needed, it is not the correct first step. An osmotic laxative should be used first to soften the stool. Using a stimulant first could cause cramping and discomfort without resolving the underlying hard stool.',
+        recommendation: 'The correct step-wise approach is to first ensure the stool is soft, then stimulate the bowel to move it. Jumping to a stimulant is not best practice.'
+      },
+      {
+        text: 'Explain that fiber isn\'t helping and suggest they switch to a gentle osmotic laxative like polyethylene glycol (PEG).',
+        isCorrect: true,
+        feedback: 'Correct. This is the safest and most appropriate next step. It correctly identifies that fiber is the wrong agent for this patient and recommends the first-line osmotic laxative (PEG) to soften the stool.',
+        recommendation: 'Educating the caregiver on why fiber is not working and guiding them to the correct first-line agent (an osmotic laxative) is the best clinical advice and follows the recommended step-wise approach.'
+      },
+      {
+        text: 'Recommend they use an over-the-counter enema to clear things out quickly.',
+        isCorrect: false,
+        feedback: 'Incorrect. While an enema might be used for a diagnosed impaction under clinical supervision, recommending it as a first-line solution over the phone is inappropriate and can be uncomfortable and invasive for the patient.',
+        recommendation: 'Enemas are a bottom-up approach and should be reserved for specific situations after a physical assessment. The preferred method is a top-down approach starting with oral osmotic laxatives.'
+      }
+    ]
+  },
+   'recognizing-delirium': {
+    title: 'Recognizing a Medication Side Effect',
+    scenario: 'A family caregiver calls, worried. Their mother, who was previously sharp, became suddenly confused and agitated overnight. You see she was just started on a new over-the-counter sleep aid for insomnia.',
+    condition: 'Patient has mild cognitive impairment but has been stable.',
+    options: [
+      {
+        text: 'Reassure them that this is likely just a progression of her underlying cognitive issues.',
+        isCorrect: false,
+        feedback: 'Incorrect. A sudden, acute change in mental status is the hallmark of delirium, not a typical dementia progression. Attributing this to her baseline condition could cause a dangerous, reversible condition to be missed.',
+        recommendation: 'Always suspect delirium when there is an acute change in mental status. The key features are its acute onset and fluctuating course, which is different from the gradual decline of dementia.'
+      },
+      {
+        text: 'Advise them to take her to the emergency room immediately for a dementia workup.',
+        isCorrect: false,
+        feedback: 'Incorrect. While an ER visit might become necessary, it\'s not the most efficient first step. A dementia workup is for chronic cognitive decline, not an acute change. The likely cause is the new medication.',
+        recommendation: 'A focused history is the most important first step. Identifying recent changes—like a new medication—can often reveal the cause of delirium without a costly and stressful ER visit.'
+      },
+      {
+        text: 'Ask about the new sleep aid and explain it has anticholinergic effects that can cause confusion in older adults.',
+        isCorrect: true,
+        feedback: 'Correct. This response correctly identifies the most likely culprit. Many OTC sleep aids contain diphenhydramine, a strong anticholinergic drug that is a common cause of delirium in older adults. This is a classic ADE presentation.',
+        recommendation: 'Educating the caregiver about the risks of seemingly harmless OTC medications is a critical intervention. The first step in managing delirium is to identify and remove the offending agent.'
+      },
+      {
+        text: 'Tell them to give another dose of the sleep aid tonight to see if it helps her calm down.',
+        isCorrect: false,
+        feedback: 'Incorrect. This is extremely dangerous advice that would worsen the delirium. Continuing the offending medication will only prolong and intensify the confusion and agitation.',
+        recommendation: 'Once a drug is suspected of causing delirium, it should be stopped immediately (after confirming with a provider). The principle is to "stop the poison," not give more of it.'
+      }
+    ]
+  }
 };
 
 export default function SimulationPage({ params }: { params: { slug: string } }) {

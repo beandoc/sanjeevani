@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -24,6 +25,31 @@ const simulations = [
     slug: 'sudden-shortness-of-breath',
     title: 'Sudden Shortness of Breath',
     description: 'Patient is experiencing sudden dyspnea. React to a potential emergency.',
+  },
+  {
+    slug: 'hypertension-dizziness',
+    title: 'Managing Hypertension Side Effects',
+    description: 'Patient reports dizziness after starting a new blood pressure pill. Decide on the safest next step.',
+  },
+  {
+    slug: 'polypharmacy-prescribing-cascade',
+    title: 'Spotting a Prescribing Cascade',
+    description: 'A patient on many medications develops a new symptom. Identify the likely cause.',
+  },
+   {
+    slug: 'recognizing-delirium',
+    title: 'Recognizing a Medication Side Effect',
+    description: 'A patient develops acute confusion after starting a new over-the-counter medication.',
+  },
+  {
+    slug: 'exercise-hesitancy',
+    title: 'Encouraging Safe Exercise',
+    description: 'A patient with arthritis is afraid to exercise due to pain. Provide the best advice.',
+  },
+  {
+    slug: 'constipation-management',
+    title: 'Managing Chronic Constipation',
+    description: 'A caregiver is using the wrong treatment for constipation. Guide them to the correct, safe approach.',
   },
 ];
 
