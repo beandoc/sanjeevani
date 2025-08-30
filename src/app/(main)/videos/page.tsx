@@ -56,6 +56,13 @@ const videos = [
     category: 'Nutrition',
     youtubeId: 'UjRAVHXpxIU',
   },
+  {
+    id: 11,
+    title: 'How to Give a Bed Bath',
+    description: 'A step-by-step guide on how to give a complete bed bath to someone who is unable to get out of bed.',
+    category: 'Hygiene',
+    youtubeId: '9VKox-wy4fU',
+  },
 ];
 
 export default function VideosPage() {
