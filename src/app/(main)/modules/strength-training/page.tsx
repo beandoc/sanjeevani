@@ -6,11 +6,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Dumbbell, HeartPulse, Bone, Shield, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Dumbbell, HeartPulse, Bone, Shield, AlertTriangle, Stethoscope, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function StrengthTrainingPage() {
+export default function StrengthTrainingProfessionalPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -21,10 +21,10 @@ export default function StrengthTrainingPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Strength Training: A Powerful Tool for Health
+          Prescribing Exercise for Older Adults
         </h1>
         <p className="text-muted-foreground">
-          Understanding the benefits and principles of strength training for adults of all ages.
+          A module for healthcare professionals on promoting and prescribing physical activity.
         </p>
       </div>
 
@@ -32,21 +32,29 @@ export default function StrengthTrainingPage() {
         <AccordionItem value="item-1">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Dumbbell className="h-6 w-6 text-primary" />
-              What is Strength Training?
+              <Stethoscope className="h-6 w-6 text-primary" />
+              Physical Activity vs. Exercise
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>The Basics of Strength</CardTitle>
+                <CardTitle>Key Definitions for Clinical Practice</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Muscular strength is the ability to produce force against resistance. This is crucial for nearly every fitness attribute, including power, balance, speed, and endurance. Strong muscles protect against injury, frailty, and falls, helping to maintain independence.
+                  Understanding the distinction is crucial for patient education and prescription.
                 </p>
-                <p>
-                  Strength training is a planned program of exercises designed to increase this ability. It's not about random workouts, but about careful, progressive challenges over time. The key principle is <strong>progressive overload</strong>: gradually increasing the difficulty to stimulate adaptation and get stronger. Recovery, through proper nutrition and sleep, is just as important as the exercise itself.
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>
+                    <strong>Physical Activity:</strong> Any bodily movement that increases energy expenditure. Advise patients to integrate this into their lifestyle (e.g., gardening, taking stairs).
+                  </li>
+                  <li>
+                    <strong>Exercise:</strong> Planned, structured, and repetitive activity with the goal of improving one or more components of fitness. This is what you formally prescribe.
+                  </li>
+                </ul>
+                <p className="mt-4">
+                  Physical function, measured by tools like gait speed or handgrip strength, is a powerful biomarker. It is often a better predictor of mortality and disability than the presence of many chronic diseases.
                 </p>
               </CardContent>
             </Card>
@@ -56,29 +64,28 @@ export default function StrengthTrainingPage() {
         <AccordionItem value="item-2">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <HeartPulse className="h-6 w-6 text-primary" />
-              The Many Benefits of Strength Training
+              <Users className="h-6 w-6 text-primary" />
+              Principles of Exercise Prescription
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-             <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+             <ul className="list-disc space-y-4 pl-5 text-muted-foreground">
                 <li>
-                    <strong>Improved Body Composition:</strong> Increases lean muscle mass and decreases body fat, especially harmful visceral fat.
+                    <strong className="text-card-foreground">Dose-Response Relationship:</strong> The benefits of exercise are tied to volume and intensity. A program to prevent disease may be insufficient to treat it. For example, high-intensity resistance training is more effective for cognitive decline than gentle stretching.
                 </li>
                 <li>
-                    <strong>Better Metabolic Health:</strong> Improves how the body uses sugar, increasing insulin sensitivity and helping to prevent or manage type 2 diabetes.
+                    <strong className="text-card-foreground">Synergistic Modalities:</strong> A single exercise type is not enough. A comprehensive program must include multiple components to be effective.
+                     <ul className="list-disc space-y-2 pl-5 mt-2">
+                      <li><strong>Resistance Training:</strong> Critical for combating sarcopenia.</li>
+                      <li><strong>Balance Training:</strong> Essential for fall prevention.</li>
+                      <li><strong>Aerobic Activity:</strong> Crucial for cardiovascular health.</li>
+                    </ul>
                 </li>
                 <li>
-                    <strong>Stronger Bones:</strong> Stimulates bone growth and can improve bone mineral density, reducing the risk of osteoporosis.
+                    <strong className="text-card-foreground">The Importance of Power:</strong> Muscle power (generating force quickly) declines more rapidly than strength. Power training (explosive resistance exercises) is highly effective for improving functional outcomes in both fit and frail older adults.
                 </li>
                 <li>
-                    <strong>Enhanced Functional Strength:</strong> Makes daily activities like carrying groceries, climbing stairs, and getting up from a chair easier and safer.
-                </li>
-                 <li>
-                    <strong>Reduced Mortality Risk:</strong> Studies show a strong link between muscular strength and a longer, healthier life, with a lower risk of death from all causes, including cardiovascular disease and cancer.
-                </li>
-                <li>
-                    <strong>Mental Health Boost:</strong> Can reduce symptoms of depression and anxiety, and improve sleep quality and overall psychosocial health.
+                    <strong className="text-card-foreground">Address the Vicious Cycle:</strong> Higher perceived effort leads to inactivity and further deconditioning. Your role is to prescribe an appropriately dosed program to break this cycle and restore confidence.
                 </li>
             </ul>
           </AccordionContent>
@@ -87,12 +94,12 @@ export default function StrengthTrainingPage() {
         <AccordionItem value="item-3">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 text-primary" />
-              Strength Training for Specific Medical Conditions
+              <HeartPulse className="h-6 w-6 text-primary" />
+              Exercise for Specific Medical Conditions
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p>Strength training can be a powerful tool in managing many chronic diseases:</p>
+            <p>Strength training is a powerful tool in managing many chronic diseases:</p>
             <ul className="list-disc space-y-4 pl-5">
               <li>
                 <strong className="font-semibold text-card-foreground">Metabolic Health (Obesity, Diabetes):</strong> By building muscle, the body has more space to store glucose, which improves blood sugar control. It helps preserve muscle during weight loss and can reduce abdominal fat.
@@ -102,9 +109,6 @@ export default function StrengthTrainingPage() {
               </li>
               <li>
                 <strong className="font-semibold text-card-foreground">Musculoskeletal Health (Sarcopenia, Osteoarthritis, Back Pain):</strong> It's the most effective way to combat age-related muscle loss (sarcopenia). For osteoarthritis, strengthening the muscles around an affected joint can reduce pain and improve function. It can also alleviate chronic low back pain by strengthening the entire body.
-              </li>
-              <li>
-                <strong className="font-semibold text-card-foreground">Other Conditions:</strong> Emerging evidence shows benefits for conditions like chronic kidney disease (CKD), metabolic liver disease (MASLD), COPD, rheumatoid arthritis, and even in recovery from stroke.
               </li>
             </ul>
           </AccordionContent>
@@ -128,11 +132,8 @@ export default function StrengthTrainingPage() {
                 <li>
                     <strong>Cardiovascular Events:</strong> For those with known or occult heart disease, any vigorous exercise carries a small, temporary risk. Patients with stable heart conditions benefit greatly, but those with unstable symptoms should seek medical attention before exercising.
                 </li>
-                <li>
-                    <strong>Rhabdomyolysis:</strong> This is a rare but serious condition where muscle breaks down rapidly. It's caused by extreme exertion far beyond one's fitness level. It can be avoided by starting slowly, progressing gradually, and staying hydrated.
-                </li>
                  <li>
-                    <strong>Special Populations:</strong> Patients with conditions like uncontrolled hypertension, advanced diabetic retinopathy, or recent aortic dissection should consult with their doctor to determine safe exercise modifications.
+                    <strong>Special Populations:</strong> Patients with conditions like uncontrolled hypertension, advanced diabetic retinopathy, or recent aortic dissection should consult with you to determine safe exercise modifications.
                 </li>
             </ul>
             <p className="mt-4 font-semibold text-card-foreground">

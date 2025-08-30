@@ -135,6 +135,12 @@ const caregiverModules = [
     title: 'Oral Health for Caregivers',
     description: 'Learn to manage daily oral care and identify common dental issues in older adults.',
     icon: Smile,
+  },
+  {
+    id: 'strength-training-caregiver',
+    title: 'Supporting Physical Activity',
+    description: 'A caregiver\'s guide to encouraging exercise and physical fitness for older adults.',
+    icon: Dumbbell,
   }
 ];
 
@@ -154,7 +160,7 @@ const professionalModules = [
     icon: PersonStanding,
   },
   {
-    id: 'strength-training',
+    id: 'strength-training-professional',
     title: 'Strength Training for Health',
     description:
       'Learn the principles and benefits of strength training for older adults.',
