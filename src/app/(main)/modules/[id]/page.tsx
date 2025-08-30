@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function ModuleDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const id = params.id;
   const title = id
     .replace(/-/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
