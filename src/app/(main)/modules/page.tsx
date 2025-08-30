@@ -36,6 +36,7 @@ import {
   Eye,
   Smile,
   Pill,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -145,8 +146,8 @@ const caregiverModules = [
   },
   {
     id: 'medication-management-caregiver',
-    title: 'Medication Management: A Guide for Caregivers',
-    description: 'Helping you navigate the risks of polypharmacy and prevent medication-related problems.',
+    title: 'Helping Your Loved One Stay Safe with Medicines',
+    description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
     icon: Pill,
   }
 ];
@@ -154,9 +155,9 @@ const caregiverModules = [
 const professionalModules = [
   {
     id: 'polypharmacy-professional',
-    title: 'Polypharmacy & Deprescribing',
-    description: 'A review of the risks of polypharmacy and evidence-based tools for medication management.',
-    icon: Pill,
+    title: 'Medication Safety in Geriatric Care',
+    description: 'A nurse\'s guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.',
+    icon: Shield,
   },
   {
     id: 'dementia-care-professional',
@@ -173,10 +174,10 @@ const professionalModules = [
     icon: PersonStanding,
   },
   {
-    id: 'strength-training-professional',
-    title: 'Strength Training for Health',
+    id: 'strength-training',
+    title: 'Prescribing Exercise for Older Adults',
     description:
-      'Learn the principles and benefits of strength training for older adults.',
+      'A module for healthcare professionals on promoting and prescribing physical activity.',
     icon: Dumbbell,
   },
   {

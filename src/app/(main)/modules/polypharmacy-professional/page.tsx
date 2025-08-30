@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Stethoscope, AlertTriangle, Syringe, FileCheck } from 'lucide-react';
+import { ArrowLeft, Stethoscope, AlertTriangle, Repeat, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -21,10 +21,10 @@ export default function PolypharmacyProfessionalPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Polypharmacy and Deprescribing
+          Medication Safety in Geriatric Care
         </h1>
         <p className="text-muted-foreground">
-          A review of the risks of polypharmacy and evidence-based tools for medication management in older adults.
+          A nurse's guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.
         </p>
       </div>
 
@@ -32,29 +32,25 @@ export default function PolypharmacyProfessionalPage() {
         <AccordionItem value="item-1">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-primary" />
-              Polypharmacy: A Geriatric Syndrome
+              <Stethoscope className="h-6 w-6 text-primary" />
+              Understanding the Scope of the Problem
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>The Case for Vigilance</CardTitle>
+                <CardTitle>ADEs: A Common and Preventable Harm</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Polypharmacy is the use of multiple medications, often more than is medically necessary. It is a leading cause of avoidable hospital admissions, falls, disability, and even death in older adults. Every patient interaction requires a detailed medication review.
+                  An Adverse Drug Event (ADE) is any harm involving a medication, including side effects and errors. With older adults receiving 59% of all prescriptions, your vigilance is critical.
                 </p>
-                <h4 className="font-semibold">Key Physiologic Changes of Aging:</h4>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    <strong>Decreased total body water and lean mass:</strong> Can lead to higher concentrations of water-soluble drugs.
+                    <strong>High Prevalence:</strong> About 20% of people over 70 take five or more medications (polypharmacy), significantly increasing ADE risk.
                   </li>
                   <li>
-                    <strong>Increased body fat:</strong> Can prolong the half-life of fat-soluble drugs, increasing the risk of side effects.
-                  </li>
-                  <li>
-                    <strong>Reduced liver blood flow and kidney function:</strong> Can impair drug metabolism and excretion, causing drugs to build up in the system.
+                    <strong>Hospital Impact:</strong> ADEs cause ~6.5% of hospital admissions for older adults and affect up to 37% of older inpatients.
                   </li>
                 </ul>
               </CardContent>
@@ -65,28 +61,71 @@ export default function PolypharmacyProfessionalPage() {
         <AccordionItem value="item-2">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <FileCheck className="h-6 w-6 text-primary" />
-              Essential Tools for Medication Management
+              <AlertTriangle className="h-6 w-6 text-primary" />
+              Vulnerability and Atypical Presentation
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>Evidence-Based Criteria</CardTitle>
+                <CardTitle>Why Older Adults Are More Susceptible</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <p>Becoming proficient with at least one of these tools is essential for providing high-quality care and identifying potentially inappropriate medications (PIMs).</p>
-                 <ul className="list-disc space-y-4 pl-5">
-                    <li>
-                        <strong className="font-semibold">Beers Criteria:</strong> A widely used list of PIMs for older adults. It's a quick reference to help you avoid drugs with a high risk of adverse events.
-                    </li>
-                    <li>
-                        <strong className="font-semibold">STOPP/START Criteria:</strong> Clinically practical tools that categorize PIMs by organ system (STOPP) and also identify Potential Prescribing Omissions (START criteria).
-                    </li>
-                    <li>
-                        <strong className="font-semibold">Medication Appropriateness Index (MAI):</strong> A comprehensive, 10-point checklist that evaluates each medication's appropriateness. While time-consuming, it is an excellent educational tool for systematically reviewing complex drug regimens.
-                    </li>
+                 <p>Vulnerability stems from comorbidity, frailty, and age-related physiological changes that alter drug pharmacokinetics and pharmacodynamics.</p>
+                 <p>An ADE in an older adult often presents atypically as a geriatric syndrome. Be alert for:</p>
+                 <ul className="list-disc space-y-2 pl-5 font-medium">
+                    <li>Delirium (sudden confusion)</li>
+                    <li>Falls</li>
+                    <li>New-onset incontinence</li>
+                    <li>Functional decline or loss of mobility</li>
                 </ul>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-3">
+          <AccordionTrigger className="text-xl font-semibold">
+            <div className="flex items-center gap-3">
+              <Repeat className="h-6 w-6 text-primary" />
+              The Prescribing Cascade
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Role is to Break the Chain</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p>
+                  The prescribing cascade is a dangerous cycle where a drug's side effect is misinterpreted as a new medical condition, leading to another prescription to treat the side effect.
+                </p>
+                <p className="font-semibold">When an older patient presents with a new symptom (especially a geriatric syndrome), always ask: "Could this be a medication side effect?" before assuming it's a new disease.</p>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="item-4">
+          <AccordionTrigger className="text-xl font-semibold">
+            <div className="flex items-center gap-3">
+              <Activity className="h-6 w-6 text-primary" />
+              Nursing Interventions Across the Continuum
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Key Actions at Transition Points</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <h4 className="font-semibold">On Admission:</h4>
+                <p>Obtain an accurate drug history, including OTCs and supplements. Use collateral history and probe for non-concordance.</p>
+                <h4 className="font-semibold mt-2">During Ward Stay:</h4>
+                <p>Perform ongoing monitoring for subtle ADE signs. Question the appropriateness of each drug, check renal function, and be vigilant with high-risk meds (anticoagulants, opiates).</p>
+                <h4 className="font-semibold mt-2">At Discharge:</h4>
+                <p>Conduct thorough medication reconciliation. Provide clear patient and family education on new meds, stopped meds, and specific side effects to watch for.</p>
+                <p className="mt-2 font-medium">Utilize screening tools like the STOPP/START criteria to identify potentially inappropriate prescribing.</p>
               </CardContent>
             </Card>
           </AccordionContent>

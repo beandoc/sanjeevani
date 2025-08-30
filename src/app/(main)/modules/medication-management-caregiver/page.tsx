@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Pill, AlertTriangle, List, HelpCircle, Siren } from 'lucide-react';
+import { ArrowLeft, HeartHandshake, Siren, Repeat, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -21,10 +21,10 @@ export default function MedicationManagementCaregiverPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Medication Management: A Caregiver's Guide
+          Helping Your Loved One Stay Safe with Medicines
         </h1>
         <p className="text-muted-foreground">
-          Helping you navigate the risks of polypharmacy and prevent medication-related problems.
+          A guide for family caregivers to manage medications safely and be a key partner in healthcare.
         </p>
       </div>
 
@@ -32,26 +32,28 @@ export default function MedicationManagementCaregiverPage() {
         <AccordionItem value="item-1">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-primary" />
-              Understanding the Risks of Polypharmacy
+              <HeartHandshake className="h-6 w-6 text-primary" />
+              Why Older Adults Need Extra Help
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>When a Cornucopia of Pills is Dangerous</CardTitle>
+                <CardTitle>Your Loved One's Most Important Safety Net</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Polypharmacy is when someone takes many different medications. The more medications a person takes, the higher their risk for serious side effects, including falls, confusion, dizziness, and even hospitalization.
+                  As people age, they often develop more health conditions and need more medicines. Taking many medications (polypharmacy) increases the chance of problems.
                 </p>
-                <h4 className="font-semibold">Why Older Adults Are More at Risk:</h4>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    As we age, our bodies change. The liver and kidneys become less efficient, which can cause drugs to build up in the system to toxic levels.
+                    About 1 in 5 people over 70 takes five or more different medicines.
                   </li>
                   <li>
-                    A new symptom like dizziness or weakness might not be a new illness, but a side effect of one of the medications. This is why it's vital to stay vigilant.
+                    The body handles medicines differently with age, making side effects more likely.
+                  </li>
+                  <li>
+                    A medication problem can be a major reason for a hospital admission.
                   </li>
                 </ul>
               </CardContent>
@@ -62,28 +64,27 @@ export default function MedicationManagementCaregiverPage() {
         <AccordionItem value="item-2">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <List className="h-6 w-6 text-primary" />
-              Your Role: Keeping a Master List
+              <Siren className="h-6 w-6 text-destructive" />
+              Spotting Medication Problem Warning Signs
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>The Most Important Tool</CardTitle>
+                <CardTitle>Look for Sudden Changes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <p>You are the first line of defense against medication errors. Maintaining a complete, up-to-date list of all medications is the most critical step.</p>
+                 <p>A bad reaction to a medicine in an older person might not be what you expect. It often looks like a sudden change in their overall condition. Never dismiss these signs as "just getting old."</p>
+                 <h4 className="font-semibold">Key Warning Signs:</h4>
                  <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>What to Include:</strong> List every prescription medication, over-the-counter drug, vitamin, and supplement.
-                    </li>
-                    <li>
-                        <strong>Key Details:</strong> For each item, note the dosage, how often it's taken, and the reason for taking it.
-                    </li>
-                    <li>
-                        <strong>Keep it With You:</strong> Bring this list to every single doctor’s appointment and hospital visit. This is the single best way to prevent dangerous drug interactions.
-                    </li>
+                    <li>Sudden confusion, memory problems, or acting strangely (delirium).</li>
+                    <li>More falls, or new dizziness and unsteadiness.</li>
+                    <li>New or worsening bladder or bowel control issues.</li>
+                    <li>Unusual sleepiness or being hard to wake up.</li>
+                    <li>Sudden loss of appetite or feeling very tired.</li>
+                    <li>A new depressed mood or loss of interest in things.</li>
                 </ul>
+                <p className="mt-4 font-semibold text-destructive">Always consider that a new symptom might be a medication side effect and call the doctor.</p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -92,27 +93,22 @@ export default function MedicationManagementCaregiverPage() {
         <AccordionItem value="item-3">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <HelpCircle className="h-6 w-6 text-primary" />
-              Your Role: Asking Questions
+              <Repeat className="h-6 w-6 text-primary" />
+              The "Domino Effect" of Prescribing
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>Be an Active Partner</CardTitle>
+                <CardTitle>Understanding the Prescribing Cascade</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Don't hesitate to ask the doctor or pharmacist questions about any new or existing medication.
+                  Sometimes, a side effect from Drug #1 is mistaken for a new health problem. The doctor might then prescribe Drug #2 to treat that side effect. This can lead to even more problems. This is called the prescribing cascade.
                 </p>
-                <h4 className="font-semibold">Key Questions to Ask:</h4>
-                <ul className="list-disc space-y-2 pl-5">
-                    <li>What is this medication for?</li>
-                    <li>What is the lowest effective dose?</li>
-                    <li>What are the potential side effects, and what should I watch for?</li>
-                    <li>Is this medication absolutely necessary?</li>
-                    <li>Can anything be safely stopped or "deprescribed?"</li>
-                </ul>
+                <h4 className="font-semibold">Example:</h4>
+                <p>A blood pressure pill (Drug #1) causes swollen ankles. The doctor sees the swelling and prescribes a water pill (Drug #2) to fix it. The water pill can then cause dizziness, leading to a fall.</p>
+                <p className="mt-2 font-medium">You can help stop this by telling the doctor about any new symptom that appears after a medicine is started or changed.</p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -121,24 +117,29 @@ export default function MedicationManagementCaregiverPage() {
         <AccordionItem value="item-4">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Siren className="h-6 w-6 text-destructive" />
-              Your Role: Watching for Red Flags
+              <ListChecks className="h-6 w-6 text-primary" />
+              Your Action Plan for Medication Safety
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>Your Observations are Critical</CardTitle>
+                <CardTitle>Simple Steps, Big Impact</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <p>Be on the lookout for new or unusual symptoms after a medication is started or the dose is changed. These could be signs of a drug interaction or side effect.</p>
-                 <h4 className="font-semibold">Report these immediately:</h4>
-                 <ul className="list-disc space-y-2 pl-5">
-                    <li>Dizziness or lightheadedness</li>
-                    <li>New or worsening confusion</li>
-                    <li>Unusual fatigue or sleepiness</li>
-                    <li>Changes in balance or new falls</li>
-                    <li>Loss of appetite</li>
+                 <ul className="list-disc space-y-4 pl-5">
+                    <li>
+                        <strong>Keep an "All-Meds" Master List:</strong> Maintain one updated list of every prescription, over-the-counter item, vitamin, and supplement. Note the name, dose, and reason for each. Bring this list to EVERY appointment.
+                    </li>
+                    <li>
+                        <strong>Use One Pharmacy:</strong> Fill all prescriptions at the same pharmacy. This allows the pharmacist to spot dangerous interactions.
+                    </li>
+                    <li>
+                        <strong>Use a Pill Organizer:</strong> A weekly pill box helps prevent missed or double doses.
+                    </li>
+                     <li>
+                        <strong>Ask Questions at Discharge:</strong> Leaving the hospital is high-risk. Go over the final medication list with the nurse or doctor and ask: "What is each new medicine for?", "Which medicines should be stopped?", and "Who do I call if I have a problem?".
+                    </li>
                 </ul>
               </CardContent>
             </Card>
