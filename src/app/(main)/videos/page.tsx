@@ -63,6 +63,13 @@ const videos = [
     category: 'Hygiene',
     youtubeId: '9VKox-wy4fU',
   },
+  {
+    id: 12,
+    title: 'Communicating with a Patient with Dementia',
+    description: 'A guide on effective communication strategies for patients with dementia.',
+    category: 'Dementia',
+    youtubeId: 'MMmeCkF5-8M',
+  },
 ];
 
 export default function VideosPage() {
