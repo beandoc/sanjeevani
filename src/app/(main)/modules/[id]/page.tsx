@@ -4,12 +4,9 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default function ModuleDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const title = params.id
+export default function ModuleDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
+  const title = id
     .replace(/-/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 
