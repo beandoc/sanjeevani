@@ -37,7 +37,7 @@ import {
   Smile,
   Pill,
   Shield,
-  Lung,
+  Siren,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -167,7 +167,7 @@ const caregiverModules = [
     id: 'lung-infections-caregiver',
     title: 'Protecting Your Loved One from Pneumonia',
     description: 'A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it.',
-    icon: Lung,
+    icon: Siren,
   },
 ];
 
@@ -277,7 +277,7 @@ const professionalModules = [
     id: 'lung-infections-professional',
     title: 'Pneumonia in Older Adults: A Clinical Guide',
     description: 'A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients.',
-    icon: Lung,
+    icon: Siren,
   },
 ];
 
