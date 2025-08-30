@@ -34,6 +34,7 @@ import {
   Bone,
   Utensils,
   Eye,
+  Smile,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -129,6 +130,12 @@ const caregiverModules = [
       'Learn to recognize common eye issues, red flags, and when to see a doctor.',
     icon: Eye,
   },
+  {
+    id: 'oral-health-caregiver',
+    title: 'Oral Health for Caregivers',
+    description: 'Learn to manage daily oral care and identify common dental issues in older adults.',
+    icon: Smile,
+  }
 ];
 
 const professionalModules = [
@@ -202,6 +209,12 @@ const professionalModules = [
         'A review of common age-related eye diseases, diagnosis, and management for clinicians.',
     icon: Eye,
   },
+  {
+    id: 'oral-health-professional',
+    title: 'Geriatric Oral Health for Professionals',
+    description: 'A review of oral health screening, common challenges, and interprofessional care for clinicians.',
+    icon: Smile,
+  }
 ];
 
 export default function ModulesPage() {
