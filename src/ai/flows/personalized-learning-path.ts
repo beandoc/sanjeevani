@@ -34,7 +34,7 @@ const LearningModuleSchema = z.object({
   title: z.string().describe('Title of the learning module.'),
   description: z.string().describe('Description of the module content.'),
   estimatedDuration: z.number().describe('Estimated time to complete the module in minutes.'),
-  topic: z.string().describe('The organ system or condition covered in the module (e.g., kidney failure, dementia).'),
+  topic: z.string().describe('The organ system or condition covered in the module (e.g., dementia, heart failure).'),
   focusArea: z.string().describe('Specific skill or knowledge area addressed by the module (e.g., medication management, mobility assistance).'),
 });
 
@@ -62,7 +62,6 @@ const prompt = ai.definePrompt({
   - Caregiving Scenario: Prioritize modules that are directly relevant to the current scenario.
 
   Available Modules:
-  - Kidney Failure on Dialysis Module (moduleId: 'kidney-failure'): Focuses on the specifics of managing patients with kidney failure undergoing dialysis, including medication management, dietary restrictions, and emergency procedures.
   - Dementia Care Module (moduleId: 'dementia-care'): Covers techniques for communicating with and caring for individuals with dementia, including managing behavioral symptoms, creating a safe environment, and providing cognitive stimulation.
   - Stroke Rehabilitation Module (moduleId: 'stroke-rehab'): Addresses the principles of stroke rehabilitation, including mobility assistance, speech therapy exercises, and strategies for preventing complications.
   - Heart Failure Management Module (moduleId: 'heart-failure'): Focuses on the management of heart failure in elderly patients, including medication adherence, fluid balance monitoring, and lifestyle modifications.

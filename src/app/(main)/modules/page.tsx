@@ -49,13 +49,6 @@ const caregiverModules = [
     icon: HeartPulse,
   },
   {
-    id: 'kidney-failure',
-    title: 'Kidney Failure on Dialysis',
-    description:
-      'Managing patients with kidney failure, including dialysis specifics, diet, and emergency procedures.',
-    icon: ShieldAlert,
-  },
-  {
     id: 'dementia-care',
     title: "A Caregiver's Guide to Delirium",
     description:
