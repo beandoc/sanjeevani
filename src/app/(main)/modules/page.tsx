@@ -42,6 +42,12 @@ import Link from 'next/link';
 
 const caregiverModules = [
   {
+    id: 'ischaemic-heart-disease-caregiver',
+    title: 'Caring for a Loved One with Heart Disease',
+    description: 'A practical guide for families on recognizing symptoms and supporting heart health.',
+    icon: HeartPulse,
+  },
+  {
     id: 'kidney-failure',
     title: 'Kidney Failure on Dialysis',
     description:
@@ -159,6 +165,12 @@ const caregiverModules = [
 ];
 
 const professionalModules = [
+  {
+    id: 'ischaemic-heart-disease-professional',
+    title: 'Managing Ischaemic Heart Disease in Older Adults',
+    description: 'A nursing perspective on atypical presentations, risk management, and patient-centered care.',
+    icon: HeartPulse,
+  },
   {
     id: 'polypharmacy-professional',
     title: 'Medication Safety in Geriatric Care',
