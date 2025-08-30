@@ -85,9 +85,9 @@ const caregiverModules = [
   },
   {
     id: 'parkinsonism-care',
-    title: 'Parkinsonism Care',
+    title: 'Parkinson\'s Disease: A Caregiver Guide',
     description:
-      "Guidance on managing Parkinson's symptoms, including medication, mobility, and support.",
+      "A detailed guide to understanding symptoms, managing medications, and supporting daily life with PD.",
     icon: User,
   },
   {
@@ -179,7 +179,7 @@ const professionalModules = [
     icon: HeartPulse,
   },
   {
-    id: 'polypharmacy-professional',
+    id: 'medication-management-professional',
     title: 'Medication Safety in Geriatric Care',
     description: 'A nurse\'s guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.',
     icon: Shield,
@@ -278,6 +278,12 @@ const professionalModules = [
     title: 'Pneumonia in Older Adults: A Clinical Guide',
     description: 'A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients.',
     icon: Siren,
+  },
+  {
+    id: 'parkinsonism-care-professional',
+    title: 'A Comprehensive Nursing Guide to Parkinson\'s Disease',
+    description: 'A detailed clinical framework for the assessment, diagnosis, and complex management of PD.',
+    icon: User,
   },
 ];
 

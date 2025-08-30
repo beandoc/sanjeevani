@@ -21,10 +21,10 @@ export default function ParkinsonismCareModulePage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Parkinsonism Care: A Guide for Caregivers
+          Living with Parkinson's Disease: A Detailed Guide for Families and Caregivers
         </h1>
         <p className="text-muted-foreground">
-          This module provides guidance on supporting a loved one with Parkinson's disease or other forms of parkinsonism.
+          This guide provides families with in-depth information to understand the many symptoms of Parkinson's Disease (PD), how to be an effective partner in treatment, and ways to manage daily life.
         </p>
       </div>
 
@@ -33,33 +33,22 @@ export default function ParkinsonismCareModulePage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Brain className="h-6 w-6 text-primary" />
-              Understanding Parkinsonism
+              Chapter 1: Understanding What's Happening
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>What is Parkinsonism?</CardTitle>
+                <CardTitle>What is Parkinson's Disease?</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Parkinsonism is a general term for a group of neurological disorders that cause movement problems similar to those seen in Parkinson's disease, such as tremors, slow movement, and stiffness. Parkinson's disease is the most common cause.
+                  Parkinson's is a slowly progressing disease of the brain that primarily affects movement. Imagine your brain has a message center that uses a special chemical called dopamine to send signals that tell your muscles to move smoothly and with coordination. In Parkinson's, the brain cells that make dopamine start to disappear, so these messages get weaker and distorted.
                 </p>
-                <h4 className="font-semibold">Key Motor (Movement) Symptoms:</h4>
-                <ul className="list-disc space-y-2 pl-5">
-                  <li>
-                    <strong>Tremor:</strong> Shaking, often in a hand or fingers, that is most prominent at rest.
-                  </li>
-                  <li>
-                    <strong>Bradykinesia (Slowed Movement):</strong> Difficulty initiating movement, making simple tasks time-consuming and difficult.
-                  </li>
-                  <li>
-                    <strong>Rigidity:</strong> Stiffness in the limbs, neck, or trunk, which can be painful and limit range of motion.
-                  </li>
-                   <li>
-                    <strong>Postural Instability:</strong> Impaired balance and coordination, which can lead to falls.
-                  </li>
-                </ul>
+                <h4 className="font-semibold">How It Typically Starts</h4>
+                <p>
+                  The beginning of PD is very gradual. It often starts with a minor symptom on one side of the body, like a slight tremor in one hand or a feeling of stiffness in one leg. It can take months or even years before the symptoms become more obvious and affect both sides of the body.
+                </p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -68,31 +57,66 @@ export default function ParkinsonismCareModulePage() {
         <AccordionItem value="item-2">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Pill className="h-6 w-6 text-primary" />
-              Medication Management
+              <UserCheck className="h-6 w-6 text-primary" />
+              Chapter 2: Recognizing the Symptoms - A Head-to-Toe Guide
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2">
+          <AccordionContent className="pt-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>The Importance of Timing</CardTitle>
+                <CardTitle>The Main Movement (Motor) Symptoms</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <p>Medications for Parkinson's are the primary way to manage symptoms, but they must be managed carefully.</p>
-                 <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Strict Timing:</strong> Medications must be taken at the same time every day to maintain a consistent level in the body. Being even 30 minutes late can cause a sudden worsening of symptoms ("off" period).
-                    </li>
-                    <li>
-                        <strong>Keep a Schedule:</strong> Use pill organizers and alarms to ensure doses are not missed. Keep a detailed medication log.
-                    </li>
-                    <li>
-                        <strong>"On-Off" Fluctuations:</strong> Be aware of periods when the medication is working well ("on" time) versus when it wears off ("off" time). Report these fluctuations to the doctor.
-                    </li>
-                    <li>
-                        <strong>Side Effects:</strong> Be observant of side effects, such as dizziness, nausea, confusion, or involuntary movements (dyskinesia), and report them to the healthcare team.
-                    </li>
+                <p>
+                  <strong>The Parkinson's Tremor:</strong> This is the most well-known symptom. It is a shaking that is most obvious when the hand or limb is at rest. The tremor often improves or disappears when your loved one is actively using that hand.
+                </p>
+                <p>
+                  <strong>Slowness and Smallness of Movement (Bradykinesia):</strong> This is often the most disabling symptom. It's a "shrinking" of movement. You might notice:
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>Difficulty with fine motor tasks like buttoning a shirt or using utensils.</li>
+                  <li>A change in handwriting, making it very small (micrographia).</li>
+                  <li>A loss of facial expression, sometimes called a "masked face."</li>
+                  <li>Difficulty getting up from a chair or turning over in bed.</li>
                 </ul>
+                <p>
+                  <strong>Stiffness (Rigidity):</strong> Muscles can feel constantly tight, leading to aches and pains and a reduced range of motion.
+                </p>
+                <p>
+                  <strong>Walking and Balance Problems:</strong> This usually appears later in the disease. Look for:
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>A stooped-over posture.</li>
+                  <li>Shuffling steps, where the feet barely leave the floor.</li>
+                  <li>A lack of arm swing when walking.</li>
+                  <li>A feeling of being "stuck to the floor" (known as "freezing"). This makes falls a very serious risk.</li>
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>The "Hidden" Non-Movement (Non-Motor) Symptoms</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p>
+                  These symptoms are a direct result of Parkinson's and can be just as challenging as the movement problems.
+                </p>
+                <p>
+                  <strong>Dizziness When Standing Up (Orthostatic Hypotension):</strong> This is a sudden drop in blood pressure upon standing that can cause lightheadedness, blurry vision, or even fainting. Encourage your loved one to get up slowly from a seated or lying position.
+                </p>
+                <p>
+                  <strong>Constipation:</strong> This is extremely common, affecting about half of all patients. It's caused by the disease slowing down the digestive system.
+                </p>
+                <p>
+                  <strong>Mood and Mind:</strong>
+                </p>
+                 <ul className="list-disc space-y-2 pl-5">
+                    <li>Depression and Anxiety: It's very important to know that these are part of the brain changes of PD, not just a reaction to having the illness. They are treatable.</li>
+                    <li>Memory Problems: Serious memory loss and dementia are not an early feature of Parkinson's. If they occur, it is only after many years with the disease.</li>
+                </ul>
+                <p>
+                  <strong>Other Common Issues:</strong> You may also notice problems with sleep, excessive drooling, urinary urgency, and a very soft voice.
+                </p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -101,33 +125,38 @@ export default function ParkinsonismCareModulePage() {
         <AccordionItem value="item-3">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <Smile className="h-6 w-6 text-primary" />
-              Managing Non-Motor Symptoms
+              <Pill className="h-6 w-6 text-primary" />
+              Chapter 3: Medications - Your Role as a Partner
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
               <CardHeader>
-                <CardTitle>It's More Than Movement</CardTitle>
+                <CardTitle>The Main Medicine: Levodopa (L-dopa)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p>
-                  Non-motor symptoms can be just as disabling as motor symptoms.
+                  The most powerful medication for Parkinson's is levodopa. It helps replace the missing dopamine in the brain and is very effective at treating the motor symptoms.
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
-                        <strong>Depression and Anxiety:</strong> These are very common. Encourage social engagement and activities they enjoy. Discuss mood changes with the doctor.
+                        <strong>The Golden Rule of Timing:</strong> To work properly, levodopa should be taken on an empty stomach, about 30 minutes before a meal. Food, especially protein, can interfere with how the medicine is absorbed.
                     </li>
                     <li>
-                        <strong>Sleep Problems:</strong> Difficulty sleeping, acting out dreams, and daytime sleepiness are common. Establish a regular sleep routine and create a restful environment.
+                        <strong>Tracking "On" and "Off" Times:</strong> After a few years, you may notice the medication's effect doesn't last until the next dose. This is called "wearing-off." Your loved one may feel good and move well ("On" time) and then become slow and stiff before the next pill ("Off" time). Keeping a simple diary of these times is incredibly helpful for the doctor.
                     </li>
                     <li>
-                        <strong>Cognitive Changes:</strong> Problems with thinking, planning, and memory can occur, especially in later stages. Use calendars, lists, and simple routines to help.
-                    </li>
-                    <li>
-                        <strong>Constipation:</strong> This is a very common issue. Encourage fluid intake, a high-fiber diet, and physical activity.
+                        <strong>Side Effects to Report:</strong> Be sure to tell the doctor if you notice nausea, dizziness, or especially any new confusion, vivid dreams, or hallucinations (seeing things that aren't there).
                     </li>
                 </ul>
+              </CardContent>
+            </Card>
+             <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>A Critical Warning: Other Medications Can Mimic PD</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p>Some medications, particularly antipsychotics used to treat behavioral issues in dementia, can cause stiffness and slowness that look exactly like Parkinson's. If your loved one starts showing these symptoms after beginning a new medication, it is vital to contact the doctor immediately.</p>
               </CardContent>
             </Card>
           </AccordionContent>
@@ -137,27 +166,23 @@ export default function ParkinsonismCareModulePage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Activity className="h-6 w-6 text-primary" />
-              The Role of Therapy and Exercise
+              Chapter 4: Beyond the Pills - Therapies that Boost Quality of Life
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Staying Active and Engaged</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
+                <p>Medication is only one piece of the puzzle. Rehabilitation therapies are essential.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
-                        <strong>Physical Therapy:</strong> Can help with balance, gait, and largescale movements.
+                        <strong>Physical Therapy (PT):</strong> A physical therapist is an expert in movement. They can teach specific exercises and strategies to improve walking, increase balance, and prevent devastating falls.
                     </li>
                     <li>
-                        <strong>Occupational Therapy:</strong> Helps find new ways to perform daily tasks like dressing, eating, and writing.
-                    </li>
-                    <li>
-                        <strong>Speech Therapy:</strong> Can help with soft voice, swallowing problems, and communication.
-                    </li>
-                     <li>
-                        <strong>Exercise:</strong> Regular exercise is crucial. Activities like walking, swimming, tai chi, and dancing can improve mobility, balance, and mood.
+                        <strong>Speech Therapy:</strong> A speech therapist does more than just help with speech. They can help with:
+                        <ul className='list-disc space-y-2 pl-5 mt-2'>
+                           <li>A soft voice, teaching techniques to speak more loudly and clearly.</li>
+                           <li>Swallowing problems (dysphagia), which can become a serious risk in later stages.</li>
+                        </ul>
                     </li>
                 </ul>
               </CardContent>
@@ -168,25 +193,25 @@ export default function ParkinsonismCareModulePage() {
         <AccordionItem value="item-5">
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
-              <UserCheck className="h-6 w-6 text-primary" />
-              Supporting Daily Life and Yourself
+              <Smile className="h-6 w-6 text-primary" />
+              Chapter 5: Living Day-to-Day and Planning for the Future
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Practical Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
-                        <strong>Home Safety:</strong> Prevent falls by removing hazards like throw rugs, improving lighting, and installing grab bars.
+                        <strong>Home Safety:</strong> Make your home as safe as possible to prevent falls. Remove throw rugs, clear pathways, and install grab bars in the bathroom.
                     </li>
                     <li>
-                        <strong>Patience and Encouragement:</strong> Allow extra time for tasks. Encourage independence as much as possible, but be ready to assist.
+                        <strong>Patience and Support:</strong> Everyday tasks will take longer. Patience and encouragement are key. Help them stay socially connected and as physically active as possible.
                     </li>
                     <li>
-                        <strong>Care for the Caregiver:</strong> Supporting someone with Parkinson's is demanding. Seek support for yourself through support groups, take breaks, and don't hesitate to ask for help.
+                        <strong>Looking Ahead:</strong> Parkinson's is a long journey. As the disease advances, your loved one will need more help with daily activities. Planning for professional help, meals-on-wheels, and other services in advance can reduce stress later on.
+                    </li>
+                    <li>
+                        <strong>Support for You:</strong> Being a caregiver is a marathon, not a sprint. Connect with local Parkinson's associations for resources, education, and support groups. Taking care of your own well-being is essential.
                     </li>
                 </ul>
               </CardContent>
