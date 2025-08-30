@@ -37,6 +37,7 @@ import {
   Smile,
   Pill,
   Shield,
+  Lung,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -162,6 +163,12 @@ const caregiverModules = [
     description: 'Learn to understand, prevent, and manage constipation safely and effectively.',
     icon: Utensils,
   },
+  {
+    id: 'lung-infections-caregiver',
+    title: 'Protecting Your Loved One from Pneumonia',
+    description: 'A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it.',
+    icon: Lung,
+  },
 ];
 
 const professionalModules = [
@@ -265,6 +272,12 @@ const professionalModules = [
     title: 'Managing Constipation in Older Adults',
     description: 'A clinical guide for nurses on the assessment, management, and prevention of constipation.',
     icon: Utensils,
+  },
+  {
+    id: 'lung-infections-professional',
+    title: 'Pneumonia in Older Adults: A Clinical Guide',
+    description: 'A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients.',
+    icon: Lung,
   },
 ];
 
