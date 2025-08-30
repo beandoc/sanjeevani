@@ -63,10 +63,10 @@ const caregiverModules = [
     icon: Activity,
   },
   {
-    id: 'heart-failure',
-    title: 'Heart Failure Management',
+    id: 'hypertension-caregiver',
+    title: 'Hypertension: A Caregiver\'s Guide',
     description:
-      'Managing heart failure, including medication, fluid balance, and lifestyle modifications.',
+      'Learn to manage high blood pressure safely with a focus on quality of life.',
     icon: HeartPulse,
   },
   {
@@ -171,6 +171,13 @@ const professionalModules = [
     description:
       'An evidence-based module on the diagnosis, management, and treatment of dementia for clinicians.',
     icon: Brain,
+  },
+  {
+    id: 'hypertension-professional',
+    title: 'Hypertension in Older Adults',
+    description:
+      'A clinical overview of the unique aspects of hypertension in the geriatric population.',
+    icon: HeartPulse,
   },
   {
     id: 'geriatric-rehabilitation',
