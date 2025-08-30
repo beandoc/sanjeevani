@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import {
   Card,
   CardContent,
@@ -293,7 +293,8 @@ const simulationsData: {
   }
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
+export default function SimulationPage({ params: paramsProp }: { params: { slug: string } }) {
+  const params = use(Promise.resolve(paramsProp));
   const slug = params.slug;
   const simData = simulationsData[slug];
 
