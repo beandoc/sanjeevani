@@ -49,6 +49,13 @@ const videos = [
     category: 'Mobility',
     youtubeId: 'FjHtL7gIQLk',
   },
+  {
+    id: 10,
+    title: 'Nasogastric Tube Feeding',
+    description: 'A guide on how to perform nasogastric tube feeding for patients who cannot eat normally.',
+    category: 'Nutrition',
+    youtubeId: 'UjRAVHXpxIU',
+  },
 ];
 
 export default function VideosPage() {
