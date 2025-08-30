@@ -43,6 +43,12 @@ import Link from 'next/link';
 
 const caregiverModules = [
   {
+    id: 'alzheimers-caregiver',
+    title: "A Caregiver's Guide to Alzheimer's Disease",
+    description: 'An in-depth guide to understanding the stages, diagnosis, and behavioral changes of Alzheimer\'s.',
+    icon: BrainCircuit,
+  },
+  {
     id: 'ischaemic-heart-disease-caregiver',
     title: 'Caring for a Loved One with Heart Disease',
     description: 'A practical guide for families on recognizing symptoms and supporting heart health.',
@@ -165,6 +171,12 @@ const caregiverModules = [
 ];
 
 const professionalModules = [
+  {
+    id: 'alzheimers-professional',
+    title: "A Comprehensive Nursing Guide to Alzheimer's Disease",
+    description: 'A clinical framework covering pathophysiology, risk factors, diagnosis, and behavioral assessment of AD.',
+    icon: BrainCircuit,
+  },
   {
     id: 'ischaemic-heart-disease-professional',
     title: 'Managing Ischaemic Heart Disease in Older Adults',
