@@ -54,7 +54,7 @@ export default function AssessmentGuidePage() {
           A guide for caregivers and health workers on creating comprehensive geriatric training.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {lessons.map((lesson) => {
           const Icon = lesson.icon;
           return (
