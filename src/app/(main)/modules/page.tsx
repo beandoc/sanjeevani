@@ -149,7 +149,13 @@ const caregiverModules = [
     title: 'Helping Your Loved One Stay Safe with Medicines',
     description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
     icon: Pill,
-  }
+  },
+  {
+    id: 'constipation-caregiver',
+    title: 'Managing Constipation: A Caregiver\'s Guide',
+    description: 'Learn to understand, prevent, and manage constipation safely and effectively.',
+    icon: Utensils,
+  },
 ];
 
 const professionalModules = [
@@ -161,7 +167,7 @@ const professionalModules = [
   },
   {
     id: 'dementia-care-professional',
-    title: 'Dementia Care for Professionals',
+    title: 'Clinical Management of Dementia',
     description:
       'An evidence-based module on the diagnosis, management, and treatment of dementia for clinicians.',
     icon: Brain,
@@ -234,7 +240,13 @@ const professionalModules = [
     title: 'Geriatric Oral Health for Professionals',
     description: 'A review of oral health screening, common challenges, and interprofessional care for clinicians.',
     icon: Smile,
-  }
+  },
+  {
+    id: 'constipation-professional',
+    title: 'Managing Constipation in Older Adults',
+    description: 'A clinical guide for nurses on the assessment, management, and prevention of constipation.',
+    icon: Utensils,
+  },
 ];
 
 export default function ModulesPage() {
