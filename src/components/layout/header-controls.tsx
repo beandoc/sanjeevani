@@ -43,7 +43,7 @@ export function HeaderControls() {
         toast({
             variant: "destructive",
             title: "Geolocation Not Supported",
-            description: "Your browser does not support geolocation.",
+            description: "Your browser does not support this feature.",
         })
         return;
     }
@@ -51,18 +51,30 @@ export function HeaderControls() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        // In a real app, you would call a server action here to send an email.
-        // For this prototype, we'll just show a success toast.
+        const recipient = 'nephrochsc@gmail.com';
+        const subject = 'Emergency SOS Alert';
+        const body = `Hello Doctor,
+
+This is an emergency message. Pl find my precise location and help me come to your clinic/ my home whichever is closer.
+
+My location: https://www.google.com/maps?q=${latitude},${longitude}
+
+Thanks.`;
+
+        const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        window.location.href = mailtoLink;
+
         toast({
-          title: "✅ Alert Sent",
-          description: `Your location (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) has been sent to your caregiver.`,
+          title: "✅ Opening Email Client",
+          description: `Your email app is opening with a pre-filled message for your caregiver. Please press send.`,
         });
       },
       (error) => {
          toast({
             variant: "destructive",
             title: "Could Not Get Location",
-            description: "Please ensure location services are enabled for your browser.",
+            description: "Please ensure location services are enabled for your browser and try again.",
         })
       }
     );
@@ -81,12 +93,12 @@ export function HeaderControls() {
             <AlertDialogHeader>
             <AlertDialogTitle>Send Emergency Alert?</AlertDialogTitle>
             <AlertDialogDescription>
-                This will get your current location and send an emergency alert email to your primary caregiver, Babulal Jadhav. Are you sure?
+                This action will get your current location and open your default email app to send an emergency alert to your primary caregiver, Babulal Jadhav. Are you sure you want to proceed?
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSosConfirm}>Yes, Send Alert</AlertDialogAction>
+            <AlertDialogAction onClick={handleSosConfirm}>Yes, Prepare Email</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>
