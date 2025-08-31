@@ -67,7 +67,7 @@ Thanks.`;
 
         toast({
           title: "✅ Opening Email Client",
-          description: `Your email app is opening with a pre-filled message for your caregiver. Please press send.`,
+          description: `Your email app is opening with a pre-filled message. Please press send.`,
         });
       },
       (error) => {
@@ -93,7 +93,7 @@ Thanks.`;
             <AlertDialogHeader>
             <AlertDialogTitle>Send Emergency Alert?</AlertDialogTitle>
             <AlertDialogDescription>
-                This action will get your current location and open your default email app to send an emergency alert to your primary caregiver, Babulal Jadhav. Are you sure you want to proceed?
+                This action will get your current location and open your default email app to send an emergency alert to your primary caregiver. You will need to press "Send" in your email client.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
