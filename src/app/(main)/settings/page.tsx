@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -34,7 +35,6 @@ export default function SettingsPage() {
     'Heart Failure',
     'Stroke Recovery',
     'Parkinson\'s Disease',
-    'Kidney Failure / Dialysis',
     'COPD',
     'Post-Surgery Recovery',
     'Multiple Chronic Conditions',

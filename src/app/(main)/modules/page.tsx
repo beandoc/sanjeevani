@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Card,
   CardContent,
@@ -16,358 +18,148 @@ import {
 } from '@/components/ui/tabs';
 import {
   ArrowRight,
-  BrainCircuit,
-  HeartPulse,
-  Activity,
-  User,
-  ShieldAlert,
-  Accessibility,
-  PersonStanding,
-  Recycle,
-  Dumbbell,
-  HeartHandshake,
-  Users,
-  Stethoscope,
-  Brain,
-  Droplets,
-  Footprints,
-  Bone,
-  Utensils,
-  Eye,
-  Smile,
-  Pill,
-  Shield,
-  Siren,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useProfile } from '@/context/role-context';
+import { caregiverModules, professionalModules, iconMap } from '@/lib/modules';
 
-const caregiverModules = [
-  {
-    id: 'alzheimers-caregiver',
-    title: "A Caregiver's Guide to Alzheimer's Disease",
-    description: 'An in-depth guide to understanding the stages, diagnosis, and behavioral changes of Alzheimer\'s.',
-    icon: BrainCircuit,
-  },
-  {
-    id: 'ischaemic-heart-disease-caregiver',
-    title: 'Caring for a Loved One with Heart Disease',
-    description: 'A practical guide for families on recognizing symptoms and supporting heart health.',
-    icon: HeartPulse,
-  },
-  {
-    id: 'dementia-care',
-    title: "A Caregiver's Guide to Delirium",
-    description:
-      'Learn to recognize, prevent, and respond to sudden confusion in a loved one.',
-    icon: BrainCircuit,
-  },
-  {
-    id: 'stroke-rehab',
-    title: 'Stroke Rehabilitation',
-    description:
-      'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.',
-    icon: Activity,
-  },
-  {
-    id: 'hypertension-caregiver',
-    title: 'Hypertension: A Caregiver\'s Guide',
-    description:
-      'Learn to manage high blood pressure safely with a focus on quality of life.',
-    icon: HeartPulse,
-  },
-  {
-    id: 'bed-bound-care',
-    title: 'Bed Bound Patient Care',
-    description:
-      'Essential care for bed-bound patients: pressure ulcer prevention, hygiene, and mobility.',
-    icon: Accessibility,
-  },
-  {
-    id: 'parkinsonism-care',
-    title: 'Living with Parkinson\'s Disease: A Detailed Guide',
-    description:
-      "A detailed guide to understanding symptoms, managing medications, and supporting daily life with PD.",
-    icon: User,
-  },
-  {
-    id: 'fall-prevention',
-    title: 'Staying Steady and Safe: Fall Prevention',
-    description:
-      'Learn to identify risks and create a safe environment to prevent falls.',
-    icon: PersonStanding,
-  },
-  {
-    id: 'palliative-care-caregiver',
-    title: 'Palliative Care: A Guide for Caregivers',
-    description:
-      'A compassionate guide to understanding and navigating palliative care for a loved one.',
-    icon: HeartHandshake,
-  },
-  {
-    id: 'benign-prostate-care',
-    title: 'Urinary Problems in Men',
-    description:
-      'Understand common urinary issues like BPH and learn practical tips for management.',
-    icon: Droplets,
-  },
-   {
-    id: 'foot-care',
-    title: 'Foot Care Essentials',
-    description:
-      'Learn the basics of foot care for older adults to maintain mobility and prevent complications.',
-    icon: Footprints,
-  },
-  {
-    id: 'joint-problems-caregiver',
-    title: 'Understanding Joint Pain & Arthritis',
-    description:
-      'Learn about common joint problems like arthritis and gout and how to manage them at home.',
-    icon: Bone,
-  },
-  {
-    id: 'nutrition-caregiver',
-    title: 'Nutrition and Feeding Issues',
-    description:
-      'Learn about malnutrition, feeding problems, and strategies to improve nutrition.',
-    icon: Utensils,
-  },
-  {
-    id: 'vision-problems-caregiver',
-    title: 'Vision and Eye Problems',
-    description:
-      'Learn to recognize common eye issues, red flags, and when to see a doctor.',
-    icon: Eye,
-  },
-  {
-    id: 'oral-health-caregiver',
-    title: 'Oral Health for Caregivers',
-    description: 'Learn to manage daily oral care and identify common dental issues in older adults.',
-    icon: Smile,
-  },
-  {
-    id: 'strength-training-caregiver',
-    title: 'Supporting Physical Activity',
-    description: 'A caregiver\'s guide to encouraging exercise and physical fitness for older adults.',
-    icon: Dumbbell,
-  },
-  {
-    id: 'medication-management-caregiver',
-    title: 'Helping Your Loved One Stay Safe with Medicines',
-    description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
-    icon: Pill,
-  },
-  {
-    id: 'constipation-caregiver',
-    title: 'Managing Constipation: A Caregiver\'s Guide',
-    description: 'Learn to understand, prevent, and manage constipation safely and effectively.',
-    icon: Utensils,
-  },
-  {
-    id: 'lung-infections-caregiver',
-    title: 'Protecting Your Loved One from Pneumonia',
-    description: 'A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it.',
-    icon: Siren,
-  },
-];
+type Module = {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  category: string;
+};
 
-const professionalModules = [
-  {
-    id: 'alzheimers-professional',
-    title: "A Comprehensive Nursing Guide to Alzheimer's Disease",
-    description: 'A clinical framework covering pathophysiology, risk factors, diagnosis, and behavioral assessment of AD.',
-    icon: BrainCircuit,
-  },
-  {
-    id: 'ischaemic-heart-disease-professional',
-    title: 'Managing Ischaemic Heart Disease in Older Adults',
-    description: 'A nursing perspective on atypical presentations, risk management, and patient-centered care.',
-    icon: HeartPulse,
-  },
-  {
-    id: 'medication-management-professional',
-    title: 'Medication Safety in Geriatric Care',
-    description: 'A nurse\'s guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.',
-    icon: Shield,
-  },
-  {
-    id: 'dementia-care-professional',
-    title: 'A Comprehensive Nursing Guide to Delirium',
-    description:
-      'A detailed clinical framework for the assessment, diagnosis, and complex management of delirium.',
-    icon: Brain,
-  },
-  {
-    id: 'hypertension-professional',
-    title: 'Hypertension in Older Adults',
-    description:
-      'A clinical overview of the unique aspects of hypertension in the geriatric population.',
-    icon: HeartPulse,
-  },
-  {
-    id: 'geriatric-rehabilitation',
-    title: 'Geriatric Rehabilitation',
-    description:
-      'Understand the interventions that help restore function and independence in older adults.',
-    icon: PersonStanding,
-  },
-  {
-    id: 'strength-training',
-    title: 'Prescribing Exercise for Older Adults',
-    description:
-      'A module for healthcare professionals on promoting and prescribing physical activity.',
-    icon: Dumbbell,
-  },
-  {
-    id: 'palliative-care-professional',
-    title: 'Palliative Care for Professionals',
-    description:
-      'An evidence-based overview of geriatric palliative care principles and practice for clinicians.',
-    icon: Users,
-  },
-  {
-    id: 'geriatric-depression-professional',
-    title: 'Geriatric Depression in Primary Care',
-    description:
-      'A review of the detection and management of depression in older adults for primary care providers.',
-    icon: Stethoscope,
-  },
-  {
-    id: 'benign-prostate-professional',
-    title: 'Benign Prostatic Conditions',
-    description:
-      'A clinical review of the evaluation and management of BPH and prostatitis in older men.',
-    icon: Droplets,
-  },
-   {
-    id: 'foot-care-professional',
-    title: 'Podogeriatrics: Clinical Foot Care',
-    description:
-      'A clinical review of common foot pathologies, assessment, and management in older adults.',
-    icon: Footprints,
-  },
-  {
-    id: 'joint-problems-professional',
-    title: 'Management of Rheumatic Disorders',
-    description:
-      'A clinical review of OA, RA, Gout, and other common rheumatic conditions in older adults.',
-    icon: Bone,
-  },
-  {
-    id: 'nutrition-care-professional',
-    title: 'Clinical Nutrition in Older Adults',
-    description:
-        'A review of malnutrition, screening, assessment, and management strategies for clinicians.',
-    icon: Utensils,
-  },
-  {
-    id: 'vision-problems-professional',
-    title: 'Clinical Geriatric Ophthalmology',
-    description:
-        'A review of common age-related eye diseases, diagnosis, and management for clinicians.',
-    icon: Eye,
-  },
-  {
-    id: 'oral-health-professional',
-    title: 'Geriatric Oral Health for Professionals',
-    description: 'A review of oral health screening, common challenges, and interprofessional care for clinicians.',
-    icon: Smile,
-  },
-  {
-    id: 'constipation-professional',
-    title: 'Managing Constipation in Older Adults',
-    description: 'A clinical guide for nurses on the assessment, management, and prevention of constipation.',
-    icon: Utensils,
-  },
-  {
-    id: 'lung-infections-professional',
-    title: 'Pneumonia in Older Adults: A Clinical Guide',
-    description: 'A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients.',
-    icon: Siren,
-  },
-  {
-    id: 'parkinsonism-care-professional',
-    title: 'A Comprehensive Nursing Guide to Parkinson\'s Disease',
-    description: 'A detailed clinical framework for the assessment, diagnosis, and complex management of PD.',
-    icon: User,
-  },
-];
+const ModuleCard = ({ module }: { module: Module }) => {
+  const Icon = module.icon;
+  return (
+    <Card key={module.id} className="flex flex-col">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="font-headline text-xl">
+            {module.title}
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-grow">
+        <CardDescription>{module.description}</CardDescription>
+      </CardContent>
+      <CardFooter>
+        <Button asChild className="w-full">
+          <Link href={`/modules/${module.id}`}>
+            Start Module <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
+const CompetencySection = ({ title, description, modules }: { title: string, description: string, modules: Module[] }) => {
+  if (modules.length === 0) return null;
+
+  return (
+    <div className="space-y-4 py-4">
+      <div>
+        <h2 className="text-2xl font-semibold font-headline">{title}</h2>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {modules.map((module) => (
+          <ModuleCard key={module.id} module={module} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const ModulesView = ({ modules, role }: { modules: Module[], role: 'caregiver' | 'professional' }) => {
+  const { caregivingScenario } = useProfile();
+
+  const getCategorizedModules = () => {
+    const coreCompetencies = ['Medication Safety', 'Fall Prevention', 'Nutrition', 'Exercise', 'Constipation', 'Oral Health', 'Bed Bound Care'];
+    
+    // Map the selected scenario to module categories
+    const scenarioCategoryMap: { [key: string]: string[] } = {
+        'Dementia': ['Alzheimer\'s Disease', 'Delirium'],
+        'Heart Failure': ['Heart Disease', 'Hypertension'],
+        'Stroke Recovery': ['Stroke'],
+        'Parkinson\'s Disease': ['Parkinsonism Care'],
+        'General Frailty': [], 
+        'COPD': ['Pneumonia'],
+        'Post-Surgery Recovery': ['Geriatric Rehabilitation'],
+        'Multiple Chronic Conditions': ['Heart Disease', 'Hypertension', 'Pneumonia', 'Joint Problems'],
+    };
+
+    const recommendedCategories = scenarioCategoryMap[caregivingScenario] || [];
+
+    const core = modules.filter(m => coreCompetencies.includes(m.category));
+    const shouldKnow = modules.filter(m => recommendedCategories.includes(m.category) && !coreCompetencies.includes(m.category));
+    const couldKnow = modules.filter(m => !coreCompetencies.includes(m.category) && !recommendedCategories.includes(m.category));
+
+    return { core, shouldKnow, couldKnow };
+  };
+
+  const { core, shouldKnow, couldKnow } = getCategorizedModules();
+
+  const recommendedDescription = role === 'caregiver'
+    ? `Based on your selected profile need for "${caregivingScenario}", we recommend these modules.`
+    : `Modules relevant to the selected patient scenario: "${caregivingScenario}".`;
+
+
+  return (
+    <div className="space-y-8">
+        <CompetencySection 
+            title="Core Competencies"
+            description="These foundational modules are essential for all caregivers and health professionals."
+            modules={core}
+        />
+        <CompetencySection 
+            title="Recommended For You (Should Know)"
+            description={recommendedDescription}
+            modules={shouldKnow}
+        />
+        <CompetencySection 
+            title="Explore Other Topics (Could Know)"
+            description="Broaden your knowledge with these specialized modules."
+            modules={couldKnow}
+        />
+    </div>
+  );
+};
+
 
 export default function ModulesPage() {
+  const { role } = useProfile();
+
+  const getModulesForRole = (role: 'caregiver' | 'professional') => {
+    const source = role === 'caregiver' ? caregiverModules : professionalModules;
+    return source.map(m => ({ ...m, icon: iconMap[m.category] }));
+  };
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold font-headline">Learning Modules</h1>
         <p className="text-muted-foreground">
-          Explore our comprehensive library of caregiving topics.
+          A guided curriculum based on core competencies and personalized recommendations.
         </p>
       </div>
 
-      <Tabs defaultValue="caregiver" className="w-full">
+      <Tabs defaultValue={role} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="caregiver">For Family Caregivers</TabsTrigger>
           <TabsTrigger value="professional">For Health Professionals</TabsTrigger>
         </TabsList>
-        <TabsContent value="caregiver">
-          <div className="grid grid-cols-1 gap-6 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-            {caregiverModules.map((module) => {
-              const Icon = module.icon;
-              return (
-                <Card key={module.id} className="flex flex-col">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                        <Icon className="h-6 w-6 text-primary" />
-                      </div>
-                      <CardTitle className="font-headline text-xl">
-                        {module.title}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <CardDescription>{module.description}</CardDescription>
-                  </CardContent>
-                  <CardFooter>
-                    <Button asChild className="w-full">
-                      <Link href={`/modules/${module.id}`}>
-                        Start Module <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
+        <TabsContent value="caregiver" className="pt-4">
+          <ModulesView modules={getModulesForRole('caregiver')} role="caregiver" />
         </TabsContent>
-        <TabsContent value="professional">
-          <div className="grid grid-cols-1 gap-6 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-            {professionalModules.map((module) => {
-              const Icon = module.icon;
-              return (
-                <Card key={module.id} className="flex flex-col">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                        <Icon className="h-6 w-6 text-accent" />
-                      </div>
-                      <CardTitle className="font-headline text-xl">
-                        {module.title}
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <CardDescription>{module.description}</CardDescription>
-                  </CardContent>
-                  <CardFooter>
-                    <Button asChild className="w-full">
-                      <Link href={`/modules/${module.id}`}>
-                        Start Module <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
+        <TabsContent value="professional" className="pt-4">
+          <ModulesView modules={getModulesForRole('professional')} role="professional" />
         </TabsContent>
       </Tabs>
     </div>

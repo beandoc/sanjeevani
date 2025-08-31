@@ -38,6 +38,9 @@ import {
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
 import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
+import { allModules } from '@/lib/modules';
+import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
+
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -65,22 +68,6 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Constipation': Utensils,
   'Pneumonia': Siren,
 };
-
-const allModules = [
-  { moduleId: 'fall-prevention', title: 'Fall Prevention', description: 'Learn to identify risks and create a safe environment.', estimatedDuration: 20, topic: 'Fall Prevention' },
-  { moduleId: 'bed-bound-care', title: 'Bed Bound Patient Care', description: 'Essential care for bed-bound patients, including hygiene and pressure sore prevention.', estimatedDuration: 30, topic: 'Bed Bound Care' },
-  { moduleId: 'dementia-care', title: 'Delirium Care', description: 'Techniques for communicating with and caring for individuals with delirium.', estimatedDuration: 45, topic: 'Delirium' },
-  { moduleId: 'heart-failure', title: 'Heart Failure Management', description: 'Managing heart failure, including medication, fluid balance, and lifestyle.', estimatedDuration: 35, topic: 'Heart Failure' },
-  { moduleId: 'stroke-rehab', title: 'Stroke Rehabilitation', description: 'Principles of stroke rehab, including mobility, speech therapy, and preventing complications.', estimatedDuration: 40, topic: 'Stroke' },
-  { moduleId: 'parkinsonism-care', title: "Living with Parkinson's Disease", description: "Guidance on managing Parkinson's symptoms, medication, and mobility.", estimatedDuration: 35, topic: 'Parkinsonism Care' },
-  { moduleId: 'vision-problems-caregiver', title: 'Vision and Eye Problems', description: 'Learn to recognize common eye issues, red flags, and when to see a doctor.', estimatedDuration: 15, topic: 'Vision Problems' },
-  { moduleId: 'joint-problems-caregiver', title: 'Understanding Joint Pain & Arthritis', description: 'Learn about common joint problems like arthritis and gout and how to manage them.', estimatedDuration: 20, topic: 'Joint Problems' },
-  { moduleId: 'benign-prostate-care', title: 'Urinary Problems in Men', description: 'Understand common urinary issues like BPH and learn practical tips for management.', estimatedDuration: 15, topic: 'Urinary Problems' },
-  { moduleId: 'nutrition-caregiver', title: 'Nutrition and Feeding Issues', description: 'Learn about malnutrition, feeding problems, and strategies to improve nutrition.', estimatedDuration: 20, topic: 'Nutrition' },
-  { moduleId: 'ischaemic-heart-disease-caregiver', title: 'Caring for a Loved One with Heart Disease', description: 'A practical guide for families on recognizing symptoms and supporting heart health.', estimatedDuration: 25, topic: 'Heart Disease' },
-  { moduleId: 'lung-infections-caregiver', title: 'Protecting Your Loved One from Pneumonia', description: 'A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it.', estimatedDuration: 20, topic: 'Pneumonia' },
-  { moduleId: 'alzheimers-caregiver', title: "A Caregiver's Guide to Alzheimer's Disease", description: 'An in-depth guide to understanding the stages, diagnosis, and behavioral changes of Alzheimer\'s.', estimatedDuration: 40, topic: 'Alzheimer\'s Disease' }
-];
 
 // Function to shuffle an array
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -117,7 +104,7 @@ const getDynamicPersonalizedPath = (
 
 
 const initialActiveModules = [
-  { title: 'Dementia Care', progress: 0, topic: 'Dementia' },
+  { title: 'Delirium Care', progress: 0, topic: 'Delirium' },
   { title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
   { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
@@ -192,6 +179,8 @@ export default function DashboardClient() {
           </Card>
 
           <div className="space-y-6">
+            <EmergencyContactCard />
+
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Active Modules</CardTitle>
