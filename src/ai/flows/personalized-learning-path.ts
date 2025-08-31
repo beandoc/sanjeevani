@@ -93,7 +93,8 @@ const personalizedLearningPathFlow = ai.defineFlow(
         return output!;
     } catch (error) {
         console.error("Error in personalizedLearningPathFlow: ", error);
-        return { suggestedModules: [], reasoning: "There was an error generating the learning path." };
+        // Return a valid, empty structure on error to prevent crashes downstream.
+        return { suggestedModules: [], reasoning: "We encountered an error generating your personalized path. Please try again later." };
     }
   }
 );
