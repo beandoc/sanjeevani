@@ -63,11 +63,11 @@ Thanks.`;
 
         const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         
-        window.location.href = mailtoLink;
+        window.open(mailtoLink, '_blank');
 
         toast({
-          title: "✅ Opening Email Client",
-          description: `Your email app is opening with a pre-filled message. Please press send.`,
+          title: "✅ Opening New Tab",
+          description: `A new tab is opening with a pre-filled email. Please press send.`,
         });
       },
       (error) => {
