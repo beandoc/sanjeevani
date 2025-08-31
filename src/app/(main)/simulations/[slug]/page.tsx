@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Lightbulb, Target, CheckCircle2, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import type { PageProps } from '@/types/page-props';
 
 type Option = {
   text: string;
@@ -293,7 +294,7 @@ const simulationsData: {
   }
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
+export default function SimulationPage({ params }: PageProps) {
   const slug = params.slug;
   const simData = simulationsData[slug];
 
