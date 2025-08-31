@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/tabs';
 import {
   ArrowRight,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
@@ -32,7 +33,7 @@ type Module = {
 };
 
 const ModuleCard = ({ module }: { module: Module }) => {
-  const Icon = module.icon;
+  const Icon = module.icon || ShieldAlert; // Fallback icon to prevent crashes
   return (
     <Card key={module.id} className="flex flex-col">
       <CardHeader>
