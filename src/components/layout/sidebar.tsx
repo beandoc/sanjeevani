@@ -22,6 +22,7 @@ import {
   FileText,
   Computer,
   CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ export function AppSidebar() {
     { href: `/modules`, label: 'Modules', icon: GraduationCap },
     { href: `/simulations`, label: 'Simulations', icon: Bot },
     { href: `/appointments`, label: 'Appointments', icon: CalendarDays },
+    { href: '/vital-logs', label: 'Vital Logs', icon: ClipboardList },
     { href: `/videos`, label: 'Video Library', icon: Video },
     { href: `/podcasts`, label: 'Podcasts', icon: Mic },
     { href: `/assessment-guide`, label: 'Assessment Guide', icon: FileText },
