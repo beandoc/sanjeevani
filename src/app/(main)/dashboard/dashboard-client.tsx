@@ -104,9 +104,9 @@ const getDynamicPersonalizedPath = (
 
 
 const initialActiveModules = [
-  { title: 'Delirium Care', progress: 0, topic: 'Delirium' },
-  { title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
-  { title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
+  { id: 1, title: 'Delirium Care', progress: 0, topic: 'Delirium' },
+  { id: 2, title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
+  { id: 3, title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
 ];
 
 export default function DashboardClient() {
@@ -190,7 +190,7 @@ export default function DashboardClient() {
                 {activeModules.map((mod) => {
                   const Icon = iconMap[mod.topic] || BookOpenCheck;
                   return (
-                    <div key={mod.title}>
+                    <div key={mod.id}>
                       <div className="mb-1 flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
