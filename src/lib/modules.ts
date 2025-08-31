@@ -186,7 +186,7 @@ export const caregiverModules = [
 
 export const professionalModules = [
    {
-    id: 'medication-management-professional',
+    id: 'polypharmacy-professional',
     title: 'Medication Safety in Geriatric Care',
     description: 'A nurse\'s guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.',
     category: 'Medication Safety',
