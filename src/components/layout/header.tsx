@@ -27,9 +27,9 @@ export function Header() {
       <div className="flex-1" />
 
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <HeaderControls />
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
         </Button>
@@ -44,7 +44,7 @@ export function Header() {
                   height={40}
                   data-ai-hint="person face"
                 />
-                <AvatarFallback>CG</AvatarFallback>
+                <AvatarFallback>SK</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
