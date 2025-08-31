@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
@@ -9,8 +11,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Home, Shield, Utensils, HeartPulse, Phone, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'fall-prevention';
+const SECTIONS = 5;
 
 export default function FallPreventionModulePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -39,11 +68,12 @@ export default function FallPreventionModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Why falls happen more as we age</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="Why falls happen more as we age"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+            >
                 <p>
                   As we get older, our bodies change. Common age-related changes like decreased vision, shifts in balance and muscle strength, and side effects from medications can make falls more likely.
                 </p>
@@ -62,8 +92,7 @@ export default function FallPreventionModulePage() {
                     <strong>Sensory Changes:</strong> Changes in vision and hearing can significantly impact your balance and coordination.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -75,11 +104,12 @@ export default function FallPreventionModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Practical steps for a safer home</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={2}
+                title="Practical steps for a safer home"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Clear the Clutter:</strong> Keep walkways clear of electrical cords, throw rugs, and other obstacles that could cause tripping.
@@ -97,8 +127,7 @@ export default function FallPreventionModulePage() {
                         <strong>Kitchen Safety:</strong> Arrange frequently used items on lower shelves to avoid using a step stool. Clean up any spills immediately to prevent slipping.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -110,11 +139,12 @@ export default function FallPreventionModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Maintaining strength and balance through exercise</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={3}
+                title="Maintaining strength and balance through exercise"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Strength and Balance Exercises:</strong> Simple exercises like chair yoga, tai chi, or leg lifts can improve leg strength and balance. Look for local classes or online videos designed for seniors.
@@ -126,8 +156,7 @@ export default function FallPreventionModulePage() {
                         <strong>Appropriate Footwear:</strong> Wear supportive, non-slip shoes both inside and outside the home. Avoid walking in socks or flimsy slippers.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -139,11 +168,12 @@ export default function FallPreventionModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>How diet supports fall prevention</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={4}
+                title="How diet supports fall prevention"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Vitamin D and Calcium:</strong> These are essential for strong bones. Get them from dairy products, fortified foods, and supplements if recommended by your doctor.
@@ -155,8 +185,7 @@ export default function FallPreventionModulePage() {
                         <strong>Regular Meals:</strong> Don't skip meals. This helps prevent drops in blood sugar that can lead to lightheadedness and instability.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -168,11 +197,12 @@ export default function FallPreventionModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Having a plan of action</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={5}
+                title="Having a plan of action"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(5)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>How to Get Up Safely:</strong> Stay still for a moment to assess for injuries. If you feel you can get up, roll onto your hands and knees, crawl to a sturdy chair, and use it to help you stand.
@@ -184,8 +214,7 @@ export default function FallPreventionModulePage() {
                         <strong>Emergency Plan:</strong> Consider a medical alert device, especially if you live alone. Keep a phone within reach at all times, and have emergency numbers posted in a visible place.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 

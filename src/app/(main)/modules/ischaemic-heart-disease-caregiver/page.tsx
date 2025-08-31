@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, AlertTriangle, HeartPulse, Activity, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'ischaemic-heart-disease-caregiver';
+const SECTIONS = 4;
 
 export default function IschaemicHeartDiseaseCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,8 +65,12 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Atypical Warning Signs"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   One of the most important things you can do is learn the unusual warning signs of heart trouble in seniors. A heart attack or angina (chest pain from the heart) might not look like it does in movies.
                 </p>
@@ -51,8 +83,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
                   <li>Pain in the stomach area, shoulder, or back instead of the chest.</li>
                 </ul>
                 <p className="mt-4 font-medium">Treat these signs as seriously as you would chest pain. They can be the body’s way of signaling that the heart isn't getting enough oxygen.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -64,8 +95,12 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-                <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Healthy Lifestyle Support"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                     <p>You can be a powerful partner in managing your loved one's heart health.</p>
                     <h4 className="font-semibold">Encourage Movement:</h4>
                     <p>The science is clear: all movement counts. You don't need to push for intense workouts. Encouraging daily walks and celebrating their ability to walk a little farther or faster makes a huge difference.</p>
@@ -79,8 +114,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
                     </ul>
                     <h4 className="font-semibold mt-4">Support Quitting Smoking:</h4>
                     <p>It is never too late to quit smoking. The benefits to the heart and blood vessels begin almost immediately.</p>
-              </CardContent>
-            </Card>
+              </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -92,11 +126,12 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What is Cardiac Rehab?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Cardiac Rehab"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>If your loved one has a heart event, their doctor will likely recommend cardiac rehabilitation. This is a medically supervised program of exercise, education, and support.</p>
                 <h4 className="font-semibold">Why is it so Important?</h4>
                 <p>Cardiac rehab is one of the best things an older person can do for their recovery. It is proven to:</p>
@@ -106,8 +141,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
                     <li>Improve their overall quality of life and mental health.</li>
                 </ul>
                 <p className="mt-2 font-medium">Please strongly encourage them to attend if it is offered.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -119,11 +153,12 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Goal is Quality of Life</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="The Goal is Quality of Life"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <p>You may notice that your loved one's treatment is different from that of a younger person or even another person their age. This is intentional and important.</p>
                  <p>The doctor creates a personalized plan that considers the whole person, not just the disease. This includes their:</p>
                  <ul className="list-disc space-y-2 pl-5">
@@ -132,8 +167,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
                     <li>Personal wishes and goals for their health.</li>
                 </ul>
                 <p className="mt-4 font-medium">The goal of treatment for an older person is always to improve their quality of life. Sometimes, this means choosing a less aggressive medication or procedure to avoid side effects and complications like falls or bleeding. This is a sign of good, thoughtful care.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

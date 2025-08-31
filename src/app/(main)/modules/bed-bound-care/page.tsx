@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Shield, Droplets, Bed, Utensils, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'bed-bound-care';
+const SECTIONS = 4;
 
 export default function BedBoundCareModulePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function BedBoundCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Importance of Skin Care</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="The Importance of Skin Care"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Pressure sores are injuries to the skin and underlying tissue resulting from prolonged pressure. They are a primary concern for bed-bound individuals.
                 </p>
@@ -60,8 +89,7 @@ export default function BedBoundCareModulePage() {
                     <strong>Keep Skin Clean and Dry:</strong> Moisture from sweat or incontinence can increase the risk of skin breakdown.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -73,11 +101,12 @@ export default function BedBoundCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Maintaining Cleanliness and Dignity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+             <SectionCard
+                sectionId={2}
+                title="Maintaining Cleanliness and Dignity"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Bed Baths:</strong> Learn the proper technique for giving a sponge bath to ensure all areas are cleaned gently and thoroughly.
@@ -92,8 +121,7 @@ export default function BedBoundCareModulePage() {
                         <strong>Managing Incontinence:</strong> If applicable, change pads or briefs promptly. Use barrier creams to protect the skin from moisture.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -105,11 +133,12 @@ export default function BedBoundCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preventing Stiffness and Complications</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={3}
+                title="Preventing Stiffness and Complications"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+            >
                 <p>
                   Even if a person cannot get out of bed, movement is crucial to prevent joint stiffness, muscle shortening (contractures), and blood clots.
                 </p>
@@ -124,8 +153,7 @@ export default function BedBoundCareModulePage() {
                         <strong>Proper Positioning:</strong> Use pillows to support limbs in a natural, comfortable position to prevent strain and contractures.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -137,11 +165,12 @@ export default function BedBoundCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fueling the Body for Health</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={4}
+                title="Fueling the Body for Health"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
                 <p>Good nutrition is essential for maintaining skin integrity, fighting infection, and overall well-being.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -157,8 +186,7 @@ export default function BedBoundCareModulePage() {
                         <strong>Assist with Feeding:</strong> If needed, be patient and allow plenty of time for them to chew and swallow safely.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         

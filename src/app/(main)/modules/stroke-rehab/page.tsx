@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Brain, Shield, Home, MessageSquare, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'stroke-rehab';
+const SECTIONS = 5;
 
 export default function StrokeRehabModulePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function StrokeRehabModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What Happens After a Stroke</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="What Happens After a Stroke"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   A stroke can impact many functions, including movement, speech, and thinking. Recovery is a unique journey for each person and requires patience and consistent support.
                 </p>
@@ -60,8 +89,7 @@ export default function StrokeRehabModulePage() {
                     <strong>Emotional Changes:</strong> Depression, anxiety, and frustration are common during recovery.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -73,11 +101,12 @@ export default function StrokeRehabModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Helping with Mobility and Daily Activities</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Helping with Mobility and Daily Activities"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Encourage Movement:</strong> Assist with exercises recommended by physical and occupational therapists to regain strength and coordination.
@@ -92,8 +121,7 @@ export default function StrokeRehabModulePage() {
                         <strong>Use of Assistive Devices:</strong> Ensure walkers, canes, or braces are used correctly as advised by therapists.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -105,11 +133,12 @@ export default function StrokeRehabModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Strategies for Effective Interaction</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Strategies for Effective Interaction"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Be Patient:</strong> Give your loved one time to find their words. Avoid finishing their sentences unless they ask for help.
@@ -124,8 +153,7 @@ export default function StrokeRehabModulePage() {
                         <strong>Memory Aids:</strong> Use calendars, lists, and pill organizers to help with memory and daily routines.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -137,11 +165,12 @@ export default function StrokeRehabModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Adapting the Home for Safety and Independence</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Adapting the Home for Safety and Independence"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Fall Prevention:</strong> Remove throw rugs, clear walkways, and ensure good lighting.
@@ -153,8 +182,7 @@ export default function StrokeRehabModulePage() {
                         <strong>Accessibility:</strong> Keep frequently used items within easy reach.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -166,11 +194,12 @@ export default function StrokeRehabModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Long-Term Health Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={5}
+              title="Long-Term Health Management"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(5)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Medication Management:</strong> Ensure medications are taken exactly as prescribed to manage blood pressure, cholesterol, and other risk factors.
@@ -182,8 +211,7 @@ export default function StrokeRehabModulePage() {
                         <strong>Know the Signs of Stroke:</strong> Be aware of the F.A.S.T. signs (Face drooping, Arm weakness, Speech difficulty, Time to call emergency services) and seek immediate medical help if they occur.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 

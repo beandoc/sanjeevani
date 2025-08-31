@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, Footprints, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'foot-care-professional';
+const SECTIONS = 3;
 
 export default function FootCareProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function FootCareProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Comprehensive Evaluation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Comprehensive Evaluation"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   A systematic assessment is essential for diagnosing foot pathology and stratifying risk, especially in patients with chronic diseases like diabetes.
                 </p>
@@ -60,8 +89,7 @@ export default function FootCareProfessionalPage() {
                         <strong>Neurologic:</strong> Test for loss of protective sensation using a 10g monofilament. Assess vibratory sense (pallesthesia), sharp/dull discrimination, and proprioception.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -73,28 +101,35 @@ export default function FootCareProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <h4 className="font-semibold text-lg">Onychopathies (Nail Disorders)</h4>
-            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Onychomycosis:</strong> Fungal infection of the nail plate/bed. Presents as thickened, discolored, dystrophic nails. It's a chronic, communicable disease and serves as a focus of infection for tinea pedis. Management includes periodic debridement and topical antifungals. Systemic agents carry hepatotoxicity risks.
-                </li>
-                <li>
-                    <strong>Onychocryptosis (Ingrown Toenail):</strong> Often results from deformity or improper care. Management requires removal of the offending nail spicule. If granulation tissue is present, chemical cautery (e.g., phenol) or surgical excision may be necessary after evaluating vascular status.
-                </li>
-                 <li>
-                    <strong>Onychauxis & Onychogryphosis:</strong> Hypertrophy (thickening) of the nail, often from microtrauma. Gryphosis is a severe, deformed "ram's horn" presentation. Management is periodic debridement.
-                </li>
-            </ul>
+            <SectionCard
+              sectionId={2}
+              title="Common Pathologies"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
+                <h4 className="font-semibold text-lg">Onychopathies (Nail Disorders)</h4>
+                <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+                    <li>
+                        <strong>Onychomycosis:</strong> Fungal infection of the nail plate/bed. Presents as thickened, discolored, dystrophic nails. It's a chronic, communicable disease and serves as a focus of infection for tinea pedis. Management includes periodic debridement and topical antifungals. Systemic agents carry hepatotoxicity risks.
+                    </li>
+                    <li>
+                        <strong>Onychocryptosis (Ingrown Toenail):</strong> Often results from deformity or improper care. Management requires removal of the offending nail spicule. If granulation tissue is present, chemical cautery (e.g., phenol) or surgical excision may be necessary after evaluating vascular status.
+                    </li>
+                    <li>
+                        <strong>Onychauxis & Onychogryphosis:</strong> Hypertrophy (thickening) of the nail, often from microtrauma. Gryphosis is a severe, deformed "ram's horn" presentation. Management is periodic debridement.
+                    </li>
+                </ul>
 
-            <h4 className="font-semibold text-lg mt-4">Dermatologic Conditions</h4>
-             <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Xerosis and Fissures:</strong> Dry, cracked skin, especially on the heel, is a common entry point for infection. Management includes hydration and emollients, often with keratolytic agents like urea or lactic acid.
-                </li>
-                <li>
-                    <strong>Hyperkeratotic Lesions (Calluses/Corns):</strong> Develop over bony prominences due to pressure and friction. They are a symptom of underlying biomechanical stress. If allowed to condense, they can cause localized avascularity and precipitate ulceration. Management includes debridement and pressure-reduction strategies (padding, orthoses, footwear changes).
-                </li>
-            </ul>
+                <h4 className="font-semibold text-lg mt-4">Dermatologic Conditions</h4>
+                <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+                    <li>
+                        <strong>Xerosis and Fissures:</strong> Dry, cracked skin, especially on the heel, is a common entry point for infection. Management includes hydration and emollients, often with keratolytic agents like urea or lactic acid.
+                    </li>
+                    <li>
+                        <strong>Hyperkeratotic Lesions (Calluses/Corns):</strong> Develop over bony prominences due to pressure and friction. They are a symptom of underlying biomechanical stress. If allowed to condense, they can cause localized avascularity and precipitate ulceration. Management includes debridement and pressure-reduction strategies (padding, orthoses, footwear changes).
+                    </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -106,18 +141,25 @@ export default function FootCareProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p>Early identification and intervention can prevent 50-75% of amputations in diabetic patients. Management is complicated by vascular impairment, neuropathy, and dermopathy.</p>
-            <ul className="list-disc space-y-4 pl-5">
-              <li>
-                <strong className="font-semibold text-card-foreground">Neuropathy:</strong> Loss of protective sensation is a critical risk factor. Patients may not feel repetitive trauma, leading to ulceration. Motor neuropathy causes muscle atrophy and foot deformities (e.g., claw toes), which create high-pressure areas. Autonomic neuropathy leads to anhidrosis and dry, cracked skin.
-              </li>
-              <li>
-                <strong className="font-semibold text-card-foreground">Vascular Impairment:</strong> Peripheral arterial disease (PAD) impairs wound healing. Signs include pallor on elevation, dependent rubor, weak/absent pulses, and trophic changes.
-              </li>
-               <li>
-                <strong className="font-semibold text-card-foreground">Risk Assessment Models:</strong> Utilize models like the PAVE program to stratify patients into risk categories based on neuropathy, PAD, and foot deformities. High-risk patients require intensive management and frequent follow-up.
-              </li>
-            </ul>
+            <SectionCard
+              sectionId={3}
+              title="Diabetic Foot Care"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
+                <p>Early identification and intervention can prevent 50-75% of amputations in diabetic patients. Management is complicated by vascular impairment, neuropathy, and dermopathy.</p>
+                <ul className="list-disc space-y-4 pl-5">
+                <li>
+                    <strong className="font-semibold text-card-foreground">Neuropathy:</strong> Loss of protective sensation is a critical risk factor. Patients may not feel repetitive trauma, leading to ulceration. Motor neuropathy causes muscle atrophy and foot deformities (e.g., claw toes), which create high-pressure areas. Autonomic neuropathy leads to anhidrosis and dry, cracked skin.
+                </li>
+                <li>
+                    <strong className="font-semibold text-card-foreground">Vascular Impairment:</strong> Peripheral arterial disease (PAD) impairs wound healing. Signs include pallor on elevation, dependent rubor, weak/absent pulses, and trophic changes.
+                </li>
+                <li>
+                    <strong className="font-semibold text-card-foreground">Risk Assessment Models:</strong> Utilize models like the PAVE program to stratify patients into risk categories based on neuropathy, PAD, and foot deformities. High-risk patients require intensive management and frequent follow-up.
+                </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

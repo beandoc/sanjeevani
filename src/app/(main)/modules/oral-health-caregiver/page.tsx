@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Smile, Search, Shield, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'oral-health-caregiver';
+const SECTIONS = 3;
 
 export default function OralHealthCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function OralHealthCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>More Than Just a Pretty Smile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="More Than Just a Pretty Smile"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Good oral health is crucial for an older adult's overall health and quality of life. Poor oral health can lead to pain, difficulty eating, and serious infections. It can affect their ability to chew properly, which can lead to poor nutrition. It's important to remember that the mouth is a gateway to the rest of the body.
                 </p>
@@ -57,8 +86,7 @@ export default function OralHealthCaregiverPage() {
                     <strong>Quality of Life:</strong> Oral pain or bad breath can cause social embarrassment and isolation.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -70,11 +98,12 @@ export default function OralHealthCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tips for Daily Oral Hygiene</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Tips for Daily Oral Hygiene"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>Helping with daily oral care is one of the most important things a caregiver can do.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -90,8 +119,7 @@ export default function OralHealthCaregiverPage() {
                         <strong>Managing Dry Mouth:</strong> Many medications cause dry mouth, which increases the risk for cavities. Encourage sipping water, and suggest using sugar-free lozenges or an over-the-counter saliva substitute.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -103,11 +131,12 @@ export default function OralHealthCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Signs That Require a Dental Visit</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Signs That Require a Dental Visit"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>Regular dental check-ups are important. You should also make an appointment if you notice any of the following:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>Pain in the mouth, teeth, or jaw.</li>
@@ -117,8 +146,7 @@ export default function OralHealthCaregiverPage() {
                     <li>Sores, patches, or lumps in the mouth that don't heal.</li>
                 </ul>
                 <p className="mt-4 text-sm text-muted-foreground">Finding a dentist experienced in geriatric care can be very helpful, especially for frail or homebound individuals.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

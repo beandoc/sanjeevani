@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, HeartHandshake, Siren, Repeat, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'medication-management-caregiver';
+const SECTIONS = 4;
 
 export default function MedicationManagementCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function MedicationManagementCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Loved One's Most Important Safety Net</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Your Loved One's Most Important Safety Net"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   As people age, they often develop more health conditions and need more medicines. Taking many medications (polypharmacy) increases the chance of problems.
                 </p>
@@ -56,8 +85,7 @@ export default function MedicationManagementCaregiverPage() {
                     A medication problem can be a major reason for a hospital admission.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -69,11 +97,12 @@ export default function MedicationManagementCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Look for Sudden Changes</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Look for Sudden Changes"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>A bad reaction to a medicine in an older person might not be what you expect. It often looks like a sudden change in their overall condition. Never dismiss these signs as "just getting old."</p>
                  <h4 className="font-semibold">Key Warning Signs:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -85,8 +114,7 @@ export default function MedicationManagementCaregiverPage() {
                     <li>A new depressed mood or loss of interest in things.</li>
                 </ul>
                 <p className="mt-4 font-semibold text-destructive">Always consider that a new symptom might be a medication side effect and call the doctor.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -98,19 +126,19 @@ export default function MedicationManagementCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Understanding the Prescribing Cascade</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Understanding the Prescribing Cascade"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   Sometimes, a side effect from Drug #1 is mistaken for a new health problem. The doctor might then prescribe Drug #2 to treat that side effect. This can lead to even more problems. This is called the prescribing cascade.
                 </p>
                 <h4 className="font-semibold">Example:</h4>
                 <p>A blood pressure pill (Drug #1) causes swollen ankles. The doctor sees the swelling and prescribes a water pill (Drug #2) to fix it. The water pill can then cause dizziness, leading to a fall.</p>
                 <p className="mt-2 font-medium">You can help stop this by telling the doctor about any new symptom that appears after a medicine is started or changed.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -122,11 +150,12 @@ export default function MedicationManagementCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Simple Steps, Big Impact</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Simple Steps, Big Impact"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <ul className="list-disc space-y-4 pl-5">
                     <li>
                         <strong>Keep an "All-Meds" Master List:</strong> Maintain one updated list of every prescription, over-the-counter item, vitamin, and supplement. Note the name, dose, and reason for each. Bring this list to EVERY appointment.
@@ -141,8 +170,7 @@ export default function MedicationManagementCaregiverPage() {
                         <strong>Ask Questions at Discharge:</strong> Leaving the hospital is high-risk. Go over the final medication list with the nurse or doctor and ask: "What is each new medicine for?", "Which medicines should be stopped?", and "Who do I call if I have a problem?".
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

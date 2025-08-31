@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, HeartPulse, Dumbbell, Smile, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'strength-training-caregiver';
+const SECTIONS = 4;
 
 export default function StrengthTrainingCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,19 +65,19 @@ export default function StrengthTrainingCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Small Efforts, Big Impact</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Small Efforts, Big Impact"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Regular physical activity is one of the most powerful things an older adult can do for their health. It can improve everything from heart health to mood, and it's essential for maintaining independence.
                 </p>
                 <p>
                   It's helpful to know the difference between "physical activity" (like gardening or chores) and "exercise" (a planned workout). Both are important! Your role as a caregiver is to encourage both in a safe and supportive way.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -61,11 +89,12 @@ export default function StrengthTrainingCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>A Well-Rounded Routine</CardTitle>
-                </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="A Well-Rounded Routine"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>A good fitness program includes four key types of exercise. Encourage your loved one to try and include all four in their weekly routine.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -81,8 +110,7 @@ export default function StrengthTrainingCaregiverPage() {
                         <strong>Flexibility:</strong> Gentle stretching helps reduce stiffness and improves range of motion.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -94,11 +122,12 @@ export default function StrengthTrainingCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>More Than Just Physical Benefits</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="More Than Just Physical Benefits"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   Think of exercise as a powerful "medication" with only positive side effects. It can be more effective than drugs for some conditions and is especially helpful for issues that don't have a cure.
                 </p>
@@ -113,8 +142,7 @@ export default function StrengthTrainingCaregiverPage() {
                         <strong>Brain Health:</strong> Physical activity is one of the best things for brain health and can help with cognitive decline.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -126,11 +154,12 @@ export default function StrengthTrainingCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tips for Staying Motivated</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Tips for Staying Motivated"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <p>The hardest part of exercise is sticking with it. Your encouragement can make a huge difference.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -146,8 +175,7 @@ export default function StrengthTrainingCaregiverPage() {
                         <strong>Celebrate Small Wins:</strong> Acknowledge their effort and consistency. Celebrate their progress, no matter how small it seems.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

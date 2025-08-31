@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Footprints, Eye, ShieldCheck, Sun, Droplets } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'foot-care';
+const SECTIONS = 4;
 
 export default function FootCarePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function FootCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Why Daily Checks are Important</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Why Daily Checks are Important"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Many older adults, especially those with diabetes, have reduced sensation in their feet. They might not feel a small cut, blister, or sore, which can quickly become a serious infection. A daily check is the best way to catch problems early.
                 </p>
@@ -61,8 +90,7 @@ export default function FootCarePage() {
                   </li>
                 </ul>
                  <p className="mt-4 text-sm text-muted-foreground">If the person can't see their own feet, use a mirror or ask for help. Good lighting is key.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -74,11 +102,12 @@ export default function FootCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Keeping Feet Clean and Dry</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Keeping Feet Clean and Dry"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Wash Gently:</strong> Wash feet daily with lukewarm water and mild soap. Avoid soaking, as it can dry out the skin.
@@ -90,8 +119,7 @@ export default function FootCarePage() {
                         <strong>Moisturize:</strong> Apply a good quality lotion to the tops and bottoms of the feet to prevent dry skin and cracking. Do not put lotion between the toes.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -103,11 +131,12 @@ export default function FootCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Safe Toenail Trimming</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Safe Toenail Trimming"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   Improper nail trimming can cause ingrown toenails and infections.
                 </p>
@@ -122,8 +151,7 @@ export default function FootCarePage() {
                         <strong>Seek Professional Help:</strong> If the person has thick, hard-to-cut nails, poor circulation, or diabetes, it is safest to have their nails trimmed by a podiatrist (foot doctor).
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -135,11 +163,12 @@ export default function FootCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Right Fit Matters</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="The Right Fit Matters"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Properly Fitting Shoes:</strong> Shoes that are too tight can cause blisters and sores. Have feet measured, as size can change over time.
@@ -154,8 +183,7 @@ export default function FootCarePage() {
                         <strong>Clean, Dry Socks:</strong> Wear clean, dry socks every day. Seamless socks are a good choice, especially for people with diabetes.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

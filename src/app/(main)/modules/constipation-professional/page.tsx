@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
@@ -10,8 +12,35 @@ import { ArrowLeft, Stethoscope, Microscope, ShieldCheck, AlertTriangle } from '
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'constipation-professional';
+const SECTIONS = 5;
 
 export default function ConstipationProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -38,8 +67,12 @@ export default function ConstipationProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Redefining Constipation"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   While clinically defined as fewer than three bowel movements per week, older patients more often describe constipation as difficulty with defecation, straining, or hard stools. It's crucial to understand the patient's perspective.
                 </p>
@@ -49,8 +82,7 @@ export default function ConstipationProfessionalPage() {
                   <li><strong>Primary vs. Secondary:</strong> Primary has no obvious cause; secondary results from external factors (meds, metabolic issues).</li>
                   <li><strong>Acute vs. Chronic:</strong> Acute onset requires rapid investigation for obstruction or medication changes. Chronic symptoms have been present for over three months.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -62,20 +94,20 @@ export default function ConstipationProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader><CardTitle>History Taking</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Clinical Assessment"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
+                <h4 className="font-semibold">History Taking</h4>
                  <ul className="list-disc space-y-2 pl-5">
                     <li><strong>Onset and Duration:</strong> Is it acute or chronic?</li>
                     <li><strong>Symptoms:</strong> Go beyond frequency. Ask about straining, incomplete evacuation, hard stools (use the Bristol Stool Chart), and the need for perineal splinting or manual assistance (digitation).</li>
                     <li><strong>Medication Review:</strong> Scrutinize all medications, especially opiates, calcium channel blockers, NSAIDs, and anticholinergic drugs.</li>
                     <li><strong>Alarm Symptoms ("Red Flags"):</strong> Rectal bleeding, weight loss, iron deficiency anemia, or a new, acute onset warrant a prompt structural evaluation (e.g., colonoscopy).</li>
                 </ul>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader><CardTitle>Physical Examination</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className="font-semibold mt-4">Physical Examination</h4>
                 <p>A rectal exam is essential. Assess for:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li><strong>Fecal Impaction:</strong> The first sign may be paradoxical "overflow" diarrhea.</li>
@@ -83,17 +115,18 @@ export default function ConstipationProfessionalPage() {
                     <li><strong>Sphincter Tone:</strong> Assess resting and squeeze pressures. Weakness can increase incontinence risk with treatment.</li>
                     <li><strong>Paradoxical Contraction:</strong> Contraction during strain suggests dyssynergic defecation.</li>
                 </ul>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader><CardTitle>The Bristol Stool Chart</CardTitle></CardHeader>
-              <CardContent className="space-y-4 pt-6">
+            </SectionCard>
+            <SectionCard
+              sectionId={3}
+              title="The Bristol Stool Chart"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>Use this validated tool to objectively assess stool consistency. Types 1 and 2 are associated with constipation.</p>
                 <div className="relative aspect-[4/3] w-full">
                     <Image src="https://picsum.photos/600/450" alt="Bristol Stool Chart" fill data-ai-hint="chart health" className="rounded-md object-cover" />
                 </div>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -105,25 +138,32 @@ export default function ConstipationProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <h4 className="font-semibold text-lg">Step 1: Non-Pharmacological Interventions & Medication Review</h4>
-            <ul className="list-disc space-y-2 pl-5">
-                <li><strong>Medication Adjustment:</strong> This is paramount. Eliminate or substitute constipating drugs whenever possible.</li>
-                <li><strong>Fibre:</strong> Aim for 20-30 g per day from diet or supplements (psyllium, methylcellulose). Crucially, ensure adequate fluid intake to avoid worsening the problem.</li>
-                <li><strong>Caution:</strong> Avoid bulking agents in patients who are bedbound, have minimal fluid intake, or have a suspected fecal impaction.</li>
-            </ul>
+            <SectionCard
+              sectionId={4}
+              title="Management Approach"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
+                <h4 className="font-semibold text-lg">Step 1: Non-Pharmacological Interventions & Medication Review</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Medication Adjustment:</strong> This is paramount. Eliminate or substitute constipating drugs whenever possible.</li>
+                    <li><strong>Fibre:</strong> Aim for 20-30 g per day from diet or supplements (psyllium, methylcellulose). Crucially, ensure adequate fluid intake to avoid worsening the problem.</li>
+                    <li><strong>Caution:</strong> Avoid bulking agents in patients who are bedbound, have minimal fluid intake, or have a suspected fecal impaction.</li>
+                </ul>
 
-            <h4 className="font-semibold text-lg mt-4">Step 2: Osmotic Laxatives</h4>
-             <p>These increase water retention in the gut lumen. Polyethylene Glycol (PEG) is superior to lactulose in efficacy and tolerability (less bloating/gas) and is the preferred osmotic agent in older adults.</p>
-             <p><strong>Avoid/Use Caution:</strong> Magnesium salts should not be used in patients with renal disease due to the risk of hypermagnesemia.</p>
+                <h4 className="font-semibold text-lg mt-4">Step 2: Osmotic Laxatives</h4>
+                <p>These increase water retention in the gut lumen. Polyethylene Glycol (PEG) is superior to lactulose in efficacy and tolerability (less bloating/gas) and is the preferred osmotic agent in older adults.</p>
+                <p><strong>Avoid/Use Caution:</strong> Magnesium salts should not be used in patients with renal disease due to the risk of hypermagnesemia.</p>
 
-            <h4 className="font-semibold text-lg mt-4">Step 3: Stimulant Laxatives</h4>
-             <p>Use when osmotic laxatives are insufficient. Common agents include senna and bisacodyl. The idea that these drugs cause "laxative dependence" or damage the colon is a medical myth; they are safe when used at recommended doses.</p>
+                <h4 className="font-semibold text-lg mt-4">Step 3: Stimulant Laxatives</h4>
+                <p>Use when osmotic laxatives are insufficient. Common agents include senna and bisacodyl. The idea that these drugs cause "laxative dependence" or damage the colon is a medical myth; they are safe when used at recommended doses.</p>
 
-             <h4 className="font-semibold text-lg mt-4">Step 4: Advanced & Targeted Therapies</h4>
-             <ul className="list-disc space-y-2 pl-5">
-                <li><strong>Opioid-Induced Constipation (OIC):</strong> For refractory OIC, use peripherally acting mu-opioid receptor antagonists (PAMORAs) like methylnaltrexone.</li>
-                <li><strong>Dyssynergic Defecation:</strong> The mainstay of treatment is biofeedback therapy, which is superior to laxatives for this condition.</li>
-            </ul>
+                <h4 className="font-semibold text-lg mt-4">Step 4: Advanced & Targeted Therapies</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Opioid-Induced Constipation (OIC):</strong> For refractory OIC, use peripherally acting mu-opioid receptor antagonists (PAMORAs) like methylnaltrexone.</li>
+                    <li><strong>Dyssynergic Defecation:</strong> The mainstay of treatment is biofeedback therapy, which is superior to laxatives for this condition.</li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -135,12 +175,19 @@ export default function ConstipationProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <ul className="list-disc space-y-4 pl-5">
-              <li><strong>Fecal Impaction:</strong> Suspect this in immobile or cognitively impaired individuals, especially with overflow diarrhea. Management may require manual disimpaction followed by oral PEG.</li>
-              <li><strong>Dementia:</strong> Prevention is the primary strategy. Use non-verbal cues (fidgeting, pacing), timed toileting (30 mins after meals), and consider regular osmotic laxatives.</li>
-              <li><strong>Parkinson's Disease:</strong> Constipation is very common due to dyssynergic defecation and medications. Standard treatment with fibre and laxatives applies.</li>
-              <li><strong>Post-Stroke:</strong> Constipation occurs in 30-60% of patients. It's associated with increased dependency and poor outcomes. Abdominal massage may be effective.</li>
-            </ul>
+             <SectionCard
+              sectionId={5}
+              title="Special Populations"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(5)}
+            >
+                <ul className="list-disc space-y-4 pl-5">
+                <li><strong>Fecal Impaction:</strong> Suspect this in immobile or cognitively impaired individuals, especially with overflow diarrhea. Management may require manual disimpaction followed by oral PEG.</li>
+                <li><strong>Dementia:</strong> Prevention is the primary strategy. Use non-verbal cues (fidgeting, pacing), timed toileting (30 mins after meals), and consider regular osmotic laxatives.</li>
+                <li><strong>Parkinson's Disease:</strong> Constipation is very common due to dyssynergic defecation and medications. Standard treatment with fibre and laxatives applies.</li>
+                <li><strong>Post-Stroke:</strong> Constipation occurs in 30-60% of patients. It's associated with increased dependency and poor outcomes. Abdominal massage may be effective.</li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

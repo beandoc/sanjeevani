@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Siren, AlertTriangle, ShieldCheck, HeartPulse } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'lung-infections-caregiver';
+const SECTIONS = 4;
 
 export default function LungInfectionsCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,8 +65,12 @@ export default function LungInfectionsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Understanding Pneumonia"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Pneumonia is an infection deep in the lungs. It's not just a bad cold or bronchitis. For people over 65, it's one of the leading causes of hospitalization and death because their bodies have a harder time fighting off serious infections.
                 </p>
@@ -48,8 +80,7 @@ export default function LungInfectionsCaregiverPage() {
                   <li>Their cough, which helps clear germs from the lungs, is often weaker.</li>
                   <li>They are more likely to have other health problems like heart disease, lung disease, or diabetes.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -61,8 +92,12 @@ export default function LungInfectionsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Atypical Warning Signs"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>In an older person, pneumonia often hides behind subtle and confusing signs. You are the person most likely to notice these changes first.</p>
                  <h4 className="font-semibold">Be on high alert for:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -73,8 +108,7 @@ export default function LungInfectionsCaregiverPage() {
                     <li><strong>General Weakness:</strong> A sudden inability to perform their usual daily activities.</li>
                 </ul>
                 <p className="mt-4 font-semibold text-destructive">Important: A high fever and a bad cough might not be present at the beginning. Trust your instincts. If your loved one is "not themselves," it's worth a call to the doctor.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -86,8 +120,12 @@ export default function LungInfectionsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Emergency Signs"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   You don't need to be a doctor to know when a situation is serious. Think about these four things:
                 </p>
@@ -98,8 +136,7 @@ export default function LungInfectionsCaregiverPage() {
                   <li>Are they over <strong>65</strong>?</li>
                 </ul>
                 <p className="mt-4 font-semibold">If you see these signs, especially new confusion or fast breathing, it's a medical emergency. You should seek help right away.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -111,11 +148,13 @@ export default function LungInfectionsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Prevention is the most powerful tool you have.</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Prevention Strategies"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
+                 <h4 className="font-semibold">Prevention is the most powerful tool you have.</h4>
                  <ul className="list-disc space-y-4 pl-5">
                     <li>
                         <strong>Get Them Vaccinated:</strong> This is the #1 thing you can do. Make sure they are up-to-date on their annual Flu Shot and the Pneumonia Vaccine. You should get vaccinated too!
@@ -130,8 +169,7 @@ export default function LungInfectionsCaregiverPage() {
                         <strong>Question Sedative Medications:</strong> Sleeping pills and certain antipsychotic drugs can interfere with swallowing. Ask the doctor if these medications are truly necessary.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

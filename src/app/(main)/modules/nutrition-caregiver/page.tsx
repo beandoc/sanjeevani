@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Utensils, Search, Brain, Handshake, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'nutrition-caregiver';
+const SECTIONS = 4;
 
 export default function NutritionCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function NutritionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What is Malnutrition?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="What is Malnutrition?"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Malnutrition means an imbalance of nutrients. In older adults, it usually means "undernutrition"—not getting enough calories, protein, or other nutrients needed to keep the body healthy. It's a serious issue linked to more frequent hospital visits, falls, and other negative outcomes.
                 </p>
@@ -60,8 +89,7 @@ export default function NutritionCaregiverPage() {
                     <strong>Changes in Oral Health:</strong> Problems with teeth or dentures, or a dry mouth that makes it hard to eat.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -73,11 +101,12 @@ export default function NutritionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Why Malnutrition Happens</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Why Malnutrition Happens"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>Many factors can contribute to poor nutrition in older adults.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -96,8 +125,7 @@ export default function NutritionCaregiverPage() {
                         <strong>Cognitive Changes:</strong> People with dementia may forget to eat or have changes in their brain that affect appetite.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -109,11 +137,12 @@ export default function NutritionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Identifying Swallowing Difficulties</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Identifying Swallowing Difficulties"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   Dysphagia is the medical term for difficulty swallowing. It's a common issue in older adults, especially after a stroke or with conditions like dementia.
                 </p>
@@ -133,8 +162,7 @@ export default function NutritionCaregiverPage() {
                     </li>
                 </ul>
                 <p className="mt-4 font-semibold text-destructive">If you notice these signs, it's crucial to report them to a doctor or speech therapist for a proper evaluation.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -146,11 +174,12 @@ export default function NutritionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Practical Tips to Improve Nutrition</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Practical Tips to Improve Nutrition"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Honor Food Preferences:</strong> Offer foods they enjoy. A favorite meal can be a powerful appetite stimulant.
@@ -171,8 +200,7 @@ export default function NutritionCaregiverPage() {
                         <strong>Look into Community Resources:</strong> Programs like Meals on Wheels can provide regular, nutritious meals for those who have trouble with food preparation.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

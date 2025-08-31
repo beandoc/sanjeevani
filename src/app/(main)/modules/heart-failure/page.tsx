@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, HeartPulse, Pill, Scale, Soup, PhoneCall } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'heart-failure';
+const SECTIONS = 5;
 
 export default function HeartFailureModulePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function HeartFailureModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Understanding the Condition</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Understanding the Condition"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Heart failure, sometimes called congestive heart failure, doesn't mean the heart has stopped working. It means the heart muscle isn't pumping blood as well as it should. Because of this, the body doesn't get enough oxygen-rich blood, which can cause a variety of symptoms.
                 </p>
@@ -57,8 +86,7 @@ export default function HeartFailureModulePage() {
                     <strong>Symptoms Can Worsen:</strong> It's important to watch for changes and report them to the doctor.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -70,11 +98,12 @@ export default function HeartFailureModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Checks Are Crucial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Daily Checks Are Crucial"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                 <p>One of the most important jobs of a caregiver is to help monitor for changes that could signal worsening heart failure. Fluid retention is a major concern.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -90,8 +119,7 @@ export default function HeartFailureModulePage() {
                         <strong>Fatigue:</strong> Pay attention to increased tiredness or a sudden lack of energy.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -103,11 +131,12 @@ export default function HeartFailureModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Medication is a Lifeline</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Medication is a Lifeline"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   People with heart failure often take several medications. It's vital they are taken exactly as prescribed.
                 </p>
@@ -125,8 +154,7 @@ export default function HeartFailureModulePage() {
                         <strong>Never Stop a Medication:</strong> Do not stop or change any medication without talking to the doctor first.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -138,11 +166,12 @@ export default function HeartFailureModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Low Sodium, Controlled Fluids</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Low Sodium, Controlled Fluids"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Limit Sodium (Salt):</strong> Sodium makes the body hold onto fluid. Read food labels and avoid high-sodium processed foods, canned soups, and fast food.
@@ -154,8 +183,7 @@ export default function HeartFailureModulePage() {
                         <strong>Focus on Heart-Healthy Foods:</strong> Encourage a diet rich in fruits, vegetables, and lean proteins.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -167,11 +195,12 @@ export default function HeartFailureModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Know the Red Flags</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={5}
+              title="Know the Red Flags"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(5)}
+            >
                 <p>Contact the doctor or clinic right away if you notice:</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -190,8 +219,7 @@ export default function HeartFailureModulePage() {
                         <strong>Feeling dizzy, lightheaded, or fainting.</strong>
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         

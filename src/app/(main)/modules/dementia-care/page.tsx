@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Brain, Search, Shield, UserCheck, Siren, Pill } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'dementia-care';
+const SECTIONS = 5;
 
 export default function DeliriumCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function DeliriumCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>1.1 Defining Delirium</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="1.1 Defining Delirium"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Delirium is a sudden and drastic change in a person's mental state. Think of it as an "acute failure" of the brain's normal functioning. It is not dementia, which develops slowly over months or years. Delirium happens quickly, over hours or a few days.
                 </p>
@@ -56,8 +85,7 @@ export default function DeliriumCaregiverPage() {
                   <li>It can lead to a long-term decline in physical function and memory, even after the person leaves the hospital.</li>
                   <li>Recovery can be very slow, sometimes taking weeks or months.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -69,8 +97,12 @@ export default function DeliriumCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+             <SectionCard
+                sectionId={2}
+                title="2.1 Triggers and Vulnerability"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+            >
                  <p>Think of a person's brain health as a balancing scale. On one side is their vulnerability, and on the other are the triggers or insults.</p>
                  <h4 className="font-semibold">Vulnerability (Predisposing Factors):</h4>
                  <p>Some people are at a much higher risk. The biggest vulnerability factors are:</p>
@@ -88,8 +120,7 @@ export default function DeliriumCaregiverPage() {
                     <li><strong>Pain:</strong> Uncontrolled pain is a powerful trigger.</li>
                     <li><strong>The Hospital Environment:</strong> Being in an unfamiliar place, having tubes and IV lines, not sleeping well, and undergoing surgery can all contribute.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -101,10 +132,14 @@ export default function DeliriumCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+             <SectionCard
+                sectionId={3}
+                title="3.1 How to Spot Delirium"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+            >
                 <p>You know your loved one best. Your most important job is to spot sudden changes from their normal self. Delirium has a few key features:</p>
-                <h4 className="font-semibold mt-4">3.1 The Core Signs</h4>
+                <h4 className="font-semibold mt-4">The Core Signs</h4>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>It Happens Suddenly & Comes and Goes:</strong> This is the biggest clue. They were fine yesterday, but today they are confused. You might also notice that they seem better in the morning but are much worse in the evening. This fluctuation is a hallmark of delirium.
@@ -113,7 +148,7 @@ export default function DeliriumCaregiverPage() {
                         <strong>They Can't Pay Attention (Inattention):</strong> This is the central feature. They might be unable to follow a conversation, be easily distracted by things in the room, or keep asking the same question over and over because they can't focus on the answer.
                     </li>
                 </ul>
-                <h4 className="font-semibold mt-4">3.2 The Two "Types" of Delirium</h4>
+                <h4 className="font-semibold mt-4">The Two "Types" of Delirium</h4>
                 <p>Delirium can look very different from person to person.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -123,8 +158,7 @@ export default function DeliriumCaregiverPage() {
                         <strong>Hypoactive Delirium (The Quiet Type):</strong> This is actually more common and much harder to spot. The person is quiet, sleepy, withdrawn, and lethargic. It's easy to mistake this for depression or simply being tired from being sick. This type is just as serious.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -136,8 +170,12 @@ export default function DeliriumCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+                sectionId={4}
+                title="4.1 Your Role as Caregiver"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
                 <p>You are a vital member of the care team. Your presence and actions can make a huge difference.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li><strong>Be the Information Source:</strong> Tell the nurses and doctors what your loved one's normal mental state is like. This "baseline" information is critical for them to recognize a change.</li>
@@ -146,8 +184,7 @@ export default function DeliriumCaregiverPage() {
                     <li><strong>Hydration:</strong> Gently encourage them to take sips of water or other fluids throughout the day.</li>
                     <li><strong>Communicate Calmly:</strong> Speak in a calm, simple manner. Reassure them if they are frightened. Avoid arguing or trying to reason with them if they are confused.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -159,11 +196,13 @@ export default function DeliriumCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-             <Card>
-              <CardHeader>
-                <CardTitle>5.1 A Helpful Approach: Tolerate, Anticipate, Don't Agitate</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+             <SectionCard
+                sectionId={5}
+                title="5.1 Managing Behaviors"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(5)}
+            >
+                <h4 className="font-semibold">A Helpful Approach: Tolerate, Anticipate, Don't Agitate</h4>
                 <p>When your loved one is agitated, it's often because they are trying to communicate an unmet need.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -176,13 +215,7 @@ export default function DeliriumCaregiverPage() {
                         <strong>Don't Agitate:</strong> The confused brain can't handle a lot of questions or commands. Instead of asking "Are you in pain?", you could say "It's time for your pain medicine."
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>5.2 The Truth About Medications for Delirium</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                 <h4 className="font-semibold mt-4">5.2 The Truth About Medications for Delirium</h4>
                 <p>This is one of the most important things for families to understand.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>There is no "cure" medication for delirium. The only way to treat delirium is to find and fix the underlying cause (like treating the infection).</li>
@@ -190,8 +223,7 @@ export default function DeliriumCaregiverPage() {
                     <li>These medications have serious risks, including an increased risk of stroke and death in older adults with dementia.</li>
                     <li>They should only be used as a last resort if a person's agitation is so severe that they are a danger to themselves or others, and only after all other calming methods have failed. If they are used, it should be for the shortest time possible. Always ask the doctor what the plan is to stop the medication.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         

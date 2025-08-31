@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Droplets, Utensils, AlertTriangle, Pill } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'benign-prostate-care';
+const SECTIONS = 4;
 
 export default function BenignProstateCarePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function BenignProstateCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What to Watch For</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="What to Watch For"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+            >
                 <p>
                   As men age, changes in the prostate gland can lead to Lower Urinary Tract Symptoms, often called LUTS. These are not a normal part of aging and should be discussed with a doctor.
                 </p>
@@ -57,8 +86,7 @@ export default function BenignProstateCarePage() {
                     <strong>After-Urination Symptoms:</strong> A feeling that the bladder isn't completely empty, or dribbling urine after leaving the toilet.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -70,11 +98,12 @@ export default function BenignProstateCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Practical Tips to Reduce Symptoms</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={2}
+                title="Practical Tips to Reduce Symptoms"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+            >
                  <p>Simple changes can often make a big difference in managing symptoms.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -90,8 +119,7 @@ export default function BenignProstateCarePage() {
                         <strong>Prevent Constipation:</strong> Straining from constipation can put pressure on the bladder. A high-fiber diet and adequate fluids can help.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -103,11 +131,12 @@ export default function BenignProstateCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>How Medications Can Help</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={3}
+                title="How Medications Can Help"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+            >
                 <p>
                   If lifestyle changes aren't enough, a doctor may prescribe medication.
                 </p>
@@ -122,8 +151,7 @@ export default function BenignProstateCarePage() {
                         <strong>Review All Medications:</strong> Some other drugs (like certain cold medicines or alertness pills) can worsen urinary symptoms. Always discuss all medications, including over-the-counter ones, with the doctor.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -135,11 +163,12 @@ export default function BenignProstateCarePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Important Signs to Report</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={4}
+                title="Important Signs to Report"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
                 <p>It's important to involve a healthcare professional to get an accurate diagnosis and rule out more serious conditions.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -155,8 +184,7 @@ export default function BenignProstateCarePage() {
                         Before starting any new herbal supplements or over-the-counter remedies, as many are not proven to be effective.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

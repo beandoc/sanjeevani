@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, AlertTriangle, Repeat, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'polypharmacy-professional';
+const SECTIONS = 4;
 
 export default function PolypharmacyProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function PolypharmacyProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>ADEs: A Common and Preventable Harm</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="ADEs: A Common and Preventable Harm"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   An Adverse Drug Event (ADE) is any harm involving a medication, including side effects and errors. With older adults receiving 59% of all prescriptions, your vigilance is critical.
                 </p>
@@ -53,8 +82,7 @@ export default function PolypharmacyProfessionalPage() {
                     <strong>Hospital Impact:</strong> ADEs cause ~6.5% of hospital admissions for older adults and affect up to 37% of older inpatients.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -66,11 +94,12 @@ export default function PolypharmacyProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Why Older Adults Are More Susceptible</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Why Older Adults Are More Susceptible"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>Vulnerability stems from comorbidity, frailty, and age-related physiological changes that alter drug pharmacokinetics and pharmacodynamics.</p>
                  <p>An ADE in an older adult often presents atypically as a geriatric syndrome. Be alert for:</p>
                  <ul className="list-disc space-y-2 pl-5 font-medium">
@@ -79,8 +108,7 @@ export default function PolypharmacyProfessionalPage() {
                     <li>New-onset incontinence</li>
                     <li>Functional decline or loss of mobility</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -92,17 +120,17 @@ export default function PolypharmacyProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Role is to Break the Chain</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Your Role is to Break the Chain"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   The prescribing cascade is a dangerous cycle where a drug's side effect is misinterpreted as a new medical condition, leading to another prescription to treat the side effect.
                 </p>
                 <p className="font-semibold">When an older patient presents with a new symptom (especially a geriatric syndrome), always ask: "Could this be a medication side effect?" before assuming it's a new disease.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -114,11 +142,12 @@ export default function PolypharmacyProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Key Actions at Transition Points</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Key Actions at Transition Points"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                 <h4 className="font-semibold">On Admission:</h4>
                 <p>Obtain an accurate drug history, including OTCs and supplements. Use collateral history and probe for non-concordance.</p>
                 <h4 className="font-semibold mt-2">During Ward Stay:</h4>
@@ -126,8 +155,7 @@ export default function PolypharmacyProfessionalPage() {
                 <h4 className="font-semibold mt-2">At Discharge:</h4>
                 <p>Conduct thorough medication reconciliation. Provide clear patient and family education on new meds, stopped meds, and specific side effects to watch for.</p>
                 <p className="mt-2 font-medium">Utilize screening tools like the STOPP/START criteria to identify potentially inappropriate prescribing.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

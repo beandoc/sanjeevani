@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, Activity, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'hypertension-professional';
+const SECTIONS = 3;
 
 export default function HypertensionProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,16 +65,16 @@ export default function HypertensionProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Arterial Stiffening and Hemodynamics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Arterial Stiffening and Hemodynamics"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Hypertension in older adults is primarily driven by age-related vascular change. Arterial stiffening from fractured elastin fibers leads to increased Systolic Blood Pressure (SBP) and reduced Diastolic Blood Pressure (DBP), resulting in a widened pulse pressure. Isolated Systolic Hypertension (ISH) (SBP ≥140 / DBP &lt;90) is the most common form.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -58,11 +86,12 @@ export default function HypertensionProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Balancing Risk and Quality of Life</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Balancing Risk and Quality of Life"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>A "one-size-fits-all" approach can be harmful. Individualize BP targets based on patient status:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -75,8 +104,7 @@ export default function HypertensionProfessionalPage() {
                         <strong>Dependent & Frail:</strong> A more conservative target of &lt;150/90 mmHg prioritizes safety and quality of life.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -88,11 +116,12 @@ export default function HypertensionProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vigilance for Specific Complications</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Vigilance for Specific Complications"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <div>
                   <h4 className="font-semibold text-card-foreground">Orthostatic Hypotension</h4>
                   <p>A drop of &gt;20/10 mmHg within three minutes of standing. Risk increases with the number of causative medications. Monitor standing BPs closely.</p>
@@ -109,8 +138,7 @@ export default function HypertensionProfessionalPage() {
                   <h4 className="font-semibold text-card-foreground">Dementia</h4>
                   <p>Aggressive late-life BP lowering may accelerate cognitive decline. A suggested target is a daytime SBP of 130 to 145 mmHg to avoid cerebral hypoperfusion.</p>
                 </div>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

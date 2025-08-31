@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Bone, Shield, Utensils, HeartPulse, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'joint-problems-caregiver';
+const SECTIONS = 4;
 
 export default function JointProblemsCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function JointProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What is Osteoarthritis?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="What is Osteoarthritis?"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Osteoarthritis is the most common type of arthritis in older adults. It happens when the protective cartilage that cushions the ends of the bones wears down over time. It often affects the hands, knees, hips, and spine.
                 </p>
@@ -60,8 +89,7 @@ export default function JointProblemsCaregiverPage() {
                     <strong>Loss of Flexibility:</strong> They may not be able to move the joint through its full range of motion.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -73,11 +101,12 @@ export default function JointProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What is Gout?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="What is Gout?"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                 <p>Gout is a form of inflammatory arthritis characterized by sudden, severe attacks of pain, swelling, redness, and tenderness in the joints, often at the base of the big toe. It's caused by the buildup of uric acid crystals in a joint.</p>
                  <h4 className="font-semibold">Key Signs of a Gout Attack:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -91,8 +120,7 @@ export default function JointProblemsCaregiverPage() {
                         <strong>Inflammation and Redness:</strong> The affected joint becomes swollen, tender, warm, and red.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -104,11 +132,12 @@ export default function JointProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Helping to Manage Pain and Improve Function</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Helping to Manage Pain and Improve Function"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   For many types of arthritis, non-drug therapies are the cornerstone of management.
                 </p>
@@ -126,8 +155,7 @@ export default function JointProblemsCaregiverPage() {
                         <strong>Braces or Splints:</strong> These can help support and protect a painful joint during activities.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -139,11 +167,12 @@ export default function JointProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Foods to Limit</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Foods to Limit"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <p>For individuals with gout, certain foods can trigger an attack by raising uric acid levels.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -156,8 +185,7 @@ export default function JointProblemsCaregiverPage() {
                         <strong>Alcohol:</strong> Beer and liquor, in particular, can increase uric acid levels and trigger gout attacks.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

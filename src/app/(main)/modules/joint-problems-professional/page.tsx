@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, Activity, Pill, Bone } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'joint-problems-professional';
+const SECTIONS = 4;
 
 export default function JointProblemsProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,36 +65,25 @@ export default function JointProblemsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Osteoarthritis (OA)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Pathophysiology"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
+                <h4 className="font-semibold">Osteoarthritis (OA)</h4>
                 <p>
                   Advanced age is the most important risk factor. Cartilage loss is the hallmark pathology, accompanied by synovial inflammation, osteophyte formation, and subchondral bone sclerosis. Other risk factors include obesity, female gender, trauma/joint injury, and quadriceps weakness.
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Gout and Pseudogout</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className="font-semibold mt-4">Gout and Pseudogout</h4>
                 <p>
                   Gout is an inflammatory reaction to monosodium urate (MSU) crystals associated with hyperuricemia. Risk factors include age, male gender, renal disease, alcohol use, and diuretic use. Pseudogout is a similar reaction to calcium pyrophosphate dehydrate (CPPD) crystals, with advanced age being the most critical risk factor.
                 </p>
-              </CardContent>
-            </Card>
-             <Card>
-              <CardHeader>
-                <CardTitle>Rheumatoid Arthritis (RA)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className="font-semibold mt-4">Rheumatoid Arthritis (RA)</h4>
                 <p>
                   Late-onset RA differs from young-onset, with more proximal joint involvement and a more aggressive course. The characteristic pathology is synovial inflammation (pannus formation) that erodes cartilage and bone.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -78,11 +95,12 @@ export default function JointProblemsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Clinical Distinctions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Clinical Distinctions"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Osteoarthritis:</strong> Insidious onset, chronic course. Affects DIPs (Heberden nodes), PIPs (Bouchard nodes), hips, knees. X-rays show joint space narrowing and osteophytes. Labs (ANA, RF, ESR) are typically negative.
@@ -101,8 +119,7 @@ export default function JointProblemsProfessionalPage() {
                     </li>
                 </ul>
                 <p className="font-bold">The Role of Arthrocentesis: Joint fluid analysis is crucial to differentiate inflammatory vs. noninflammatory arthritis and to rule out septic arthritis. A WBC count &gt;2,000 indicates inflammation.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -114,27 +131,34 @@ export default function JointProblemsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-              <h4 className="font-semibold text-lg">Osteoarthritis (OA)</h4>
-              <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>First-Line:</strong> Topical NSAIDs are preferred over oral due to better safety profile. Acetaminophen can be trialed.</li>
-                  <li><strong>Oral NSAIDs:</strong> Discouraged due to CV, GI, and renal toxicity. Use lowest effective dose for shortest duration if necessary.</li>
-                  <li><strong>Intra-articular Steroids:</strong> Can provide moderate short-term pain relief for knee OA.</li>
-                  <li><strong>Opioids:</strong> Not effective for pain or function and best avoided due to significant adverse effects.</li>
-              </ul>
+              <SectionCard
+                sectionId={3}
+                title="Pharmacological Management"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+              >
+                <h4 className="font-semibold text-lg">Osteoarthritis (OA)</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>First-Line:</strong> Topical NSAIDs are preferred over oral due to better safety profile. Acetaminophen can be trialed.</li>
+                    <li><strong>Oral NSAIDs:</strong> Discouraged due to CV, GI, and renal toxicity. Use lowest effective dose for shortest duration if necessary.</li>
+                    <li><strong>Intra-articular Steroids:</strong> Can provide moderate short-term pain relief for knee OA.</li>
+                    <li><strong>Opioids:</strong> Not effective for pain or function and best avoided due to significant adverse effects.</li>
+                </ul>
 
-              <h4 className="font-semibold text-lg mt-4">Gout</h4>
-               <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>Urate-Lowering Therapy (ULT):</strong> Indicated for ≥2 attacks/year or tophi. Allopurinol is first-line. Goal is serum uric acid ≤6 mg/dL.</li>
-                  <li><strong>Prophylaxis:</strong> Start low-dose colchicine or steroids when initiating ULT to prevent flares.</li>
-                  <li><strong>Acute Flare Management:</strong> IA steroids for 1-2 joints. For polyarticular flares, use oral colchicine or a short course of steroids. Avoid NSAIDs in most older adults.</li>
-              </ul>
-              
-              <h4 className="font-semibold text-lg mt-4">Rheumatoid Arthritis (RA)</h4>
-               <ul className="list-disc space-y-2 pl-5">
-                  <li><strong>First-Line:</strong> Early referral to rheumatology for Disease-Modifying Antirheumatic Drugs (DMARDs), often triple therapy (e.g., methotrexate, hydroxychloroquine, sulfasalazine).</li>
-                  <li><strong>Biologics:</strong> For patients who fail DMARDs. Require screening for TB and hepatitis before initiation.</li>
-                  <li><strong>Steroids:</strong> Used as a bridge to DMARDs, but not for long-term therapy. Prophylaxis for osteoporosis is critical if used for &gt;3 months.</li>
-              </ul>
+                <h4 className="font-semibold text-lg mt-4">Gout</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Urate-Lowering Therapy (ULT):</strong> Indicated for ≥2 attacks/year or tophi. Allopurinol is first-line. Goal is serum uric acid ≤6 mg/dL.</li>
+                    <li><strong>Prophylaxis:</strong> Start low-dose colchicine or steroids when initiating ULT to prevent flares.</li>
+                    <li><strong>Acute Flare Management:</strong> IA steroids for 1-2 joints. For polyarticular flares, use oral colchicine or a short course of steroids. Avoid NSAIDs in most older adults.</li>
+                </ul>
+                
+                <h4 className="font-semibold text-lg mt-4">Rheumatoid Arthritis (RA)</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>First-Line:</strong> Early referral to rheumatology for Disease-Modifying Antirheumatic Drugs (DMARDs), often triple therapy (e.g., methotrexate, hydroxychloroquine, sulfasalazine).</li>
+                    <li><strong>Biologics:</strong> For patients who fail DMARDs. Require screening for TB and hepatitis before initiation.</li>
+                    <li><strong>Steroids:</strong> Used as a bridge to DMARDs, but not for long-term therapy. Prophylaxis for osteoporosis is critical if used for &gt;3 months.</li>
+                </ul>
+              </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -146,23 +170,30 @@ export default function JointProblemsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p>
-              A multimodal, interprofessional approach is critical for managing arthritis in older adults.
-            </p>
-             <ul className="list-disc space-y-2 pl-5">
-                <li>
-                    <strong>Education and Goal Setting:</strong> Establish realistic goals focused on pain reduction and functional improvement.
-                </li>
-                <li>
-                    <strong>Physical & Occupational Therapy:</strong> Essential for strength training, flexibility, assistive device selection (canes, walkers), and joint protection strategies.
-                </li>
-                <li>
-                    <strong>Weight Loss:</strong> Critically important for overweight/obese patients with OA of the knee or hip.
-                </li>
-                 <li>
-                    <strong>Cardiovascular Risk Management:</strong> Crucial for patients with inflammatory arthritis (RA, Gout), as they have a higher risk of CV events.
-                </li>
-            </ul>
+            <SectionCard
+                sectionId={4}
+                title="Non-Pharmacological Management"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
+                <p>
+                A multimodal, interprofessional approach is critical for managing arthritis in older adults.
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li>
+                        <strong>Education and Goal Setting:</strong> Establish realistic goals focused on pain reduction and functional improvement.
+                    </li>
+                    <li>
+                        <strong>Physical & Occupational Therapy:</strong> Essential for strength training, flexibility, assistive device selection (canes, walkers), and joint protection strategies.
+                    </li>
+                    <li>
+                        <strong>Weight Loss:</strong> Critically important for overweight/obese patients with OA of the knee or hip.
+                    </li>
+                    <li>
+                        <strong>Cardiovascular Risk Management:</strong> Crucial for patients with inflammatory arthritis (RA, Gout), as they have a higher risk of CV events.
+                    </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

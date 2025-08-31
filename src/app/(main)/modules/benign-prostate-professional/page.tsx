@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, Pill, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'benign-prostate-professional';
+const SECTIONS = 5;
 
 export default function BenignProstateProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Anatomy, Physiology, and LUTS</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="Anatomy, Physiology, and LUTS"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Benign Prostatic Hyperplasia (BPH) arises from the transitional zone of the prostate. Its pathophysiology involves both static and dynamic components. The <strong>static component</strong> results from glandular enlargement impinging on the urethra, while the <strong>dynamic component</strong> relates to the tension of prostatic smooth muscle, mediated by alpha-1 adrenergic receptors.
                 </p>
@@ -62,8 +91,7 @@ export default function BenignProstateProfessionalPage() {
                 <p>
                   Obstruction can induce secondary bladder wall changes (detrusor overactivity), contributing to LUTS and potentially leading to urinary retention.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -75,11 +103,12 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Initial Evaluation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={2}
+                title="Initial Evaluation"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+            >
                 <p>The diagnosis of BPH is clinical and one of exclusion. The initial workup should include:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -98,8 +127,7 @@ export default function BenignProstateProfessionalPage() {
                         <strong>Optional Tests:</strong> Post-void residual (PVR) if retention is suspected. Serum creatinine to assess renal function. Urodynamics are typically reserved for pre-surgical evaluation.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -111,11 +139,12 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pharmacological Approaches</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={3}
+                title="Pharmacological Approaches"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+            >
                 <div>
                   <h4 className="font-semibold text-card-foreground">Alpha-Blockers</h4>
                   <p>Target the dynamic component by relaxing smooth muscle. All are considered to have equal clinical effectiveness.</p>
@@ -142,8 +171,7 @@ export default function BenignProstateProfessionalPage() {
                       <li><strong>PDE-5 Inhibitors (Tadalafil):</strong> FDA-approved for LUTS, improves IPSS score but not peak flow rate.</li>
                   </ul>
                 </div>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -155,26 +183,33 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p>
-              Indications include refractory LUTS, urinary retention, recurrent UTIs, bladder stones, or renal insufficiency from obstruction.
-            </p>
-             <ul className="list-disc space-y-2 pl-5">
-                <li>
-                    <strong>TURP (Transurethral Resection of the Prostate):</strong> The long-standing gold standard. Bipolar TURP is safer as it avoids TUR syndrome.
-                </li>
-                <li>
-                    <strong>TUIP (Transurethral Incision):</strong> Effective for smaller glands (&lt;30g) with lower risk of retrograde ejaculation.
-                </li>
-                <li>
-                    <strong>Open Prostatectomy:</strong> Reserved for very large glands (&gt;80g).
-                </li>
-                 <li>
-                    <strong>Laser Therapies & TUMT:</strong> Evolving technologies that offer similar efficacy to TURP with potentially fewer side effects. Laser vaporization is the fastest-growing modality.
-                </li>
-                 <li>
-                    <strong>Emerging Therapies:</strong> Prostatic Urethral Lift (PUL), Convective Water Vapor Energy (WAVE), and Prostatic Artery Embolization (PAE) are newer, less invasive options with promising short-to-mid-term data.
-                </li>
-            </ul>
+            <SectionCard
+                sectionId={4}
+                title="Surgical Options"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+            >
+                <p>
+                Indications include refractory LUTS, urinary retention, recurrent UTIs, bladder stones, or renal insufficiency from obstruction.
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li>
+                        <strong>TURP (Transurethral Resection of the Prostate):</strong> The long-standing gold standard. Bipolar TURP is safer as it avoids TUR syndrome.
+                    </li>
+                    <li>
+                        <strong>TUIP (Transurethral Incision):</strong> Effective for smaller glands (&lt;30g) with lower risk of retrograde ejaculation.
+                    </li>
+                    <li>
+                        <strong>Open Prostatectomy:</strong> Reserved for very large glands (&gt;80g).
+                    </li>
+                    <li>
+                        <strong>Laser Therapies & TUMT:</strong> Evolving technologies that offer similar efficacy to TURP with potentially fewer side effects. Laser vaporization is the fastest-growing modality.
+                    </li>
+                    <li>
+                        <strong>Emerging Therapies:</strong> Prostatic Urethral Lift (PUL), Convective Water Vapor Energy (WAVE), and Prostatic Artery Embolization (PAE) are newer, less invasive options with promising short-to-mid-term data.
+                    </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -186,13 +221,20 @@ export default function BenignProstateProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p>Prostatitis is an infection or inflammation of the prostate. The NIH classification includes four categories:</p>
-             <ul className="list-disc space-y-2 pl-5">
-                <li><strong>Category I (Acute Bacterial):</strong> Presents with acute UTI/systemic symptoms. Swollen, tender prostate on DRE. Prostatic massage is contraindicated. Treat with bactericidal antibiotics (e.g., fluoroquinolones, cephalosporins), parenterally if severe.</li>
-                <li><strong>Category II (Chronic Bacterial):</strong> Recurrent UTIs with the same organism. Requires a prolonged course (4-6 weeks) of oral antibiotics (fluoroquinolones).</li>
-                <li><strong>Category III (CP/CPPS):</strong> Most common type (&gt;90%). Primary symptom is urologic pain. Diagnosis of exclusion. Management is multimodal and phenotype-based (UPOINT system), using analgesics, anti-inflammatories, alpha-blockers, and non-pharmacologic approaches like cognitive behavioral therapy and acupuncture.</li>
-                <li><strong>Category IV (Asymptomatic Inflammatory):</strong> Incidental finding of leukocytes. No treatment required.</li>
-            </ul>
+            <SectionCard
+                sectionId={5}
+                title="Prostatitis Categories"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(5)}
+            >
+                <p>Prostatitis is an infection or inflammation of the prostate. The NIH classification includes four categories:</p>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Category I (Acute Bacterial):</strong> Presents with acute UTI/systemic symptoms. Swollen, tender prostate on DRE. Prostatic massage is contraindicated. Treat with bactericidal antibiotics (e.g., fluoroquinolones, cephalosporins), parenterally if severe.</li>
+                    <li><strong>Category II (Chronic Bacterial):</strong> Recurrent UTIs with the same organism. Requires a prolonged course (4-6 weeks) of oral antibiotics (fluoroquinolones).</li>
+                    <li><strong>Category III (CP/CPPS):</strong> Most common type (&gt;90%). Primary symptom is urologic pain. Diagnosis of exclusion. Management is multimodal and phenotype-based (UPOINT system), using analgesics, anti-inflammatories, alpha-blockers, and non-pharmacologic approaches like cognitive behavioral therapy and acupuncture.</li>
+                    <li><strong>Category IV (Asymptomatic Inflammatory):</strong> Incidental finding of leukocytes. No treatment required.</li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

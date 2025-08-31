@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Eye, AlertTriangle, Glasses, Droplets } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'vision-problems-caregiver';
+const SECTIONS = 4;
 
 export default function VisionProblemsCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function VisionProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recognizing Serious Eye Conditions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Recognizing Serious Eye Conditions"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Most red eyes are not an emergency, but you should seek same-day medical attention from an eye provider if you notice any of these "red flag" symptoms:
                 </p>
@@ -54,8 +83,7 @@ export default function VisionProblemsCaregiverPage() {
                   <li>A white or cloudy spot on the cornea (the clear front part of the eye)</li>
                   <li>An eye that is bulging or protruding</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -67,11 +95,12 @@ export default function VisionProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>A Common and Bothersome Condition</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="A Common and Bothersome Condition"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>Dry eye is very common in older adults and can cause discomfort, burning, stinging, grittiness, or even excessive tearing. Many things can contribute to it, including age, female gender, and side effects from common medications (like diuretics, antihistamines, and antidepressants).</p>
                  <h4 className="font-semibold">How You Can Help:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -88,8 +117,7 @@ export default function VisionProblemsCaregiverPage() {
                         <strong>Review Medications:</strong> Ask the doctor if any current medications could be making dry eye worse.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -101,38 +129,21 @@ export default function VisionProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-             <Card>
-              <CardHeader>
-                <CardTitle>Cataracts</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+             <SectionCard
+              sectionId={3}
+              title="Common Vision Loss Causes"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
+                <h4 className="font-semibold">Cataracts</h4>
                 <p>A clouding of the eye's natural lens. It causes blurry vision, faded colors, and increased glare, especially at night. It is very common and treatable with surgery, which is safe and highly effective.</p>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Age-Related Macular Degeneration (AMD)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+                <h4 className="font-semibold mt-4">Age-Related Macular Degeneration (AMD)</h4>
                 <p>This disease affects the macula, the part of the retina responsible for sharp, central vision. It can make it difficult to read, drive, or recognize faces. A key symptom is seeing straight lines as wavy or distorted.</p>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Glaucoma</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+                <h4 className="font-semibold mt-4">Glaucoma</h4>
                 <p>Often called the "silent thief of sight," glaucoma damages the optic nerve, usually without symptoms in the early stages. It causes a gradual loss of peripheral (side) vision. Regular eye exams are crucial for early detection.</p>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Diabetic Retinopathy</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+                <h4 className="font-semibold mt-4">Diabetic Retinopathy</h4>
                 <p>A complication of diabetes that damages the blood vessels in the retina. Anyone with diabetes needs a comprehensive eye exam at least once a year to screen for this condition, even if their vision seems fine.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -144,8 +155,12 @@ export default function VisionProblemsCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Regular Eye Exams"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <p>Many serious eye diseases are asymptomatic in their early stages. Early detection and treatment can prevent irreversible vision loss.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -155,8 +170,7 @@ export default function VisionProblemsCaregiverPage() {
                         <strong>Uncorrected Refractive Error:</strong> Sometimes, vision loss is simply due to needing a new glasses prescription. This is the most common and easily correctable cause of poor vision.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

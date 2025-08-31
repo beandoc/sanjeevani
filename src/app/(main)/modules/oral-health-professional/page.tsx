@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Shield, Users, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'oral-health-professional';
+const SECTIONS = 3;
 
 export default function OralHealthProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function OralHealthProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Integrating Oral Health into the Physical Exam</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Integrating Oral Health into the Physical Exam"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Oral health screening should be a routine part of the initial history and physical examination. Disease in the oral cavity can significantly diminish a patient's overall health and quality of life.
                 </p>
@@ -57,8 +86,7 @@ export default function OralHealthProfessionalPage() {
                     <strong>Functional Limitations:</strong> Assess the patient's ability to perform their own oral hygiene. Frailty, cognitive impairment, or poor manual dexterity are significant barriers to effective daily care.
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -70,11 +98,12 @@ export default function OralHealthProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Team-Based Approach and Referral Criteria</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Team-Based Approach and Referral Criteria"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                  <p>Ensuring good oral health, especially in long-term care or for homebound patients, requires an interprofessional team approach that includes physicians, nurses, caregivers, and oral health professionals (dentists, hygienists).</p>
                  <h4 className="font-semibold">Key Referral Criteria:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -85,8 +114,7 @@ export default function OralHealthProfessionalPage() {
                     <li>Significant dental caries or loose teeth identified during screening.</li>
                 </ul>
                 <p className="mt-4 text-sm text-muted-foreground">For frail homebound patients, challenges include mobility to get to a dental office. Collaboration with mobile dentistry services or dentists with specialized training in geriatrics is often necessary.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -98,11 +126,12 @@ export default function OralHealthProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Proactive Oral Health Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Proactive Oral Health Management"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>A preventive model is crucial for maintaining oral health in older adults.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -115,8 +144,7 @@ export default function OralHealthProfessionalPage() {
                         <strong>Adaptive Equipment:</strong> Recommend electric toothbrushes for patients with limited dexterity. For interdental cleaning, suggest floss holders, threaders, or interdental brushes.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

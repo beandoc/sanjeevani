@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
@@ -10,8 +12,35 @@ import { ArrowLeft, Stethoscope, AlertTriangle, Pill, UserCheck } from 'lucide-r
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'constipation-caregiver';
+const SECTIONS = 5;
 
 export default function ConstipationCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -38,8 +67,12 @@ export default function ConstipationCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="What is Constipation?"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   It's important to know that constipation isn't just about going to the bathroom less often. For older adults, the main complaints are often:
                 </p>
@@ -49,8 +82,7 @@ export default function ConstipationCaregiverPage() {
                   <li>Feeling like they haven't fully emptied their bowels.</li>
                 </ul>
                 <p className="font-semibold">Key Fact: Constipation is not a normal part of getting older. Healthy, active seniors are not destined to have this problem. It's usually caused by other factors you can help with.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -62,8 +94,12 @@ export default function ConstipationCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-                <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Common Causes"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                     <p>Constipation in older adults usually has multiple causes. The biggest ones are:</p>
                     <h4 className="font-semibold">Medications:</h4>
                     <p>This is a major cause. At your next doctor's visit, ask if any of your loved one's medications could be the problem. Common culprits include:</p>
@@ -77,8 +113,7 @@ export default function ConstipationCaregiverPage() {
                     <p>Problems like Parkinson's disease, diabetes, and stroke can directly affect how the bowels work.</p>
                     <h4 className="font-semibold">Being Immobile:</h4>
                     <p>Not moving around as much can slow down the digestive system.</p>
-              </CardContent>
-            </Card>
+              </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -90,40 +125,29 @@ export default function ConstipationCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Step 1: Start with the Basics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Step-by-Step Plan"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
+                <h4 className="font-semibold">Step 1: Start with the Basics</h4>
                 <ul className="list-disc space-y-4 pl-5">
                     <li>
                         <strong>Review Medicines:</strong> Make a list of every medication and supplement your loved one takes and bring it to the doctor. Ask, "Could any of these be causing constipation?"
                     </li>
                     <li>
-                        <strong>Gentle Fibre:</strong> Encourage foods rich in fibre, like fruits, vegetables, and whole grains. If you use a fibre supplement (like Metamucil), make sure they drink plenty of extra water with it. <strong className="text-destructive">Warning:</strong> Do not give a fibre supplement if they are bedridden or you suspect a severe blockage.
+                        <strong>Gentle Fibre:</strong> Encourage foods rich in fibre, like fruits, vegetables, and whole arains. If you use a fibre supplement (like Metamucil), make sure they drink plenty of extra water with it. <strong className="text-destructive">Warning:</strong> Do not give a fibre supplement if they are bedridden or you suspect a severe blockage.
                     </li>
                     <li>
                         <strong>Set a Routine:</strong> The urge to have a bowel movement is strongest after eating. Encourage your loved one to sit on the toilet for a few minutes about 30 minutes after a meal.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Step 2: Try a Gentle Laxative</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h4 className="font-semibold mt-4">Step 2: Try a Gentle Laxative</h4>
                 <p>If the basics don't work, an osmotic laxative is a safe next step. A common one is polyethylene glycol (PEG), sold under brand names like Miralax. It works by gently drawing water into the stool to soften it.</p>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Step 3: If Needed, a Stimulant Laxative</CardTitle>
-              </CardHeader>
-              <CardContent>
+                <h4 className="font-semibold mt-4">Step 3: If Needed, a Stimulant Laxative</h4>
                 <p>Products containing senna or bisacodyl (like Senokot or Dulcolax) stimulate the bowel to move. These are best used when gentler options haven't worked.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -135,11 +159,12 @@ export default function ConstipationCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Seek Medical Advice for These Signs</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Red Flag Symptoms"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                  <p>Call the doctor right away if your loved one experiences any of the following:</p>
                  <ul className="list-disc space-y-2 pl-5 text-destructive font-medium">
                     <li>Constipation that starts suddenly and is a new problem.</li>
@@ -148,8 +173,7 @@ export default function ConstipationCaregiverPage() {
                     <li>Severe stomach pain, bloating, or cramping.</li>
                     <li>Watery diarrhea after a period of no bowel movements. This could be a sign of a serious blockage called fecal impaction.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="item-5">
@@ -160,14 +184,17 @@ export default function ConstipationCaregiverPage() {
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2">
-                <Card>
-                    <CardContent className="pt-6 space-y-4">
-                        <p>It can be awkward to talk about poop. The Bristol Stool Chart is a helpful medical tool that uses pictures to describe different types of stool. You can use it to help your loved one explain their symptoms to the doctor. Types 1 and 2 (separate hard lumps or lumpy and sausage-like) mean constipation.</p>
-                         <div className="relative aspect-[4/3] w-full">
-                            <Image src="https://picsum.photos/600/450" alt="Bristol Stool Chart" fill data-ai-hint="chart health" className="rounded-md object-cover" />
-                        </div>
-                    </CardContent>
-                </Card>
+                <SectionCard
+                  sectionId={5}
+                  title="The Bristol Stool Chart"
+                  onComplete={handleSectionComplete}
+                  isCompleted={completedSections.has(5)}
+                >
+                    <p>It can be awkward to talk about poop. The Bristol Stool Chart is a helpful medical tool that uses pictures to describe different types of stool. You can use it to help your loved one explain their symptoms to the doctor. Types 1 and 2 (separate hard lumps or lumpy and sausage-like) mean constipation.</p>
+                    <div className="relative aspect-[4/3] w-full">
+                        <Image src="https://picsum.photos/600/450" alt="Bristol Stool Chart" fill data-ai-hint="chart health" className="rounded-md object-cover" />
+                    </div>
+                </SectionCard>
             </AccordionContent>
         </AccordionItem>
       </Accordion>

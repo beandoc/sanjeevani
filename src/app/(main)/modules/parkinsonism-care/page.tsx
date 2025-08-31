@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Brain, Pill, Activity, Smile, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'parkinsonism-care';
+const SECTIONS = 5;
 
 export default function ParkinsonismCareModulePage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function ParkinsonismCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>What is Parkinson's Disease?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="What is Parkinson's Disease?"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Parkinson's is a slowly progressing disease of the brain that primarily affects movement. Imagine your brain has a message center that uses a special chemical called dopamine to send signals that tell your muscles to move smoothly and with coordination. In Parkinson's, the brain cells that make dopamine start to disappear, so these messages get weaker and distorted.
                 </p>
@@ -49,8 +78,7 @@ export default function ParkinsonismCareModulePage() {
                 <p>
                   The beginning of PD is very gradual. It often starts with a minor symptom on one side of the body, like a slight tremor in one hand or a feeling of stiffness in one leg. It can take months or even years before the symptoms become more obvious and affect both sides of the body.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -62,11 +90,13 @@ export default function ParkinsonismCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Main Movement (Motor) Symptoms</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Movement and Non-Movement Symptoms"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
+                <h4 className="font-semibold">The Main Movement (Motor) Symptoms</h4>
                 <p>
                   <strong>The Parkinson's Tremor:</strong> This is the most well-known symptom. It is a shaking that is most obvious when the hand or limb is at rest. The tremor often improves or disappears when your loved one is actively using that hand.
                 </p>
@@ -91,13 +121,7 @@ export default function ParkinsonismCareModulePage() {
                   <li>A lack of arm swing when walking.</li>
                   <li>A feeling of being "stuck to the floor" (known as "freezing"). This makes falls a very serious risk.</li>
                 </ul>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>The "Hidden" Non-Movement (Non-Motor) Symptoms</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className="font-semibold mt-4">The "Hidden" Non-Movement (Non-Motor) Symptoms</h4>
                 <p>
                   These symptoms are a direct result of Parkinson's and can be just as challenging as the movement problems.
                 </p>
@@ -117,8 +141,7 @@ export default function ParkinsonismCareModulePage() {
                 <p>
                   <strong>Other Common Issues:</strong> You may also notice problems with sleep, excessive drooling, urinary urgency, and a very soft voice.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -130,11 +153,13 @@ export default function ParkinsonismCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Main Medicine: Levodopa (L-dopa)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Medication Management"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
+                <h4 className="font-semibold">The Main Medicine: Levodopa (L-dopa)</h4>
                 <p>
                   The most powerful medication for Parkinson's is levodopa. It helps replace the missing dopamine in the brain and is very effective at treating the motor symptoms.
                 </p>
@@ -149,16 +174,9 @@ export default function ParkinsonismCareModulePage() {
                         <strong>Side Effects to Report:</strong> Be sure to tell the doctor if you notice nausea, dizziness, or especially any new confusion, vivid dreams, or hallucinations (seeing things that aren't there).
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
-             <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>A Critical Warning: Other Medications Can Mimic PD</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className="font-semibold mt-4">A Critical Warning: Other Medications Can Mimic PD</h4>
                 <p>Some medications, particularly antipsychotics used to treat behavioral issues in dementia, can cause stiffness and slowness that look exactly like Parkinson's. If your loved one starts showing these symptoms after beginning a new medication, it is vital to contact the doctor immediately.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -170,8 +188,12 @@ export default function ParkinsonismCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="Essential Therapies"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                 <p>Medication is only one piece of the puzzle. Rehabilitation therapies are essential.</p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -185,8 +207,7 @@ export default function ParkinsonismCareModulePage() {
                         </ul>
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -198,8 +219,12 @@ export default function ParkinsonismCareModulePage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={5}
+              title="Daily Life and Future Planning"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(5)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Home Safety:</strong> Make your home as safe as possible to prevent falls. Remove throw rugs, clear pathways, and install grab bars in the bathroom.
@@ -214,8 +239,7 @@ export default function ParkinsonismCareModulePage() {
                         <strong>Support for You:</strong> Being a caregiver is a marathon, not a sprint. Connect with local Parkinson's associations for resources, education, and support groups. Taking care of your own well-being is essential.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, ShieldCheck, AlertTriangle, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'lung-infections-professional';
+const SECTIONS = 4;
 
 export default function LungInfectionsProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,8 +65,12 @@ export default function LungInfectionsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="The Geriatric Context"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   In older adults, pneumonia is not just a lung infection; it's a systemic event with high rates of hospitalization and mortality. The risk is elevated due to a confluence of age-related changes and common comorbidities.
                 </p>
@@ -48,8 +80,7 @@ export default function LungInfectionsProfessionalPage() {
                   <li><strong>Aspiration:</strong> Microaspiration of oropharyngeal contents is a frequent cause, exacerbated by neurological diseases (stroke, dementia), dysphagia, GERD, and the use of sedative drugs.</li>
                   <li><strong>Comorbidities:</strong> Pre-existing conditions like COPD, heart failure, and diabetes significantly increase susceptibility.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -61,8 +92,12 @@ export default function LungInfectionsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-                <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Atypical Assessment"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                     <p>The classic presentation of lobar pneumonia is often absent. Your assessment must have a high index of suspicion for atypical signs.</p>
                     <h4 className="font-semibold">Subtle Respiratory Signs:</h4>
                      <p>Tachypnoea (respiratory rate &gt;30/min) is a more reliable sign than cough. Localized crackles may be faint or absent.</p>
@@ -75,8 +110,7 @@ export default function LungInfectionsProfessionalPage() {
                         <li><strong>New Cardiac Events:</strong> Onset of new atrial fibrillation or a heart failure exacerbation.</li>
                         <li><strong>GI Symptoms:</strong> Abdominal pain, nausea, or paralytic ileus.</li>
                     </ul>
-              </CardContent>
-            </Card>
+              </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -88,8 +122,12 @@ export default function LungInfectionsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="Triage with CRB-65"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>The CRB-65 scale is a simple, effective tool for bedside triage to assess the severity and need for hospitalization. One point is given for each of the following:</p>
                 <ul className="list-disc space-y-2 pl-5 font-medium">
                     <li><strong>C</strong>onfusion (new onset)</li>
@@ -98,8 +136,7 @@ export default function LungInfectionsProfessionalPage() {
                     <li>Age ≥<strong>65</strong> years</li>
                 </ul>
                 <p className="font-semibold mt-4">Clinical Pearl: Every older patient will have a score of at least 1. A score of 1-2 warrants strong consideration for hospital referral. A score of 3-4 requires urgent admission.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -111,17 +148,24 @@ export default function LungInfectionsProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <h4 className="font-semibold text-lg">General Supportive Care is Crucial</h4>
-            <p>Focus on hydration, nutrition, oral care, and prevention of immobility complications (VTE, pressure ulcers).</p>
-            
-            <h4 className="font-semibold text-lg mt-4">The Critical 48-Hour Assessment</h4>
-            <p>Clinical response at 48 hours is a key decision point. An unfavorable response is a red flag requiring re-evaluation for resistant organisms, complications, or an incorrect initial diagnosis (e.g., PE).</p>
+            <SectionCard
+              sectionId={4}
+              title="Management and Prevention"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
+                <h4 className="font-semibold text-lg">General Supportive Care is Crucial</h4>
+                <p>Focus on hydration, nutrition, oral care, and prevention of immobility complications (VTE, pressure ulcers).</p>
+                
+                <h4 className="font-semibold text-lg mt-4">The Critical 48-Hour Assessment</h4>
+                <p>Clinical response at 48 hours is a key decision point. An unfavorable response is a red flag requiring re-evaluation for resistant organisms, complications, or an incorrect initial diagnosis (e.g., PE).</p>
 
-            <h4 className="font-semibold text-lg mt-4">Prevention is the Best Treatment</h4>
-             <ul className="list-disc space-y-2 pl-5">
-                <li><strong>Vaccination:</strong> Advocate for and administer annual influenza and pneumococcal vaccines.</li>
-                <li><strong>Aspiration Prevention:</strong> Screen for swallowing disorders, implement precautions, and advocate for reducing unnecessary sedative medications.</li>
-            </ul>
+                <h4 className="font-semibold text-lg mt-4">Prevention is the Best Treatment</h4>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Vaccination:</strong> Advocate for and administer annual influenza and pneumococcal vaccines.</li>
+                    <li><strong>Aspiration Prevention:</strong> Screen for swallowing disorders, implement precautions, and advocate for reducing unnecessary sedative medications.</li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

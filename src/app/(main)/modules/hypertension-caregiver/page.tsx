@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, HeartPulse, AlertTriangle, ShieldCheck, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'hypertension-caregiver';
+const SECTIONS = 4;
 
 export default function HypertensionCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,16 +65,16 @@ export default function HypertensionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Understanding "Stiff Arteries"</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Understanding 'Stiff Arteries'"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   As we get older, our blood vessels naturally change. Think of them like a garden hose: when new, it's flexible and springy. After years in the sun, it becomes stiff and less pliable. This stiffness forces the pressure of the blood to go up. This is why the top number (systolic) of the blood pressure reading is often high, while the bottom number might be normal or even low.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -58,11 +86,12 @@ export default function HypertensionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Awareness is Crucial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={2}
+              title="Your Awareness is Crucial"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
                 <p>While lowering blood pressure is important, the treatment itself can carry risks. Your awareness is a crucial safety measure.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -75,8 +104,7 @@ export default function HypertensionCaregiverPage() {
                         <strong>Dizziness When Standing Up:</strong> If your loved one feels faint or "woozy" right after standing up, this is called orthostatic hypotension. It is a significant fall risk. Report this to their doctor immediately.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -88,19 +116,19 @@ export default function HypertensionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>The Goal is Balance</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={3}
+              title="The Goal is Balance"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
                 <p>
                   You might hear about very low blood pressure targets, but these don't apply to everyone. For older adults, especially those who are frail, the goal is about balance. A safer goal might be under 140/90 or even 150/90.
                 </p>
                 <p>
-                  The reason for a relaxed goal is simple: to prioritize safety and quality of life. For a frail person, the harm from a fall caused by low blood pressure can be far worse than the long-term risk of a slightly higher reading.
+                  The reason for a relaxed goal is simple: to prioritize safety and quality of life. For a frail person, the harm from a fall caused by low blood pressure can be far worse than the long-term risk of a slightly higher reading. This is a sign of good, thoughtful care.
                 </p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -112,11 +140,12 @@ export default function HypertensionCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>You Are a Vital Team Member</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={4}
+              title="You Are a Vital Team Member"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(4)}
+            >
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Support a Healthy Lifestyle:</strong> Encourage daily walks, help prepare low-sodium meals, and support them in quitting smoking or reducing alcohol.
@@ -128,8 +157,7 @@ export default function HypertensionCaregiverPage() {
                         <strong>Ask Questions:</strong> "What is our blood pressure goal?" and "What side effects should I watch for?" are great places to start.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

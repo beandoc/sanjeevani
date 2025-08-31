@@ -1,16 +1,44 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, HeartHandshake, MessageCircle, ShieldCheck, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'palliative-care-caregiver';
+const SECTIONS = 3;
 
 export default function PalliativeCareCaregiverPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +65,12 @@ export default function PalliativeCareCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Focusing on Comfort and Quality of Life</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              sectionId={1}
+              title="Focusing on Comfort and Quality of Life"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(1)}
+            >
                 <p>
                   Palliative care is a specialized type of medical care that focuses on providing relief from the symptoms and stress of a serious illness. The main goal is to improve the quality of life for both the patient and their family.
                 </p>
@@ -63,8 +92,7 @@ export default function PalliativeCareCaregiverPage() {
                         <strong>Coordination of Care:</strong> Ensures that all the doctors, nurses, and specialists involved are on the same page.
                     </li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -76,30 +104,37 @@ export default function PalliativeCareCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-             <h4 className="font-semibold text-lg">Advocating for Your Loved One</h4>
-            <p>You know your loved one best. Your voice is crucial in making sure their wishes and needs are heard.</p>
-            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Be the Eyes and Ears:</strong> Keep track of symptoms. When do they happen? What makes them better or worse? This information is vital for the care team.
-                </li>
-                <li>
-                    <strong>Ask Questions:</strong> Don't be afraid to ask for clarification. If you don't understand a treatment or a medication, ask the palliative care team to explain it in simple terms.
-                </li>
-                <li>
-                    <strong>Express Their Wishes:</strong> Help your loved one express what is most important to them. Is it being at home? Is it having the energy to see family? These goals will guide the care plan.
-                </li>
-            </ul>
+            <SectionCard
+              sectionId={2}
+              title="Advocating and Providing Comfort"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(2)}
+            >
+                <h4 className="font-semibold text-lg">Advocating for Your Loved One</h4>
+                <p>You know your loved one best. Your voice is crucial in making sure their wishes and needs are heard.</p>
+                <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+                    <li>
+                        <strong>Be the Eyes and Ears:</strong> Keep track of symptoms. When do they happen? What makes them better or worse? This information is vital for the care team.
+                    </li>
+                    <li>
+                        <strong>Ask Questions:</strong> Don't be afraid to ask for clarification. If you don't understand a treatment or a medication, ask the palliative care team to explain it in simple terms.
+                    </li>
+                    <li>
+                        <strong>Express Their Wishes:</strong> Help your loved one express what is most important to them. Is it being at home? Is it having the energy to see family? These goals will guide the care plan.
+                    </li>
+                </ul>
 
-            <h4 className="font-semibold text-lg mt-4">Providing Comfort</h4>
-            <p>Your presence and simple acts of kindness can make a world of difference.</p>
-             <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-                <li>
-                    <strong>Physical Comfort:</strong> Help with repositioning, offer gentle massages, keep their mouth moist, and ensure their environment is calm and comfortable.
-                </li>
-                <li>
-                    <strong>Emotional Comfort:</strong> Listen to their fears and concerns without judgment. Share memories, read to them, play their favorite music, or simply sit in silence with them.
-                </li>
-            </ul>
+                <h4 className="font-semibold text-lg mt-4">Providing Comfort</h4>
+                <p>Your presence and simple acts of kindness can make a world of difference.</p>
+                <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+                    <li>
+                        <strong>Physical Comfort:</strong> Help with repositioning, offer gentle massages, keep their mouth moist, and ensure their environment is calm and comfortable.
+                    </li>
+                    <li>
+                        <strong>Emotional Comfort:</strong> Listen to their fears and concerns without judgment. Share memories, read to them, play their favorite music, or simply sit in silence with them.
+                    </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -111,21 +146,28 @@ export default function PalliativeCareCaregiverPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <p className="text-muted-foreground">You cannot pour from an empty cup. Taking care of your own well-being is essential to providing good care for your loved one.</p>
-            <ul className="list-disc space-y-2 pl-5">
-                <li>
-                    <strong>Accept Help:</strong> When friends and family offer to help, let them. Give them specific tasks, like picking up groceries, running an errand, or sitting with your loved one for an hour.
-                </li>
-                <li>
-                    <strong>Take Breaks:</strong> Step away for short periods to recharge. Even 15 minutes to take a walk, read a book, or call a friend can make a difference.
-                </li>
-                <li>
-                    <strong>Connect with Others:</strong> Join a caregiver support group, either online or in person. Talking with others who understand what you're going through can be incredibly helpful.
-                </li>
-                <li>
-                    <strong>Acknowledge Your Feelings:</strong> It's normal to feel a wide range of emotions—sadness, anger, guilt, and exhaustion. Allow yourself to feel them without judgment.
-                </li>
-            </ul>
+            <SectionCard
+              sectionId={3}
+              title="Remember to Care for the Caregiver"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(3)}
+            >
+                <p className="text-muted-foreground">You cannot pour from an empty cup. Taking care of your own well-being is essential to providing good care for your loved one.</p>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li>
+                        <strong>Accept Help:</strong> When friends and family offer to help, let them. Give them specific tasks, like picking up groceries, running an errand, or sitting with your loved one for an hour.
+                    </li>
+                    <li>
+                        <strong>Take Breaks:</strong> Step away for short periods to recharge. Even 15 minutes to take a walk, read a book, or call a friend can make a difference.
+                    </li>
+                    <li>
+                        <strong>Connect with Others:</strong> Join a caregiver support group, either online or in person. Talking with others who understand what you're going through can be incredibly helpful.
+                    </li>
+                    <li>
+                        <strong>Acknowledge Your Feelings:</strong> It's normal to feel a wide range of emotions—sadness, anger, guilt, and exhaustion. Allow yourself to feel them without judgment.
+                    </li>
+                </ul>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Accordion,
   AccordionContent,
@@ -9,8 +11,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Brain, Microscope, Search, ShieldCheck, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useProfile } from '@/context/role-context';
+import { useEffect, useState } from 'react';
+import { SectionCard } from '@/components/cards/section-card';
+
+const MODULE_ID = 'alzheimers-professional';
+const SECTIONS = 5;
 
 export default function AlzheimersProfessionalPage() {
+  const { getModuleProgress, updateModuleProgress } = useProfile();
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const progress = getModuleProgress(MODULE_ID);
+    const completedCount = Math.floor((progress / 100) * SECTIONS);
+    const completed = new Set<number>();
+    for (let i = 1; i <= completedCount; i++) {
+      completed.add(i);
+    }
+    setCompletedSections(completed);
+  }, [getModuleProgress]);
+
+  const handleSectionComplete = (sectionId: number) => {
+    const newCompletedSections = new Set(completedSections);
+    newCompletedSections.add(sectionId);
+    setCompletedSections(newCompletedSections);
+    const newProgress = (newCompletedSections.size / SECTIONS) * 100;
+    updateModuleProgress(MODULE_ID, newProgress);
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
        <Button variant="outline" asChild>
@@ -37,11 +66,12 @@ export default function AlzheimersProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>1.1 Defining the Disease and Its Pathological Hallmarks</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+                sectionId={1}
+                title="1.1 Defining the Disease and Its Pathological Hallmarks"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(1)}
+                >
                 <p>
                   Alzheimer's Disease is a progressive, degenerative brain disorder characterized by a decline in memory, cognition, and/or behavior that ultimately impacts Activities of Daily Living (ADLs). The disease is defined by two core neuropathological lesions:
                 </p>
@@ -52,21 +82,14 @@ export default function AlzheimersProfessionalPage() {
                 <p>
                   These lesions have a synergistic effect, driving a neurodegenerative process that begins decades before clinical symptoms appear.
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>1.2 Epidemiology and Genetic Considerations</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                 <h4 className="font-semibold mt-4">1.2 Epidemiology and Genetic Considerations</h4>
                  <p><strong>Prevalence:</strong> AD is the most common form of dementia, accounting for 60–80% of all cases. Its prevalence doubles every five years after the age of 65.</p>
                  <p><strong>Sporadic vs. Familial AD:</strong></p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li><strong>Sporadic AD (99% of cases):</strong> A complex disease with multiple risk factors.</li>
                     <li><strong>Familial AD (1% of cases):</strong> A rare, early-onset form (before age 50) caused by fully penetrant autosomal dominant mutations in the APP, PSEN1, or PSEN2 genes.</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -78,11 +101,13 @@ export default function AlzheimersProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-             <Card>
-              <CardHeader>
-                <CardTitle>2.1 Non-Modifiable Risk Factors</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+             <SectionCard
+                sectionId={2}
+                title="2.1 Non-Modifiable and Modifiable Risk Factors"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(2)}
+                >
+                <h4 className='font-semibold'>Non-Modifiable Risk Factors</h4>
                  <ul className="list-disc space-y-2 pl-5">
                     <li><strong>Age:</strong> The single greatest risk factor.</li>
                     <li><strong>Genetics (ApoE4):</strong> The apolipoprotein E4 (ApoE4) allele is the most significant genetic susceptibility factor for sporadic AD. The risk increases with the number of alleles:
@@ -93,13 +118,7 @@ export default function AlzheimersProfessionalPage() {
                     </li>
                 </ul>
                 <p className="mt-2 text-sm text-muted-foreground">It is crucial to understand that ApoE4 is a risk factor, not a deterministic gene; its presence is neither necessary nor sufficient to cause AD.</p>
-              </CardContent>
-            </Card>
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>2.2 Potentially Modifiable Risk Factors</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                <h4 className='font-semibold mt-4'>Potentially Modifiable Risk Factors</h4>
                  <p>Over half of the worldwide AD burden may be related to seven key modifiable risk factors. Prevention and management of these are a cornerstone of patient education.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>Low Educational Attainment</li>
@@ -111,8 +130,7 @@ export default function AlzheimersProfessionalPage() {
                     <li>Smoking</li>
                 </ul>
                 <p className="mt-2 font-semibold">A 10% reduction in the prevalence of these seven factors could reduce the 2050 prevalence of AD by over 8%.</p>
-              </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -124,9 +142,12 @@ export default function AlzheimersProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-                <CardHeader><CardTitle>3.1 Amyloid and Tau Pathology</CardTitle></CardHeader>
-                <CardContent>
+            <SectionCard
+                sectionId={3}
+                title="3.1 Amyloid and Tau Pathology"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(3)}
+                >
                     <p><strong>The Amyloid Cascade Hypothesis:</strong> Evidence from biomarker studies suggests that the abnormal processing and deposition of amyloid-β is the initiating biological event, occurring up to 20 years before symptoms while individuals are still cognitively normal.</p>
                     <p className="mt-4"><strong>The Spread of Neurofibrillary Tangles (NFTs):</strong> Tau pathology follows a predictable, hierarchical pattern of spread:</p>
                     <ul className="list-disc space-y-2 pl-5 mt-2">
@@ -134,8 +155,7 @@ export default function AlzheimersProfessionalPage() {
                         <li><strong>Symptomatic Stage:</strong> Spreads to the associative neocortical regions (temporal, prefrontal, parietal).</li>
                     </ul>
                     <p className="mt-2">This topographical spread directly correlates with the progression of cognitive symptoms.</p>
-                </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
@@ -147,29 +167,36 @@ export default function AlzheimersProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-             <h4 className="font-semibold text-lg">4.1 Subjective Cognitive Decline (SCD)</h4>
-             <p>This is a patient's self-reported memory concern in the presence of normal performance on objective cognitive tests. While often linked to depression or anxiety, it can also be the very first symptomatic manifestation of preclinical AD.</p>
+             <SectionCard
+                sectionId={4}
+                title="4.1 Understanding the Stages"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(4)}
+                >
+                 <h4 className="font-semibold text-lg">Subjective Cognitive Decline (SCD)</h4>
+                 <p>This is a patient's self-reported memory concern in the presence of normal performance on objective cognitive tests. While often linked to depression or anxiety, it can also be the very first symptomatic manifestation of preclinical AD.</p>
 
-             <h4 className="font-semibold text-lg mt-4">4.2 Mild Cognitive Impairment (MCI)</h4>
-             <p>MCI is a transitional state characterized by:</p>
-             <ul className="list-disc space-y-2 pl-5">
-                <li>A subjective cognitive complaint.</li>
-                <li>Objective impairment in one or more cognitive domains (verified by testing).</li>
-                <li>No significant impact on Activities of Daily Living (ADLs). This preservation of functional independence is the key feature that distinguishes MCI from dementia.</li>
-             </ul>
-             
-             <h4 className="font-semibold text-lg mt-4">4.3 The Stages of Dementia</h4>
-             <p>Dementia is diagnosed when cognitive impairment becomes severe enough to cause a significant impact on ADLs. Severity can be staged using validated scales:</p>
-             <ul className="list-disc space-y-2 pl-5">
-                <li><strong>Mini-Mental State Examination (MMSE):</strong>
-                    <ul className="list-disc space-y-2 pl-5 mt-2">
-                        <li>Mild Dementia: Score of 20-24</li>
-                        <li>Moderate Dementia: Score of 10-19</li>
-                        <li>Severe Dementia: Score of &lt;9</li>
-                    </ul>
-                </li>
-                <li><strong>Severe Impairment Battery (SIB):</strong> Used for patients whose impairment is too severe for standard cognitive tests.</li>
-             </ul>
+                 <h4 className="font-semibold text-lg mt-4">Mild Cognitive Impairment (MCI)</h4>
+                 <p>MCI is a transitional state characterized by:</p>
+                 <ul className="list-disc space-y-2 pl-5">
+                    <li>A subjective cognitive complaint.</li>
+                    <li>Objective impairment in one or more cognitive domains (verified by testing).</li>
+                    <li>No significant impact on Activities of Daily Living (ADLs). This preservation of functional independence is the key feature that distinguishes MCI from dementia.</li>
+                 </ul>
+                 
+                 <h4 className="font-semibold text-lg mt-4">The Stages of Dementia</h4>
+                 <p>Dementia is diagnosed when cognitive impairment becomes severe enough to cause a significant impact on ADLs. Severity can be staged using validated scales:</p>
+                 <ul className="list-disc space-y-2 pl-5">
+                    <li><strong>Mini-Mental State Examination (MMSE):</strong>
+                        <ul className="list-disc space-y-2 pl-5 mt-2">
+                            <li>Mild Dementia: Score of 20-24</li>
+                            <li>Moderate Dementia: Score of 10-19</li>
+                            <li>Severe Dementia: Score of &lt;9</li>
+                        </ul>
+                    </li>
+                    <li><strong>Severe Impairment Battery (SIB):</strong> Used for patients whose impairment is too severe for standard cognitive tests.</li>
+                 </ul>
+             </SectionCard>
           </AccordionContent>
         </AccordionItem>
         
@@ -181,18 +208,17 @@ export default function AlzheimersProfessionalPage() {
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
-            <Card>
-                <CardHeader><CardTitle>5.1 Clinical, Functional, and Behavioral Assessment</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+            <SectionCard
+                sectionId={5}
+                title="5.1 Clinical Assessment and Biomarkers"
+                onComplete={handleSectionComplete}
+                isCompleted={completedSections.has(5)}
+                >
                     <p><strong>Cognitive Assessment:</strong> Beyond the MMSE, a detailed neuropsychological evaluation is critical. Tests of episodic memory using free and cued recall (e.g., Grober and Buschke test) are highly sensitive for detecting the hippocampal amnesic syndrome characteristic of early AD.</p>
                     <p><strong>Functional Assessment:</strong> Use of standardized tools like the Katz ADL and Lawton IADL scales is essential to determine the functional impact required for a dementia diagnosis.</p>
                     <p><strong>Nutritional Assessment:</strong> The Mini Nutritional Assessment (MNA) should be incorporated, as a poor score has been shown to predict faster cognitive progression.</p>
                     <p><strong>Behavioral Assessment:</strong> The Neuropsychiatric Inventory (NPI) is a key tool for quantifying behavioral symptoms and their impact on caregiver burden. The most common early symptoms are apathy, anxiety, dysphoria (depression), and irritability.</p>
-                </CardContent>
-            </Card>
-             <Card className="mt-4">
-                <CardHeader><CardTitle>5.2 The Role of Biomarkers</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+                    <h4 className='font-semibold mt-4'>The Role of Biomarkers</h4>
                     <p>Biomarkers are now central to an early and more accurate diagnosis.</p>
                     <ul className="list-disc space-y-2 pl-5">
                         <li><strong>Structural Brain Imaging (MRI):</strong> Has two main purposes:
@@ -216,8 +242,7 @@ export default function AlzheimersProfessionalPage() {
                         </li>
                         <li><strong>Emerging Blood Biomarkers:</strong> Ultrasensitive assays for plasma Aβ and Neurofilaments Light Chain (NFL) are in development and show promise as less invasive future diagnostic tools.</li>
                     </ul>
-                </CardContent>
-            </Card>
+            </SectionCard>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
