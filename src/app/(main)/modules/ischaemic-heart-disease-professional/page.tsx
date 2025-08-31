@@ -86,7 +86,7 @@ export default function IschaemicHeartDiseaseProfessionalPage() {
                     <strong>Aspirin:</strong> For primary prevention in adults ≥70, the ASPREE trial showed no benefit and increased hemorrhage risk. Its role in secondary prevention is well-established.
                 </li>
                 <li>
-                    <strong>Statins:</strong> Strong evidence for secondary prevention. For primary prevention, benefit is smaller in those >75, requiring a careful risk-benefit discussion.
+                    <strong>Statins:</strong> Strong evidence for secondary prevention. For primary prevention, benefit is smaller in those &gt;75, requiring a careful risk-benefit discussion.
                 </li>
                  <li>
                     <strong>Hypertension:</strong> Target SBP &lt;140 mmHg for most, with a more relaxed target of &lt;150 mmHg for frail patients.

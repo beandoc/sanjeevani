@@ -65,7 +65,7 @@ export default function LungInfectionsProfessionalPage() {
                 <CardContent className="pt-6 space-y-4">
                     <p>The classic presentation of lobar pneumonia is often absent. Your assessment must have a high index of suspicion for atypical signs.</p>
                     <h4 className="font-semibold">Subtle Respiratory Signs:</h4>
-                     <p>Tachypnoea (respiratory rate >30/min) is a more reliable sign than cough. Localized crackles may be faint or absent.</p>
+                     <p>Tachypnoea (respiratory rate &gt;30/min) is a more reliable sign than cough. Localized crackles may be faint or absent.</p>
 
                     <h4 className="font-semibold mt-4">Non-Respiratory Presentations:</h4>
                     <p>Pneumonia frequently manifests as a non-specific decline. Look for:</p>
