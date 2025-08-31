@@ -13,7 +13,7 @@ export const EmergencyContactCard = () => {
           <User className="h-5 w-5 text-muted-foreground" />
           <div className="flex-1">
             <p className="text-sm font-medium">Primary Caregiver</p>
-            <p className="text-sm text-muted-foreground">Jane Doe - (555) 123-4567</p>
+            <p className="text-sm text-muted-foreground">Babulal Jadhav - (555) 123-4567</p>
           </div>
           <Phone className="h-4 w-4 text-primary" />
         </div>
@@ -21,7 +21,7 @@ export const EmergencyContactCard = () => {
           <Stethoscope className="h-5 w-5 text-muted-foreground" />
           <div className="flex-1">
             <p className="text-sm font-medium">Doctor / Clinic</p>
-            <p className="text-sm text-muted-foreground">Dr. Smith - (555) 987-6543</p>
+            <p className="text-sm text-muted-foreground">Dr. Sachin - (555) 987-6543</p>
           </div>
            <Phone className="h-4 w-4 text-primary" />
         </div>
@@ -29,7 +29,7 @@ export const EmergencyContactCard = () => {
           <Hospital className="h-5 w-5 text-muted-foreground" />
           <div className="flex-1">
             <p className="text-sm font-medium">Primary Hospital</p>
-            <p className="text-sm text-muted-foreground">General Hospital - (555) 246-8135</p>
+            <p className="text-sm text-muted-foreground">Kidney Care Hospital, Pune</p>
           </div>
            <Phone className="h-4 w-4 text-primary" />
         </div>

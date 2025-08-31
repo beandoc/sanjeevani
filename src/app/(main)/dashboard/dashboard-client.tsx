@@ -190,7 +190,7 @@ export default function DashboardClient() {
                 {activeModules.map((mod) => {
                   const Icon = iconMap[mod.topic] || BookOpenCheck;
                   return (
-                    <div key={`${mod.id}-${mod.title}`}>
+                    <div key={mod.id}>
                       <div className="mb-1 flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}

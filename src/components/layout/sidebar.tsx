@@ -20,6 +20,7 @@ import {
   BookMarked,
   LifeBuoy,
   FileText,
+  Computer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ export function AppSidebar() {
     { href: `/podcasts`, label: 'Podcasts', icon: Mic },
     { href: `/assessment-guide`, label: 'Assessment Guide', icon: FileText },
     { href: `/resources`, label: 'Resources', icon: BookMarked },
+    { href: '#', label: 'Sehat OPD', icon: Computer },
   ];
 
   // A helper function to check if a link is active
