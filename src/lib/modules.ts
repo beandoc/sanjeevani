@@ -310,8 +310,9 @@ export const professionalModules = [
 export const allModules = [
     ...caregiverModules,
     ...professionalModules
-].filter((item, index, self) =>
-    index === self.findIndex((t) => (
-        t.id === item.id
-    ))
-);
+].reduce((acc, current) => {
+    if (!acc.find(item => item.id === current.id)) {
+        acc.push(current);
+    }
+    return acc;
+}, [] as (typeof caregiverModules[0])[]);

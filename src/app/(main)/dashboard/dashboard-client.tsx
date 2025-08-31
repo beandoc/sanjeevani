@@ -34,6 +34,8 @@ import {
   Dumbbell,
   Siren,
   Brain,
+  Footprints,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
@@ -62,12 +64,19 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Heart Disease': HeartPulse,
   'Delirium': Brain,
   'Hypertension': HeartPulse,
-  'Medication Safety': Pill,
+  'Medication Safety': Shield,
   'Oral Health': Smile,
   'Exercise': Dumbbell,
   'Constipation': Utensils,
   'Pneumonia': Siren,
+  'Podogeriatrics': Footprints,
+  'Clinical Nutrition': Utensils,
+  'Geriatric Ophthalmology': Eye,
+  'Geriatric Oral Health': Smile,
+  'Rheumatic Disorders': Bone,
+  'Foot Care': Footprints,
 };
+
 
 // Function to shuffle an array
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -103,30 +112,22 @@ const getDynamicPersonalizedPath = (
 };
 
 
-const initialActiveModules = [
-  { id: 1, title: 'Delirium Care', progress: 0, topic: 'Delirium' },
-  { id: 2, title: 'Heart Failure Management', progress: 0, topic: 'Heart Failure' },
-  { id: 3, title: 'Stroke Rehabilitation', progress: 0, topic: 'Stroke' },
-];
-
 export default function DashboardClient() {
-  const { role, skillLevel, caregivingScenario } = useProfile();
+  const { role, skillLevel, caregivingScenario, moduleProgress } = useProfile();
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
-  const [activeModules, setActiveModules] = useState(initialActiveModules);
-
-  useEffect(() => {
-    // Simulate dynamic progress by randomizing it on mount
-    const randomizedModules = initialActiveModules.map(mod => ({
-      ...mod,
-      progress: Math.floor(Math.random() * 81) + 10, // Random progress between 10 and 90
-    }));
-    setActiveModules(randomizedModules);
-  }, []);
 
   useEffect(() => {
     const path = getDynamicPersonalizedPath(skillLevel, caregivingScenario);
     setPersonalizedPath(path);
   }, [skillLevel, caregivingScenario, role]);
+
+  const activeModules = allModules
+    .map(mod => ({
+      ...mod,
+      progress: moduleProgress[mod.id] || 0,
+    }))
+    .filter(mod => mod.progress > 0 && mod.progress < 100)
+    .sort((a, b) => b.progress - a.progress);
 
 
   return (
@@ -148,11 +149,11 @@ export default function DashboardClient() {
                  </div>
               )}
 
-              {personalizedPath?.suggestedModules.map((module,index) => {
-                  const Icon = iconMap[module.topic] || BookOpenCheck;
+              {personalizedPath?.suggestedModules.map((module) => {
+                  const Icon = iconMap[module.category] || BookOpenCheck;
                   return (
                     <div
-                      key={`${module.moduleId}-${index}`}
+                      key={module.id}
                       className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-secondary/50"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
@@ -164,11 +165,11 @@ export default function DashboardClient() {
                           {module.description}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {module.estimatedDuration} min
+                          Topic: {module.category}
                         </p>
                       </div>
                       <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/modules/${module.moduleId}`}>
+                        <Link href={`/modules/${module.id}`}>
                           <ArrowRight className="h-4 w-4" />
                         </Link>
                       </Button>
@@ -187,21 +188,28 @@ export default function DashboardClient() {
                 <CardDescription>Continue where you left off.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {activeModules.map((mod) => {
-                  const Icon = iconMap[mod.topic] || BookOpenCheck;
-                  return (
-                    <div key={mod.id}>
-                      <div className="mb-1 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-                          <span className="font-medium">{mod.title}</span>
+                 {activeModules.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                    <p>No modules in progress.</p>
+                    <p className="text-xs">Start a module from the Modules page.</p>
+                  </div>
+                ) : (
+                  activeModules.map((mod) => {
+                    const Icon = iconMap[mod.category] || BookOpenCheck;
+                    return (
+                      <div key={mod.id}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+                            <span className="font-medium">{mod.title}</span>
+                          </div>
+                          <span className="text-muted-foreground">{mod.progress}%</span>
                         </div>
-                        <span className="text-muted-foreground">{mod.progress}%</span>
+                        <Progress value={mod.progress} />
                       </div>
-                      <Progress value={mod.progress} />
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
 
