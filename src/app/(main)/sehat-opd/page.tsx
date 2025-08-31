@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -13,6 +14,11 @@ import {
   UserPlus,
   Video,
   ArrowRight,
+  ShieldCheck,
+  Clock,
+  FileText,
+  Wifi,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,8 +30,7 @@ export default function SehatOpdPage() {
           Sehat OPD: National Teleconsultation Service
         </h1>
         <p className="text-muted-foreground">
-          Access healthcare from the comfort of your home with the Government of
-          India's flagship telemedicine service.
+          The Tri-services Teleconsultation Service of the Ministry of Defence (MoD).
         </p>
       </div>
 
@@ -33,11 +38,7 @@ export default function SehatOpdPage() {
         <CardHeader>
           <CardTitle>What is Sehat OPD?</CardTitle>
           <CardDescription>
-            eSanjeevani's Sehat OPD is a patient-to-doctor teleconsultation
-            service that provides free access to medical advice and
-            prescriptions. It is designed to connect citizens, particularly
-            those in rural and remote areas, with doctors and specialists across
-            the country.
+            Services e-Health Assistance and Tele-consultation (SeHAT) is a teleconsultation service for all entitled personnel and their families from the three Services, including ECHS beneficiaries. It aims to provide safe, structured, video-based clinical consultations from the comfort of home.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -58,7 +59,7 @@ export default function SehatOpdPage() {
         <CardHeader>
           <CardTitle>How to Use the Sehat OPD App</CardTitle>
           <CardDescription>
-            Follow these simple steps to schedule your teleconsultation.
+            Follow these simple steps to schedule and complete your teleconsultation.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -67,25 +68,13 @@ export default function SehatOpdPage() {
               <UserPlus className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Step 1: Patient Registration</h3>
-              <p className="text-sm text-muted-foreground">
-                First, you need to verify your mobile number. An OTP will be
-                sent to your phone. After verification, fill in the patient
-                registration form.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <ListOrdered className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Step 2: Get a Token</h3>
-              <p className="text-sm text-muted-foreground">
-                After registering, you will receive a token or appointment ID.
-                You will also get an SMS notification with your login details.
-              </p>
+              <h3 className="font-semibold">A. Registration & Verification</h3>
+              <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                <li>Verify your mobile number using an OTP.</li>
+                <li>Fill in the Patient Registration Form in the app.</li>
+                <li>Physically report to a SeHAT medical officer to verify your identity using ID cards (Aadhaar/ECHS card).</li>
+                <li>Once verified, you will receive a confirmation message. Your registration is valid for one year.</li>
+              </ul>
             </div>
           </div>
 
@@ -94,12 +83,26 @@ export default function SehatOpdPage() {
               <Smartphone className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Step 3: Login and Wait</h3>
-              <p className="text-sm text-muted-foreground">
-                Log in to the app using your mobile number. You will enter a
-                virtual waiting room. You will see your position in the queue,
-                and a "CALL NOW" button will activate when it's your turn.
-              </p>
+              <h3 className="font-semibold">B. Login</h3>
+               <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                <li>Log in with your registered mobile number and an OTP.</li>
+                <li>On your personal page, you can view past prescriptions and approved family members.</li>
+                <li>You can use your mobile number to arrange consultations for your approved family members.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">C. Wait for Your Turn</h3>
+               <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                <li>After logging in and requesting a consultation, you will be placed in a virtual waiting queue.</li>
+                <li>When a doctor is assigned, the "CALL NOW" button will activate.</li>
+                <li>You must click the "CALL NOW" button within 30 seconds, or you will be moved lower in the queue.</li>
+              </ul>
             </div>
           </div>
 
@@ -108,30 +111,71 @@ export default function SehatOpdPage() {
               <Video className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Step 4: Video Consultation</h3>
-              <p className="text-sm text-muted-foreground">
-                Once you press the "CALL NOW" button, your video consultation
-                with the doctor will begin. Make sure you have a stable internet
-                connection.
-              </p>
+              <h3 className="font-semibold">D. Consultation</h3>
+              <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                <li>Your consultation will begin via video, audio, and chat.</li>
+                <li>The doctor can access any health records you uploaded when you requested the consultation.</li>
+              </ul>
             </div>
           </div>
 
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <Download className="h-6 w-6 text-primary" />
+              <FileText className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Step 5: Download ePrescription</h3>
+              <h3 className="font-semibold">E. ePrescription</h3>
+              <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                <li>The doctor prepares your prescription during the call.</li>
+                <li>At the end of the consultation, the doctor sends the ePrescription to you and closes the call.</li>
+                <li>You can then download, print, or email the ePrescription. A copy is saved to your patient profile.</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+       <Card>
+        <CardHeader>
+          <CardTitle>Other Important Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
+              <Wifi className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Internet Speed</h3>
               <p className="text-sm text-muted-foreground">
-                After the consultation, you will receive a notification to
-                download your ePrescription. You can then use this to get your
-                medications.
+                For a smooth video consultation experience, an internet speed of at least 1 Mbps is recommended.
+              </p>
+            </div>
+          </div>
+           <div className="flex items-start gap-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
+              <Info className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Platform Compatibility</h3>
+              <p className="text-sm text-muted-foreground">
+                SeHAT OPD is a responsive web application and can be used on computers, large screen tablets, and smartphones.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Profile Changes</h3>
+              <p className="text-sm text-muted-foreground">
+                Once registered, you cannot alter your personal details. However, an authorized SeHAT medical officer can make changes for you.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
