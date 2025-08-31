@@ -148,11 +148,11 @@ export default function DashboardClient() {
                  </div>
               )}
 
-              {personalizedPath?.suggestedModules.map((module) => {
+              {personalizedPath?.suggestedModules.map((module,index) => {
                   const Icon = iconMap[module.topic] || BookOpenCheck;
                   return (
                     <div
-                      key={module.moduleId}
+                      key={`${module.moduleId}-${index}`}
                       className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-secondary/50"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
