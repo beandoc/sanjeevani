@@ -21,6 +21,7 @@ import {
   LifeBuoy,
   FileText,
   Computer,
+  CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,7 @@ export function AppSidebar() {
     { href: `/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { href: `/modules`, label: 'Modules', icon: GraduationCap },
     { href: `/simulations`, label: 'Simulations', icon: Bot },
+    { href: `/appointments`, label: 'Appointments', icon: CalendarDays },
     { href: `/videos`, label: 'Video Library', icon: Video },
     { href: `/podcasts`, label: 'Podcasts', icon: Mic },
     { href: `/assessment-guide`, label: 'Assessment Guide', icon: FileText },
