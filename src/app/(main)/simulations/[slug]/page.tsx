@@ -292,7 +292,11 @@ const simulationsData: {
   }
 };
 
-export default function SimulationPage({ params }: { params: { slug: string } }) {
+interface SimulationPageProps {
+  params: { slug: string };
+}
+
+export default function SimulationPage({ params }: SimulationPageProps) {
   const slug = params.slug;
   const simData = simulationsData[slug];
 
