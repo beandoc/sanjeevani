@@ -126,7 +126,7 @@ export default function DashboardClient() {
       ...mod,
       progress: moduleProgress[mod.id] || 0,
     }))
-    .filter(mod => mod.progress > 0 && mod.progress < 100)
+    .filter(mod => mod.progress > 0)
     .sort((a, b) => b.progress - a.progress);
 
 
