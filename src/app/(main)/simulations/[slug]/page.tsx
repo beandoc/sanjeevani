@@ -361,9 +361,9 @@ export default function SimulationPage({ params: paramsProp }: { params: { slug:
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {simData.options.map((option, index) => (
+            {simData.options.map((option) => (
               <Button
-                key={index}
+                key={option.text}
                 variant="outline"
                 className="h-auto whitespace-normal py-4 text-left justify-start"
                 onClick={() => handleActionSubmit(option)}
