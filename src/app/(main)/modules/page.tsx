@@ -116,7 +116,7 @@ const ModulesView = ({ modules, role }: { modules: Module[], role: 'caregiver' |
     <div className="space-y-8">
         <CompetencySection 
             title="The Basics right"
-            description="These foundational modules to professionals"
+            description="These foundational modules are essential for all caregivers and health professionals."
             modules={core}
         />
         <CompetencySection 
