@@ -1,6 +1,8 @@
+
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -292,8 +294,9 @@ const simulationsData: {
   }
 };
 
-export default function SimulationPage(props: { params: { slug: string } }) {
-  const slug = props.params.slug;
+export default function SimulationPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const simData = simulationsData[slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
