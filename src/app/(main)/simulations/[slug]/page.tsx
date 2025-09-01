@@ -292,12 +292,8 @@ const simulationsData: {
   }
 };
 
-interface SimulationPageProps {
-  params: { slug: string };
-}
-
-export default function SimulationPage({ params }: SimulationPageProps) {
-  const slug = params.slug;
+export default function SimulationPage(props: { params: { slug: string } }) {
+  const slug = props.params.slug;
   const simData = simulationsData[slug];
 
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
