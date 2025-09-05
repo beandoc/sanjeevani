@@ -39,7 +39,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
-import type { PersonalizedPathOutput } from '@/ai/flows/personalized-learning-path';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
 
@@ -77,6 +76,10 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Foot Care': Footprints,
 };
 
+type PersonalizedPathOutput = {
+    suggestedModules: (typeof allModules[0] & { focusArea: string })[];
+    reasoning: string;
+}
 
 // Function to shuffle an array
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -139,7 +142,7 @@ export default function DashboardClient() {
                 <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
               </div>
                <CardDescription>
-                {personalizedPath?.reasoning}
+                {personalizedPath?.reasoning || 'Loading your personalized path...'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
