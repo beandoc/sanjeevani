@@ -41,6 +41,7 @@ import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
+import { getPersonalizedPath } from '@/lib/learning-paths';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -81,46 +82,12 @@ type PersonalizedPathOutput = {
     reasoning: string;
 }
 
-// Function to shuffle an array
-const shuffleArray = <T,>(array: T[]): T[] => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
-
-
-const getDynamicPersonalizedPath = (
-  skillLevel: string,
-  caregivingScenario: string
-): PersonalizedPathOutput => {
-  // Shuffle the array of all modules
-  const shuffledModules = shuffleArray(allModules);
-  
-  // Take the first 3 modules from the shuffled list
-  const suggestedModules = shuffledModules.slice(0, 3);
-  
-  // Add the missing `focusArea` property to each module
-  const modulesWithFocusArea = suggestedModules.map(module => ({
-    ...module,
-    focusArea: caregivingScenario // You might want to make this more dynamic later
-  }));
-
-  return {
-    suggestedModules: modulesWithFocusArea,
-    reasoning: `Based on your profile, we've selected these modules for you to explore. They change periodically!`
-  };
-};
-
-
 export default function DashboardClient() {
   const { role, skillLevel, caregivingScenario, moduleProgress } = useProfile();
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathOutput | null>(null);
 
   useEffect(() => {
-    const path = getDynamicPersonalizedPath(skillLevel, caregivingScenario);
+    const path = getPersonalizedPath(skillLevel, caregivingScenario);
     setPersonalizedPath(path);
   }, [skillLevel, caregivingScenario, role]);
 

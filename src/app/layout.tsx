@@ -40,8 +40,8 @@ export default function RootLayout({
         >
           <RoleProvider>
             {children}
+            <Toaster />
           </RoleProvider>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>
