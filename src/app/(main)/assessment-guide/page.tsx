@@ -10,48 +10,47 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, Globe, Users, HeartHandshake, Cpu } from 'lucide-react';
 import Link from 'next/link';
 
+import { useTranslations } from 'next-intl';
+
 const lessons = [
   {
+    id: 'introduction',
     slug: '/assessment-guide/introduction',
-    title: 'Foundations of Modern Geriatric Education',
-    description: 'Explore the core principles and frameworks that define geriatric care education.',
     icon: BookOpen,
   },
   {
+    id: 'workforce',
     slug: '/assessment-guide/workforce',
-    title: 'Tailoring Modules for a Diverse Workforce',
-    description: 'Learn how to adapt geriatric training for physicians, nurses, and the entire caregiving ecosystem.',
     icon: Users,
   },
   {
+    id: 'clinical-content',
     slug: '/assessment-guide/clinical-content',
-    title: 'Core Clinical Content',
-    description: 'Delve into the essential clinical topics, from multimorbidity to palliative care.',
     icon: HeartHandshake,
   },
   {
+    id: 'innovations',
     slug: '/assessment-guide/innovations',
-    title: 'Innovations in Pedagogy and Care Models',
-    description: 'Discover advances in teaching methods, technology, and patient-directed care models.',
     icon: Cpu,
   },
   {
+    id: 'case-study',
     slug: '/assessment-guide/case-study',
-    title: 'Global Case Study: India',
-    description: 'Examine a real-world example of a nation building a multi-tiered geriatric education ecosystem.',
     icon: Globe,
   },
 ];
 
 export default function AssessmentGuidePage() {
+  const t = useTranslations('AssessmentGuide');
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Crafting Effective Geriatric Learning Modules
+          {t('title')}
         </h1>
         <p className="text-muted-foreground">
-          A guide for caregivers and health workers on creating comprehensive geriatric training.
+          {t('subtitle')}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -61,19 +60,19 @@ export default function AssessmentGuidePage() {
             <Card key={lesson.slug} className="flex flex-col">
               <CardHeader>
                 <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                        <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="font-headline text-xl">{lesson.title}</CardTitle>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="font-headline text-xl">{t(`lessons.${lesson.id}.title`)}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="flex-grow">
-                <CardDescription>{lesson.description}</CardDescription>
+                <CardDescription>{t(`lessons.${lesson.id}.description`)}</CardDescription>
               </CardContent>
               <CardContent>
                 <Button asChild className="w-full" variant="secondary">
                   <Link href={lesson.slug}>
-                    Start Lesson <ArrowRight className="ml-2 h-4 w-4" />
+                    {t('startLesson')} <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </CardContent>

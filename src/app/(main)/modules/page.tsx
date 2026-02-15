@@ -32,7 +32,11 @@ type Module = {
   category: string;
 };
 
+import { useTranslations } from 'next-intl';
+
 const ModuleCard = ({ module }: { module: Module }) => {
+  const t = useTranslations('Modules.list');
+  const tPage = useTranslations('Modules.page');
   const Icon = module.icon || ShieldAlert; // Fallback icon to prevent crashes
   return (
     <Card key={module.id} className="flex flex-col">
@@ -42,17 +46,17 @@ const ModuleCard = ({ module }: { module: Module }) => {
             <Icon className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="font-headline text-xl">
-            {module.title}
+            {t(`${module.id}.title`)}
           </CardTitle>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
-        <CardDescription>{module.description}</CardDescription>
+        <CardDescription>{t(`${module.id}.description`)}</CardDescription>
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
           <Link href={`/modules/${module.id}`}>
-            Start Module <ArrowRight className="ml-2 h-4 w-4" />
+            {tPage('startModule')} <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       </CardFooter>
@@ -80,20 +84,21 @@ const CompetencySection = ({ title, description, modules }: { title: string, des
 
 const ModulesView = ({ modules, role }: { modules: Module[], role: 'caregiver' | 'professional' }) => {
   const { caregivingScenario } = useProfile();
+  const t = useTranslations('Modules.page');
 
   const getCategorizedModules = () => {
     const coreCompetencies = ['Medication Safety', 'Fall Prevention', 'Nutrition', 'Exercise', 'Constipation', 'Oral Health', 'Bed Bound Care'];
-    
+
     // Map the selected scenario to module categories
     const scenarioCategoryMap: { [key: string]: string[] } = {
-        'Dementia': ['Alzheimer\'s Disease', 'Delirium'],
-        'Heart Failure': ['Heart Disease', 'Hypertension'],
-        'Stroke Recovery': ['Stroke'],
-        'Parkinson\'s Disease': ['Parkinsonism Care'],
-        'General Frailty': [], 
-        'COPD': ['Pneumonia'],
-        'Post-Surgery Recovery': ['Geriatric Rehabilitation'],
-        'Multiple Chronic Conditions': ['Heart Disease', 'Hypertension', 'Pneumonia', 'Joint Problems'],
+      'Dementia': ['Alzheimer\'s Disease', 'Delirium'],
+      'Heart Failure': ['Heart Disease', 'Hypertension'],
+      'Stroke Recovery': ['Stroke'],
+      'Parkinson\'s Disease': ['Parkinsonism Care'],
+      'General Frailty': [],
+      'COPD': ['Pneumonia'],
+      'Post-Surgery Recovery': ['Geriatric Rehabilitation'],
+      'Multiple Chronic Conditions': ['Heart Disease', 'Hypertension', 'Pneumonia', 'Joint Problems'],
     };
 
     const recommendedCategories = scenarioCategoryMap[caregivingScenario] || [];
@@ -108,27 +113,27 @@ const ModulesView = ({ modules, role }: { modules: Module[], role: 'caregiver' |
   const { core, shouldKnow, couldKnow } = getCategorizedModules();
 
   const recommendedDescription = role === 'caregiver'
-    ? `Based on your selected profile need for "${caregivingScenario}", we recommend these modules.`
-    : `Modules relevant to the selected patient scenario: "${caregivingScenario}".`;
+    ? t('recommendedDescCaregiver', { scenario: caregivingScenario })
+    : t('recommendedDescProfessional', { scenario: caregivingScenario });
 
 
   return (
     <div className="space-y-8">
-        <CompetencySection 
-            title="The Basics right"
-            description="These foundational modules are essential for all caregivers and health professionals."
-            modules={core}
-        />
-        <CompetencySection 
-            title="Recommended For You (Should Know)"
-            description={recommendedDescription}
-            modules={shouldKnow}
-        />
-        <CompetencySection 
-            title="Explore Other Topics (Could Know)"
-            description="Broaden your knowledge with these specialized modules."
-            modules={couldKnow}
-        />
+      <CompetencySection
+        title={t('basicsTitle')}
+        description={t('basicsDesc')}
+        modules={core}
+      />
+      <CompetencySection
+        title={t('recommendedTitle')}
+        description={recommendedDescription}
+        modules={shouldKnow}
+      />
+      <CompetencySection
+        title={t('exploreTitle')}
+        description={t('exploreDesc')}
+        modules={couldKnow}
+      />
     </div>
   );
 };
@@ -136,6 +141,7 @@ const ModulesView = ({ modules, role }: { modules: Module[], role: 'caregiver' |
 
 export default function ModulesPage() {
   const { role } = useProfile();
+  const t = useTranslations('Modules.page');
 
   const getModulesForRole = (role: 'caregiver' | 'professional') => {
     const source = role === 'caregiver' ? caregiverModules : professionalModules;
@@ -145,16 +151,16 @@ export default function ModulesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Learning Modules</h1>
+        <h1 className="text-3xl font-bold font-headline">{t('title')}</h1>
         <p className="text-muted-foreground">
-          A guided curriculum based on core competencies and personalized recommendations.
+          {t('subtitle')}
         </p>
       </div>
 
       <Tabs defaultValue={role} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="caregiver">For Family Caregivers</TabsTrigger>
-          <TabsTrigger value="professional">For Health Professionals</TabsTrigger>
+          <TabsTrigger value="caregiver">{t('caregiverTab')}</TabsTrigger>
+          <TabsTrigger value="professional">{t('professionalTab')}</TabsTrigger>
         </TabsList>
         <TabsContent value="caregiver" className="pt-4">
           <ModulesView modules={getModulesForRole('caregiver')} role="caregiver" />

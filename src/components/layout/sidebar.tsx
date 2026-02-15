@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   Sidebar,
@@ -26,30 +27,27 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { useTranslations } from 'next-intl';
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const t = useTranslations('Sidebar');
 
   const links = [
-    { href: `/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
-    { href: `/modules`, label: 'Modules', icon: GraduationCap },
-    { href: `/simulations`, label: 'Simulations', icon: Bot },
-    { href: `/appointments`, label: 'Appointments', icon: CalendarDays },
-    { href: '/vital-logs', label: 'Vital Logs', icon: ClipboardList },
-    { href: `/videos`, label: 'Video Library', icon: Video },
-    { href: `/podcasts`, label: 'Podcasts', icon: Mic },
-    { href: `/assessment-guide`, label: 'Assessment Guide', icon: FileText },
-    { href: `/resources`, label: 'Resources', icon: BookMarked },
-    { href: `/sehat-opd`, label: 'Sehat OPD', icon: Computer },
+    { href: `/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
+    { href: `/modules`, label: t('modules'), icon: GraduationCap },
+    { href: `/simulations`, label: t('simulations'), icon: Bot },
+    { href: `/appointments`, label: t('appointments'), icon: CalendarDays },
+    { href: '/vital-logs', label: t('vitalLogs'), icon: ClipboardList },
+    { href: `/videos`, label: t('videos'), icon: Video },
+    { href: `/podcasts`, label: t('podcasts'), icon: Mic },
+    { href: `/assessment-guide`, label: t('assessmentuide'), icon: FileText },
+    { href: `/resources`, label: t('resources'), icon: BookMarked },
+    { href: `/sehat-opd`, label: t('sehatOpd'), icon: Computer },
   ];
 
-  // A helper function to check if a link is active
   const isActive = (href: string) => {
-    // Exact match for the dashboard page
-    if (href === '/dashboard') {
-      return pathname === href;
-    }
-    // For all other links, check if the current path starts with the link's href.
-    // This handles nested routes correctly (e.g., /simulations/managing-a-fall).
+    if (href === '/dashboard') return pathname === href;
     return pathname.startsWith(href);
   };
 
@@ -57,35 +55,51 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
       variant="sidebar"
-      className="border-r border-sidebar-border"
+      className="border-r border-sidebar-border bg-sidebar-background shadow-xl"
     >
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="h-20 flex items-center px-6 border-b border-sidebar-border/50">
         <Link
-          href={`/dashboard`}
-          className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center"
+          href="/dashboard"
+          className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <LifeBuoy className="h-8 w-8 text-primary" />
-          <h1
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-primary/20 shadow-sm">
+            <Image
+              src="/logo.png"
+              alt="Sanjeevani Logo"
+              fill
+              className="object-cover"
+            />
+          </div>
+          <span
             className={cn(
-              'text-xl font-bold font-headline text-sidebar-foreground group-data-[collapsible=icon]:hidden'
+              'text-xl font-bold font-headline tracking-tighter text-sidebar-foreground group-data-[collapsible=icon]:hidden'
             )}
           >
             Sanjeevani
-          </h1>
+          </span>
         </Link>
       </SidebarHeader>
-      <SidebarContent className="p-2">
-        <SidebarMenu>
+      <SidebarContent className="p-4 gap-6">
+        <SidebarMenu className="gap-1.5">
           {links.map((link) => (
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton
                 asChild
                 isActive={isActive(link.href)}
                 tooltip={{ children: link.label }}
+                className={cn(
+                  "h-11 px-4 rounded-lg transition-all duration-200",
+                  isActive(link.href)
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                    : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
               >
-                <Link href={link.href}>
-                  <link.icon className="h-5 w-5" />
-                  <span>{link.label}</span>
+                <Link href={link.href} className="flex items-center gap-3">
+                  <link.icon className={cn(
+                    "h-5 w-5 transition-transform duration-200",
+                    isActive(link.href) ? "scale-110" : "opacity-70"
+                  )} />
+                  <span className="font-medium">{link.label}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

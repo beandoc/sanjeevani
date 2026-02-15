@@ -10,76 +10,48 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Bot } from 'lucide-react';
 import Link from 'next/link';
 
+import { useTranslations } from 'next-intl';
+
 const simulations = [
-  {
-    slug: 'managing-a-fall',
-    title: 'Managing a Fall',
-    description: 'Patient has fallen. Assess the situation and provide immediate care.',
-  },
-  {
-    slug: 'medication-confusion',
-    title: 'Medication Confusion',
-    description: 'Patient is confused about their medication. Address the situation carefully.',
-  },
-  {
-    slug: 'sudden-shortness-of-breath',
-    title: 'Sudden Shortness of Breath',
-    description: 'Patient is experiencing sudden dyspnea. React to a potential emergency.',
-  },
-  {
-    slug: 'hypertension-dizziness',
-    title: 'Managing Hypertension Side Effects',
-    description: 'Patient reports dizziness after starting a new blood pressure pill. Decide on the safest next step.',
-  },
-  {
-    slug: 'polypharmacy-prescribing-cascade',
-    title: 'Spotting a Prescribing Cascade',
-    description: 'A patient on many medications develops a new symptom. Identify the likely cause.',
-  },
-   {
-    slug: 'recognizing-delirium',
-    title: 'Recognizing a Medication Side Effect',
-    description: 'A patient develops acute confusion after starting a new over-the-counter medication.',
-  },
-  {
-    slug: 'exercise-hesitancy',
-    title: 'Encouraging Safe Exercise',
-    description: 'A patient with arthritis is afraid to exercise due to pain. Provide the best advice.',
-  },
-  {
-    slug: 'constipation-management',
-    title: 'Managing Chronic Constipation',
-    description: 'A caregiver is using the wrong treatment for constipation. Guide them to the correct, safe approach.',
-  },
+  'managing-a-fall',
+  'medication-confusion',
+  'sudden-shortness-of-breath',
+  'hypertension-dizziness',
+  'polypharmacy-prescribing-cascade',
+  'recognizing-delirium',
+  'exercise-hesitancy',
+  'constipation-management',
 ];
 
 export default function SimulationsListPage() {
+  const t = useTranslations('Simulations');
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Practice Simulations</h1>
+        <h1 className="text-3xl font-bold font-headline">{t('title')}</h1>
         <p className="text-muted-foreground">
-          Apply your knowledge in realistic, interactive scenarios.
+          {t('subtitle')}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {simulations.map((sim) => (
-          <Card key={sim.slug} className="flex flex-col">
+        {simulations.map((slug) => (
+          <Card key={slug} className="flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
                   <Bot className="h-6 w-6 text-accent" />
                 </div>
-                <CardTitle className="font-headline text-xl">{sim.title}</CardTitle>
+                <CardTitle className="font-headline text-xl">{t(`scenarios.${slug}.title`)}</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="flex-grow">
-              <CardDescription>{sim.description}</CardDescription>
+              <CardDescription>{t(`scenarios.${slug}.description`)}</CardDescription>
             </CardContent>
             <CardContent>
               <Button asChild className="w-full" variant="secondary">
-                <Link href={`/simulations/${sim.slug}`}>
-                  Start Simulation <ArrowRight className="ml-2 h-4 w-4" />
+                <Link href={`/simulations/${slug}`}>
+                  {t('startSimulation')} <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </CardContent>
