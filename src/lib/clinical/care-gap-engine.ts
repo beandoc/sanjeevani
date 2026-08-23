@@ -1,8 +1,17 @@
 /**
  * Sanjeevani Caregiver Dyad & Care Gap Estimation Engine
  * Quantifies the mismatch between patient care demand (Katz ADL / Lawton IADL / Multimorbidity)
- * and caregiver physical/temporal capacity (Age, Health, Employment, Kinship, Financial Strain).
+ * and caregiver physical/temporal capacity (Age, Health, Employment, Kinship, Formal Support Infrastructure).
  */
+
+export type FormalSupportType =
+  | 'none'
+  | 'paid_attendant_12h'
+  | 'paid_attendant_24h'
+  | 'trained_nurse_12h'
+  | 'trained_nurse_24h'
+  | 'medical_assistant'
+  | 'multi_family_rotation';
 
 export interface CaregiverAttributes {
   name: string;
@@ -22,6 +31,12 @@ export interface CaregiverAttributes {
   dailyHoursCommitted: number;
   monthlyOutOfPocketBurden: 'manageable' | 'moderate_strain' | 'severe_toxicity';
   formalTrainingReceived: boolean;
+  formalSupport?: {
+    type: FormalSupportType;
+    hoursPerDay: number;
+    handlesHeavyTransfers: boolean;
+    handlesMedicationWoundCare: boolean;
+  };
   notes?: string;
 }
 
@@ -62,7 +77,8 @@ export interface CareGapEvaluationResult {
   // Demand vs Capacity in Hours/Day
   patientCareDemandHours: number;
   caregiverSafeCapacityHours: number;
-  netCareGapHours: number; // Demand - Safe Capacity
+  formalSupportAbsorbedHours: number;
+  netCareGapHours: number; // Max(0, Demand - (Safe Capacity + Formal Support))
   
   careGapSeverity: 'sustainable' | 'mild_deficit' | 'high_deficit' | 'critical_overload';
   caregiverInjuryRiskScore: number; // 0 to 100%
@@ -96,7 +112,13 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
   },
   dailyHoursCommitted: 6,
   monthlyOutOfPocketBurden: 'moderate_strain',
-  formalTrainingReceived: false
+  formalTrainingReceived: false,
+  formalSupport: {
+    type: 'none',
+    hoursPerDay: 0,
+    handlesHeavyTransfers: false,
+    handlesMedicationWoundCare: false
+  }
 };
 
 export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
@@ -172,7 +194,26 @@ export class CareGapEngine {
 
     const patientCareDemandHours = Math.round(demandHours * 10) / 10;
 
-    // 4. Compute Caregiver Safe Daily Capacity (Hours/Day)
+    // 4. Compute Formal / Ancillary Support Hours Absorbed
+    let formalSupportAbsorbedHours = 0;
+    const formal = caregiver.formalSupport;
+    if (formal && formal.type !== 'none') {
+      if (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h') {
+        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 18.0);
+      } else if (formal.type === 'paid_attendant_12h' || formal.type === 'trained_nurse_12h') {
+        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 10.0);
+      } else if (formal.type === 'medical_assistant') {
+        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 6.0);
+      } else if (formal.type === 'multi_family_rotation') {
+        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, formal.hoursPerDay || 6.0);
+      }
+    }
+    formalSupportAbsorbedHours = Math.round(formalSupportAbsorbedHours * 10) / 10;
+
+    // Residual Patient Demand after Formal Staff absorption
+    const residualDemand = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
+
+    // 5. Compute Primary Caregiver Safe Daily Capacity (Hours/Day)
     let capacityHours = caregiver.dailyHoursCommitted;
 
     // Employment deductions (Work fatigue reduces effective high-intensity care capacity)
@@ -191,44 +232,77 @@ export class CareGapEngine {
 
     const caregiverSafeCapacityHours = Math.max(1.5, Math.round((capacityHours - healthDeduction) * 10) / 10);
 
-    // 5. Net Care Gap (Deficit in Hours/Day)
-    const netCareGapHours = Math.round((patientCareDemandHours - caregiverSafeCapacityHours) * 10) / 10;
+    // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
+    const netCareGapHours = Math.max(0, Math.round((residualDemand - caregiverSafeCapacityHours) * 10) / 10);
 
-    // 6. Care Gap Severity Classification
+    // 7. Care Gap Severity Classification
     let careGapSeverity: CareGapEvaluationResult['careGapSeverity'] = 'sustainable';
     if (netCareGapHours > 4.5) careGapSeverity = 'critical_overload';
     else if (netCareGapHours > 2.0) careGapSeverity = 'high_deficit';
     else if (netCareGapHours > 0.0) careGapSeverity = 'mild_deficit';
 
-    // 7. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
+    // 8. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
     let injuryScore = 20;
-    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring) injuryScore += 35;
-    if (caregiver.caregiverHealth.hasArthritis && !patient.katzAdl.bathing) injuryScore += 20;
+    const isTransfersHandledByStaff = formal && (formal.handlesHeavyTransfers || formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h' || formal.type === 'trained_nurse_12h');
+
+    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring) {
+      injuryScore += isTransfersHandledByStaff ? 10 : 35; // 70% reduction in lumbar risk if staff handles lifts
+    }
+    if (caregiver.caregiverHealth.hasArthritis && !patient.katzAdl.bathing) {
+      injuryScore += isTransfersHandledByStaff ? 5 : 20;
+    }
     if (caregiver.age >= 60) injuryScore += 15;
     if (!caregiver.formalTrainingReceived) injuryScore += 15;
     if (netCareGapHours > 3.0) injuryScore += 20;
-    const caregiverInjuryRiskScore = Math.min(100, injuryScore);
+    
+    // Formal support mitigates overall family injury strain
+    if (formal && (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h')) {
+      injuryScore = Math.max(10, injuryScore - 30);
+    } else if (formal && (formal.type === 'paid_attendant_12h' || formal.type === 'trained_nurse_12h')) {
+      injuryScore = Math.max(15, injuryScore - 20);
+    }
+
+    const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
 
     let caregiverBurnoutRiskLevel: CareGapEvaluationResult['caregiverBurnoutRiskLevel'] = 'low';
     if (netCareGapHours > 4.0 || caregiverInjuryRiskScore >= 75) caregiverBurnoutRiskLevel = 'critical';
     else if (netCareGapHours > 2.0 || caregiverInjuryRiskScore >= 55) caregiverBurnoutRiskLevel = 'high';
     else if (netCareGapHours > 0.0) caregiverBurnoutRiskLevel = 'moderate';
 
-    // 8. Clinical Findings & Prescriptions
+    // 9. Clinical Findings & Prescriptions
     const clinicalFindings: string[] = [];
     const prescriptions: CareGapEvaluationResult['prescriptions'] = [];
 
-    if (netCareGapHours > 0) {
+    if (formal && formal.type !== 'none') {
+      const formalLabel =
+        formal.type === 'paid_attendant_24h'
+          ? '24-Hour Paid Attendant'
+          : formal.type === 'paid_attendant_12h'
+          ? '12-Hour Paid Attendant'
+          : formal.type === 'trained_nurse_24h'
+          ? '24-Hour Certified Nurse'
+          : formal.type === 'trained_nurse_12h'
+          ? '12-Hour Certified Nurse'
+          : formal.type === 'medical_assistant'
+          ? 'Trained Medical Assistant'
+          : 'Multi-Caregiver Family Rotation';
+
       clinicalFindings.push(
-        `Patient requires ${patientCareDemandHours} hrs/day of direct assistance (Katz ADL score: ${katzAdlScore}/6). Caregiver safe physical threshold is ${caregiverSafeCapacityHours} hrs/day, creating a net unmet care gap of ${netCareGapHours} hrs/day.`
-      );
-    } else {
-      clinicalFindings.push(
-        `Caregiver capacity (${caregiverSafeCapacityHours} hrs/day) currently meets patient care demand (${patientCareDemandHours} hrs/day).`
+        `Formal Support Active (${formalLabel}): Absorbs ${formalSupportAbsorbedHours} hrs/day of patient physical demands, reducing primary family caregiver fatigue and musculoskeletal burden.`
       );
     }
 
-    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring) {
+    if (netCareGapHours > 0) {
+      clinicalFindings.push(
+        `Patient requires ${patientCareDemandHours} hrs/day of direct assistance (Katz ADL: ${katzAdlScore}/6). Net unmet care gap after formal support and caregiver capacity is ${netCareGapHours} hrs/day.`
+      );
+    } else {
+      clinicalFindings.push(
+        `Combined family capacity and formal care support (${caregiverSafeCapacityHours + formalSupportAbsorbedHours} hrs/day) successfully covers patient care demand (${patientCareDemandHours} hrs/day).`
+      );
+    }
+
+    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring && !isTransfersHandledByStaff) {
       clinicalFindings.push(
         'High musculoskeletal injury risk: Caregiver has pre-existing back pain while patient is dependent in bed-to-chair transfers.'
       );
@@ -241,13 +315,23 @@ export class CareGapEngine {
       });
     }
 
-    if (netCareGapHours >= 3.0) {
+    if (netCareGapHours >= 3.0 && (!formal || formal.type === 'none')) {
       prescriptions.push({
         id: 'rx_formal_attendant',
         title: 'Formal Respite / Semi-Skilled Attendant (4-6 Hours/Day)',
         action: 'Hire a certified daytime attendant for morning sponge bath, toileting, and transfer assistance, or register with local senior daycare.',
         impact: 'Directly absorbs the 4+ hour daily care deficit, preventing caregiver acute physical collapse.',
         urgency: 'urgent'
+      });
+    }
+
+    if (caregiver.monthlyOutOfPocketBurden === 'severe_toxicity' && formal && (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h')) {
+      prescriptions.push({
+        id: 'rx_financial_counseling',
+        title: 'Geriatric Financial Optimization & Govt Senior Schemes',
+        action: 'Explore Ayushman Bharat PM-JAY Senior Citizen cover (₹5 Lakhs/yr top-up) and state medical subsidies to alleviate 24/7 nursing financial strain.',
+        impact: 'Reduces catastrophic out-of-pocket health expenditure.',
+        urgency: 'priority'
       });
     }
 
@@ -277,6 +361,7 @@ export class CareGapEngine {
       lawtonIadlScore,
       patientCareDemandHours,
       caregiverSafeCapacityHours,
+      formalSupportAbsorbedHours,
       netCareGapHours,
       careGapSeverity,
       caregiverInjuryRiskScore,

@@ -183,12 +183,23 @@ export function CaregiverDyadProfiler() {
 
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Caregiver Safe Capacity</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Available Capacity</span>
+                  {evaluation.formalSupportAbsorbedHours > 0 && (
+                    <Badge variant="secondary" className="text-[9px] font-mono">
+                      +{evaluation.formalSupportAbsorbedHours}h Formal
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-foreground">{evaluation.caregiverSafeCapacityHours}</span>
+                  <span className="text-3xl font-black text-foreground">
+                    {evaluation.caregiverSafeCapacityHours + evaluation.formalSupportAbsorbedHours}
+                  </span>
                   <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">After health & employment deductions</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Family ({evaluation.caregiverSafeCapacityHours}h) + Formal ({evaluation.formalSupportAbsorbedHours}h)
+                </p>
               </CardContent>
             </Card>
 
@@ -214,7 +225,7 @@ export function CaregiverDyadProfiler() {
                   <span className={`text-3xl font-black ${evaluation.caregiverInjuryRiskScore >= 60 ? 'text-rose-600' : 'text-primary'}`}>
                     {evaluation.caregiverInjuryRiskScore}%
                   </span>
-                  <span className="text-xs text-muted-foreground font-semibold">Lumbar / Burnout</span>
+                  <span className="text-xs text-muted-foreground font-semibold">Lumbar Strain</span>
                 </div>
                 <Badge variant="outline" className="text-[10px] font-mono capitalize">
                   {evaluation.caregiverBurnoutRiskLevel} Risk Level
@@ -397,6 +408,104 @@ export function CaregiverDyadProfiler() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Formal & Ancillary Care Support Infrastructure */}
+            <div className="space-y-3 pt-4 border-t border-border/60">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5" /> Formal Care Support Infrastructure
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Customize if the family employs a paid attendant (12h/24h), private nurse, or shares tasks across family members.
+                  </p>
+                </div>
+                <Badge variant={caregiver.formalSupport?.type !== 'none' ? 'default' : 'outline'} className="text-[10px] font-mono">
+                  {caregiver.formalSupport?.type !== 'none' ? 'Support Active' : 'Solo Caregiver'}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Formal Care Setup Type</Label>
+                  <Select
+                    value={caregiver.formalSupport?.type || 'none'}
+                    onValueChange={(v: any) => {
+                      const updated = {
+                        ...caregiver,
+                        formalSupport: {
+                          type: v,
+                          hoursPerDay: v === 'paid_attendant_24h' || v === 'trained_nurse_24h' ? 24 : v === 'paid_attendant_12h' || v === 'trained_nurse_12h' ? 12 : v === 'medical_assistant' ? 6 : 0,
+                          handlesHeavyTransfers: v !== 'none',
+                          handlesMedicationWoundCare: v.includes('nurse') || v === 'medical_assistant'
+                        }
+                      };
+                      setCaregiver(updated);
+                      setEvaluation(CareGapEngine.evaluate(updated, patient));
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs">None (Solo Family Caregiver)</SelectItem>
+                      <SelectItem value="paid_attendant_12h" className="text-xs">Paid General Attendant (12 Hours Day/Night)</SelectItem>
+                      <SelectItem value="paid_attendant_24h" className="text-xs">Paid General Attendant (24 Hours Live-In)</SelectItem>
+                      <SelectItem value="trained_nurse_12h" className="text-xs">Certified Geriatric Nurse (12 Hours)</SelectItem>
+                      <SelectItem value="trained_nurse_24h" className="text-xs">Certified Geriatric Nurse (24 Hours Live-In)</SelectItem>
+                      <SelectItem value="medical_assistant" className="text-xs">Trained Medical Assistant / Physio Aide</SelectItem>
+                      <SelectItem value="multi_family_rotation" className="text-xs">Multi-Caregiver Family Rotation (Shared Care Circle)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {caregiver.formalSupport && caregiver.formalSupport.type !== 'none' && (
+                  <div className="space-y-2 text-xs pt-1">
+                    <Label className="text-[11px] font-semibold text-muted-foreground block">
+                      Support Capabilities & Duties
+                    </Label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={caregiver.formalSupport.handlesHeavyTransfers}
+                          onChange={(e) => {
+                            const updated = {
+                              ...caregiver,
+                              formalSupport: {
+                                ...caregiver.formalSupport!,
+                                handlesHeavyTransfers: e.target.checked
+                              }
+                            };
+                            setCaregiver(updated);
+                            setEvaluation(CareGapEngine.evaluate(updated, patient));
+                          }}
+                          className="rounded-sm text-primary"
+                        />
+                        <span className="text-[11px]">Staff handles heavy physical transfers (Reduces family lumbar strain by 70%)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={caregiver.formalSupport.handlesMedicationWoundCare}
+                          onChange={(e) => {
+                            const updated = {
+                              ...caregiver,
+                              formalSupport: {
+                                ...caregiver.formalSupport!,
+                                handlesMedicationWoundCare: e.target.checked
+                              }
+                            };
+                            setCaregiver(updated);
+                            setEvaluation(CareGapEngine.evaluate(updated, patient));
+                          }}
+                          className="rounded-sm text-primary"
+                        />
+                        <span className="text-[11px]">Staff handles medication dosing, injections, or catheter/wound care</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

@@ -106,8 +106,12 @@ export function ClinicalSummaryPrint({
           <p className="text-xs text-slate-700">
             Employment: {caregiverAttrs.employment.replace('_', ' ')} • Available: {caregiverAttrs.dailyHoursCommitted} hrs/day
           </p>
+          <p className="text-xs text-slate-700">
+            Formal Support: <strong>{caregiverAttrs.formalSupport && caregiverAttrs.formalSupport.type !== 'none' ? caregiverAttrs.formalSupport.type.replace(/_/g, ' ') : 'None (Solo Family)'}</strong>
+            {careGapEval.formalSupportAbsorbedHours > 0 && ` (absorbs ${careGapEval.formalSupportAbsorbedHours}h/day)`}
+          </p>
           <p className="text-xs font-medium text-slate-800">
-            Care Gap: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs deficit/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
+            Net Care Gap: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs deficit/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
           </p>
         </div>
       </div>
@@ -118,7 +122,9 @@ export function ClinicalSummaryPrint({
           Geriatric Care Gap & Physical Fatigue Indicator
         </span>
         <p className="text-slate-800">
-          Patient requires <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance. Caregiver safe physical threshold is <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong> (Caregiver Lumbar Injury Risk: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>).
+          Patient requires <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance. 
+          {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff absorbs ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
+          Caregiver safe physical threshold is <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong> (Caregiver Lumbar Injury Risk: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>).
         </p>
       </div>
 

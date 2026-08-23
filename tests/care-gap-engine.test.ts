@@ -116,4 +116,44 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.ok(result.netCareGapHours <= 0);
     assert.strictEqual(result.careGapSeverity, 'sustainable');
   });
+
+  test('should dramatically reduce care gap and lumbar strain when 24h paid attendant is deployed', () => {
+    const caregiverWith24hAttendant: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'paid_attendant_24h',
+        hoursPerDay: 24,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: false
+      }
+    };
+
+    const result = CareGapEngine.evaluate(caregiverWith24hAttendant, sampleDependentPatient);
+
+    // Patient Demand (~12.5h) is fully absorbed by 24h attendant (absorbed >= 12.5h)
+    assert.ok(result.formalSupportAbsorbedHours >= 12.0);
+    assert.strictEqual(result.netCareGapHours, 0);
+    assert.strictEqual(result.careGapSeverity, 'sustainable');
+    // Injury risk should decrease significantly because staff handles transfers
+    assert.ok(result.caregiverInjuryRiskScore <= 60);
+    assert.ok(result.clinicalFindings.some((f) => f.includes('Formal Support Active')));
+  });
+
+  test('should reduce care gap partially when 12h day nurse is present', () => {
+    const caregiverWith12hNurse: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'trained_nurse_12h',
+        hoursPerDay: 12,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: true
+      }
+    };
+
+    const result = CareGapEngine.evaluate(caregiverWith12hNurse, sampleDependentPatient);
+
+    assert.ok(result.formalSupportAbsorbedHours >= 10.0);
+    assert.ok(result.netCareGapHours <= 1.0);
+    assert.ok(result.careGapSeverity === 'sustainable' || result.careGapSeverity === 'mild_deficit');
+  });
 });
