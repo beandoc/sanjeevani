@@ -19,14 +19,19 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
 
+  const clinicCode = user?.uid ? `${user.uid.slice(0, 10)}…` : 'DEMO-CLINIC-2026';
+
   const copyCode = () => {
-    if (!user) return;
-    navigator.clipboard.writeText(user.uid);
-    toast({ title: 'Clinic Code Copied', description: 'Share this with a caregiver to be granted access to their dyad.' });
+    const codeToCopy = user?.uid || 'DEMO-CLINIC-2026';
+    navigator.clipboard.writeText(codeToCopy);
+    toast({ title: 'Clinic Code Copied', description: 'Share this code with caregivers under Settings → Share With Your Doctor.' });
   };
 
   const handleSignOut = async () => {
     await signOutUser();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sanjeevani_user_role');
+    }
     router.push('/login');
   };
 
@@ -41,16 +46,14 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
             <span>Sanjeevani Clinician Workspace</span>
           </Link>
           <div className="flex items-center gap-3">
-            {user && (
-              <button
-                onClick={copyCode}
-                className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
-                title="Your Clinic Code — share with caregivers"
-              >
-                <Copy className="w-3 h-3" />
-                {user.uid.slice(0, 10)}…
-              </button>
-            )}
+            <button
+              onClick={copyCode}
+              className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+              title="Your Clinic Code — share with caregivers"
+            >
+              <Copy className="w-3 h-3" />
+              <span>{clinicCode}</span>
+            </button>
             <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={handleSignOut}>
               <LogOut className="w-3.5 h-3.5" /> Sign Out
             </Button>
