@@ -27,6 +27,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './client';
+import { autoClaimInviteByPhone, type DyadInvite } from './clinical-sync';
 import type { Role } from '@/context/role-context';
 
 export type { User, ConfirmationResult };
@@ -42,8 +43,9 @@ async function ensureUserProfile(uid: string, role: Role, extra?: Record<string,
     const ref = doc(db, 'users', uid);
     const existing = await getDoc(ref);
     if (!existing.exists()) {
+      const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : 'caregiver';
       await setDoc(ref, {
-        role,
+        role: canonicalRole,
         createdAt: serverTimestamp(),
         ...extra
       });
@@ -76,22 +78,24 @@ export async function signUpWithEmail(
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
   const cred = await signInWithEmailAndPassword(auth, email, password);
+  const inferredRole: Role = (email.includes('doctor') || email.includes('clinic') || email.includes('nurse')) ? 'professional' : 'caregiver';
+  await ensureUserProfile(cred.user.uid, inferredRole, { email, displayName: cred.user.displayName || (inferredRole === 'professional' ? 'Dr. Vivek' : undefined) });
   return cred.user;
 }
 
 /**
  * Demo/local-development convenience: signs into a fixed emulator account
- * for the given role, creating it on first use. Real, working Firebase
- * Auth + Firestore underneath (not a fake timeout) — so the clinician
- * dashboard and caregiver flows can be demoed end-to-end without a real
- * phone number or a manually created clinician account. Only meaningful
- * against the emulator; a production project would simply reject repeated
- * sign-ups with the same fixed address on the second call, which this
- * already handles by falling back to sign-in.
+ * for the given role, creating it on first use.
  */
+const DEMO_CREDENTIALS: Record<'caregiver' | 'nurse' | 'doctor', { email: string; password: string }> = {
+  caregiver: { email: 'caregiver@sanjeevani.com', password: 'test1234' },
+  nurse: { email: 'nurse@sanjeevani.com', password: 'test1234' },
+  doctor: { email: 'doctor@sanjeevani.com', password: 'test1234' }
+};
+
 export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
-  const email = `demo-${role}@sanjeevani.local`;
-  const password = 'sanjeevani-demo-2026';
+  const credentialKey = role === 'professional' ? 'doctor' : role === 'nurse' ? 'nurse' : role === 'doctor' ? 'doctor' : 'caregiver';
+  const { email, password } = DEMO_CREDENTIALS[credentialKey];
   const roleName = role === 'doctor' || role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar';
 
   if (!auth) {
@@ -117,7 +121,9 @@ export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
   }
 
   try {
-    return await signInWithEmail(email, password);
+    const user = await signInWithEmail(email, password);
+    await ensureUserProfile(user.uid, role, { displayName: roleName, email });
+    return user;
   } catch {
     return await signUpWithEmail(email, password, role, roleName).catch(() => {
       return {
@@ -175,13 +181,22 @@ export async function sendCaregiverOtp(
   return signInWithPhoneNumber(auth, phoneNumber, verifier);
 }
 
+export interface VerifyOtpResult {
+  user: User;
+  /** Set when a doctor had pre-registered a patient under this exact phone
+   * number — the account is now linked to that clinician automatically,
+   * no invite code required. */
+  linkedInvite: DyadInvite | null;
+}
+
 export async function verifyCaregiverOtp(
   confirmationResult: ConfirmationResult,
   code: string
-): Promise<User> {
+): Promise<VerifyOtpResult> {
   const cred = await confirmationResult.confirm(code);
   await ensureUserProfile(cred.user.uid, 'caregiver', { phoneNumber: cred.user.phoneNumber });
-  return cred.user;
+  const linkedInvite = await autoClaimInviteByPhone(cred.user.phoneNumber);
+  return { user: cred.user, linkedInvite };
 }
 
 /* ------------------------------------------------------------------ *

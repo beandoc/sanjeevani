@@ -228,3 +228,150 @@ describe('roster collection-group query — clinician sees only their own grants
     expect(snap.docs).toHaveLength(0);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Immutability: audit-trail subcollections must be create-only
+ * ------------------------------------------------------------------ */
+
+describe('zaritAssessments — immutability (audit trail)', () => {
+  it('the owning caregiver CANNOT update a past assessment', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(caregiver, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'),
+        { totalScore: 10 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('the owning caregiver CANNOT delete a past assessment', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      deleteDoc(doc(caregiver, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'))
+    );
+  });
+
+  it('a granted clinician CANNOT update a past assessment', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'),
+        { totalScore: 10 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('a granted clinician CANNOT delete a past assessment', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(
+      deleteDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'))
+    );
+  });
+});
+
+describe('vitals — immutability (audit trail)', () => {
+  const SAMPLE_VITAL = {
+    date: new Date().toISOString(),
+    sleep: 'good',
+    createdAt: new Date().toISOString(),
+    bp: '120/80',
+    pulse: '72'
+  };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'vitals', 'vital-1'), SAMPLE_VITAL);
+    });
+  });
+
+  it('the owning caregiver CAN create a new vital reading', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'vitals', 'vital-new'), SAMPLE_VITAL)
+    );
+  });
+
+  it('the owning caregiver CANNOT update an existing vital reading', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(caregiver, 'users', CAREGIVER_UID, 'vitals', 'vital-1'),
+        { bp: '130/85' },
+        { merge: true }
+      )
+    );
+  });
+
+  it('the owning caregiver CANNOT delete a vital reading', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      deleteDoc(doc(caregiver, 'users', CAREGIVER_UID, 'vitals', 'vital-1'))
+    );
+  });
+
+  it('a granted clinician CANNOT update a vital reading', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(clinician, 'users', CAREGIVER_UID, 'vitals', 'vital-1'),
+        { pulse: '80' },
+        { merge: true }
+      )
+    );
+  });
+});
+
+describe('functionScores — immutability (audit trail)', () => {
+  const SAMPLE_SCORE = {
+    barthelScore: 70,
+    lawtonScore: 6,
+    dependencyPercentage: 30,
+    band: 'moderate',
+    recordedAt: new Date().toISOString()
+  };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'), SAMPLE_SCORE);
+    });
+  });
+
+  it('the owning caregiver CANNOT update a function score', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(caregiver, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'),
+        { barthelScore: 80 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('the owning caregiver CANNOT delete a function score', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      deleteDoc(doc(caregiver, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'))
+    );
+  });
+
+  it('a granted clinician CANNOT update a function score', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'),
+        { barthelScore: 80 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('a granted clinician CANNOT delete a function score', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(
+      deleteDoc(doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'))
+    );
+  });
+});
+

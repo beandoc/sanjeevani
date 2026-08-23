@@ -93,18 +93,60 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
     try {
       if (authMethod === 'email') {
-        const user = isSignUp
-          ? await signUpWithEmail(email, password, selectedRole)
-          : await signInWithEmail(email, password);
+        let user;
+        if (isSignUp) {
+          user = await signUpWithEmail(cleanEmail, cleanPassword, selectedRole);
+        } else {
+          try {
+            user = await signInWithEmail(cleanEmail, cleanPassword);
+          } catch (signInErr: any) {
+            // If account is not found (e.g. demo credentials or first run on clean emulator), auto-provision
+            const isUserNotFound =
+              signInErr?.code === 'auth/user-not-found' ||
+              signInErr?.code === 'auth/invalid-credential' ||
+              signInErr?.message?.includes('user-not-found') ||
+              signInErr?.message?.includes('invalid-credential');
+
+            const isKnownDemoEmail =
+              cleanEmail.toLowerCase() === 'doctor@sanjeevani.com' ||
+              cleanEmail.toLowerCase() === 'nurse@sanjeevani.com' ||
+              cleanEmail.toLowerCase() === 'caregiver@sanjeevani.com';
+
+            if (isUserNotFound && (isKnownDemoEmail || cleanPassword.length >= 6)) {
+              try {
+                const roleName =
+                  selectedRole === 'doctor' || selectedRole === 'professional'
+                    ? 'Dr. Vivek'
+                    : selectedRole === 'nurse'
+                    ? 'Nurse Sister Anjali'
+                    : 'Suresh Kumar';
+                user = await signUpWithEmail(cleanEmail, cleanPassword, selectedRole, roleName);
+              } catch {
+                throw signInErr;
+              }
+            } else {
+              throw signInErr;
+            }
+          }
+        }
         await completeSignIn(user.uid, selectedRole);
       } else if (authMethod === 'mobile') {
         if (!confirmationResult) {
           toast({ variant: 'destructive', title: 'Send an OTP first', description: 'Request a verification code before submitting.' });
           return;
         }
-        const user = await verifyCaregiverOtp(confirmationResult, otp);
+        const { user, linkedInvite } = await verifyCaregiverOtp(confirmationResult, otp);
+        if (linkedInvite) {
+          toast({
+            title: 'Linked to Your Doctor',
+            description: `${linkedInvite.patientName}'s details are ready — no invite code needed.`
+          });
+        }
         await completeSignIn(user.uid, 'caregiver');
       } else {
         toast({
@@ -112,11 +154,20 @@ export default function LoginPage() {
           description: 'ABHA sign-in requires production NHA credentials. Use Email or Mobile OTP here instead.'
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      const errMsg =
+        err?.code === 'auth/user-not-found'
+          ? 'No account found with this email. Click "New here? Create account" or use the Instant Demo buttons below.'
+          : err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential'
+          ? 'Incorrect email or password. Please verify your credentials.'
+          : err instanceof Error
+          ? err.message
+          : 'Please check your credentials and try again.';
+
       toast({
         variant: 'destructive',
         title: 'Authentication Failed',
-        description: err instanceof Error ? err.message : 'Please check your credentials and try again.'
+        description: errMsg
       });
     } finally {
       setIsLoading(false);

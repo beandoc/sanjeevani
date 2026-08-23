@@ -10,11 +10,34 @@
  *
  * This module is client-safe (no server secrets) and guards against
  * double-initialization across Next.js Fast Refresh / multiple imports.
+ *
+ * Offline persistence:
+ * When running against a real project (not the emulator), Firestore is
+ * initialized with IndexedDB-backed persistence so writes made while offline
+ * are durably queued and automatically replayed on reconnect. This is the
+ * authoritative durability layer for signed-in users — localStorage
+ * (HealthRepository) acts as a warm read-cache and SSR fallback, not the
+ * source of truth.
+ *
+ * Persistence is intentionally disabled in emulator mode because the Firebase
+ * SDK throws if you attempt to combine connectFirestoreEmulator with
+ * persistentLocalCache — see:
+ * https://github.com/firebase/firebase-js-sdk/issues/6083
+ *
+ * Persistence is also disabled during SSR (typeof window === 'undefined')
+ * since IndexedDB is not available in Node.
  */
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  connectFirestoreEmulator,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -70,15 +93,38 @@ function getFirebaseFirestore(): Firestore | null {
   try {
     const app = getFirebaseApp();
     if (!app) return null;
-    const dbInstance = getFirestore(app);
-    if (USE_EMULATOR && typeof window !== 'undefined' && !emulatorsConnected) {
-      try {
-        connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
-      } catch (emuErr) {
-        console.warn('Firestore Emulator connection skipped:', emuErr);
+
+    // Emulator mode: use plain getFirestore. The emulator SDK cannot be
+    // combined with persistentLocalCache and will throw if attempted.
+    if (USE_EMULATOR) {
+      const dbInstance = getFirestore(app);
+      if (typeof window !== 'undefined' && !emulatorsConnected) {
+        try {
+          connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
+        } catch (emuErr) {
+          console.warn('Firestore Emulator connection skipped:', emuErr);
+        }
       }
+      return dbInstance;
     }
-    return dbInstance;
+
+    // Production / staging: use initializeFirestore with IndexedDB persistence.
+    // persistentMultipleTabManager allows the same cache to be used across
+    // browser tabs, which is important for caregivers who may have the app
+    // open in multiple tabs simultaneously.
+    //
+    // initializeFirestore is idempotent if the app is already initialized —
+    // calling it twice with the same settings is safe.
+    if (typeof window !== 'undefined') {
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    }
+
+    // SSR fallback: no IndexedDB available in Node, use plain Firestore.
+    return getFirestore(app);
   } catch (err) {
     console.warn('Firebase Firestore initialization skipped (falling back to offline mode):', err);
     return null;

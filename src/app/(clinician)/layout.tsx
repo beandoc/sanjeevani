@@ -37,24 +37,60 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="border-b border-border bg-card">
+      {/* Thin gradient accent bar, matching the identity color used on the
+          doctor dashboard and the modules page banner elsewhere in the app —
+          this shell previously had zero visual language in common with them. */}
+      <div className="h-1 bg-gradient-to-r from-blue-600 via-primary to-blue-600" />
+      <header className="border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 font-bold text-sm">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Stethoscope className="w-4 h-4 text-primary" />
-            </div>
-            <span>Sanjeevani Clinician Workspace</span>
-          </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
+            <Link href="/clinic/roster" className="flex items-center gap-2.5 font-bold text-sm group">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Stethoscope className="w-4.5 h-4.5 text-blue-600" />
+              </div>
+              <div className="leading-tight">
+                <span className="block">Sanjeevani Clinician Workspace</span>
+                <span className="block text-[10px] font-normal text-muted-foreground">Consulting Physician Portal</span>
+              </div>
+            </Link>
+
+            <nav className="hidden md:flex items-center gap-1">
+              <Link
+                href="/clinic/roster"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-foreground"
+              >
+                Patient Roster
+              </Link>
+              <Link
+                href="/dashboard"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                Doctor Dashboard
+              </Link>
+              <Link
+                href="/modules"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                Caregiver Modules
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <Link href="/dashboard" className="hidden sm:inline-flex">
+              <Button variant="outline" size="sm" className="h-8 text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/10">
+                Caregiver Portal View
+              </Button>
+            </Link>
             <button
               onClick={copyCode}
-              className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors"
+              className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors border border-border/60"
               title="Your Clinic Code — share with caregivers"
             >
               <Copy className="w-3 h-3" />
               <span>{clinicCode}</span>
             </button>
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={handleSignOut}>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8" onClick={handleSignOut}>
               <LogOut className="w-3.5 h-3.5" /> Sign Out
             </Button>
           </div>

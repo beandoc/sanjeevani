@@ -69,15 +69,17 @@ export function CaregiverDyadProfiler() {
 
   if (!caregiver || !patient || !evaluation) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     HealthRepository.saveCaregiverAttributes(caregiver);
     HealthRepository.savePatientProfile(patient);
-    // Best-effort mirror so a clinician with an active grant sees edits made
-    // here (e.g. from Settings), not just the onboarding-wizard snapshot.
-    void syncPatientProfile(patient);
+    // Durably mirrors edits to Firestore so a clinician with an active grant
+    // sees the updated profile (e.g. from Settings), not just the onboarding snapshot.
+    const { queued } = await syncPatientProfile(patient);
     toast({
-      title: 'Dyad Profile Saved',
-      description: 'Caregiver capacity and patient dependence metrics updated.',
+      title: queued ? '☁️ Dyad Profile Saved to Cloud' : 'Dyad Profile Saved',
+      description: queued
+        ? 'Caregiver capacity and patient dependence metrics updated and backed up.'
+        : 'Caregiver capacity and patient dependence metrics updated.',
     });
   };
 

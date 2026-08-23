@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { HealthRepository, MedicationItem } from '@/lib/db/health-repository';
+import { syncMedications } from '@/lib/firebase/clinical-sync';
 import { MedicationChecker, BeersWarning } from '@/lib/clinical/medication-checker';
 import { useToast } from '@/hooks/use-toast';
 
@@ -85,7 +86,7 @@ export default function MedicationsPage() {
     }
   };
 
-  const handleAddMedication = (e: React.FormEvent) => {
+  const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !dosage.trim()) {
       toast({
@@ -115,6 +116,7 @@ export default function MedicationsPage() {
 
     const updated = [...medications, newMed];
     HealthRepository.saveMedications(updated);
+    const { queued } = await syncMedications(updated);
     setMedications(updated);
 
     // Reset Form
@@ -127,16 +129,19 @@ export default function MedicationsPage() {
     setIsAddOpen(false);
 
     toast({
-      title: 'Medication Added',
-      description: `${newMed.name} added to the daily schedule.`,
+      title: queued ? '☁️ Medication Added — Saved to Cloud' : 'Medication Added',
+      description: queued
+        ? `${newMed.name} added and backed up to the cloud.`
+        : `${newMed.name} added to the daily schedule.`,
     });
   };
 
-  const handleToggleSlot = (
+  const handleToggleSlot = async (
     id: string,
     slot: 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos'
   ) => {
     const updated = HealthRepository.toggleMedicationTaken(id, slot);
+    await syncMedications(updated);
     setMedications(updated);
     const med = updated.find((m) => m.id === id);
     const isNowTaken = med?.takenSlots?.includes(slot);
@@ -148,14 +153,16 @@ export default function MedicationsPage() {
     }
   };
 
-  const handleToggleEntireMed = (id: string) => {
+  const handleToggleEntireMed = async (id: string) => {
     const updated = HealthRepository.toggleMedicationTaken(id);
+    await syncMedications(updated);
     setMedications(updated);
   };
 
-  const handleDeleteMed = (id: string) => {
+  const handleDeleteMed = async (id: string) => {
     const updated = medications.filter((m) => m.id !== id);
     HealthRepository.saveMedications(updated);
+    await syncMedications(updated);
     setMedications(updated);
     toast({
       title: 'Medication Removed',

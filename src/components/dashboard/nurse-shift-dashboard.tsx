@@ -22,6 +22,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
+import { syncVitals } from '@/lib/firebase/clinical-sync';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -51,14 +52,14 @@ export function NurseShiftDashboard() {
     setProcedures((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleLogShiftVitals = (e: React.FormEvent) => {
+  const handleLogShiftVitals = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!systolic && !pulse && !bloodSugar) {
       toast({ variant: 'destructive', title: 'Empty Vitals', description: 'Enter at least one vital sign reading.' });
       return;
     }
 
-    HealthRepository.addVital({
+    const saved = HealthRepository.addVital({
       date: new Date().toISOString(),
       bp: systolic && diastolic ? `${systolic}/${diastolic}` : systolic || undefined,
       pulse: pulse || undefined,
@@ -66,10 +67,13 @@ export function NurseShiftDashboard() {
       sleep: 'average',
       notes: `Logged by Shift Nurse (${shiftType.replace('_', ' ')})${spO2 ? ` • SpO2: ${spO2}%` : ''}`
     });
+    const { queued } = await syncVitals(saved);
 
     toast({
-      title: 'Shift Vitals Recorded',
-      description: 'Logged to permanent patient trajectory record.'
+      title: queued ? '☁️ Shift Vitals Recorded — Saved to Cloud' : 'Shift Vitals Recorded',
+      description: queued
+        ? 'Logged and backed up to the patient trajectory record.'
+        : 'Logged to permanent patient trajectory record.'
     });
 
     setSystolic('');

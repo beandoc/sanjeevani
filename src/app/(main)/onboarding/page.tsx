@@ -45,8 +45,13 @@ import {
   getPatientDisplayName,
   getPatientProfileFor,
   savePatientProfileFor,
-  syncPatientProfile
+  syncPatientProfile,
+  claimDyadInvite,
+  updateDyadInviteDraft,
+  type DyadInvite
 } from '@/lib/firebase/clinical-sync';
+import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -104,6 +109,28 @@ export default function OnboardingIntakePage() {
   const [isLoadingRoster, setIsLoadingRoster] = useState(false);
   const [selectedPatientUid, setSelectedPatientUid] = useState<string | null>(null);
   const [isLoadingPatientProfile, setIsLoadingPatientProfile] = useState(false);
+  // Set instead of selectedPatientUid when the doctor registers a brand-new
+  // patient right here in Step 2 — there's no patientUid yet (the caregiver
+  // hasn't signed up), so the ADL data collected below is held on the invite
+  // itself (updateDyadInviteDraft) rather than written to a patientProfile doc.
+  const [pendingInvite, setPendingInvite] = useState<DyadInvite | null>(null);
+
+  const handlePatientRegistered = (invite: DyadInvite) => {
+    setPendingInvite(invite);
+    setSelectedPatientUid(null);
+    setPatient((prev) => ({
+      ...prev,
+      name: invite.patientName,
+      age: invite.patientAge,
+      primaryConditions: invite.primaryConditions.length > 0 ? invite.primaryConditions : prev.primaryConditions
+    }));
+    if (invite.caregiverName) {
+      setCaregiver((prev) => ({
+        ...prev,
+        name: invite.caregiverName || prev.name
+      }));
+    }
+  };
 
   useEffect(() => {
     if (!isDoctorPersona) return;
@@ -132,7 +159,74 @@ export default function OnboardingIntakePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDoctorPersona]);
 
+  // Caregiver persona: claim a doctor-issued invite code (see
+  // RegisterPatientDialog). Links the account to the issuing clinician and
+  // seeds the local intake with the doctor's own patient data, so the
+  // caregiver doesn't have to retype the name/age/conditions their doctor
+  // already recorded.
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [isClaimingInvite, setIsClaimingInvite] = useState(false);
+  const [claimedInviteName, setClaimedInviteName] = useState<string | null>(null);
+  const { user } = useAuthUser();
+
+  // Phone-number auto-claim (see autoClaimInviteByPhone/verifyCaregiverOtp)
+  // already happened silently during sign-in, before this page even mounted
+  // — no code was typed. Pick up whatever landed in the caregiver's synced
+  // profile so Step 2 shows it pre-filled, same as the manual-code path.
+  useEffect(() => {
+    if (selectedRole !== 'caregiver' || !user || claimedInviteName) return;
+    let cancelled = false;
+    getPatientProfileFor(user.uid).then((profile) => {
+      if (cancelled || !profile) return;
+      setPatient(profile);
+      setClaimedInviteName(profile.name || 'Your patient');
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRole, user]);
+
+  const handleClaimInvite = async () => {
+    if (!inviteCodeInput.trim()) return;
+    setIsClaimingInvite(true);
+    try {
+      const invite = await claimDyadInvite(inviteCodeInput);
+      setPatient((prev) =>
+        invite.patientProfileDraft
+          ? { ...invite.patientProfileDraft }
+          : {
+              ...prev,
+              name: invite.patientName || prev.name,
+              age: invite.patientAge || prev.age,
+              primaryConditions:
+                invite.primaryConditions.length > 0 ? invite.primaryConditions : prev.primaryConditions
+            }
+      );
+      if (invite.caregiverName) {
+        setCaregiver((prev) => ({
+          ...prev,
+          name: invite.caregiverName || prev.name
+        }));
+      }
+      setClaimedInviteName(invite.patientName);
+      toast({
+        title: 'Invite Code Claimed',
+        description: `Linked to your doctor. ${invite.patientName}'s details have been pre-filled below.`
+      });
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Could Not Claim Code',
+        description: err instanceof Error ? err.message : 'Check the code and try again.'
+      });
+    } finally {
+      setIsClaimingInvite(false);
+    }
+  };
+
   const handleSelectPatient = async (patientUid: string) => {
+    setPendingInvite(null);
     setSelectedPatientUid(patientUid);
     setIsLoadingPatientProfile(true);
     try {
@@ -143,17 +237,20 @@ export default function OnboardingIntakePage() {
     }
   };
 
-  const handleFinishOnboarding = () => {
+  const handleFinishOnboarding = async () => {
     if (isDoctorPersona) {
       // No local dyad belongs to the doctor's own account — write only to
-      // whichever granted patient was selected, and only if one was.
+      // whichever granted patient was selected, or attach the assessment to
+      // a freshly-registered invite so it carries through once claimed.
       if (selectedPatientUid) {
         void savePatientProfileFor(selectedPatientUid, patient);
+      } else if (pendingInvite) {
+        void updateDyadInviteDraft(pendingInvite.inviteCode, patient);
       }
     } else {
       HealthRepository.savePatientProfile(patient);
       HealthRepository.saveCaregiverAttributes(caregiver);
-      void syncPatientProfile(patient);
+      await syncPatientProfile(patient);
     }
     setRole(selectedRole);
     completeOnboarding();
@@ -375,7 +472,11 @@ export default function OnboardingIntakePage() {
                 </div>
               ) : null}
 
-              {(isDoctorMode || isNurseMode) && (
+              {/* Doctor/professional accounts sign in through a dedicated login
+                  and have no reason to preview the caregiver/nurse personas —
+                  those already have their own separate logins. Only nurse mode
+                  keeps the escape hatch. */}
+              {!isDoctorMode && isNurseMode && (
                 <div className="pt-2 flex justify-start">
                   <button
                     type="button"
@@ -384,6 +485,44 @@ export default function OnboardingIntakePage() {
                   >
                     {showRoleSwitcher ? '← Hide persona options' : 'Change persona / View all 3 healthcare roles →'}
                   </button>
+                </div>
+              )}
+
+              {/* Caregiver persona: claim a doctor-issued invite code. */}
+              {selectedRole === 'caregiver' && (
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-2">
+                  <Label className="text-xs font-bold text-primary uppercase tracking-wider">
+                    Have an Invite Code from Your Doctor?
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    If your doctor pre-registered you, enter the code they shared to link your account and pre-fill
+                    your patient&apos;s details.
+                  </p>
+                  {claimedInviteName ? (
+                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600">
+                      <CheckCircle2 className="w-4 h-4" /> Linked to your doctor — {claimedInviteName}&apos;s details pre-filled below.
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={inviteCodeInput}
+                        onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
+                        placeholder="e.g. 7XK2QNPR"
+                        className="h-9 text-xs font-mono tracking-widest"
+                        maxLength={8}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleClaimInvite}
+                        disabled={isClaimingInvite || !inviteCodeInput.trim()}
+                        className="text-xs font-bold shrink-0"
+                      >
+                        {isClaimingInvite ? 'Claiming…' : 'Claim'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -410,7 +549,7 @@ export default function OnboardingIntakePage() {
                     Mark which activities of daily living (ADLs) the senior can perform independently.
                   </CardDescription>
                 </div>
-                {(!isDoctorPersona || selectedPatientUid) && (
+                {(!isDoctorPersona || selectedPatientUid || pendingInvite) && (
                   <Badge variant="outline" className="font-mono text-xs">
                     Katz ADL: {evaluation.katzAdlScore}/6
                   </Badge>
@@ -422,26 +561,40 @@ export default function OnboardingIntakePage() {
                   granted patient this ADL assessment belongs to. */}
               {isDoctorPersona && (
                 <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" /> Select Patient
+                      <Users className="w-3.5 h-3.5" /> Select or Register Patient
                     </Label>
-                    {doctorPatients.length > 0 && (
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        {doctorPatients.length} Patient{doctorPatients.length === 1 ? '' : 's'} Mapped
-                      </Badge>
-                    )}
+                    <RegisterPatientDialog
+                      onRegistered={handlePatientRegistered}
+                      trigger={
+                        <Button type="button" size="sm" variant="outline" className="text-[11px] font-bold shrink-0 h-7 px-2.5">
+                          + New Patient
+                        </Button>
+                      }
+                    />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Choose from patients who have granted you clinical access. Recording ADLs here updates their shared profile.
+                    Choose from patients who have granted you clinical access, or register a brand-new one.
                   </p>
 
-                  {isLoadingRoster ? (
+                  {pendingInvite ? (
+                    <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-xs space-y-1">
+                      <p className="font-bold text-emerald-700 dark:text-emerald-400">
+                        Registering {pendingInvite.patientName} — share code{' '}
+                        <span className="font-mono tracking-widest">{pendingInvite.inviteCode}</span> with the caregiver.
+                      </p>
+                      <p className="text-muted-foreground">
+                        The ADL assessment below will be attached to this invite and applied automatically once the
+                        caregiver claims it.
+                      </p>
+                    </div>
+                  ) : isLoadingRoster ? (
                     <p className="text-xs text-muted-foreground py-2">Loading your patient roster…</p>
                   ) : doctorPatients.length === 0 ? (
                     <div className="p-3 rounded-xl border border-dashed border-border text-xs text-muted-foreground">
-                      No patients have granted you access yet. Ask a caregiver to share access with your clinician
-                      account, then check{' '}
+                      No patients have granted you access yet. Register a new one above, or ask a caregiver to share
+                      access with your clinician account, then check{' '}
                       <Link href="/clinic/roster" className="text-primary underline font-semibold">
                         your roster
                       </Link>
@@ -471,7 +624,7 @@ export default function OnboardingIntakePage() {
                 </div>
               )}
 
-              {(!isDoctorPersona || selectedPatientUid) && (
+              {(!isDoctorPersona || selectedPatientUid || pendingInvite) && (
                 <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">

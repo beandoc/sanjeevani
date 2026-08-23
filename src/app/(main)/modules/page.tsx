@@ -1,7 +1,7 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -27,12 +27,18 @@ import {
   Activity,
   CheckCircle2,
   BookOpen,
-  UserCheck
+  UserCheck,
+  Stethoscope,
+  Eye,
+  ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
 import { caregiverModules, professionalModules, iconMap } from '@/lib/modules';
-import { HealthRepository } from '@/lib/db/health-repository';
+import { HealthRepository, PatientDependenceProfile } from '@/lib/db/health-repository';
+import { getTailoredModuleIds, GENERAL_MODULE_IDS } from '@/lib/modules-personalization';
+import { getAssignedModulesFor, getPatientProfileFor, getDyadInvite } from '@/lib/firebase/clinical-sync';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { useTranslations } from 'next-intl';
 
 type Module = {
@@ -58,8 +64,14 @@ const ModuleCard = ({ module, tag }: { module: Module; tag?: string }) => {
       {tag && (
         <div className="absolute top-3 right-3">
           <Badge
-            variant={tag === 'Matched Diagnosis' ? 'default' : tag === 'General Topic' ? 'secondary' : 'outline'}
-            className={tag === 'Matched Diagnosis' ? 'bg-emerald-600 text-white text-[9px] font-mono' : 'text-[9px] font-mono'}
+            variant={tag === 'Matched Diagnosis' ? 'default' : tag === 'Assigned by Doctor' ? 'destructive' : tag === 'General Topic' ? 'secondary' : 'outline'}
+            className={
+              tag === 'Matched Diagnosis'
+                ? 'bg-emerald-600 text-white text-[9px] font-mono'
+                : tag === 'Assigned by Doctor'
+                ? 'bg-primary text-white text-[9px] font-mono'
+                : 'text-[9px] font-mono'
+            }
           >
             {tag}
           </Badge>
@@ -101,28 +113,29 @@ const CompetencySection = ({
   subtitle: string;
   icon: React.ElementType;
   modules: Module[];
-  badgeText?: string;
+  badgeText: string;
   tag?: string;
 }) => {
   if (modules.length === 0) return null;
 
   return (
-    <div className="space-y-4 py-2">
-      <div className="flex items-center justify-between border-b border-border/50 pb-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold font-headline tracking-tight">{title}</h2>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/60">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <Icon className="w-5 h-5" />
           </div>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+          <div>
+            <h3 className="font-headline text-lg font-bold tracking-tight text-foreground">{title}</h3>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          </div>
         </div>
-        {badgeText && (
-          <Badge variant="outline" className="text-xs font-mono bg-primary/5 text-primary border-primary/20">
-            {badgeText}
-          </Badge>
-        )}
+        <Badge variant="outline" className="font-mono text-xs w-fit">
+          {badgeText}
+        </Badge>
       </div>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {modules.map((module) => (
           <ModuleCard key={module.id} module={module} tag={tag} />
         ))}
@@ -133,107 +146,116 @@ const CompetencySection = ({
 
 const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' | 'professional' }) => {
   const { caregivingScenario } = useProfile();
-  const [patient, setPatient] = useState<any>(null);
+  const { user } = useAuthUser();
+  const searchParams = useSearchParams();
+  const dyadParam = searchParams?.get('dyad');
+
+  const [patient, setPatient] = useState<PatientDependenceProfile | null>(null);
+  const [caregiverName, setCaregiverName] = useState<string | null>(null);
+  const [assignedModuleIds, setAssignedModuleIds] = useState<string[]>([]);
+  const [assignedByLabel, setAssignedByLabel] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const profile = HealthRepository.getPatientProfile();
-      setPatient(profile);
+    let cancelled = false;
+
+    async function resolveData() {
+      // 1. If explicit dyad parameter in URL (e.g. Clinician Preview of Dyad)
+      if (dyadParam) {
+        const [prof, assigned] = await Promise.all([
+          getPatientProfileFor(dyadParam),
+          getAssignedModulesFor(dyadParam)
+        ]);
+
+        if (dyadParam.startsWith('dyad_')) {
+          const inv = await getDyadInvite(dyadParam.replace('dyad_', ''));
+          if (!cancelled && inv?.caregiverName) {
+            setCaregiverName(inv.caregiverName);
+          }
+        }
+
+        if (!cancelled && prof) {
+          setPatient(prof);
+          if (assigned) {
+            setAssignedModuleIds(assigned.moduleIds);
+            setAssignedByLabel(assigned.assignedByLabel || 'your doctor');
+          }
+          return;
+        }
+      }
+
+      // 2. If logged in caregiver user
+      if (user) {
+        const [prof, assigned] = await Promise.all([
+          getPatientProfileFor(user.uid),
+          getAssignedModulesFor(user.uid)
+        ]);
+        if (!cancelled && prof) {
+          setPatient(prof);
+        }
+        if (!cancelled && assigned) {
+          setAssignedModuleIds(assigned.moduleIds);
+          setAssignedByLabel(assigned.assignedByLabel || 'your doctor');
+        }
+        if (prof) return;
+      }
+
+      // 3. Fallback to local storage profile
+      if (!cancelled && typeof window !== 'undefined') {
+        const local = HealthRepository.getPatientProfile();
+        setPatient(local);
+      }
     }
-  }, []);
+
+    void resolveData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dyadParam, user]);
 
   const getCategorizedModules = () => {
-    const generalModuleIds = [
-      'caregiver-foundations',
-      'caregiver-roles-responsibilities',
-      'daily-caregiving-routine',
-      'medication-management-caregiver',
-      'fall-prevention',
-      'nutrition-caregiver',
-      'oral-health-caregiver',
-      'elderly-garments-adaptive-dressing'
-    ];
+    const { moduleIds: tailoredModuleIds, matchedLabels: activeDiagnosesLabels } = getTailoredModuleIds(
+      patient?.primaryConditions,
+      patient?.katzAdl
+    );
 
-    const tailoredModuleIds = new Set<string>();
-    const activeDiagnosesLabels: string[] = [];
-
-    if (patient?.diagnoses) {
-      const d = patient.diagnoses;
-      if (d.hypertension) {
-        tailoredModuleIds.add('hypertension-caregiver');
-        tailoredModuleIds.add('hypertension-professional');
-        activeDiagnosesLabels.push('Hypertension');
-      }
-      if (d.ischemicHeartDisease || d.heartFailure) {
-        tailoredModuleIds.add('ischaemic-heart-disease-caregiver');
-        tailoredModuleIds.add('ischaemic-heart-disease-professional');
-        tailoredModuleIds.add('heart-failure');
-        activeDiagnosesLabels.push('Heart Disease');
-      }
-      if (d.alzheimersDementia) {
-        tailoredModuleIds.add('alzheimers-caregiver');
-        tailoredModuleIds.add('dementia-care');
-        tailoredModuleIds.add('alzheimers-professional');
-        tailoredModuleIds.add('dementia-care-professional');
-        activeDiagnosesLabels.push('Alzheimer’s / Dementia');
-      }
-      if (d.parkinsonsDisease) {
-        tailoredModuleIds.add('parkinsonism-care');
-        tailoredModuleIds.add('parkinsonism-care-professional');
-        activeDiagnosesLabels.push('Parkinson’s Disease');
-      }
-      if (d.stroke) {
-        tailoredModuleIds.add('stroke-rehab');
-        activeDiagnosesLabels.push('Stroke Rehab');
-      }
-      if (d.benignProstaticHyperplasia) {
-        tailoredModuleIds.add('benign-prostate-care');
-        tailoredModuleIds.add('benign-prostate-professional');
-        activeDiagnosesLabels.push('BPH & Bladder');
-      }
-      if (d.constipation) {
-        tailoredModuleIds.add('constipation-caregiver');
-        tailoredModuleIds.add('constipation-professional');
-        activeDiagnosesLabels.push('Constipation');
-      }
-      if (d.lungInfectionsCopd) {
-        tailoredModuleIds.add('lung-infections-caregiver');
-        tailoredModuleIds.add('lung-infections-professional');
-        activeDiagnosesLabels.push('Pneumonia / Respiratory');
-      }
-      if (d.visionProblemsCataract) {
-        tailoredModuleIds.add('vision-problems-caregiver');
-        tailoredModuleIds.add('vision-problems-professional');
-        activeDiagnosesLabels.push('Vision Impairment');
-      }
-      if (d.jointProblemsOsteoarthritis) {
-        tailoredModuleIds.add('joint-problems-caregiver');
-        tailoredModuleIds.add('joint-problems-professional');
-        activeDiagnosesLabels.push('Arthritis & Joint Pain');
-      }
-    }
-
-    if (patient?.katzAdl && (!patient.katzAdl.transferring || !patient.katzAdl.bathing)) {
-      tailoredModuleIds.add('bed-bound-care');
-      tailoredModuleIds.add('sensory-hygiene-bedmaking');
-      activeDiagnosesLabels.push('High ADL Dependence');
-    }
-
-    const generalModules = modules.filter((m) => generalModuleIds.includes(m.id));
+    const generalModules = modules.filter((m) => GENERAL_MODULE_IDS.includes(m.id));
     const tailoredModules = modules.filter(
-      (m) => tailoredModuleIds.has(m.id) && !generalModuleIds.includes(m.id)
+      (m) => tailoredModuleIds.has(m.id) && !GENERAL_MODULE_IDS.includes(m.id)
+    );
+    const assignedModules = modules.filter(
+      (m) => assignedModuleIds.includes(m.id) && !GENERAL_MODULE_IDS.includes(m.id) && !tailoredModuleIds.has(m.id)
     );
     const exploreModules = modules.filter(
-      (m) => !generalModuleIds.includes(m.id) && !tailoredModuleIds.has(m.id)
+      (m) => !GENERAL_MODULE_IDS.includes(m.id) && !tailoredModuleIds.has(m.id) && !assignedModuleIds.includes(m.id)
     );
 
-    return { activeDiagnosesLabels, generalModules, tailoredModules, exploreModules };
+    return { activeDiagnosesLabels, generalModules, tailoredModules, assignedModules, exploreModules };
   };
 
-  const { activeDiagnosesLabels, generalModules, tailoredModules, exploreModules } = getCategorizedModules();
+  const { activeDiagnosesLabels, generalModules, tailoredModules, assignedModules, exploreModules } =
+    getCategorizedModules();
 
   return (
     <div className="space-y-8">
+      {/* Clinician Preview Header Banner if viewing via doctor portal */}
+      {dyadParam && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Clinician Preview Mode:</strong> Viewing curriculum tailored for{' '}
+              <strong>{caregiverName || 'Caregiver'}</strong> ({patient?.name || 'Patient'}).
+            </span>
+          </div>
+          <Link href={`/clinic/dyad/${dyadParam}`}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-amber-500/40 text-amber-900 dark:text-amber-200">
+              <ArrowLeft className="w-3 h-3" /> Back to Dyad
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Patient Specific Customized Banner */}
       {patient && (
         <div className="p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-primary/95 to-slate-900 text-white shadow-xl border border-primary/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -243,6 +265,7 @@ const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' |
             </div>
             <h2 className="text-lg sm:text-xl font-bold font-headline tracking-tight text-white">
               Personalized for {patient.name || 'Your Loved One'} (Age {patient.age || 75})
+              {caregiverName && <span className="text-white/80 font-normal text-sm ml-2">• Caregiver: {caregiverName}</span>}
             </h2>
             <p className="text-xs text-white/80 leading-relaxed">
               Modules are dynamically prioritized based on active clinical diagnoses, medication requirements, and KATZ ADL independence level.
@@ -281,12 +304,24 @@ const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' |
           subtitle="Specific condition management prioritized for active chronic conditions and ADL support requirements."
           icon={UserCheck}
           modules={tailoredModules}
-          badgeText={`${tailoredModules.length} Matched Topics`}
+          badgeText={`${tailoredModules.length} Targeted Modules`}
           tag="Matched Diagnosis"
         />
       )}
 
-      {/* 3. Explore All Other Clinical Modules */}
+      {/* 2b. Explicitly Assigned by Clinician */}
+      {assignedModules.length > 0 && (
+        <CompetencySection
+          title={`Doctor Prescribed Learning (Assigned by ${assignedByLabel || 'Physician'})`}
+          subtitle="Clinical priorities explicitly assigned by your consulting physician for this dyad."
+          icon={Stethoscope}
+          modules={assignedModules}
+          badgeText={`${assignedModules.length} Doctor Prescribed`}
+          tag="Assigned by Doctor"
+        />
+      )}
+
+      {/* 3. Additional Topics */}
       <CompetencySection
         title="3. Explore Additional Clinical Topics"
         subtitle="Browse additional geriatric skillsets, specialized rehabilitation guides, and professional clinical references."
@@ -299,7 +334,7 @@ const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' |
   );
 };
 
-export default function ModulesPage() {
+function ModulesContent() {
   const { role } = useProfile();
   const t = useTranslations('Modules.page');
 
@@ -330,5 +365,13 @@ export default function ModulesPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ModulesPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground p-6">Loading curriculum…</p>}>
+      <ModulesContent />
+    </Suspense>
   );
 }

@@ -24,25 +24,33 @@ import Link from 'next/link';
 
 import { HealthRepository } from '@/lib/db/health-repository';
 import { syncZaritAssessment } from '@/lib/firebase/clinical-sync';
+import { useToast } from '@/hooks/use-toast';
+import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
 export default function StressCalculatorPage() {
   const [currentResult, setCurrentResult] = useState<ZaritEvaluationResult | null>(null);
   const [history, setHistory] = useState<ZaritEvaluationResult[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
     setHistory(HealthRepository.getZaritAssessments());
   }, []);
 
-  const handleComplete = (res: ZaritEvaluationResult) => {
+  const handleComplete = async (res: ZaritEvaluationResult) => {
     setCurrentResult(res);
     const updated = HealthRepository.saveZaritAssessment(res);
     setHistory(updated);
-    // Best-effort mirror to Firestore so a clinician (if granted access) can
-    // see it on the clinician dashboard. Never blocks or fails the local
-    // save above, which remains the source of truth for this device.
-    void syncZaritAssessment(res);
+    // Durably written to Firestore IndexedDB cache — will auto-replay on
+    // reconnect even if the user goes offline a moment after submitting.
+    const { queued } = await syncZaritAssessment(res);
+    toast({
+      title: queued ? '☁️ Assessment Saved to Cloud' : '📱 Assessment Saved Locally',
+      description: queued
+        ? 'Your Zarit assessment is backed up and visible to your care team.'
+        : 'Sign in to back up your assessment to the cloud.',
+    });
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -54,6 +62,7 @@ export default function StressCalculatorPage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-6xl space-y-8">
+      <SyncStatusBanner />
       {/* Top Clinical Breadcrumb / Intro */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60">
         <div>

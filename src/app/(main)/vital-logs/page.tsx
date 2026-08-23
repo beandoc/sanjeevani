@@ -44,7 +44,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
+import { syncVitals } from '@/lib/firebase/clinical-sync';
 import { ConsentManager } from '@/components/privacy/consent-manager';
+import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
 const vitalLogSchema = z.object({
   date: z.date({
@@ -81,7 +83,7 @@ export default function VitalLogsPage() {
     },
   });
 
-  function onSubmit(data: VitalLogFormValues) {
+  async function onSubmit(data: VitalLogFormValues) {
     const consent = HealthRepository.getConsent();
     if (!consent.hasConsented || !consent.vitalsTrackingConsent) {
       HealthRepository.saveConsent({ hasConsented: true, vitalsTrackingConsent: true });
@@ -96,6 +98,7 @@ export default function VitalLogsPage() {
       sleep: data.sleep,
       notes: data.notes,
     });
+    const { queued } = await syncVitals(saved);
 
     setLogs(HealthRepository.getVitals());
     form.reset({
@@ -109,8 +112,10 @@ export default function VitalLogsPage() {
     });
 
     toast({
-      title: '✅ Log Saved',
-      description: `Vital log for ${format(data.date, 'PPP')} has been successfully recorded.`,
+      title: queued ? '☁️ Vital Log Saved to Cloud' : '✅ Vital Log Saved Locally',
+      description: queued
+        ? `Vital log for ${format(data.date, 'PPP')} backed up and visible to your care team.`
+        : `Vital log for ${format(data.date, 'PPP')} saved. Sign in to back it up to the cloud.`,
     });
   }
 
@@ -125,6 +130,7 @@ export default function VitalLogsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      <SyncStatusBanner />
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
           <HeartPulse className="w-4 h-4" />

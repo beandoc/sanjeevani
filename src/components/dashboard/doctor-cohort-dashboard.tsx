@@ -1,59 +1,46 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Stethoscope,
-  Users,
-  AlertTriangle,
-  FileText,
-  Activity,
-  ArrowRight,
-  TrendingUp,
-  Printer,
-  HeartPulse,
-  Sparkles,
-  ClipboardList
-} from 'lucide-react';
+import { Stethoscope, Users, AlertTriangle, ArrowRight, RefreshCw, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
-import { HealthRepository } from '@/lib/db/health-repository';
-import { ClinicalSummaryPrint } from '@/components/reports/clinical-summary-print';
-import { resolveUnifiedRiskBand, SEVERITY_CONFIGS } from '@/lib/clinical/severity-theme';
+import { loadCohortRoster, summarizeCohort, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
+import type { RiskBand } from '@/lib/analytics/trajectory';
 import { cn } from '@/lib/utils';
+import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 
-type CohortSnapshot = {
-  patient: ReturnType<typeof HealthRepository.getPatientProfile>;
-  caregiver: ReturnType<typeof HealthRepository.getCaregiverAttributes>;
-  careGap: ReturnType<typeof HealthRepository.getCareGapEvaluation>;
-  zarit: ReturnType<typeof HealthRepository.getZaritAssessments>[number] | undefined;
-  vitals: ReturnType<typeof HealthRepository.getVitals>;
-  medications: ReturnType<typeof HealthRepository.getMedications>;
+const RISK_BAND_LABEL: Record<RiskBand, string> = {
+  critical: 'Critical',
+  'lost-to-follow-up': 'Lost to Follow-Up',
+  deteriorating: 'Deteriorating',
+  'insufficient-data': 'Insufficient Data',
+  stable: 'Stable'
 };
 
+// Same worst-first ranking as the roster, so the two views never disagree
+// about which patients need attention first.
+const NEEDS_ATTENTION_LIMIT = 5;
+
 export function DoctorCohortDashboard() {
-  // These all read localStorage, which does not exist during the server render.
-  // Reading them in the render body produced a hydration mismatch; load once on
-  // mount instead, matching the pattern in dashboard-client.tsx.
-  const [snapshot, setSnapshot] = useState<CohortSnapshot | null>(null);
+  const [rows, setRows] = useState<CohortRow[] | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const load = async () => {
+    setIsRefreshing(true);
+    setRows(await loadCohortRoster());
+    setIsRefreshing(false);
+  };
 
   useEffect(() => {
-    setSnapshot({
-      patient: HealthRepository.getPatientProfile(),
-      caregiver: HealthRepository.getCaregiverAttributes(),
-      careGap: HealthRepository.getCareGapEvaluation(),
-      zarit: HealthRepository.getZaritAssessments()[0],
-      vitals: HealthRepository.getVitals(),
-      medications: HealthRepository.getMedications()
-    });
+    void load();
   }, []);
 
-  if (!snapshot) return null;
+  if (!rows) return null;
 
-  const { patient, caregiver, careGap, zarit, vitals, medications } = snapshot;
-  const unifiedRisk = resolveUnifiedRiskBand(zarit?.severityBand, careGap?.careGapSeverity);
-  const unifiedConfig = SEVERITY_CONFIGS[unifiedRisk.band];
+  const summary = summarizeCohort(rows);
+  const needsAttention = rows.slice(0, NEEDS_ATTENTION_LIMIT);
 
   return (
     <div className="space-y-6">
@@ -72,119 +59,109 @@ export function DoctorCohortDashboard() {
                 <span className="text-xs text-muted-foreground font-mono">OPD Clinical Surveillance</span>
               </div>
               <h2 className="text-lg font-bold text-foreground mt-0.5">
-                Geriatric Dyad Trajectory & Cohort Surveillance
+                Cohort Risk Overview — {summary.totalPatients} Patient{summary.totalPatients === 1 ? '' : 's'}
               </h2>
               <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
-                Review multi-morbidity risk bands, caregiver burnout scissors curves, and generate OPD Clinical Care Briefs.
+                Aggregate caregiver burden and functional trajectory risk across every dyad mapped to your clinician account.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            {/* The ZBI severity band and the care-gap hours heuristic can
-                disagree (e.g. "sustainable" hours vs. "critical_red" ZBI).
-                This is the single resolved reading — see resolveUnifiedRiskBand
-                — with the validated instrument as the floor. */}
-            <div className="text-right hidden md:block">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                Unified Risk
-              </span>
-              <Badge className={cn('text-[11px] font-bold', unifiedConfig.badgeBg)}>
-                {unifiedRisk.band.replace('_', ' ')}
-              </Badge>
-            </div>
-          </div>
-
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs font-bold"
+              onClick={() => void load()}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
+            </Button>
             <Link href="/clinic/roster">
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-blue-500/30 text-blue-700 dark:text-blue-300">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-bold border-blue-500/30 text-blue-700 dark:text-blue-300">
                 <Users className="w-4 h-4" /> Full Cohort Roster
               </Button>
             </Link>
-            <Button
-              size="sm"
-              onClick={() => window.print()}
-              className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Printer className="w-4 h-4" /> Print Encounter Brief
-            </Button>
+            <RegisterPatientDialog onRegistered={() => void load()} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Dyad Triad Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Patient Functional Score */}
+      {/* Risk Distribution + Alert Counts */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {(['critical', 'lost-to-follow-up', 'deteriorating', 'stable'] as RiskBand[]).map((band) => (
+          <Card key={band} className="border-border bg-card shadow-xs">
+            <CardContent className="p-4 text-center space-y-1">
+              <Badge className={cn('text-[10px] font-bold', RISK_BAND_STYLE[band])}>
+                {RISK_BAND_LABEL[band]}
+              </Badge>
+              <p className="text-2xl font-black font-mono text-foreground">{summary.byRiskBand[band]}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Patients</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Card className="border-border bg-card shadow-xs">
-          <CardHeader className="pb-2">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground">Patient Katz ADL Function</span>
-            <CardTitle className="text-xl font-bold flex items-baseline gap-2">
-              <span>{careGap?.katzAdlScore ?? 0}/6</span>
-              <span className="text-xs font-normal text-muted-foreground capitalize">({careGap?.katzDependenceLevel ? careGap.katzDependenceLevel.replace('_', ' ') : 'Evaluation Pending'})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• {Array.isArray(patient?.primaryConditions) && patient.primaryConditions.length > 0 ? patient.primaryConditions.join(', ') : 'Geriatric Multi-Morbidity'}</p>
-            <p>• Cognitive: {patient?.cognitiveBehavioralLoad ? patient.cognitiveBehavioralLoad.replace('_', ' ') : 'Standard Load'}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-red-500/10 text-red-600 shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xl font-black font-mono text-foreground">{summary.redFlagCount}</p>
+              <p className="text-xs text-muted-foreground">Active clinical red flag{summary.redFlagCount === 1 ? '' : 's'}</p>
+            </div>
           </CardContent>
         </Card>
-
-        {/* Caregiver Psychometrics */}
         <Card className="border-border bg-card shadow-xs">
-          <CardHeader className="pb-2">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground">Caregiver ZBI Psychometric</span>
-            <CardTitle className="text-xl font-bold flex items-baseline gap-2">
-              <span>{zarit ? `${zarit.totalScore}/${zarit.maxScore}` : 'Not Assessed'}</span>
-              {zarit && (
-                <Badge variant={zarit.severityBand === 'critical_red' ? 'destructive' : 'outline'} className="text-[10px]">
-                  {zarit.normalizedPercentage}%
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• Caregiver: {caregiver?.name || 'Primary Caregiver'} ({caregiver?.kinship || 'Family'})</p>
-            <p>• Lumbar Injury Risk: <strong>{careGap?.caregiverInjuryRiskScore ?? 0}%</strong></p>
-          </CardContent>
-        </Card>
-
-        {/* Formal Support Infrastructure */}
-        <Card className="border-border bg-card shadow-xs">
-          <CardHeader className="pb-2">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground">Formal Support & Net Care Gap</span>
-            <CardTitle className="text-xl font-bold flex items-baseline gap-2">
-              <span className={(careGap?.netCareGapHours ?? 0) > 2 ? 'text-rose-600' : 'text-emerald-600'}>
-                {(careGap?.netCareGapHours ?? 0) > 0 ? `+${careGap.netCareGapHours}h` : '0h Deficit'}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• Formal Setup: <strong>{caregiver?.formalSupport?.type ? caregiver.formalSupport.type.replace(/_/g, ' ') : 'None'}</strong></p>
-            <p>• Absorbed: <strong>{careGap?.formalSupportAbsorbedHours ?? 0} hrs/day</strong></p>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 shrink-0">
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xl font-black font-mono text-foreground">{summary.reassessmentDueCount}</p>
+              <p className="text-xs text-muted-foreground">Due for ZBI reassessment</p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Embedded Doctor's Clinical Encounter Brief */}
-      <Card className="border-border bg-card shadow-sm overflow-hidden">
-        <CardHeader className="border-b border-border/40 bg-muted/20 pb-4">
+      {/* Needs Attention */}
+      <Card className="border-border bg-card shadow-sm">
+        <CardContent className="p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              <div>
-                <CardTitle className="text-base font-bold">Live Geriatric Clinic Encounter Brief</CardTitle>
-                <CardDescription className="text-xs">
-                  Official clinical dyad evaluation and Beers Criteria prescription interactions ready for review.
-                </CardDescription>
-              </div>
-            </div>
-            <Button size="sm" onClick={() => window.print()} variant="outline" className="gap-1.5 text-xs font-bold">
-              <Printer className="w-3.5 h-3.5" /> Print / Save PDF
-            </Button>
+            <h3 className="text-sm font-bold text-foreground">Needs Attention</h3>
+            <Link href="/clinic/roster" className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+              View Full Roster <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-950">
-          <ClinicalSummaryPrint zaritResult={zarit} vitals={vitals} medications={medications} />
+
+          {needsAttention.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4 text-center">No patients mapped to your account yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {needsAttention.map((row) => (
+                <Link key={row.patientUid} href={`/clinic/dyad/${row.patientUid}`}>
+                  <div className="p-3 rounded-xl border border-border/70 hover:border-primary/40 transition-colors flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Badge className={cn('text-[9px] font-bold shrink-0', RISK_BAND_STYLE[row.riskBand])}>
+                        {row.riskBand}
+                      </Badge>
+                      <span className="text-xs font-semibold text-foreground truncate">{row.displayName}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {row.hasRedFlag && <AlertTriangle className="w-3.5 h-3.5 text-red-600" />}
+                      {row.latestBurdenPct !== null && (
+                        <span className="text-xs font-mono font-bold text-muted-foreground">{row.latestBurdenPct}%</span>
+                      )}
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -114,7 +114,7 @@ export interface FunctionSeriesPoint {
   barthelScore: number;
   dependencyPercentage: number;
   band: FunctionEvaluationResult['band'];
-  encounterId?: string;
+  encounterId?: string | null;
 }
 
 export interface TierChangeMarker {

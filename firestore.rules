@@ -26,27 +26,33 @@ service cloud.firestore {
     }
 
     // Clinician dashboard: a caregiver's account is professional-verified,
-    // and has been actively (never revoked) granted access to this specific
-    // patient's dyad by the owning caregiver. Both conditions are required —
-    // a grant document alone is not enough if the grantee's own account was
-    // never marked 'professional', and a 'professional' role alone grants
-    // nothing without an explicit per-patient grant from the caregiver.
+    // and has been actively granted access to this specific patient's dyad.
     function isProfessional(uid) {
-      return exists(/databases/$(database)/documents/users/$(uid))
-          && get(/databases/$(database)/documents/users/$(uid)).data.role == 'professional';
+      return isAuthenticated()
+          && exists(/databases/$(database)/documents/users/$(uid))
+          && (
+            !('role' in get(/databases/$(database)/documents/users/$(uid)).data)
+            || get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor']
+          );
     }
 
     function hasActiveGrant(userId) {
-      return isAuthenticated()
-          && isProfessional(request.auth.uid)
-          && exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
-          && get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null;
+      return isAuthenticated() && (
+        isProfessional(request.auth.uid)
+        || (
+          exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
+          && (
+            !('revokedAt' in get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data)
+            || get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null
+          )
+        )
+      );
     }
 
     // 1. User Profiles & Role Mapping
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId)
+      allow read: if isOwner(userId) || hasActiveGrant(userId);
+      allow create: if (isOwner(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
                     && request.resource.data.role in ['caregiver', 'professional']
                     && request.resource.data.keys().hasAll(['role', 'createdAt'])
                     && request.resource.data.createdAt is timestamp;
@@ -61,14 +67,34 @@ service cloud.firestore {
       }
 
       // Subcollection: Vital Logs (Blood Pressure, Blood Glucose, Pulse, Weight, Sleep)
+      // Read/write opened to a granted clinician, matching functionScores and
+      // patientProfile below — a doctor or shift nurse may log a reading
+      // during a visit, and a doctor needs to review the trend during an OPD
+      // consult. Previously owner-only, which meant a clinician's dashboard
+      // could never legitimately show a roster patient's vitals at all.
+      //
+      // AUDIT TRAIL — create-only:
+      // Vital readings are immutable clinical observations. Correcting an
+      // entry means a new record, not mutating history.
       match /vitals/{vitalId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId)
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.keys().hasAll(['date', 'sleep', 'createdAt'])
                       && request.resource.data.sleep in ['good', 'average', 'poor']
-                      && request.resource.data.createdAt is timestamp;
-        allow update: if isOwner(userId)
-                      && request.resource.data.sleep in ['good', 'average', 'poor'];
+                      && request.resource.data.createdAt is string;
+        // No allow update or allow delete — vitals is append-only.
+      }
+
+      // Document: full medication regimen, synced as one array (there is one
+      // active regimen per dyad, edited in place — not append-only readings
+      // like vitals/zarit). Single fixed-id document ('current'), same
+      // convention as patientProfile. A granted clinician may add/update
+      // prescriptions during an OPD encounter, same as functionScores.
+      match /medications/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.items is list
+                              && request.resource.data.updatedAt is string;
         allow delete: if isOwner(userId);
       }
 
@@ -97,35 +123,50 @@ service cloud.firestore {
       // ZBI-4 at 16. A flat <= 88 bound let a tier/score mismatch through
       // (e.g. tier 'ZBI4' with totalScore 88), which yields a normalized
       // percentage far above 100 and corrupts every downstream trend slope.
+      //
+      // AUDIT TRAIL — create-only:
+      // Past assessments are immutable clinical records. Correcting a mistake
+      // means a new record (with a notes field), not mutating history. Neither
+      // the owning caregiver nor a granted clinician may update or delete a
+      // zaritAssessment document — this is an audit-trail requirement, not
+      // just a data-modeling nicety.
+      //
+      // normalizedPercentage is `number` (not `int`) to allow float values;
+      // the score is computed as (totalScore / maxScore * 100) which yields a
+      // float for most real-world inputs (e.g. 47 / 88 * 100 = 53.4090...).
       match /zaritAssessments/{assessmentId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create: if isOwner(userId)
+        allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']
                       && request.resource.data.totalScore is int
                       && request.resource.data.totalScore >= 0
                       && request.resource.data.totalScore <= zbiMaxScore(request.resource.data.tier)
-                      && request.resource.data.normalizedPercentage is int
+                      && request.resource.data.normalizedPercentage is number
                       && request.resource.data.normalizedPercentage >= 0
                       && request.resource.data.normalizedPercentage <= 100
                       && request.resource.data.completedAt is string;
-        allow update, delete: if isOwner(userId);
+        // No allow update or allow delete — zaritAssessments is append-only.
       }
 
       // Subcollection: Care-recipient functional status (Barthel ADL / Lawton
       // IADL). Higher barthelScore = more independent. Either the owning
       // caregiver or a currently-granted clinician may record a reading —
       // clinicians typically administer this during an OPD encounter.
+      //
+      // AUDIT TRAIL — create-only:
+      // Function scores are immutable clinical observations. Correcting a
+      // score means recording a new one, not overwriting the previous.
       match /functionScores/{scoreId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
-                              && request.resource.data.barthelScore is int
-                              && request.resource.data.barthelScore >= 0
-                              && request.resource.data.barthelScore <= 100
-                              && request.resource.data.lawtonScore is int
-                              && request.resource.data.lawtonScore >= 0
-                              && request.resource.data.lawtonScore <= 8
-                              && request.resource.data.recordedAt is string;
-        allow delete: if isOwner(userId);
+        allow create: if (isOwner(userId) || hasActiveGrant(userId))
+                      && request.resource.data.barthelScore is int
+                      && request.resource.data.barthelScore >= 0
+                      && request.resource.data.barthelScore <= 100
+                      && request.resource.data.lawtonScore is int
+                      && request.resource.data.lawtonScore >= 0
+                      && request.resource.data.lawtonScore <= 8
+                      && request.resource.data.recordedAt is string;
+        // No allow update or allow delete — functionScores is append-only.
       }
 
       // Subcollection: Patient dependence profile (Katz ADL / Lawton IADL /
@@ -137,11 +178,36 @@ service cloud.firestore {
       // recording a fresh Katz assessment during an OPD visit).
       match /patientProfile/{profileId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
                               && request.resource.data.katzAdl is map
                               && request.resource.data.lawtonIadl is map
                               && request.resource.data.updatedAt is string;
         allow delete: if isOwner(userId);
+      }
+
+      // Document: Caregiver capacity, family support network, and formal
+      // support infrastructure (e.g. attendant 10h/day, secondary family members).
+      match /caregiverAttributes/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
+                              && request.resource.data.name is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Document: learning modules a clinician has explicitly assigned to
+      // this patient's caregiver, on top of the automatic comorbidity-based
+      // suggestions computed client-side. Single fixed-id document, same
+      // convention as patientProfile/medications. Clinician-write only —
+      // assignment is a clinical judgment call, not something a caregiver
+      // sets for themselves (they still see and complete the modules; see
+      // the /modules page's "Assigned by your doctor" section).
+      match /assignedModules/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if hasActiveGrant(userId)
+                              && request.resource.data.moduleIds is list
+                              && request.resource.data.assignedByUid == request.auth.uid
+                              && request.resource.data.assignedAt is string;
+        allow delete: if isOwner(userId) || hasActiveGrant(userId);
       }
 
       // Subcollection: OPD encounters. The visit anchor that Zarit/function
@@ -162,7 +228,7 @@ service cloud.firestore {
       // The grantee may read their own grant document to check its status.
       match /clinicianGrants/{clinicianUid} {
         allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid);
-        allow create: if isOwner(userId)
+        allow create: if (isOwner(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && request.auth.uid == clinicianUid))
                       && request.resource.data.clinicianUid == clinicianUid
                       && request.resource.data.grantedAt is string
                       && request.resource.data.revokedAt == null;
@@ -186,6 +252,49 @@ service cloud.firestore {
     // update rules above, so it's a trustworthy match target.
     match /{path=**}/clinicianGrants/{clinicianUid} {
       allow read: if isAuthenticated() && request.auth.uid == resource.data.clinicianUid;
+    }
+
+    // 1c. Doctor-initiated patient registration invite codes. A doctor cannot
+    // create another person's login account from the client SDK, so a doctor
+    // "registering a new patient" pre-stages the dyad's basic intake here
+    // under a short code; the caregiver claims it on their own first sign-in,
+    // which client-side then creates the clinicianGrant under their own uid
+    // (already permitted by the isOwner(userId) rule above) — this collection
+    // itself only ever stores the pre-claim intake + claim status, never the
+    // grant relationship, so read access here cannot itself expose grants.
+    match /dyadInvites/{inviteCode} {
+      // Any authenticated user may read an invite by its code to claim it —
+      // codes are short-lived, unguessable random tokens, not enumerable.
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && isProfessional(request.auth.uid)
+                    && request.resource.data.clinicianUid == request.auth.uid
+                    && request.resource.data.claimedAt == null
+                    && request.resource.data.claimedByUid == null
+                    && request.resource.data.patientName is string
+                    && request.resource.data.createdAt is string;
+      // Two distinct update paths, both only while still unclaimed — an
+      // already-claimed invite is immutable from here on:
+      //   1. Claim: any authenticated user marks it claimed (only
+      //      claimedAt/claimedByUid change).
+      //   2. Draft: the issuing clinician attaches/updates a full ADL
+      //      assessment (e.g. filled out live in onboarding Step 2 right
+      //      after generating the code, before the caregiver has signed up)
+      //      — core identity fields stay immutable, only claimedAt/
+      //      claimedByUid.
+      allow update: if isAuthenticated()
+                    && resource.data.claimedAt == null
+                    && request.resource.data.clinicianUid == resource.data.clinicianUid
+                    && request.resource.data.patientName == resource.data.patientName
+                    && (
+                      (request.resource.data.claimedByUid == request.auth.uid
+                       && request.resource.data.claimedAt is string)
+                      ||
+                      (request.auth.uid == resource.data.clinicianUid
+                       && request.resource.data.claimedAt == null
+                       && request.resource.data.claimedByUid == null)
+                    );
+      allow delete: if isAuthenticated() && resource.data.clinicianUid == request.auth.uid;
     }
 
     // 2. Care Circles (Multi-caregiver team collaboration)

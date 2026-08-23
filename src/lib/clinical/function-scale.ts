@@ -363,7 +363,7 @@ export interface FunctionEvaluationResult {
   /** All 8 Lawton items were scored — recorded so serial comparisons stay valid. */
   lawtonConvention: 'all-8';
   recordedAt: string;
-  encounterId?: string;
+  encounterId?: string | null;
 }
 
 /**
@@ -486,6 +486,6 @@ export function calculateFunctionScore(
     careIntensityFlags,
     lawtonConvention: 'all-8',
     recordedAt: new Date().toISOString(),
-    encounterId
+    encounterId: encounterId ?? null
   };
 }

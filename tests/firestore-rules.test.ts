@@ -61,6 +61,36 @@ describe('Firestore Security Rules Compliance Audit', () => {
     assert.ok(rulesContent.includes('request.resource.data.updatedAt is string'));
   });
 
+  test('should open vitals read/write to a granted clinician, not just the owner', () => {
+    assert.ok(rulesContent.includes('match /vitals/{vitalId}'));
+    // Previously owner-only, which meant a clinician's dashboard could never
+    // legitimately show a roster patient's vitals at all.
+    const vitalsBlock = rulesContent.slice(
+      rulesContent.indexOf('match /vitals/{vitalId}'),
+      rulesContent.indexOf('match /medications/{docId}')
+    );
+    assert.ok(vitalsBlock.includes('allow read: if isOwner(userId) || hasActiveGrant(userId);'));
+    assert.ok(vitalsBlock.includes('allow create: if (isOwner(userId) || hasActiveGrant(userId))'));
+  });
+
+  test('should secure medications as a single synced document, clinician-writable', () => {
+    assert.ok(rulesContent.includes('match /medications/{docId}'));
+    const medsBlock = rulesContent.slice(rulesContent.indexOf('match /medications/{docId}'));
+    assert.ok(medsBlock.includes('allow read: if isOwner(userId) || hasActiveGrant(userId);'));
+    assert.ok(medsBlock.includes('request.resource.data.items is list'));
+    assert.ok(medsBlock.includes('request.resource.data.updatedAt is string'));
+  });
+
+  test('should secure dyadInvites so only the issuing clinician creates, and only unclaimed invites are mutable', () => {
+    assert.ok(rulesContent.includes('match /dyadInvites/{inviteCode}'));
+    const block = rulesContent.slice(rulesContent.indexOf('match /dyadInvites/{inviteCode}'));
+    assert.ok(block.includes('isProfessional(request.auth.uid)'));
+    assert.ok(block.includes('request.resource.data.clinicianUid == request.auth.uid'));
+    assert.ok(block.includes('resource.data.claimedAt == null'));
+    // Core identity fields must never change on update, only claim status.
+    assert.ok(block.includes('request.resource.data.patientName == resource.data.patientName'));
+  });
+
   test('should secure careCircles multi-caregiver access controls', () => {
     assert.ok(rulesContent.includes("match /careCircles/{circleId}"));
     assert.ok(rulesContent.includes("function isCircleMember(circleData)"));
