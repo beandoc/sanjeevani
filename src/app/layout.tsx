@@ -6,10 +6,14 @@ import { ReactNode } from 'react';
 import { ThemeProvider } from '@/context/theme-context';
 import { RoleProvider } from '@/context/role-context';
 
+import { PwaRegister } from '@/components/layout/pwa-register';
+
 export const metadata: Metadata = {
-  title: 'Sanjeevani',
+  title: 'Sanjeevani — Geriatric Decision Support & Caregiver Training',
   description:
-    'Advanced training and simulation for geriatric patient caregivers.',
+    'Evidence-based geriatric caregiver decision support, Zarit burden assessment, and clinical simulation platform for India.',
+  manifest: '/manifest.json',
+  themeColor: '#0f766e',
 };
 
 import { NextIntlClientProvider } from 'next-intl';
@@ -48,6 +52,7 @@ export default async function RootLayout({
             <RoleProvider>
               {children}
               <Toaster />
+              <PwaRegister />
             </RoleProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

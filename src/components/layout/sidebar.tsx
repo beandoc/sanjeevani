@@ -24,6 +24,8 @@ import {
   Computer,
   CalendarDays,
   ClipboardList,
+  HeartPulse,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,12 +39,16 @@ export function AppSidebar() {
     { href: `/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
     { href: `/modules`, label: t('modules'), icon: GraduationCap },
     { href: `/simulations`, label: t('simulations'), icon: Bot },
+    { href: '/stress-calculator', label: t('stressCalculator'), icon: HeartPulse },
+    { href: '/medications', label: t('medications'), icon: ClipboardList },
+    { href: '/care-circle', label: t('careCircle'), icon: Users },
     { href: `/appointments`, label: t('appointments'), icon: CalendarDays },
-    { href: '/vital-logs', label: t('vitalLogs'), icon: ClipboardList },
+    { href: '/vital-logs', label: t('vitalLogs'), icon: HeartPulse },
+    { href: '/reports', label: t('reports'), icon: FileText },
+    { href: `/resources`, label: t('resources'), icon: BookMarked },
+    { href: `/assessment-guide`, label: t('assessmentuide'), icon: FileText },
     { href: `/videos`, label: t('videos'), icon: Video },
     { href: `/podcasts`, label: t('podcasts'), icon: Mic },
-    { href: `/assessment-guide`, label: t('assessmentuide'), icon: FileText },
-    { href: `/resources`, label: t('resources'), icon: BookMarked },
     { href: `/sehat-opd`, label: t('sehatOpd'), icon: Computer },
   ];
 

@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -32,8 +31,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { CalendarDays, Clock, Trash2, User, Hospital } from 'lucide-react';
+import { CalendarDays, Clock, Trash2, User, Hospital, CalendarCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { HealthRepository, AppointmentRecord } from '@/lib/db/health-repository';
 
 const appointmentSchema = z.object({
   department: z.string().min(1, { message: 'Department is required.' }),
@@ -43,26 +43,27 @@ const appointmentSchema = z.object({
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
-interface Appointment extends AppointmentFormValues {
-  id: number;
-  date: Date;
-}
-
 const departments = [
   'Cardiology',
   'Neurology',
   'Orthopedics',
-  'Geriatrics',
-  'Nephrology',
+  'Geriatrics & Memory Care',
+  'Nephrology & Renal',
   'General Physician',
   'Ophthalmology',
-  'Dental',
+  'Palliative Care',
+  'Physical Therapy',
+  'Dental'
 ];
 
 export default function AppointmentsPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setAppointments(HealthRepository.getAppointments());
+  }, []);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -83,47 +84,53 @@ export default function AppointmentsPage() {
       return;
     }
 
-    const newAppointment: Appointment = {
-      id: Date.now(),
-      date,
-      ...data,
-    };
+    const newRecord = HealthRepository.addAppointment({
+      date: date.toISOString(),
+      department: data.department,
+      doctor: data.doctor,
+      notes: data.notes,
+    });
 
-    setAppointments((prev) => [...prev, newAppointment].sort((a,b) => a.date.getTime() - b.date.getTime()));
+    setAppointments(HealthRepository.getAppointments());
     form.reset();
     toast({
-      title: '✅ Appointment Added',
-      description: `Appointment with ${data.doctor} on ${format(date, 'PPP')} has been scheduled.`,
+      title: '✅ Appointment Scheduled',
+      description: `Appointment with ${data.doctor} (${data.department}) on ${format(date, 'PPP')} has been scheduled.`,
     });
   }
 
-  function deleteAppointment(id: number) {
-    setAppointments(appointments.filter(app => app.id !== id));
+  function deleteAppointment(id: string) {
+    HealthRepository.deleteAppointment(id);
+    setAppointments(HealthRepository.getAppointments());
     toast({
-      title: '🗑️ Appointment Deleted',
+      title: '🗑️ Appointment Cancelled',
       description: 'The appointment has been removed from your calendar.',
     });
   }
-  
+
   const upcomingAppointments = appointments.filter(
-    (app) => app.date >= new Date()
+    (app) => new Date(app.date) >= new Date(new Date().setHours(0, 0, 0, 0))
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Appointment Calendar</h1>
-        <p className="text-muted-foreground">
-          Manage and track upcoming medical appointments.
+        <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
+          <CalendarCheck className="w-4 h-4" />
+          <span>Care Schedule & Follow-ups</span>
+        </div>
+        <h1 className="text-3xl font-bold font-headline">Clinical Appointments & Tele-OPD</h1>
+        <p className="text-muted-foreground text-sm">
+          Coordinate consultations with geriatricians, specialists, and home-care visits.
         </p>
       </div>
 
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-border shadow-sm bg-card">
           <CardHeader>
-            <CardTitle>Add New Appointment</CardTitle>
-            <CardDescription>
-              Select a date on the calendar, then fill out the details below.
+            <CardTitle className="text-lg">Schedule New Consultation</CardTitle>
+            <CardDescription className="text-xs">
+              Select a date on the calendar, then fill out the doctor and clinic details.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-8 md:grid-cols-2">
@@ -132,115 +139,132 @@ export default function AppointmentsPage() {
                 mode="single"
                 selected={date}
                 onSelect={setDate}
-                className="rounded-md border"
+                className="rounded-2xl border bg-background/50 shadow-sm"
                 modifiers={{
-                  scheduled: appointments.map(app => app.date)
+                  scheduled: appointments.map((app) => new Date(app.date)),
                 }}
                 modifiersStyles={{
                   scheduled: {
-                    color: 'hsl(var(--primary-foreground))',
-                    backgroundColor: 'hsl(var(--primary))'
-                  }
+                    fontWeight: 'bold',
+                    textDecoration: 'underline',
+                    color: 'hsl(var(--primary))',
+                  },
                 }}
               />
             </div>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                 <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+            <div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Specialty / Department</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-9 text-xs">
+                              <SelectValue placeholder="Select specialty" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept} value={dept} className="text-xs">
+                                {dept}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="doctor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Doctor / Clinician Name</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a department" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g. Dr. Rajesh K." className="h-9 text-xs" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {departments.map((dep) => (
-                            <SelectItem key={dep} value={dep}>
-                              {dep}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="doctor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Doctor's Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Dr. Sachin" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="e.g., Follow-up for blood pressure check, bring recent reports."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={!date}>Add Appointment</Button>
-              </form>
-            </Form>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Visit Purpose / Symptoms</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="e.g. 3-month hypertension checkup, review blood work."
+                            className="text-xs resize-none"
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full font-bold h-9 text-xs">
+                    Confirm Appointment
+                  </Button>
+                </form>
+              </Form>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Upcoming Appointments</CardTitle>
-            <CardDescription>
-              Your next scheduled visits.
-            </CardDescription>
+        <Card className="border-border shadow-sm bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-lg">Upcoming Schedule</CardTitle>
+              <CardDescription className="text-xs">Next upcoming consultations.</CardDescription>
+            </div>
+            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+              {upcomingAppointments.length} Active
+            </span>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {upcomingAppointments.length > 0 ? (
               upcomingAppointments.map((app) => (
-                <div key={app.id} className="relative rounded-lg border p-4 pr-10 space-y-2">
-                   <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => deleteAppointment(app.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                   </Button>
-                   <div className="flex items-center gap-3">
-                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">{format(app.date, 'PPP')}</span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span>{app.doctor}</span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                      <Hospital className="h-4 w-4 text-muted-foreground" />
-                      <span>{app.department}</span>
-                   </div>
-                   {app.notes && (
-                      <p className="text-sm text-muted-foreground pt-2">{app.notes}</p>
-                   )}
+                <div
+                  key={app.id}
+                  className="p-3.5 rounded-xl border border-border/80 bg-background/80 flex flex-col justify-between gap-2"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-primary">{app.department}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {format(new Date(app.date), 'EEE, dd MMM')}
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-foreground">{app.doctor}</p>
+                    {app.notes && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{app.notes}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end pt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteAppointment(app.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Cancel
+                    </Button>
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
-                <CalendarDays className="h-10 w-10 mb-4" />
-                <p>No upcoming appointments.</p>
-                <p className="text-xs">Use the form to add a new one.</p>
+              <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-12 border border-dashed rounded-xl">
+                <CalendarDays className="h-10 w-10 mb-2 text-muted-foreground/60" />
+                <p className="text-sm font-medium">No upcoming appointments</p>
+                <p className="text-xs text-muted-foreground">Select a date on the calendar to book.</p>
               </div>
             )}
           </CardContent>

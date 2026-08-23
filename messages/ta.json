@@ -1,0 +1,753 @@
+{
+    "Dashboard": {
+        "welcomeNurse": "வணக்கம், செவிலியரே!",
+        "welcomeCaregiver": "வணக்கம், பராமரிப்பாளரே!",
+        "personalizedPath": "தனிப்பயனாக்கப்பட்ட கற்றல் பாதை",
+        "advancedCertification": "இலக்கு: மேம்பட்ட சான்றிதழ்",
+        "courseCompletion": "85% பாடநெறி நிறைவு",
+        "inProgress": "செயலில் உள்ளது",
+        "practiceLab": "பயிற்சி கூடம்",
+        "enterSimulation": "சிமுலேஷன் ஆய்வகத்திற்குள் நுழைக",
+        "emergencyCare": "அவசர சிகிச்சை",
+        "primaryCaregiver": "முதன்மை பராமரிப்பாளர்",
+        "doctorClinic": "மருத்துவர் / கிளினிக்",
+        "primaryHospital": "முதன்மை மருத்துவமனை"
+    },
+    "Sidebar": {
+        "dashboard": "டாஷ்போர்டு",
+        "modules": "கற்றல் தொகுதிகள்",
+        "simulations": "மருத்துவ சிமுலேஷன்",
+        "appointments": "மருத்துவ சந்திப்புகள்",
+        "vitalLogs": "முக்கிய சுகாதார பதிவுகள்",
+        "stressCalculator": "பராமரிப்பாளர் மன அழுத்த அளவீடு",
+        "videos": "வீடியோ நூலகம்",
+        "podcasts": "ஆடியோ தொடர்",
+        "assessmentuide": "மதிப்பீட்டு வழிகாட்டி",
+        "resources": "தேசிய வளங்கள்",
+        "sehatOpd": "செஹத் OPD",
+        "medications": "மருந்து அட்டவணை",
+        "careCircle": "குடும்ப பராமரிப்பு வட்டம்",
+        "reports": "மருத்துவ அறிக்கை"
+    },
+    "Header": {
+        "profile": "சுயவிவரம்",
+        "settings": "அமைப்புகள்",
+        "logout": "வெளியேறு",
+        "accountSettings": "கணக்கு அமைப்புகள்"
+    },
+    "Modules": {
+        "medication-management-caregiver": {
+            "title": "Helping Your Loved One Stay Safe with Medicines",
+            "subtitle": "A guide for family caregivers to manage medications safely and be a key partner in healthcare.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Why Older Adults Need Extra Help",
+                    "cardTitle": "Your Loved One's Most Important Safety Net",
+                    "content": {
+                        "p1": "As people age, they often develop more health conditions and need more medicines. Taking many medications (polypharmacy) increases the chance of problems.",
+                        "li1": "About 1 in 5 people over 70 takes five or more different medicines.",
+                        "li2": "The body handles medicines differently with age, making side effects more likely.",
+                        "li3": "A medication problem can be a major reason for a hospital admission."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Spotting Medication Problem Warning Signs",
+                    "cardTitle": "Look for Sudden Changes",
+                    "content": {
+                        "p1": "A bad reaction to a medicine in an older person might not be what you expect. It often looks like a sudden change in their overall condition. Never dismiss these signs as \"just getting old.\"",
+                        "h4": "Key Warning Signs:",
+                        "li1": "Sudden confusion, memory problems, or acting strangely (delirium).",
+                        "li2": "More falls, or new dizziness and unsteadiness.",
+                        "li3": "New or worsening bladder or bowel control issues.",
+                        "li4": "Unusual sleepiness or being hard to wake up.",
+                        "li5": "Sudden loss of appetite or feeling very tired.",
+                        "li6": "A new depressed mood or loss of interest in things.",
+                        "p2": "Always consider that a new symptom might be a medication side effect and call the doctor."
+                    }
+                },
+                "item-3": {
+                    "trigger": "The \"Domino Effect\" of Prescribing",
+                    "cardTitle": "Understanding the Prescribing Cascade",
+                    "content": {
+                        "p1": "Sometimes, a side effect from Drug #1 is mistaken for a new health problem. The doctor might then prescribe Drug #2 to treat that side effect. This can lead to even more problems. This is called the prescribing cascade.",
+                        "h4": "Example:",
+                        "p2": "A blood pressure pill (Drug #1) causes swollen ankles. The doctor sees the swelling and prescribes a water pill (Drug #2) to fix it. The water pill can then cause dizziness, leading to a fall.",
+                        "p3": "You can help stop this by telling the doctor about any new symptom that appears after a medicine is started or changed."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Your Action Plan for Medication Safety",
+                    "cardTitle": "Simple Steps, Big Impact",
+                    "content": {
+                        "li1": "<strong>Keep an \"All-Meds\" Master List:</strong> Maintain one updated list of every prescription, over-the-counter item, vitamin, and supplement. Note the name, dose, and reason for each. Bring this list to EVERY appointment.",
+                        "li2": "<strong>Use One Pharmacy:</strong> Fill all prescriptions at the same pharmacy. This allows the pharmacist to spot dangerous interactions.",
+                        "li3": "<strong>Use a Pill Organizer:</strong> A weekly pill box helps prevent missed or double doses.",
+                        "li4": "<strong>Ask Questions at Discharge:</strong> Leaving the hospital is high-risk. Go over the final medication list with the nurse or doctor and ask: \"What is each new medicine for?\", \"Which medicines should be stopped?\", and \"Who do I call if I have a problem?\"."
+                    }
+                }
+            }
+        },
+        "titles": {
+            "medication-management-caregiver": "Helping Your Loved One Stay Safe with Medicines",
+            "medication-management-caregiver-desc": "Learn to manage medications safely and act as a key partner in their healthcare.",
+            "fall-prevention": "Staying Steady and Safe: Fall Prevention",
+            "nutrition-caregiver": "Nutrition and Feeding Issues",
+            "strength-training-caregiver": "Supporting Physical Activity",
+            "constipation-caregiver": "Managing Constipation: A Caregiver's Guide",
+            "oral-health-caregiver": "Oral Health for Caregivers",
+            "bed-bound-care": "Bed Bound Patient Care",
+            "alzheimers-caregiver": "A Caregiver's Guide to Alzheimer's Disease",
+            "ischaemic-heart-disease-caregiver": "Caring for a Loved One with Heart Disease",
+            "dementia-care": "A Caregiver's Guide to Delirium",
+            "stroke-rehab": "Stroke Rehabilitation",
+            "hypertension-caregiver": "Hypertension: A Caregiver's Guide",
+            "parkinsonism-care": "Living with Parkinson's Disease: A Detailed Guide",
+            "palliative-care-caregiver": "Palliative Care: A Guide for Caregivers",
+            "benign-prostate-care": "Urinary Problems in Men",
+            "foot-care": "Foot Care Essentials",
+            "joint-problems-caregiver": "Understanding Joint Pain & Arthritis",
+            "vision-problems-caregiver": "Vision and Eye Problems",
+            "lung-infections-caregiver": "Protecting Your Loved One from Pneumonia"
+        },
+        "list": {
+            "medication-management-caregiver": {
+                "title": "Helping Your Loved One Stay Safe with Medicines",
+                "description": "Learn to manage medications safely and act as a key partner in their healthcare."
+            },
+            "fall-prevention": {
+                "title": "Staying Steady and Safe: Fall Prevention",
+                "description": "Learn to identify risks and create a safe environment to prevent falls."
+            },
+            "nutrition-caregiver": {
+                "title": "Nutrition and Feeding Issues",
+                "description": "Learn about malnutrition, feeding problems, and strategies to improve nutrition."
+            },
+            "strength-training-caregiver": {
+                "title": "Supporting Physical Activity",
+                "description": "A caregiver's guide to encouraging exercise and physical fitness for older adults."
+            },
+            "constipation-caregiver": {
+                "title": "Managing Constipation: A Caregiver's Guide",
+                "description": "Learn to understand, prevent, and manage constipation safely and effectively."
+            },
+            "oral-health-caregiver": {
+                "title": "Oral Health for Caregivers",
+                "description": "Learn to manage daily oral care and identify common dental issues in older adults."
+            },
+            "bed-bound-care": {
+                "title": "Bed Bound Patient Care",
+                "description": "Essential care for bed-bound patients: pressure ulcer prevention, hygiene, and mobility."
+            },
+            "alzheimers-caregiver": {
+                "title": "A Caregiver's Guide to Alzheimer's Disease",
+                "description": "An in-depth guide to understanding the stages, diagnosis, and behavioral changes of Alzheimer's."
+            },
+            "ischaemic-heart-disease-caregiver": {
+                "title": "Caring for a Loved One with Heart Disease",
+                "description": "A practical guide for families on recognizing symptoms and supporting heart health."
+            },
+            "dementia-care": {
+                "title": "A Caregiver's Guide to Delirium",
+                "description": "Learn to recognize, prevent, and respond to sudden confusion in a loved one."
+            },
+            "stroke-rehab": {
+                "title": "Stroke Rehabilitation",
+                "description": "Principles of stroke rehab, including mobility, speech therapy, and preventing complications."
+            },
+            "hypertension-caregiver": {
+                "title": "Hypertension: A Caregiver's Guide",
+                "description": "Learn to manage high blood pressure safely with a focus on quality of life."
+            },
+            "parkinsonism-care": {
+                "title": "Living with Parkinson's Disease: A Detailed Guide",
+                "description": "A detailed guide to understanding symptoms, managing medications, and supporting daily life with PD."
+            },
+            "palliative-care-caregiver": {
+                "title": "Palliative Care: A Guide for Caregivers",
+                "description": "A compassionate guide to understanding and navigating palliative care for a loved one."
+            },
+            "benign-prostate-care": {
+                "title": "Urinary Problems in Men",
+                "description": "Understand common urinary issues like BPH and learn practical tips for management."
+            },
+            "foot-care": {
+                "title": "Foot Care Essentials",
+                "description": "Learn the basics of foot care for older adults to maintain mobility and prevent complications."
+            },
+            "joint-problems-caregiver": {
+                "title": "Understanding Joint Pain & Arthritis",
+                "description": "Learn about common joint problems like arthritis and gout and how to manage them at home."
+            },
+            "vision-problems-caregiver": {
+                "title": "Vision and Eye Problems",
+                "description": "Learn to recognize common eye issues, red flags, and when to see a doctor."
+            },
+            "lung-infections-caregiver": {
+                "title": "Protecting Your Loved One from Pneumonia",
+                "description": "A guide to spotting the tricky warning signs of pneumonia and how you can help prevent it."
+            },
+            "polypharmacy-professional": {
+                "title": "Medication Safety in Geriatric Care",
+                "description": "A nurse's guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients."
+            },
+            "strength-training": {
+                "title": "Prescribing Exercise for Older Adults",
+                "description": "A module for healthcare professionals on promoting and prescribing physical activity."
+            },
+            "constipation-professional": {
+                "title": "Managing Constipation in Older Adults",
+                "description": "A clinical guide for nurses on the assessment, management, and prevention of constipation."
+            },
+            "oral-health-professional": {
+                "title": "Geriatric Oral Health for Professionals",
+                "description": "A review of oral health screening, common challenges, and interprofessional care for clinicians."
+            },
+            "nutrition-care-professional": {
+                "title": "Clinical Nutrition in Older Adults",
+                "description": "A review of malnutrition, screening, assessment, and management strategies for clinicians."
+            },
+            "alzheimers-professional": {
+                "title": "A Comprehensive Nursing Guide to Alzheimer's Disease",
+                "description": "A clinical framework covering pathophysiology, risk factors, diagnosis, and behavioral assessment of AD."
+            },
+            "ischaemic-heart-disease-professional": {
+                "title": "Managing Ischaemic Heart Disease in Older Adults",
+                "description": "A nursing perspective on atypical presentations, risk management, and patient-centered care."
+            },
+            "dementia-care-professional": {
+                "title": "A Comprehensive Nursing Guide to Delirium",
+                "description": "A detailed clinical framework for the assessment, diagnosis, and complex management of delirium."
+            },
+            "hypertension-professional": {
+                "title": "Hypertension in Older Adults",
+                "description": "A clinical overview of the unique aspects of hypertension in the geriatric population."
+            },
+            "geriatric-rehabilitation": {
+                "title": "Geriatric Rehabilitation",
+                "description": "Understand the interventions that help restore function and independence in older adults."
+            },
+            "palliative-care-professional": {
+                "title": "Palliative Care for Professionals",
+                "description": "An evidence-based overview of geriatric palliative care principles and practice for clinicians."
+            },
+            "geriatric-depression-professional": {
+                "title": "Geriatric Depression in Primary Care",
+                "description": "A review of the detection and management of depression in older adults for primary care providers."
+            },
+            "benign-prostate-professional": {
+                "title": "Benign Prostatic Conditions",
+                "description": "A clinical review of the evaluation and management of BPH and prostatitis in older men."
+            },
+            "foot-care-professional": {
+                "title": "Podogeriatrics: Clinical Foot Care",
+                "description": "A clinical review of common foot pathologies, assessment, and management in older adults."
+            },
+            "joint-problems-professional": {
+                "title": "Management of Rheumatic Disorders",
+                "description": "A clinical review of OA, RA, Gout, and other common rheumatic conditions in older adults."
+            },
+            "vision-problems-professional": {
+                "title": "Clinical Geriatric Ophthalmology",
+                "description": "A review of common age-related eye diseases, diagnosis, and management for clinicians."
+            },
+            "lung-infections-professional": {
+                "title": "Pneumonia in Older Adults: A Clinical Guide",
+                "description": "A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients."
+            },
+            "parkinsonism-care-professional": {
+                "title": "A Comprehensive Nursing Guide to Parkinson's Disease",
+                "description": "A detailed clinical framework for the assessment, diagnosis, and complex management of PD."
+            }
+        },
+        "alzheimers-caregiver": {
+            "title": "A Detailed Caregiver's Guide to Understanding Alzheimer's Disease",
+            "subtitle": "This guide provides families with in-depth information to understand what Alzheimer's is, how it progresses, how it is diagnosed, and how to recognize and manage the challenging behavioral changes that are part of the disease.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Chapter 1: What is Alzheimer's Disease?",
+                    "title": "1.1 The Basics of the Disease",
+                    "content": {
+                        "p1": "Alzheimer's is a physical disease that causes a slow decline in memory, thinking, and reasoning skills. It is not a normal part of aging. It is the most common cause of dementia.",
+                        "p2": "What's Happening Inside the Brain?",
+                        "p3": "To understand Alzheimer's, it helps to picture the brain as a massive, busy network of communication lines. The disease creates two types of \"roadblocks\" that disrupt this communication:",
+                        "li1": "<strong>Plaques:</strong> These are sticky clumps that build up between the brain cells.",
+                        "li2": "<strong>Tangles:</strong> These are twisted fibers that build up inside the brain cells.",
+                        "p4": "Over many years, these plaques and tangles damage and kill brain cells, causing the brain to shrink and leading to the symptoms we see. This process actually starts long before any memory problems are noticeable."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Chapter 2: Understanding Risk Factors",
+                    "title": "2.1 Things We Can and Can't Change",
+                    "content": {
+                        "p1": "Things We Can't Change",
+                        "p2": "Some risk factors are simply part of who we are. It's important to remember that having a risk factor does not mean a person will get the disease.",
+                        "li1": "<strong>Age:</strong> This is the single biggest risk factor. The older a person gets, the higher their risk.",
+                        "li2": "<strong>Genetics:</strong> While rare, directly inherited forms exist. For most people, a gene called ApoE4 can increase the risk, but many people with this gene never get Alzheimer's, and many who get Alzheimer's don't have this gene.",
+                        "p3": "Things We Can Influence",
+                        "p4": "Research shows that a healthy lifestyle can help protect the brain. You can play a huge role in encouraging these habits. The seven most important areas to focus on are:",
+                        "li3": "Staying physically active.",
+                        "li4": "Managing blood pressure and diabetes, especially in middle age.",
+                        "li5": "Maintaining a healthy weight.",
+                        "li6": "Not smoking.",
+                        "li7": "Seeking treatment for depression.",
+                        "li8": "Staying mentally and socially engaged.",
+                        "li9": "Eating a healthy diet with plenty of fish, fruits, and vegetables."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Chapter 3: The Journey Through Alzheimer's",
+                    "title": "3.1 Understanding the Stages",
+                    "content": {
+                        "p1": "Alzheimer's progresses along a continuum. Recognizing these stages can help you understand the changes you are seeing.",
+                        "h4_1": "The Earliest Sign: Subjective Cognitive Decline (SCD)",
+                        "p2": "This is when a person starts to notice their own memory is slipping, but their performance on memory tests is still normal. It can be caused by many things, like stress, but it's important to mention it to the doctor.",
+                        "h4_2": "The \"In-Between\" Stage: Mild Cognitive Impairment (MCI)",
+                        "p3": "MCI is diagnosed when memory or thinking problems are noticeable to others and can be measured on tests, but the person is still able to manage their everyday life independently. They may need help with complex tasks like managing finances, but they can still handle their basic personal care.",
+                        "h4_3": "The Dementia Stage",
+                        "p4": "Dementia is diagnosed when the thinking and memory problems have become severe enough to interfere with a person's ability to live safely and independently. This stage is often broken down into:",
+                        "li1": "<strong>Mild:</strong> The person needs help with some daily tasks (like paying bills or remembering appointments) but can still manage many things on their own.",
+                        "li2": "<strong>Moderate:</strong> The person needs more help with basic tasks like dressing and grooming. Confusion worsens, and personality changes may become more pronounced.",
+                        "li3": "<strong>Severe:</strong> The person requires full-time, hands-on care for all their basic needs."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Chapter 4: How a Diagnosis is Made",
+                    "title": "4.1 Your Role and What to Expect",
+                    "content": {
+                        "p1": "Your Role as the Expert Observer",
+                        "p2": "There is no single, simple test for Alzheimer's. The doctor will act like a detective, putting together clues from many sources. You are the most important source of clues. Your description of the changes you've seen in your loved one over time is critical to the diagnosis.",
+                        "p3": "What to Expect at the Appointment",
+                        "li1": "<strong>A Detailed Conversation:</strong> The doctor will ask about what symptoms you've noticed, when they started, and how they affect daily life.",
+                        "li2": "<strong>Memory and Thinking Tests:</strong> The doctor will do some brief tests in the office, like the \"five-word test\" or the \"Mini-Mental State Exam\" (MMSE) to get a snapshot of their cognitive function. They may also refer your loved one to a neuropsychologist for more detailed testing.",
+                        "li3": "<strong>Brain Scans (CT or MRI):</strong> A brain scan is a standard part of the workup. Its purpose is twofold:",
+                        "li3_sub1": "To rule out other problems that can cause memory loss, like a stroke, brain tumor, or fluid on the brain.",
+                        "li3_sub2": "To look for signs of brain shrinkage, especially in the memory centers (the hippocampus), which is a hallmark of AD.",
+                        "li4": "<strong>Other Advanced Tests:</strong> In some cases, especially when the diagnosis is unclear, the doctor may suggest a spinal tap (lumbar puncture) to look for the plaque and tangle proteins in the spinal fluid, or a special PET scan to see amyloid plaques in the brain."
+                    }
+                },
+                "item-5": {
+                    "trigger": "Chapter 5: Managing Behavioral Changes",
+                    "title": "5.1 Why Behaviors Change and What to Look For",
+                    "content": {
+                        "p1": "Why Do Behaviors Change?",
+                        "p2": "The damage to the brain from Alzheimer's can cause changes in personality, mood, and behavior. It is crucial to remember that these behaviors are a symptom of the disease, not a willful act.",
+                        "p3": "Common Behaviors in the Early and Moderate Stages",
+                        "p4": "The most common behavioral changes are often subtle at first. You might notice:",
+                        "li1": "<strong>Apathy:</strong> A loss of motivation and interest in activities they used to enjoy.",
+                        "li2": "<strong>Anxiety:</strong> Feeling worried, restless, or on edge.",
+                        "li3": "<strong>Depression (Dysphoria):</strong> Feeling sad, tearful, or hopeless.",
+                        "li4": "<strong>Irritability:</strong> Being easily annoyed or having a \"short fuse.\"",
+                        "li5": "<strong>Agitation:</strong> Restlessness, pacing, or an inability to sit still.",
+                        "p5": "When you see the doctor, they may use a questionnaire called the Neuropsychiatric Inventory (NPI). This is not a test for your loved one, but a structured way for the doctor to ask you about these behaviors. It helps them understand the severity of the symptoms and the amount of stress it is causing you as the caregiver, which is a very important part of the care plan."
+                    }
+                }
+            }
+        },
+        "fall-prevention": {
+            "title": "Staying Steady and Safe: A Guide to Fall Prevention",
+            "subtitle": "This module is designed to empower older adults and their caregivers with the knowledge and tools to prevent falls and maintain independence.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Understanding Your Risk of Falling",
+                    "title": "Why falls happen more as we age",
+                    "content": {
+                        "p1": "As we get older, our bodies change. Common age-related changes like decreased vision, shifts in balance and muscle strength, and side effects from medications can make falls more likely.",
+                        "h4": "What increases your personal risk?",
+                        "li1": "<strong>Medical Conditions:</strong> Diagnoses like arthritis, osteoporosis, diabetes, or neurological disorders (e.g., Parkinson's disease) can affect your stability.",
+                        "li2": "<strong>Medication Review:</strong> Certain medications, especially when taken together, can cause dizziness or drowsiness. It's vital to have a doctor or pharmacist review all your current medications regularly.",
+                        "li3": "<strong>Previous Falls:</strong> If you've fallen in the past year, your risk of falling again is higher. This is often because the factors that caused the first fall are still present.",
+                        "li4": "<strong>Sensory Changes:</strong> Changes in vision and hearing can significantly impact your balance and coordination."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Creating a Safe Home Environment",
+                    "title": "Practical steps for a safer home",
+                    "content": {
+                        "li1": "<strong>Clear the Clutter:</strong> Keep walkways clear of electrical cords, throw rugs, and other obstacles that could cause tripping.",
+                        "li2": "<strong>Improve Lighting:</strong> Add nightlights in hallways, bathrooms, and bedrooms. Make sure light switches are easy to reach.",
+                        "li3": "<strong>Bathroom Safety:</strong> Install grab bars in the shower and next to the toilet. Use non-slip mats and consider a shower chair for added stability.",
+                        "li4": "<strong>Stairway Safety:</strong> Ensure handrails are on both sides of the stairs and that stairways are always well-lit.",
+                        "li5": "<strong>Kitchen Safety:</strong> Arrange frequently used items on lower shelves to avoid using a step stool. Clean up any spills immediately to prevent slipping."
+                    }
+                },
+                "item-3": {
+                    "trigger": "The Role of Physical Activity",
+                    "title": "Maintaining strength and balance through exercise",
+                    "content": {
+                        "li1": "<strong>Strength and Balance Exercises:</strong> Simple exercises like chair yoga, tai chi, or leg lifts can improve leg strength and balance. Look for local classes or online videos designed for seniors.",
+                        "li2": "<strong>Walking Aids:</strong> If you use a cane or walker, make sure it is the correct height and that the rubber tips are not worn down. A physical therapist can help fit it properly.",
+                        "li3": "<strong>Appropriate Footwear:</strong> Wear supportive, non-slip shoes both inside and outside the home. Avoid walking in socks or flimsy slippers."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Nutrition, Hydration, and Bone Health",
+                    "title": "How diet supports fall prevention",
+                    "content": {
+                        "li1": "<strong>Vitamin D and Calcium:</strong> These are essential for strong bones. Get them from dairy products, fortified foods, and supplements if recommended by your doctor.",
+                        "li2": "<strong>Stay Hydrated:</strong> Dehydration can cause dizziness and confusion. Drink plenty of water throughout the day.",
+                        "li3": "<strong>Regular Meals:</strong> Don't skip meals. This helps prevent drops in blood sugar that can lead to lightheadedness and instability."
+                    }
+                },
+                "item-5": {
+                    "trigger": "What to Do If You Fall",
+                    "title": "Having a plan of action",
+                    "content": {
+                        "li1": "<strong>How to Get Up Safely:</strong> Stay still for a moment to assess for injuries. If you feel you can get up, roll onto your hands and knees, crawl to a sturdy chair, and use it to help you stand.",
+                        "li2": "<strong>When to Call for Help:</strong> If you are hurt or cannot get up, call for help. Use a medical alert device, a phone, or call out for assistance.",
+                        "li3": "<strong>Emergency Plan:</strong> Consider a medical alert device, especially if you live alone. Keep a phone within reach at all times, and have emergency numbers posted in a visible place."
+                    }
+                }
+            }
+        },
+        "parkinsonism-care-professional": {
+            "title": "A Comprehensive Nursing Guide to Parkinson's Disease in the Older Adult",
+            "subtitle": "A detailed clinical framework for the assessment, diagnosis, and complex management of Parkinson's Disease in geriatric patients.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Chapter 1: The Foundations of Parkinson's Disease in Geriatrics",
+                    "title": "1.1 Pathophysiology and Epidemiology",
+                    "content": {
+                        "p1": "Parkinson's Disease is the second most common neurodegenerative disorder. Its key pathological hallmarks are a loss of dopaminergic neurons in the substantia nigra and the presence of Lewy Bodies (accumulations of α-synuclein).",
+                        "h4_1": "Geriatric Epidemiology:",
+                        "li1": "<strong>Prevalence:</strong> Affects approximately 1% of individuals over age 65.",
+                        "li2": "<strong>Late-Onset:</strong> Most patients in geriatric settings have long-standing disease and present with advanced complications.",
+                        "h4_2": "1.2 Risk Factors",
+                        "li3": "<strong>Established Factors:</strong> A family history of PD is found in 6-10% of cases.",
+                        "li4": "<strong>Weak Associations:</strong> Rural living, exposure to pesticides/herbicides, and head injuries.",
+                        "li5": "<strong>Protective Factors:</strong> Cigarette smoking and coffee consumption appear to be protective."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Chapter 2: Clinical Assessment: A Multifaceted Approach",
+                    "title": "2.1 Clinical Assessment",
+                    "content": {
+                        "h4_1": "The Cardinal Motor Signs",
+                        "p1": "PD signs are typically asymmetric at onset. Assess for:",
+                        "li1": "<strong>Rest Tremor:</strong> 4–6 Hz frequency, most prominent at rest.",
+                        "li2": "<strong>Bradykinesia/Akinesia:</strong> Poverty of movement, loss of facial expression (\"masked facies\").",
+                        "li3": "<strong>Rigidity:</strong> \"Lead-pipe\" type of increased muscle tone on passive movement.",
+                        "li4": "<strong>Postural Instability:</strong> Occurs later and is a primary cause of falls.",
+                        "h4_2": "Other Motor Manifestations",
+                        "li5": "<strong>Gait and Posture:</strong> Abnormal flexed posture, shuffling gait, reduced arm swing.",
+                        "li6": "<strong>Freezing of Gait:</strong> A feeling of feet being \"glued to the floor.\"",
+                        "h4_3": "The Critical Non-Motor Spectrum",
+                        "p2": "<strong>Autonomic Dysfunction:</strong> Orthostatic hypotension, constipation, sialorrhea, urinary urgency.",
+                        "p3": "<strong>Neuropsychiatric Symptoms:</strong> Depression, anxiety, and cognitive impairment. Note: Dementia is never an early sign of idiopathic PD."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Chapter 3: Differential Diagnosis in the Older Adult",
+                    "title": "3.1 Differential Diagnosis",
+                    "content": {
+                        "h4_1": "Drug-Induced Parkinsonism (DIP)",
+                        "p1": "Extremely common. Caused by neuroleptics (antipsychotics) and antiemetics (metoclopramide). Signs are usually bilateral and symmetrical with no rest tremor. Prevention is key: avoid neuroleptics in older patients where possible.",
+                        "h4_2": "Other Neurodegenerative Syndromes",
+                        "li1": "<strong>Lewy Body Dementia (LBD):</strong> Dementia occurs within months of or precedes parkinsonism.",
+                        "li2": "<strong>Progressive Supranuclear Palsy (PSP):</strong> Early falls, axial rigidity, and limited vertical gaze.",
+                        "li3": "<strong>Vascular Parkinsonism:</strong> Stepwise progression associated with strokes."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Chapter 4: Pharmacological Management",
+                    "title": "4.1 Pharmacological Management",
+                    "content": {
+                        "h4_1": "Levodopa (L-dopa): The Cornerstone of Therapy",
+                        "p1": "The main treatment for PD in older adults. \"Start low and go slow.\" Administer 30 mins before meals for best absorption.",
+                        "h4_2": "Managing Complications:",
+                        "li1": "<strong>\"Wearing-Off\":</strong> Return of symptoms before next dose. Manage by increasing dosing frequency or adding COMT-inhibitor.",
+                        "li2": "<strong>Dyskinesias:</strong> Involuntary movements at peak dose. Amantadine can help.",
+                        "li3": "<strong>Psychiatric Side Effects:</strong> Hallucinations/delirium. Clozapine and Pimavanserin are effective treatments.",
+                        "h4_3": "Medications to Avoid",
+                        "li4": "<strong>Dopamine Agonists:</strong> High risk of severe psychiatric side effects in older adults.",
+                        "li5": "<strong>Anticholinergic Drugs:</strong> Never used in older people with PD due to high risk of delirium."
+                    }
+                },
+                "item-5": {
+                    "trigger": "Chapter 5: Holistic and Rehabilitative Care",
+                    "title": "5.1 Holistic Care",
+                    "content": {
+                        "p1": "Management extends far beyond medication. Therapy sessions should be timed with the peak effect of L-dopa.",
+                        "li1": "<strong>Physical Therapy:</strong> Essential for gait training, balance, posture, and fall prevention.",
+                        "li2": "<strong>Speech Therapy:</strong> Crucial for managing dysarthria (speech) and dysphagia (swallowing).",
+                        "li3": "<strong>Supportive and Palliative Care:</strong> As the disease progresses, focus shifts to managing loss of independence and ensuring quality of life."
+                    }
+                }
+            }
+        },
+        "dementia-care-professional": {
+            "title": "A Comprehensive Nursing Guide to Delirium in the Older Adult",
+            "subtitle": "This lesson provides a detailed clinical framework for the assessment, differential diagnosis, and complex management of delirium in geriatric patients.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Chapter 1: The Foundations of Delirium",
+                    "title": "1.1 Defining Delirium",
+                    "content": {
+                        "p1": "Delirium is a complex and acute neuropsychiatric syndrome, often described as acute brain failure. It represents a final common pathway for many acute illnesses and is characterized by a disturbance in attention, awareness, and cognition. Its presentation is highly variable, ranging from hypoactive lethargy to hyperactive agitation.",
+                        "h4_1": "1.2 Epidemiology and Consequences",
+                        "p2": "Delirium is a medical emergency associated with significant morbidity, mortality, and cost. It can accelerate cognitive decline, increase the risk of institutionalization, and lead to poorer functional outcomes.",
+                        "h4_2": "1.3 Delirium Phenotypes",
+                        "p3": "Recognizing motor subtypes (hypoactive, hyperactive, mixed) and clinical phenotypes (Postoperative Delirium, Delirium Superimposed on Dementia) is useful as they may have different etiologies and management strategies."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Chapter 2: Pathophysiology and Risk Factors",
+                    "title": "2.1 Pathophysiology and Risk Factors",
+                    "content": {
+                        "h4_1": "Pathophysiology",
+                        "p1": "The Systems Integration Failure Hypothesis (SIFH) suggests delirium results from a breakdown in neuronal network connectivity, driven by factors like neuronal aging, neuroinflammation, and neurotransmitter imbalances. This complexity helps explain why single-agent pharmacological treatments have failed.",
+                        "h4_2": "Predisposing and Precipitating Factors",
+                        "p2": "A patient's risk is a function of their baseline vulnerability (predisposing factors like dementia or frailty) and the acute insults they endure (precipitating factors like infection or new medications). Use mnemonics like \"DELIRIUM IS VERY PAINFUL\" to recall common triggers."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Chapter 3: Clinical Identification and Diagnosis",
+                    "title": "Screening vs. Diagnosis",
+                    "content": {
+                        "p1": "The gold standard for diagnosis remains the DSM-5 criteria. Daily screening of all hospitalized older adults is essential for early detection. The Confusion Assessment Method (CAM) is the most widely used tool, requiring (1) Acute Onset and Fluctuating Course and (2) Inattention, plus either (3) Disorganized Thinking or (4) Altered Level of Consciousness."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Chapter 4: Prevention - The First Line of Defense",
+                    "title": "Prevention Strategies",
+                    "content": {
+                        "p1": "Up to 40% of delirium cases are preventable through multicomponent, non-pharmacological interventions.",
+                        "h4_1": "Evidence-Based Prevention Models",
+                        "li1": "<strong>Hospital Elder Life Program (HELP):</strong> A protocol-driven program targeting six key risk factors: cognitive impairment, sleep deprivation, immobility, vision impairment, hearing impairment, and dehydration.",
+                        "li2": "<strong>ABCDEF Bundle (for ICU):</strong> A mnemonic for a comprehensive bundle of care practices including pain management, early mobility, and family engagement.",
+                        "h4_2": "Medication Management as Prevention",
+                        "li3": "<strong>Avoid High-Risk Medications:</strong> Scrutinize the medication list for anticholinergics (diphenhydramine), benzodiazepines, and other psychoactive drugs.",
+                        "li4": "<strong>Judicious Deprescribing:</strong> Taper chronic benzodiazepines or certain antidepressants to avoid withdrawal syndromes that can precipitate delirium."
+                    }
+                },
+                "item-5": {
+                    "trigger": "Chapter 5: Management of Delirium",
+                    "title": "Management Strategies",
+                    "content": {
+                        "h4_1": "Non-Pharmacological Management: The Mainstay of Treatment",
+                        "p1": "Once delirium occurs, non-pharmacological measures are the primary treatment. The T-A-DA (Tolerate, Anticipate, Don't Agitate) method is a useful behavioral management approach. This involves tolerating non-dangerous behaviors, anticipating patient needs, and minimizing agitating triggers.",
+                        "h4_2": "Pharmacological Management: A Limited and High-Risk Role",
+                        "p2": "No agents are approved by the FDA for the treatment of delirium.",
+                        "li1": "<strong>Benzodiazepines:</strong> Should not be used, as they can worsen delirium. The only exceptions are deliria due to alcohol or benzodiazepine withdrawal.",
+                        "li2": "<strong>Antipsychotics (e.g., Haloperidol):</strong> Have failed to show efficacy in reducing delirium duration or severity. They carry a Black Box warning for increased mortality in patients with dementia. Their use should be reserved only for cases where severe agitation poses an imminent danger, and only after all non-pharmacological methods have failed."
+                    }
+                }
+            }
+        },
+        "joint-problems-professional": {
+            "title": "Clinical Management of Rheumatic Disorders in Older Adults",
+            "subtitle": "A review of the assessment and management of common joint diseases like OA, RA, and Gout.",
+            "sections": {
+                "item-1": {
+                    "trigger": "Pathophysiology and Key Risk Factors",
+                    "title": "Pathophysiology",
+                    "content": {
+                        "h4_1": "Osteoarthritis (OA)",
+                        "p1": "Advanced age is the most important risk factor. Cartilage loss is the hallmark pathology, accompanied by synovial inflammation, osteophyte formation, and subchondral bone sclerosis. Other risk factors include obesity, female gender, trauma/joint injury, and quadriceps weakness.",
+                        "h4_2": "Gout and Pseudogout",
+                        "p2": "Gout is an inflammatory reaction to monosodium urate (MSU) crystals associated with hyperuricemia. Risk factors include age, male gender, renal disease, alcohol use, and diuretic use. Pseudogout is a similar reaction to calcium pyrophosphate dehydrate (CPPD) crystals, with advanced age being the most critical risk factor.",
+                        "h4_3": "Rheumatoid Arthritis (RA)",
+                        "p3": "Late-onset RA differs from young-onset, with more proximal joint involvement and a more aggressive course. The characteristic pathology is synovial inflammation (pannus formation) that erodes cartilage and bone."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Assessment and Differential Diagnosis",
+                    "title": "Clinical Distinctions",
+                    "content": {
+                        "li1": "<strong>Osteoarthritis:</strong> Insidious onset, chronic course. Affects DIPs (Heberden nodes), PIPs (Bouchard nodes), hips, knees. X-rays show joint space narrowing and osteophytes. Labs (ANA, RF, ESR) are typically negative.",
+                        "li2": "<strong>Rheumatoid Arthritis:</strong> More acute/subacute onset. Often involves proximal joints. Labs may show positive RF/anti-CCP and elevated ESR/CRP. X-rays can show erosions.",
+                        "li3": "<strong>Gout:</strong> Acute, intermittent attacks. Classically affects the first MTP. Confirmed by negatively birefringent, needle-shaped MSU crystals in synovial fluid.",
+                        "li4": "<strong>Pseudogout:</strong> Acute, intermittent attacks, often affecting the knee or wrist. Confirmed by positively birefringent, rod-shaped CPPD crystals. X-rays may show chondrocalcinosis.",
+                        "li5": "<strong>Polymyalgia Rheumatica (PMR):</strong> Acute onset of pain/stiffness in shoulder and hip girdles. Markedly elevated ESR/CRP. Must screen for Giant-Cell Arteritis (GCA).",
+                        "p1": "<strong>The Role of Arthrocentesis:</strong> Joint fluid analysis is crucial to differentiate inflammatory vs. noninflammatory arthritis and to rule out septic arthritis. A WBC count &gt;2,000 indicates inflammation."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Pharmacological Management",
+                    "title": "Pharmacological Management",
+                    "content": {
+                        "h4_1": "Osteoarthritis (OA)",
+                        "li1": "<strong>First-Line:</strong> Topical NSAIDs are preferred over oral due to better safety profile. Acetaminophen can be trialed.",
+                        "li2": "<strong>Oral NSAIDs:</strong> Discouraged due to CV, GI, and renal toxicity. Use lowest effective dose for shortest duration if necessary.",
+                        "li3": "<strong>Intra-articular Steroids:</strong> Can provide moderate short-term pain relief for knee OA.",
+                        "li4": "<strong>Opioids:</strong> Not effective for pain or function and best avoided due to significant adverse effects.",
+                        "h4_2": "Gout",
+                        "li5": "<strong>Urate-Lowering Therapy (ULT):</strong> Indicated for ≥2 attacks/year or tophi. Allopurinol is first-line. Goal is serum uric acid ≤6 mg/dL.",
+                        "li6": "<strong>Prophylaxis:</strong> Start low-dose colchicine or steroids when initiating ULT to prevent flares.",
+                        "li7": "<strong>Acute Flare Management:</strong> IA steroids for 1-2 joints. For polyarticular flares, use oral colchicine or a short course of steroids. Avoid NSAIDs in most older adults.",
+                        "h4_3": "Rheumatoid Arthritis (RA)",
+                        "li8": "<strong>First-Line:</strong> Early referral to rheumatology for Disease-Modifying Antirheumatic Drugs (DMARDs), often triple therapy (e.g., methotrexate, hydroxychloroquine, sulfasalazine).",
+                        "li9": "<strong>Biologics:</strong> For patients who fail DMARDs. Require screening for TB and hepatitis before initiation.",
+                        "li10": "<strong>Steroids:</strong> Used as a bridge to DMARDs, but not for long-term therapy. Prophylaxis for osteoporosis is critical if used for &gt;3 months."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Non-Pharmacological & Team-Based Management",
+                    "title": "Non-Pharmacological Management",
+                    "content": {
+                        "p1": "A multimodal, interprofessional approach is critical for managing arthritis in older adults.",
+                        "li1": "<strong>Education and Goal Setting:</strong> Establish realistic goals focused on pain reduction and functional improvement.",
+                        "li2": "<strong>Physical & Occupational Therapy:</strong> Essential for strength training, flexibility, assistive device selection (canes, walkers), and joint protection strategies.",
+                        "li3": "<strong>Weight Loss:</strong> Critically important for overweight/obese patients with OA of the knee or hip.",
+                        "li4": "<strong>Cardiovascular Risk Management:</strong> Crucial for patients with inflammatory arthritis (RA, Gout), as they have a higher risk of CV events."
+                    }
+                }
+            }
+        },
+        "vision-problems-professional": {
+            "title": "Geriatric Ophthalmology: A Clinical Review",
+            "subtitle": "A module for PCPs on the diagnosis and management of common age-related eye conditions.",
+            "sections": {
+                "item-1": {
+                    "trigger": "The Red Eye: Red Flags and Differential",
+                    "title": "Urgent vs. Non-Urgent Conditions",
+                    "content": {
+                        "p1": "Most red eye presentations in primary care are benign. The key is to identify red flags that indicate a vision-threatening condition requiring same-day ophthalmology referral.",
+                        "h4_1": "Red Flags for Emergent Referral:",
+                        "li1": "Decreased visual acuity (not resolved with blinking)",
+                        "li2": "Significant eye pain (more than irritation or foreign body sensation)",
+                        "li3": "Photophobia",
+                        "li4": "Ciliary flush (a ring of hyperemia around the limbus)",
+                        "li5": "Corneal opacification or epithelial disruption (visible with fluorescein)",
+                        "li6": "Pupil abnormalities (fixed, irregular)",
+                        "li7": "Elevated intraocular pressure (IOP &gt; 40 mmHg is an emergency)",
+                        "h4_2": "Common Benign Causes:",
+                        "p2": "Conditions like blepharitis, dry eye syndrome, subconjunctival hemorrhage, and most cases of conjunctivitis can often be managed initially in the primary care setting. Treatment includes warm compresses, artificial tears, and topical antibiotics if a bacterial cause is strongly suspected."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Common Age-Related Eye Diseases",
+                    "title": "Common Age-Related Diseases",
+                    "content": {
+                        "h4_1": "Dry Eye Disease (Keratoconjunctivitis Sicca)",
+                        "p1": "A multifactorial disease causing discomfort, visual disturbance, and tear film instability. Risk factors include advanced age, female sex, Sjögren syndrome, and polypharmacy (especially diuretics, antihistamines, antidepressants). Management focuses on education, environmental modification, artificial tears (preservative-free preferred for frequent use), and addressing underlying conditions like blepharitis.",
+                        "h4_2": "Age-Related Macular Degeneration (AMD)",
+                        "p2": "A leading cause of irreversible vision loss. \"Dry\" (atrophic) AMD is more common, while \"wet\" (neovascular) AMD causes more severe vision loss. Key risk factors are age, smoking, and genetics. Patients should monitor for metamorphopsia with an Amsler grid. Management for intermediate/advanced AMD includes AREDS2 vitamin supplementation. Wet AMD is treated with intravitreal anti-VEGF injections.",
+                        "h4_3": "Cataracts",
+                        "p3": "Lens opacification causing decreased visual acuity, glare, and poor contrast sensitivity. The only treatment is surgical extraction with intraocular lens implantation. The indication for surgery is functional impairment, not a specific VA number. Surgery is highly effective and can improve quality of life, cognition, and reduce fall risk.",
+                        "h4_4": "Glaucoma",
+                        "p4": "A progressive optic neuropathy characterized by visual field loss, often asymptomatically until advanced stages. Elevated IOP is the primary modifiable risk factor. Other risks include age, African ethnicity, and family history. Management involves lowering IOP with topical medications (prostaglandin analogues are first-line), laser trabeculoplasty, or surgery.",
+                        "h4_5": "Diabetic Retinopathy (DR)",
+                        "p5": "A common microvascular complication of diabetes. Risk factors include duration of DM, poor glycemic control, and hypertension. All patients with DM require annual dilated fundus examinations for screening. Management involves strict control of glucose and blood pressure, with anti-VEGF injections and laser photocoagulation for vision-threatening stages (proliferative DR, macular edema)."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Medication Considerations",
+                    "title": "Medication Considerations",
+                    "content": {
+                        "h4_1": "Systemic Effects of Eye Drops",
+                        "p1": "Systemic absorption of topical eye medications can be significant in older adults. Educate patients on nasolacrimal occlusion (gentle pressure on the inner canthus) or simple eye closure for 1-2 minutes after instillation to minimize absorption.",
+                        "li1": "<strong>Beta-blockers (e.g., Timolol):</strong> Can cause bradycardia, hypotension, and bronchospasm. Use with caution in patients with COPD, asthma, or heart block.",
+                        "li2": "<strong>Alpha-adrenergic agonists (e.g., Brimonidine):</strong> Can cause dry mouth and fatigue.",
+                        "h4_2": "Ocular Effects of Systemic Medications",
+                        "li3": "<strong>Anticholinergics & Antihistamines:</strong> Can exacerbate dry eye and carry a risk of inducing angle-closure glaucoma in predisposed individuals.",
+                        "li4": "<strong>Corticosteroids:</strong> Long-term use can cause cataracts and elevated IOP."
+                    }
+                }
+            }
+        },
+        "lung-infections-professional": {
+            "title": "Pneumonia in Older Adults: A Clinical Guide",
+            "subtitle": "A clinical framework for the assessment, triage, and management of pneumonia in geriatric patients.",
+            "sections": {
+                "item-1": {
+                    "trigger": "The Geriatric Context: Why Pneumonia is Different",
+                    "title": "The Geriatric Context",
+                    "content": {
+                        "p1": "In older adults, pneumonia is not just a lung infection; it's a systemic event with high rates of hospitalization and mortality. The risk is elevated due to a confluence of age-related changes and common comorbidities.",
+                        "h4_1": "Key Risk Factors:",
+                        "li1": "<strong>Impaired Defenses:</strong> Reduced cough effectiveness, poor mucociliary clearance, and weakened cellular immunity.",
+                        "li2": "<strong>Aspiration:</strong> Microaspiration of oropharyngeal contents is a frequent cause, exacerbated by neurological diseases (stroke, dementia), dysphagia, GERD, and the use of sedative drugs.",
+                        "li3": "<strong>Comorbidities:</strong> Pre-existing conditions like COPD, heart failure, and diabetes significantly increase susceptibility."
+                    }
+                },
+                "item-2": {
+                    "trigger": "Assessment: Atypical is Typical",
+                    "title": "Atypical Assessment",
+                    "content": {
+                        "p1": "The classic presentation of lobar pneumonia is often absent. Your assessment must have a high index of suspicion for atypical signs.",
+                        "h4_1": "Subtle Respiratory Signs:",
+                        "p2": "Tachypnoea (respiratory rate &gt;30/min) is a more reliable sign than cough. Localized crackles may be faint or absent.",
+                        "h4_2": "Non-Respiratory Presentations:",
+                        "p3": "Pneumonia frequently manifests as a non-specific decline. Look for:",
+                        "li1": "<strong>Delirium:</strong> An acute change in mental status may be the only presenting sign.",
+                        "li2": "<strong>Sepsis/Shock:</strong> Unexplained hypotension, tachycardia, or hypothermia.",
+                        "li3": "<strong>New Cardiac Events:</strong> Onset of new atrial fibrillation or a heart failure exacerbation.",
+                        "li4": "<strong>GI Symptoms:</strong> Abdominal pain, nausea, or paralytic ileus."
+                    }
+                },
+                "item-3": {
+                    "trigger": "Triage and Severity: When to Hospitalize (CRB-65)",
+                    "title": "Triage with CRB-65",
+                    "content": {
+                        "p1": "The CRB-65 scale is a simple, effective tool for bedside triage to assess the severity and need for hospitalization. One point is given for each of the following:",
+                        "li1": "<strong>C</strong>onfusion (new onset)",
+                        "li2": "<strong>R</strong>espiratory Rate (≥30/min)",
+                        "li3": "<strong>B</strong>lood Pressure (Systolic &lt;90 mmHg or Diastolic ≤60 mmHg)",
+                        "li4": "Age ≥<strong>65</strong> years",
+                        "p2": "<strong>Clinical Pearl:</strong> Every older patient will have a score of at least 1. A score of 1-2 warrants strong consideration for hospital referral. A score of 3-4 requires urgent admission."
+                    }
+                },
+                "item-4": {
+                    "trigger": "Principles of Management and Prevention",
+                    "title": "Management and Prevention",
+                    "content": {
+                        "h4_1": "General Supportive Care is Crucial",
+                        "p1": "Focus on hydration, nutrition, oral care, and prevention of immobility complications (VTE, pressure ulcers).",
+                        "h4_2": "The Critical 48-Hour Assessment",
+                        "p2": "Clinical response at 48 hours is a key decision point. An unfavorable response is a red flag requiring re-evaluation for resistant organisms, complications, or an incorrect initial diagnosis (e.g., PE).",
+                        "h4_3": "Prevention is the Best Treatment",
+                        "li1": "<strong>Vaccination:</strong> Advocate for and administer annual influenza and pneumococcal vaccines.",
+                        "li2": "<strong>Aspiration Prevention:</strong> Screen for swallowing disorders, implement precautions, and advocate for reducing unnecessary sedative medications."
+                    }
+                }
+            }
+        },
+        "page": {
+            "title": "Learning Modules",
+            "subtitle": "A guided curriculum based on core competencies and personalized recommendations.",
+            "caregiverTab": "For Family Caregivers",
+            "professionalTab": "For Health Professionals",
+            "basicsTitle": "The Basics right",
+            "basicsDesc": "These foundational modules are essential for all caregivers and health professionals.",
+            "recommendedTitle": "Recommended For You (Should Know)",
+            "recommendedDescCaregiver": "Based on your selected profile need for \"{scenario}\", we recommend these modules.",
+            "recommendedDescProfessional": "Modules relevant to the selected patient scenario: \"{scenario}\".",
+            "exploreTitle": "Explore Other Topics (Could Know)",
+            "exploreDesc": "Broaden your knowledge with these specialized modules.",
+            "startModule": "Start Module",
+            "backToModules": "Back to Modules"
+        }
+    },
+    "Simulations": {
+        "title": "மருத்துவ பயிற்சி சிமுலேஷன்கள்",
+        "subtitle": "இந்திய குடும்ப சூழலில் நடைமுறை சூழ்நிலைகளில் உங்கள் அறிவைப் பயன்படுத்துங்கள்.",
+        "startSimulation": "சிமுலேஷனைத் தொடங்குங்கள்"
+    },
+    "AssessmentGuide": {
+        "title": "Crafting Effective Geriatric Learning Modules",
+        "subtitle": "A guide for caregivers and health workers on creating comprehensive geriatric training.",
+        "startLesson": "Start Lesson",
+        "lessons": {
+            "introduction": {
+                "title": "Foundations of Modern Geriatric Education",
+                "description": "Explore the core principles and frameworks that define geriatric care education."
+            },
+            "workforce": {
+                "title": "Tailoring Modules for a Diverse Workforce",
+                "description": "Learn how to adapt geriatric training for physicians, nurses, and the entire caregiving ecosystem."
+            },
+            "clinical-content": {
+                "title": "Core Clinical Content",
+                "description": "Delve into the essential clinical topics, from multimorbidity to palliative care."
+            },
+            "innovations": {
+                "title": "Innovations in Pedagogy and Care Models",
+                "description": "Discover advances in teaching methods, technology, and patient-directed care models."
+            },
+            "case-study": {
+                "title": "Global Case Study: India",
+                "description": "Examine a real-world example of a nation building a multi-tiered geriatric education ecosystem."
+            }
+        }
+    }
+}

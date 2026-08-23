@@ -19,11 +19,15 @@
         "simulations": "Simulations",
         "appointments": "Appointments",
         "vitalLogs": "Vital Logs",
+        "stressCalculator": "Burden & Stress Gauge",
         "videos": "Video Library",
         "podcasts": "Podcasts",
         "assessmentuide": "Assessment Guide",
         "resources": "Resources",
-        "sehatOpd": "Sehat OPD"
+        "sehatOpd": "Sehat OPD",
+        "medications": "Medication Schedule",
+        "careCircle": "Care Circle",
+        "reports": "Clinical Brief"
     },
     "Header": {
         "profile": "Profile",

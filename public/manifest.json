@@ -1,0 +1,34 @@
+{
+  "name": "Sanjeevani — Geriatric Decision Support",
+  "short_name": "Sanjeevani",
+  "description": "Evidence-based geriatric caregiver decision support and burden triage platform for India.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "url": "/dashboard",
+      "description": "Trigger National Helplines 14567 / 112"
+    },
+    {
+      "name": "Stress & Burden Gauge",
+      "url": "/stress-calculator",
+      "description": "Standardized Zarit Caregiver Burden Scale"
+    },
+    {
+      "name": "Medications Schedule",
+      "url": "/medications",
+      "description": "View Daily Prescriptions"
+    }
+  ]
+}

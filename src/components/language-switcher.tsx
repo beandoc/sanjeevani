@@ -14,8 +14,10 @@ import { useRouter } from 'next/navigation';
 
 const languages = [
     { code: 'en', label: 'English' },
-    { code: 'hi', label: 'हिंदी' },
-    { code: 'mr', label: 'मराठी' },
+    { code: 'hi', label: 'हिंदी (Hindi)' },
+    { code: 'mr', label: 'मराठी (Marathi)' },
+    { code: 'ta', label: 'தமிழ் (Tamil)' },
+    { code: 'bn', label: 'বাংলা (Bengali)' },
 ];
 
 export function LanguageSwitcher() {

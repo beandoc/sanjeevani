@@ -19,11 +19,15 @@
         "simulations": "सिम्युलेशन्स",
         "appointments": "अपॉइंटमेंट्स",
         "vitalLogs": "व्हायटल लॉग्स",
+        "stressCalculator": "ताण व थकवा मापक",
         "videos": "व्हिडिओ लायब्ररी",
         "podcasts": "पॉडकास्ट",
         "assessmentuide": "मूल्यांकन मार्गदर्शक",
         "resources": "संसाधने",
-        "sehatOpd": "सेहत ओपीडी"
+        "sehatOpd": "सेहत ओपीडी",
+        "medications": "औषध वेळापत्रक",
+        "careCircle": "केअर सर्कल (कुटुंब)",
+        "reports": "क्लिनिकल अहवाल"
     },
     "Header": {
         "profile": "प्रोफाइल",
