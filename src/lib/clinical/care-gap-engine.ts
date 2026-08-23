@@ -257,7 +257,17 @@ export class CareGapEngine {
 
     // 8. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
     let injuryScore = 20;
-    const isTransfersHandledByStaff = formal && (formal.handlesHeavyTransfers || formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h' || formal.type === 'trained_nurse_12h');
+    const selectedTypes: FormalSupportType[] =
+      formal?.types && formal.types.length > 0
+        ? formal.types
+        : formal?.type && formal.type !== 'none'
+        ? [formal.type]
+        : [];
+
+    const isTransfersHandledByStaff =
+      formal &&
+      (formal.handlesHeavyTransfers ||
+        selectedTypes.some((t) => t.includes('24h') || t.includes('12h') || t === 'medical_assistant'));
 
     if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring) {
       injuryScore += isTransfersHandledByStaff ? 10 : 35; // 70% reduction in lumbar risk if staff handles lifts
@@ -268,12 +278,12 @@ export class CareGapEngine {
     if (caregiver.age >= 60) injuryScore += 15;
     if (!caregiver.formalTrainingReceived) injuryScore += 15;
     if (netCareGapHours > 3.0) injuryScore += 20;
-    
-    // Formal support mitigates overall family injury strain
-    if (formal && (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h')) {
-      injuryScore = Math.max(10, injuryScore - 30);
-    } else if (formal && (formal.type === 'paid_attendant_12h' || formal.type === 'trained_nurse_12h')) {
-      injuryScore = Math.max(15, injuryScore - 20);
+
+    // Formal & Medical Support Team mitigates overall family injury strain
+    if (selectedTypes.length >= 2 || selectedTypes.some((t) => t.includes('24h'))) {
+      injuryScore = Math.max(10, injuryScore - 35);
+    } else if (selectedTypes.length >= 1) {
+      injuryScore = Math.max(15, injuryScore - 25);
     }
 
     const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
@@ -287,22 +297,21 @@ export class CareGapEngine {
     const clinicalFindings: string[] = [];
     const prescriptions: CareGapEvaluationResult['prescriptions'] = [];
 
-    if (formal && formal.type !== 'none') {
-      const formalLabel =
-        formal.type === 'paid_attendant_24h'
-          ? '24-Hour Paid Attendant'
-          : formal.type === 'paid_attendant_12h'
-          ? '12-Hour Paid Attendant'
-          : formal.type === 'trained_nurse_24h'
-          ? '24-Hour Certified Nurse'
-          : formal.type === 'trained_nurse_12h'
-          ? '12-Hour Certified Nurse'
-          : formal.type === 'medical_assistant'
-          ? 'Trained Medical Assistant'
-          : 'Multi-Caregiver Family Rotation';
+    if (selectedTypes.length > 0) {
+      const typeLabels: { [k in FormalSupportType]: string } = {
+        trained_nurse_24h: '24h Certified Nurse',
+        trained_nurse_12h: '12h Certified Nurse',
+        medical_assistant: 'Medical Assistant / Physio Aide',
+        paid_attendant_24h: '24h Paid Attendant',
+        paid_attendant_12h: '12h Paid Attendant',
+        multi_family_rotation: 'Multi-Family Rotation',
+        none: 'Solo Family Care'
+      };
+
+      const teamList = selectedTypes.map((t) => typeLabels[t] || t).join(' + ');
 
       clinicalFindings.push(
-        `Formal Support Active (${formalLabel}): Absorbs ${formalSupportAbsorbedHours} hrs/day of patient physical demands, reducing primary family caregiver fatigue and musculoskeletal burden.`
+        `Multi-Disciplinary Caregiver Team Active (${teamList}): Successfully absorbs ${formalSupportAbsorbedHours} hrs/day of patient clinical and physical demands, protecting the primary caregiver from severe burnout and lumbar strain.`
       );
     }
 
