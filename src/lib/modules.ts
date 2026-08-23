@@ -70,6 +70,12 @@ export const caregiverModules = [
     category: 'Geriatric Foundations',
   },
   {
+    id: 'daily-caregiving-routine',
+    title: 'Daily Caregiving Blueprint: Hygiene, Transfers & Companionship',
+    description: 'Daily protocols for bathing, grooming, doctor-prescribed diets, safe transfers (bed/toilet/car), and health tracking.',
+    category: 'Geriatric Foundations',
+  },
+  {
     id: 'medication-management-caregiver',
     title: 'Helping Your Loved One Stay Safe with Medicines',
     description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
