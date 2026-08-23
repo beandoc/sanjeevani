@@ -45,8 +45,14 @@ export default function OnboardingIntakePage() {
   const [selectedRole, setSelectedRole] = useState<Role>(role || 'caregiver');
 
   // Working state for Patient & Caregiver
-  const [patient, setPatient] = useState<PatientDependenceProfile>(() => HealthRepository.getPatientProfile() || DEFAULT_PATIENT_PROFILE);
-  const [caregiver, setCaregiver] = useState<CaregiverAttributes>(() => HealthRepository.getCaregiverAttributes() || DEFAULT_CAREGIVER_ATTRIBUTES);
+  const [patient, setPatient] = useState<PatientDependenceProfile>(() => {
+    if (typeof window === 'undefined') return DEFAULT_PATIENT_PROFILE;
+    return HealthRepository.getPatientProfile() || DEFAULT_PATIENT_PROFILE;
+  });
+  const [caregiver, setCaregiver] = useState<CaregiverAttributes>(() => {
+    if (typeof window === 'undefined') return DEFAULT_CAREGIVER_ATTRIBUTES;
+    return HealthRepository.getCaregiverAttributes() || DEFAULT_CAREGIVER_ATTRIBUTES;
+  });
 
   const evaluation = CareGapEngine.evaluate(caregiver, patient);
 

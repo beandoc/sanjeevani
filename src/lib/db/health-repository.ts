@@ -633,7 +633,14 @@ export class HealthRepository {
       const raw = localStorage.getItem(STORAGE_KEYS.CAREGIVER_ATTRIBUTES);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.name) return parsed;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_CAREGIVER_ATTRIBUTES,
+            ...parsed,
+            caregiverHealth: { ...DEFAULT_CAREGIVER_ATTRIBUTES.caregiverHealth, ...(parsed.caregiverHealth || {}) },
+            formalSupport: { ...DEFAULT_CAREGIVER_ATTRIBUTES.formalSupport, ...(parsed.formalSupport || {}) }
+          };
+        }
       }
     } catch (e) {
       console.error('Error reading caregiver attributes:', e);
@@ -656,7 +663,14 @@ export class HealthRepository {
       const raw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.name) return parsed;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_PATIENT_PROFILE,
+            ...parsed,
+            katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(parsed.katzAdl || {}) },
+            lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(parsed.lawtonIadl || {}) }
+          };
+        }
       }
     } catch (e) {
       console.error('Error reading patient profile:', e);

@@ -150,8 +150,15 @@ export class CareGapEngine {
     caregiver: CaregiverAttributes,
     patient: PatientDependenceProfile
   ): CareGapEvaluationResult {
+    const safePatient = patient || DEFAULT_PATIENT_PROFILE;
+    const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
+
+    const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
+    const safeIadl = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
+    const safeHealth = { ...DEFAULT_CAREGIVER_ATTRIBUTES.caregiverHealth, ...(safeCaregiver.caregiverHealth || {}) };
+
     // 1. Calculate Katz ADL Score (0-6)
-    const adlItems = Object.values(patient.katzAdl);
+    const adlItems = Object.values(safeKatz);
     const katzAdlScore = adlItems.filter(Boolean).length;
     const adlDeficits = 6 - katzAdlScore;
 
@@ -160,7 +167,7 @@ export class CareGapEngine {
     else if (katzAdlScore <= 4) katzDependenceLevel = 'moderate_impairment';
 
     // 2. Calculate Lawton IADL Score (0-5)
-    const iadlItems = Object.values(patient.lawtonIadl);
+    const iadlItems = Object.values(safeIadl);
     const lawtonIadlScore = iadlItems.filter(Boolean).length;
     const iadlDeficits = 5 - lawtonIadlScore;
 
