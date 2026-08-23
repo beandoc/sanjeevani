@@ -1,4 +1,6 @@
+'use client';
 
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -7,175 +9,350 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Download,
-  ListOrdered,
   Smartphone,
   UserPlus,
   Video,
-  ArrowRight,
+  ExternalLink,
   ShieldCheck,
   Clock,
   FileText,
-  Wifi,
-  Info,
+  Building2,
+  CheckCircle2,
+  PhoneCall,
+  Activity,
+  HeartPulse,
+  Sparkles,
+  HelpCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function SehatOpdPage() {
+export default function TeleconsultationPage() {
+  const [activeTab, setActiveTab] = useState<'esanjeevani' | 'sehat'>('esanjeevani');
+
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold font-headline">
-          Sehat OPD: National Teleconsultation Service
-        </h1>
-        <p className="text-muted-foreground">
-          The Tri-services Teleconsultation Service of the Ministry of Defence (MoD).
+        <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
+          <HeartPulse className="w-4 h-4" />
+          <span>Government Telemedicine Services</span>
+        </div>
+        <h1 className="text-3xl font-bold font-headline">National Teleconsultation Hub</h1>
+        <p className="text-muted-foreground text-sm">
+          Access free, official government doctor consultations from home via <strong>eSanjeevani (MoHFW)</strong> and <strong>SeHAT OPD (MoD / ECHS)</strong>.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>What is Sehat OPD?</CardTitle>
-          <CardDescription>
-            Services e-Health Assistance and Tele-consultation (SeHAT) is a teleconsultation service for all entitled personnel and their families from the three Services, including ECHS beneficiaries. It aims to provide safe, structured, video-based clinical consultations from the comfort of home.
+      {/* Service Selector Tabs */}
+      <div className="flex p-1.5 bg-muted/60 rounded-2xl border border-border/60 gap-2 max-w-xl">
+        <button
+          type="button"
+          onClick={() => setActiveTab('esanjeevani')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'esanjeevani'
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          <span>eSanjeevani (All Citizens)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('sehat')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'sehat'
+              ? 'bg-primary text-primary-foreground shadow-md'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>SeHAT OPD (Defence & ECHS)</span>
+        </button>
+      </div>
+
+      {/* TAB 1: eSanjeevani (MoHFW - All Citizens) */}
+      {activeTab === 'esanjeevani' && (
+        <div className="space-y-6">
+          <Card className="border-primary/20 bg-primary/5 shadow-xs overflow-hidden">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="default" className="text-[10px] uppercase font-bold tracking-wider">
+                      Ministry of Health & Family Welfare (MoHFW)
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">Free 100% Digital</Badge>
+                  </div>
+                  <CardTitle className="text-xl font-bold font-headline">
+                    eSanjeevani — National Telemedicine Service
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-1">
+                    Developed by C-DAC Mohali for the Government of India. Provides free doctor teleconsultations (General OPD, Geriatric Care, Non-Communicable Diseases, and Specialist OPDs) for any Indian citizen.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3 pt-2">
+              <Button asChild className="gap-2 font-bold text-xs shadow-md">
+                <Link
+                  href="https://esanjeevani.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Launch eSanjeevani Web Portal</span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2 text-xs font-semibold bg-background">
+                <Link
+                  href="https://play.google.com/store/apps/details?id=in.gov.esanjeevaniopd.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="w-4 h-4 text-primary" />
+                  <span>Download eSanjeevani App (Google Play)</span>
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* eSanjeevani Step-by-Step Workflow */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-4 border-b border-border/40">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-primary" />
+                How to Consult a Doctor on eSanjeevani
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Follow these 4 simple steps to connect with a government medical officer or specialist.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
+                    1
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Registration & Mobile OTP</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Enter your mobile number on the app/portal to receive an OTP. Select your state, enter patient details, and link your 14-digit ABHA (Ayushman Bharat Health Account) ID if available.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
+                    2
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Select OPD & Generate Token</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Choose your State General OPD or Specialist clinic (e.g. Geriatric, Cardiology, Medicine). Upload past prescriptions or vital logs and receive your instant digital token.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
+                    3
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Virtual Queue & Video Call</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Wait in the live virtual queue until a doctor accepts the token. When notified, join the high-definition video/audio consultation directly in your browser or app.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
+                    4
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Digital E-Prescription</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Upon completing the call, download the digitally signed e-Prescription (eRx). It is legally recognized across India and valid at all Jan Aushadhi Kendras and retail pharmacies.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB 2: SeHAT OPD (MoD - Defence & ECHS) */}
+      {activeTab === 'sehat' && (
+        <div className="space-y-6">
+          <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-xs overflow-hidden">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="default" className="bg-emerald-700 hover:bg-emerald-800 text-[10px] uppercase font-bold tracking-wider">
+                      Ministry of Defence (MoD)
+                    </Badge>
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-[10px]">
+                      Tri-Services & ECHS
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-xl font-bold font-headline">
+                    SeHAT OPD — Services e-Health Assistance & Teleconsultation
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-1">
+                    Tri-Services teleconsultation platform for serving defence personnel, veterans, and Ex-Servicemen Contributory Health Scheme (ECHS) beneficiaries and their dependents.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3 pt-2">
+              <Button asChild className="gap-2 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 shadow-md">
+                <Link
+                  href="https://sehatopd.gov.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Launch SeHAT Web Portal</span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2 text-xs font-semibold bg-background">
+                <Link
+                  href="https://play.google.com/store/apps/details?id=com.cdac.sehatopd"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="w-4 h-4 text-emerald-600" />
+                  <span>Download SeHAT App (Google Play)</span>
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* SeHAT OPD Steps */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="pb-4 border-b border-border/40">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                How to Use SeHAT OPD for Defence & ECHS Families
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Armed Forces Medical Services (AFMS) teleconsultation and ECHS medicine delivery workflow.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 font-bold text-sm">
+                    A
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Service No. / ECHS Verification</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Register with your mobile OTP. Verify your beneficiary identity using your Service Number, ECHS Smart Card, or Aadhaar credentials.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 font-bold text-sm">
+                    B
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">Family Member Mapping</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Add and manage elderly parents, spouses, and dependent children under your verified primary service profile for teleconsultation booking.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 font-bold text-sm">
+                    C
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">AFMS Doctor Video Call</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Connect live with military doctors and specialists from Armed Forces Medical Services for structured medical evaluation.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 font-bold text-sm">
+                    D
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-sm text-foreground">ECHS Medicine Home Delivery</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Prescriptions generated on SeHAT can be seamlessly fulfilled with doorstep medicine delivery via linked ECHS polyclinics and authorised local chemists.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Consultation Prep Checklist */}
+      <Card className="border-border bg-card shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            Checklist Before Your Teleconsultation
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Prepare these 4 items to make the doctor&apos;s evaluation fast and clinically accurate.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link
-              href="https://play.google.com/store/apps/details?id=com.cdac.sehatopd"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download the App from Google Play
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>How to Use the Sehat OPD App</CardTitle>
-          <CardDescription>
-            Follow these simple steps to schedule and complete your teleconsultation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <UserPlus className="h-6 w-6 text-primary" />
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-foreground">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>1. Vitals Log</span>
             </div>
-            <div>
-              <h3 className="font-semibold">A. Registration & Verification</h3>
-              <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                <li>Verify your mobile number using an OTP.</li>
-                <li>Fill in the Patient Registration Form in the app.</li>
-                <li>Physically report to a SeHAT medical officer to verify your identity using ID cards (Aadhaar/ECHS card).</li>
-                <li>Once verified, you will receive a confirmation message. Your registration is valid for one year.</li>
-              </ul>
-            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Have today&apos;s Blood Pressure, Pulse, and Blood Sugar ready from your Vital Logs.
+            </p>
           </div>
 
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <Smartphone className="h-6 w-6 text-primary" />
+          <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-foreground">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>2. Current Medicines</span>
             </div>
-            <div>
-              <h3 className="font-semibold">B. Login</h3>
-               <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                <li>Log in with your registered mobile number and an OTP.</li>
-                <li>On your personal page, you can view past prescriptions and approved family members.</li>
-                <li>You can use your mobile number to arrange consultations for your approved family members.</li>
-              </ul>
-            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Keep all active medicine strips or your printable Clinical Brief within reach.
+            </p>
           </div>
 
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <Clock className="h-6 w-6 text-primary" />
+          <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-foreground">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>3. Key Symptoms</span>
             </div>
-            <div>
-              <h3 className="font-semibold">C. Wait for Your Turn</h3>
-               <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                <li>After logging in and requesting a consultation, you will be placed in a virtual waiting queue.</li>
-                <li>When a doctor is assigned, the "CALL NOW" button will activate.</li>
-                <li>You must click the "CALL NOW" button within 30 seconds, or you will be moved lower in the queue.</li>
-              </ul>
-            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Note exact onset time, changes in sleep/appetite, or recent falls.
+            </p>
           </div>
 
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <Video className="h-6 w-6 text-primary" />
+          <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-foreground">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>4. Good Lighting</span>
             </div>
-            <div>
-              <h3 className="font-semibold">D. Consultation</h3>
-              <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                <li>Your consultation will begin via video, audio, and chat.</li>
-                <li>The doctor can access any health records you uploaded when you requested the consultation.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-              <FileText className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">E. ePrescription</h3>
-              <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                <li>The doctor prepares your prescription during the call.</li>
-                <li>At the end of the consultation, the doctor sends the ePrescription to you and closes the call.</li>
-                <li>You can then download, print, or email the ePrescription. A copy is saved to your patient profile.</li>
-              </ul>
-            </div>
+            <p className="text-muted-foreground text-[11px]">
+              Position camera in a quiet, well-lit room for clear physical inspection.
+            </p>
           </div>
         </CardContent>
       </Card>
-      
-       <Card>
-        <CardHeader>
-          <CardTitle>Other Important Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
-              <Wifi className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Internet Speed</h3>
-              <p className="text-sm text-muted-foreground">
-                For a smooth video consultation experience, an internet speed of at least 1 Mbps is recommended.
-              </p>
-            </div>
-          </div>
-           <div className="flex items-start gap-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
-              <Info className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Platform Compatibility</h3>
-              <p className="text-sm text-muted-foreground">
-                SeHAT OPD is a responsive web application and can be used on computers, large screen tablets, and smartphones.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
-              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Profile Changes</h3>
-              <p className="text-sm text-muted-foreground">
-                Once registered, you cannot alter your personal details. However, an authorized SeHAT medical officer can make changes for you.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
     </div>
   );
 }
