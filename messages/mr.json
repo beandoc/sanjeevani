@@ -15,11 +15,13 @@
     },
     "Sidebar": {
         "dashboard": "डॅशबोर्ड",
+        "onboarding": "क्लिनिकल ऑनबोर्डिंग विझार्ड",
         "modules": "लर्निंग मॉड्यूल्स",
         "simulations": "सिम्युलेशन्स",
         "appointments": "अपॉइंटमेंट्स",
         "vitalLogs": "व्हायटल लॉग्स",
         "stressCalculator": "ताण व थकवा मापक",
+        "domiciliary": "बेडसाइड काळजी साथीदार",
         "videos": "व्हिडिओ लायब्ररी",
         "podcasts": "पॉडकास्ट",
         "assessmentuide": "मूल्यांकन मार्गदर्शक",
@@ -27,7 +29,12 @@
         "sehatOpd": "टेलिकन्सल्टेशन (ई-संजीवनी आणि सेहत)",
         "medications": "औषध वेळापत्रक",
         "careCircle": "केअर सर्कल (कुटुंब)",
-        "reports": "क्लिनिकल अहवाल"
+        "reports": "क्लिनिकल अहवाल",
+        "groupOverview": "डॅशबोर्ड",
+        "groupDailyCare": "दैनिक काळजी व नोंदी",
+        "groupClinicalAssessment": "क्लिनिकल मूल्यांकन",
+        "groupEducation": "शिक्षण व सिम्युलेशन",
+        "groupKnowledge": "माहिती व टेलिहेल्थ"
     },
     "Header": {
         "profile": "प्रोफाइल",

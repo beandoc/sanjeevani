@@ -15,11 +15,13 @@
     },
     "Sidebar": {
         "dashboard": "Dashboard",
+        "onboarding": "Clinical Onboarding Wizard",
         "modules": "Learning Modules",
         "simulations": "Simulations",
         "appointments": "Appointments",
         "vitalLogs": "Vital Logs",
         "stressCalculator": "Burden & Stress Gauge",
+        "domiciliary": "Bedside Companion",
         "videos": "Video Library",
         "podcasts": "Podcasts",
         "assessmentuide": "Assessment Guide",
@@ -27,7 +29,12 @@
         "sehatOpd": "Teleconsultation (eSanjeevani & SeHAT)",
         "medications": "Medication Schedule",
         "careCircle": "Care Circle",
-        "reports": "Clinical Brief"
+        "reports": "Clinical Brief",
+        "groupOverview": "Overview",
+        "groupDailyCare": "Daily Bedside & Care",
+        "groupClinicalAssessment": "Clinical Assessment & Triage",
+        "groupEducation": "Education & Simulations",
+        "groupKnowledge": "Knowledge & Telehealth"
     },
     "Header": {
         "profile": "Profile",

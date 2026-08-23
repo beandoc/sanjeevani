@@ -15,11 +15,13 @@
     },
     "Sidebar": {
         "dashboard": "ড্যাশবোর্ড",
+        "onboarding": "ক্লিনিক্যাল অনবোর্ডিং উইজার্ড",
         "modules": "শিক্ষা মডিউল",
         "simulations": "ক্লিনিকাল সিমুলেশন",
         "appointments": "ডাক্তারের অ্যাপয়েন্টমেন্ট",
         "vitalLogs": "স্বাস্থ্য পরিমাপ লগ",
         "stressCalculator": "মানসিক চাপ ও ক্লান্তি স্কেল",
+        "domiciliary": "বেডসাইড সেবা সাথী",
         "videos": "ভিডিও লাইব্রেরি",
         "podcasts": "অডিও সিরিজ",
         "assessmentuide": "মূল্যায়ন নির্দেশিকা",
@@ -27,7 +29,12 @@
         "sehatOpd": "টেলিকনসালটেশন (ই-সঞ্জীবনী ও সেহাত)",
         "medications": "ওষুধের সময়সূচী",
         "careCircle": "কেয়ার সার্কেল (পরিবার)",
-        "reports": "ক্লিনিক্যাল রিপোর্ট"
+        "reports": "ক্লিনিক্যাল রিপোর্ট",
+        "groupOverview": "সংক্ষিপ্ত বিবরণ",
+        "groupDailyCare": "দৈনন্দিন যত্ন ও রেকর্ড",
+        "groupClinicalAssessment": "ক্লিনিক্যাল মূল্যায়ন",
+        "groupEducation": "শিক্ষা ও প্রশিক্ষণ",
+        "groupKnowledge": "জ্ঞান ও টেলি-হেলথ"
     },
     "Header": {
         "profile": "প্রোফাইল",

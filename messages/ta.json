@@ -15,11 +15,13 @@
     },
     "Sidebar": {
         "dashboard": "டாஷ்போர்டு",
+        "onboarding": "மருத்துவ வழிகாட்டி விஸார்ட்",
         "modules": "கற்றல் தொகுதிகள்",
         "simulations": "மருத்துவ சிமுலேஷன்",
         "appointments": "மருத்துவ சந்திப்புகள்",
         "vitalLogs": "முக்கிய சுகாதார பதிவுகள்",
         "stressCalculator": "பராமரிப்பாளர் மன அழுத்த அளவீடு",
+        "domiciliary": "படுக்கையறை பராமரிப்பு",
         "videos": "வீடியோ நூலகம்",
         "podcasts": "ஆடியோ தொடர்",
         "assessmentuide": "மதிப்பீட்டு வழிகாட்டி",
@@ -27,7 +29,12 @@
         "sehatOpd": "தொலைமருத்துவம் (eSanjeevani & SeHAT)",
         "medications": "மருந்து அட்டவணை",
         "careCircle": "குடும்ப பராமரிப்பு வட்டம்",
-        "reports": "மருத்துவ அறிக்கை"
+        "reports": "மருத்துவ அறிக்கை",
+        "groupOverview": "கண்ணோட்டம்",
+        "groupDailyCare": "தினசரி பராமரிப்பு பதிவுகள்",
+        "groupClinicalAssessment": "மருத்துவ மதிப்பீடு",
+        "groupEducation": "கல்வி மற்றும் பயிற்சி",
+        "groupKnowledge": "அறிவு மையம்"
     },
     "Header": {
         "profile": "சுயவிவரம்",
