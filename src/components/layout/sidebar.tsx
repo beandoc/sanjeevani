@@ -400,7 +400,7 @@ export function AppSidebar() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('professional')}
+                  onClick={() => setRole('doctor')}
                   className={cn(
                     'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
                     isDoctor ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
