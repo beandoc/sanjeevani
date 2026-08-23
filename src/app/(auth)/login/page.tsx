@@ -27,7 +27,8 @@ import {
   Activity,
   Globe,
   KeyRound,
-  Fingerprint
+  Fingerprint,
+  Bed
 } from 'lucide-react';
 import { useProfile, Role } from '@/context/role-context';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -163,23 +164,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden shadow-2xl border border-border/80 bg-card">
-      {/* LEFT COLUMN: Enterprise Corporate Brand & Clinical Credentials (5 Cols) */}
-      <div className="lg:col-span-5 bg-slate-950 text-white p-8 sm:p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden">
+    <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden shadow-2xl border border-border/80 bg-card">
+      {/* LEFT COLUMN: Enterprise Corporate Brand & Clinical Accreditation (5 Cols) */}
+      <div className="lg:col-span-5 bg-slate-950 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
         {/* Ambient Medical Waveform Glows */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-slate-950/80 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-slate-950/90 to-transparent pointer-events-none" />
         <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
 
         {/* Top Brand Emblem */}
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="relative h-11 w-11 overflow-hidden rounded-xl border border-primary/30 shadow-md bg-white/5 p-1 backdrop-blur-md">
+            <div className="h-12 w-12 rounded-2xl border border-primary/30 shadow-md bg-white/10 p-2 backdrop-blur-md flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
                 alt="Sanjeevani Logo"
-                fill
-                className="object-contain"
+                width={40}
+                height={40}
+                className="object-contain max-h-full max-w-full"
               />
             </div>
             <div>
@@ -187,66 +189,66 @@ export default function LoginPage() {
                 Sanjeevani
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest text-primary font-mono block">
-                Enterprise Geriatric Care OS
+                Enterprise Geriatric OS
               </span>
             </div>
           </div>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2.5 pt-2">
             <h1 className="font-headline text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
               Evidence-Based Decision Support for Elderly Care.
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-              Empowering healthcare institutions, clinical teams, and family caregivers with psychometric burden tracking, Beers criteria pharmacology, and ABDM integration.
+            <p className="text-xs text-slate-300 leading-relaxed font-normal">
+              Empowering healthcare institutions, clinical teams, and family caregivers with Zarit burden tracking, AGS Beers 2023 drug safety, and ABDM integration.
             </p>
           </div>
 
           {/* Clinical Accreditation Badges */}
-          <div className="space-y-2.5 pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-200">
+          <div className="space-y-2.5 pt-3 border-t border-slate-800/80">
+            <div className="flex items-center gap-2.5 text-xs text-slate-200">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>DPDP Act 2023 & Local Encryption Sandbox</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-200">
+            <div className="flex items-center gap-2.5 text-xs text-slate-200">
               <HeartPulse className="w-4 h-4 text-rose-400 shrink-0" />
               <span>Zarit Burden Psychometrics (ZBI-22/12/4)</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-200">
+            <div className="flex items-center gap-2.5 text-xs text-slate-200">
               <Stethoscope className="w-4 h-4 text-blue-400 shrink-0" />
-              <span>AGS Beers 2023 & STOPP Prescribing Cascade Safety</span>
+              <span>AGS Beers 2023 & STOPP Safety Guidelines</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-200">
+            <div className="flex items-center gap-2.5 text-xs text-slate-200">
               <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
               <span>Govt Telemedicine Gateway (eSanjeevani & SeHAT)</span>
             </div>
           </div>
         </div>
 
-        {/* Live Network Metric Ticker & Testimonial */}
-        <div className="relative z-10 pt-8 mt-8 border-t border-slate-800 space-y-4">
+        {/* Live Network Metric Ticker */}
+        <div className="relative z-10 pt-6 mt-6 border-t border-slate-800/80 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Active Dyads</span>
-              <span className="text-xl font-black text-white font-mono">2,450+</span>
+              <span className="text-lg font-black text-white font-mono">2,450+</span>
             </div>
             <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Care Gap Hours</span>
-              <span className="text-xl font-black text-emerald-400 font-mono">-38%</span>
+              <span className="text-lg font-black text-emerald-400 font-mono">-38%</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span>ISO 27001 Certified Security</span>
-            <span className="font-mono">v2026.1 Enterprise</span>
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <span>ISO 27001 Certified</span>
+            <span>v2026.1 Enterprise</span>
           </div>
         </div>
       </div>
 
       {/* RIGHT COLUMN: Enterprise Authentication Portal (7 Cols) */}
-      <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-between bg-card">
+      <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-card">
         <div>
           {/* Header Controls */}
-          <div className="flex items-center justify-between pb-6 border-b border-border/60">
+          <div className="flex items-center justify-between pb-5 border-b border-border/60">
             <div>
               <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider text-primary border-primary/30">
                 Institutional Portal
@@ -258,41 +260,53 @@ export default function LoginPage() {
             <LanguageSwitcher />
           </div>
 
-          {/* Role Persona Segmented Switch */}
-          <div className="mt-6 space-y-1.5">
+          {/* Role Persona Segmented Switch (Caregiver, Nurse, Doctor) */}
+          <div className="mt-5 space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Select Workspace Mode
+              Select Active Persona / Portal
             </Label>
-            <div className="grid grid-cols-2 gap-2 p-1.5 bg-muted/60 rounded-2xl border border-border/60">
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-2xl border border-border/60">
               <button
                 type="button"
                 onClick={() => setSelectedRole('caregiver')}
-                className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   selectedRole === 'caregiver'
-                    ? 'bg-background text-foreground shadow-sm border border-border/80'
+                    ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Users className="w-3.5 h-3.5 text-primary" />
-                <span>Family Caregiver</span>
+                <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="truncate">Caregiver</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('nurse')}
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  selectedRole === 'nurse'
+                    ? 'bg-background text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="truncate">Nurse</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedRole('professional')}
-                className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                  selectedRole === 'professional'
-                    ? 'bg-background text-foreground shadow-sm border border-border/80'
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  selectedRole === 'professional' || selectedRole === 'doctor'
+                    ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Stethoscope className="w-3.5 h-3.5 text-primary" />
-                <span>Clinician / Nurse</span>
+                <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="truncate">Doctor</span>
               </button>
             </div>
           </div>
 
           {/* Authentication Method Tabs */}
-          <div className="flex items-center gap-4 mt-6 border-b border-border/60 pb-2">
+          <div className="flex items-center gap-4 mt-5 border-b border-border/60 pb-2">
             <button
               type="button"
               onClick={() => setAuthMethod('email')}
@@ -335,7 +349,7 @@ export default function LoginPage() {
               }`}
             >
               <Fingerprint className="w-3.5 h-3.5" />
-              <span>ABDM / ABHA ID</span>
+              <span>ABDM / ABHA</span>
               {authMethod === 'abha' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
               )}
@@ -343,13 +357,13 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4 mt-6">
+          <form onSubmit={handleLogin} className="space-y-4 mt-5">
             {/* METHOD 1: EMAIL */}
             {authMethod === 'email' && (
               <>
                 <div className="flex items-center justify-between -mt-1 mb-1">
                   <span className="text-[11px] text-muted-foreground">
-                    {isSignUp ? 'Creating a new account' : 'Signing in to an existing account'}
+                    {isSignUp ? 'Creating a new account' : 'Signing in to existing account'}
                   </span>
                   <button
                     type="button"
@@ -477,10 +491,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Invisible container Firebase Auth mounts its reCAPTCHA
-                verifier into for phone OTP. Emulator mode bypasses the
-                actual challenge (see client.ts) but the SDK still requires
-                this element to exist. */}
             <div id={RECAPTCHA_CONTAINER_ID} />
 
             <Button
@@ -501,42 +511,52 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick 1-Click Demo Logins for Instant Testing */}
-          <div className="mt-6 pt-4 border-t border-border/60 space-y-2.5">
+          {/* Quick 1-Click Instant Demo Login Triggers */}
+          <div className="mt-5 pt-4 border-t border-border/60 space-y-2">
             <span className="text-[10px] uppercase font-bold text-muted-foreground block text-center">
-              Or Explore Instant Clinical Demo
+              Explore Instant Clinical Demo Portals
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleDemoLogin('caregiver')}
-                className="h-9 text-xs font-semibold gap-1.5 hover:bg-primary/5"
+                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
               >
-                <Users className="w-3.5 h-3.5 text-primary" />
-                <span>Demo Caregiver</span>
+                <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="truncate">Demo Caregiver</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleDemoLogin('nurse')}
+                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
+              >
+                <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="truncate">Demo Nurse</span>
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleDemoLogin('professional')}
-                className="h-9 text-xs font-semibold gap-1.5 hover:bg-primary/5"
+                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
               >
-                <Stethoscope className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Demo Clinician</span>
+                <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="truncate">Demo Doctor</span>
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Footer Security Note */}
-        <div className="pt-6 mt-6 border-t border-border/40 text-center space-y-1">
+        {/* Footer Security & Helplines Note */}
+        <div className="pt-4 mt-4 border-t border-border/40 text-center space-y-1">
           <p className="text-[11px] text-muted-foreground">
             Protected by DPDP Act 2023 local privacy sandbox • 256-bit encryption
           </p>
-          <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-mono">
+          <div className="flex items-center justify-center gap-2.5 text-[10px] text-muted-foreground font-mono flex-wrap">
             <span>Elder Line: 14567</span>
             <span>•</span>
             <span>Tele-MANAS: 14416</span>
