@@ -1,0 +1,58 @@
+/**
+ * Shared severity-band visual language.
+ * Extracted from the caregiver-facing ZaritResultsView so the clinician
+ * dashboard renders the exact same band -> color mapping instead of a
+ * second, driftable copy. Any change to how "red" looks updates both views.
+ */
+
+import type { SeverityBand } from '@/lib/zarit-scale';
+
+export interface SeverityConfig {
+  color: string;
+  bgColor: string;
+  badgeBg: string;
+  desc: { en: string; hi: string; mr: string };
+}
+
+export const SEVERITY_CONFIGS: Record<SeverityBand, SeverityConfig> = {
+  normal: {
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
+    badgeBg: 'bg-emerald-500 text-white',
+    desc: {
+      en: 'Caregiver capacity is currently stable. Preventive self-care and routine ergonomic training recommended.',
+      hi: 'देखभालकर्ता की स्थिति स्थिर है। नियमित स्व-देखभाल और बचाव के उपाय जारी रखें।',
+      mr: 'काळजीवाहू व्यक्तीची स्थिती स्थिर आहे. नियमित स्वतःची काळजी आणि प्रतिबंधात्मक उपाय चालू ठेवा.'
+    }
+  },
+  amber: {
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
+    badgeBg: 'bg-amber-500 text-white',
+    desc: {
+      en: 'Moderate fatigue and emerging role strain detected. Recommended to schedule routine respite and divide duties.',
+      hi: 'मध्यम स्तर का तनाव व थकान दर्ज हुई है। कार्यों का बंटवारा करने व साप्ताहिक विश्राम लेने की सलाह दी जाती है।',
+      mr: 'मध्यम स्वरूपाचा ताण जाणवत आहे. कामाची विभागणी करा आणि नियमित विश्रांतीचे नियोजन करा.'
+    }
+  },
+  red: {
+    color: 'text-rose-600 dark:text-rose-400',
+    bgColor: 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800',
+    badgeBg: 'bg-rose-500 text-white',
+    desc: {
+      en: 'High caregiver strain exceeding safe burnout thresholds. Immediate task relief and clinical psychological consult advised.',
+      hi: 'गंभीर स्तर का तनाव! बर्नआउट का अत्यधिक जोखिम। तुरंत मनोवैज्ञानिक परामर्श और सहायता प्राप्त करें।',
+      mr: 'अतिशय गंभीर ताण आणि थकवा! तात्काळ मानसोपचारतज्ज्ञांचा सल्ला आणि मदत घेणे आवश्यक आहे.'
+    }
+  },
+  critical_red: {
+    color: 'text-red-700 dark:text-red-400',
+    bgColor: 'bg-red-100 dark:bg-red-950/50 border-red-300 dark:border-red-800',
+    badgeBg: 'bg-red-600 text-white animate-pulse',
+    desc: {
+      en: 'Critical caregiver exhaustion and imminent collapse risk. Emergency respite intervention and mandatory care team rotation required.',
+      hi: 'अति-गंभीर आपातकालीन स्थिति! तुरंत आपातकालीन विश्राम और परिवार के अन्य सदस्यों की भागीदारी अनिवार्य है।',
+      mr: 'अति-गंभीर आणीबाणीची स्थिती! तात्काळ मदत आणि रुग्णाची काळजी घेणाऱ्या व्यक्तीची अदलाबदल आवश्यक.'
+    }
+  }
+};
