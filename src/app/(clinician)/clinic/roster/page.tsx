@@ -50,8 +50,8 @@ export default function ClinicianRosterPage() {
     setIsRefreshing(true);
     try {
       const [rosterRows, myInvites] = await Promise.all([
-        user ? loadCohortRoster() : [],
-        user ? listMyDyadInvites() : []
+        loadCohortRoster(),
+        listMyDyadInvites()
       ]);
       setRows(rosterRows);
       setInvites(myInvites);

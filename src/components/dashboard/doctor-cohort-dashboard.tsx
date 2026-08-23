@@ -37,7 +37,19 @@ export function DoctorCohortDashboard() {
     void load();
   }, []);
 
-  if (!rows) return null;
+  if (!rows) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-32 bg-blue-500/10 rounded-2xl border border-blue-500/20" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-muted/40 rounded-xl border border-border/60" />
+          ))}
+        </div>
+        <div className="h-64 bg-muted/30 rounded-2xl border border-border/60" />
+      </div>
+    );
+  }
 
   const summary = summarizeCohort(rows);
   const needsAttention = rows.slice(0, NEEDS_ATTENTION_LIMIT);

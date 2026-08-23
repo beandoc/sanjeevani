@@ -1,13 +1,14 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
 import { Stethoscope, LogOut, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthUser } from '@/hooks/use-auth-user';
-import { signOutUser } from '@/lib/firebase/auth';
+import { signOutUser, signInOrCreateDemoAccount } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase/client';
 
 /**
  * Separate workspace shell for the clinician persona — deliberately not
@@ -15,9 +16,15 @@ import { useRouter } from 'next/navigation';
  * vital logs) belong to a different job entirely.
  */
 export default function ClinicianLayout({ children }: { children: ReactNode }) {
-  const { user } = useAuthUser();
+  const { user, isLoading } = useAuthUser();
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user && auth) {
+      void signInOrCreateDemoAccount('doctor');
+    }
+  }, [user, isLoading]);
 
   const clinicCode = user?.uid ? `${user.uid.slice(0, 10)}…` : 'DEMO-CLINIC-2026';
 

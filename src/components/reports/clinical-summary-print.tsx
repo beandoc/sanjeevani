@@ -1,8 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import { VitalRecord, MedicationItem, HealthRepository } from '@/lib/db/health-repository';
+import {
+  DEFAULT_CAREGIVER_ATTRIBUTES,
+  DEFAULT_PATIENT_PROFILE,
+  CareGapEngine
+} from '@/lib/clinical/care-gap-engine';
 import { format } from 'date-fns';
 
 interface ClinicalSummaryPrintProps {
@@ -22,7 +27,23 @@ export function ClinicalSummaryPrint({
   caregiverName = 'Suresh Kumar (Son)',
   caregiverRelation = 'Primary Family Caregiver',
 }: ClinicalSummaryPrintProps) {
-  const currentDate = new Date();
+  const [mounted, setMounted] = useState(false);
+  const [docId, setDocId] = useState('SNJ-CLINICAL-000000');
+  const [generatedDate, setGeneratedDate] = useState<Date | null>(null);
+  const [caregiverAttrs, setCaregiverAttrs] = useState(DEFAULT_CAREGIVER_ATTRIBUTES);
+  const [patientProfile, setPatientProfile] = useState(DEFAULT_PATIENT_PROFILE);
+  const [careGapEval, setCareGapEval] = useState(() =>
+    CareGapEngine.evaluate(DEFAULT_CAREGIVER_ATTRIBUTES, DEFAULT_PATIENT_PROFILE)
+  );
+
+  useEffect(() => {
+    setMounted(true);
+    setGeneratedDate(new Date());
+    setDocId(`SNJ-CLINICAL-${Date.now().toString().slice(-6)}`);
+    setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
+    setPatientProfile(HealthRepository.getPatientProfile());
+    setCareGapEval(HealthRepository.getCareGapEvaluation());
+  }, []);
 
   // Consistent 10-Record / Recent 14-Day Window Analytics
   const recentVitals = vitals.slice(0, 10);
@@ -67,11 +88,6 @@ export function ClinicalSummaryPrint({
     else bpClassification = 'Stage 2 HTN';
   }
 
-  // Load Care Gap Evaluation
-  const caregiverAttrs = HealthRepository.getCaregiverAttributes();
-  const patientProfile = HealthRepository.getPatientProfile();
-  const careGapEval = HealthRepository.getCareGapEvaluation();
-
   return (
     <div className="bg-white text-black p-8 max-w-4xl mx-auto font-sans leading-relaxed text-xs space-y-6 print:p-0 print:m-0 print:text-black print:bg-white">
       {/* 1. Header & Clinic Encounter Banner */}
@@ -85,8 +101,12 @@ export function ClinicalSummaryPrint({
           </p>
         </div>
         <div className="text-right space-y-0.5">
-          <p className="font-mono font-bold text-xs">Generated: {format(currentDate, 'PPP p')}</p>
-          <p className="text-[10px] text-slate-500">Document ID: SNJ-CLINICAL-{Date.now().toString().slice(-6)}</p>
+          <p className="font-mono font-bold text-xs" suppressHydrationWarning>
+            Generated: {generatedDate ? format(generatedDate, 'PPP p') : '—'}
+          </p>
+          <p className="text-[10px] text-slate-500" suppressHydrationWarning>
+            Document ID: {docId}
+          </p>
         </div>
       </div>
 

@@ -32,6 +32,8 @@ import {
 import { createDyadInvite, saveCaregiverAttributesFor, type DyadInvite } from '@/lib/firebase/clinical-sync';
 import { CaregiverAttributes, DEFAULT_CAREGIVER_ATTRIBUTES, FormalSupportType } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase/client';
+import { signInOrCreateDemoAccount } from '@/lib/firebase/auth';
 
 interface RegisterPatientDialogProps {
   /** Called once the invite is created — receives the full invite (including its code). */
@@ -141,6 +143,14 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
 
     setIsSubmitting(true);
     try {
+      if (auth && !auth.currentUser) {
+        try {
+          await signInOrCreateDemoAccount('doctor');
+        } catch (authErr) {
+          console.warn('Auto-signing demo clinician on registration:', authErr);
+        }
+      }
+
       const invite = await createDyadInvite({
         patientName: patientName.trim(),
         patientAge: ageNum || 0,

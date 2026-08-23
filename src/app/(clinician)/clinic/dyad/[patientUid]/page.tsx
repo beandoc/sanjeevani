@@ -96,55 +96,62 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   }, []);
 
   const load = async () => {
-    let assessments = await getZaritAssessmentsFor(patientUid);
-    let functionScores = await getFunctionScoresFor(patientUid);
-    let name = await getPatientDisplayName(patientUid);
-    const [meds, vitalRecords, cgAttrs, prof] = await Promise.all([
-      getMedicationsFor(patientUid),
-      getVitalsFor(patientUid),
-      getCaregiverAttributesFor(patientUid),
-      getPatientProfileFor(patientUid)
-    ]);
-    setMedications(meds);
-    setVitals(vitalRecords);
-    setCaregiver(cgAttrs);
-    setPatientProfile(prof);
+    try {
+      let assessments = await getZaritAssessmentsFor(patientUid);
+      let functionScores = await getFunctionScoresFor(patientUid);
+      let name = await getPatientDisplayName(patientUid);
+      const [meds, vitalRecords, cgAttrs, prof] = await Promise.all([
+        getMedicationsFor(patientUid).catch(() => []),
+        getVitalsFor(patientUid).catch(() => []),
+        getCaregiverAttributesFor(patientUid).catch(() => null),
+        getPatientProfileFor(patientUid).catch(() => null)
+      ]);
+      setMedications(meds);
+      setVitals(vitalRecords);
+      setCaregiver(cgAttrs);
+      setPatientProfile(prof);
 
-    if (patientUid.startsWith('demo-')) {
-      if (patientUid.includes('sarojini') || patientUid.includes('8102')) {
-        name = 'Smt. Sarojini Devi (Dyad #8102)';
-        assessments = [
-          calculateZaritScore(
-            { zbi_1: 3, zbi_2: 3, zbi_3: 4, zbi_4: 3, zbi_5: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3, zbi_22: 4 },
-            'ZBI22'
-          ),
-          calculateZaritScore(
-            { zbi_1: 2, zbi_2: 2, zbi_3: 3, zbi_4: 2, zbi_5: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 3 },
-            'ZBI22'
-          )
-        ];
-      } else if (patientUid.includes('ramesh') || patientUid.includes('7641')) {
-        name = 'Shri Ramesh Chand (Dyad #7641)';
-        assessments = [
-          calculateZaritScore(
-            { zbi_1: 2, zbi_2: 2, zbi_3: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 2 },
-            'ZBI22'
-          )
-        ];
-      } else {
-        name = 'Smt. Kamla Gupta (Dyad #8419)';
-        assessments = [
-          calculateZaritScore(
-            { zbi_1: 1, zbi_2: 1, zbi_3: 1, zbi_7: 1, zbi_8: 1, zbi_14: 1, zbi_22: 1 },
-            'ZBI12'
-          )
-        ];
+      if (patientUid.startsWith('demo-')) {
+        if (patientUid.includes('sarojini') || patientUid.includes('8102')) {
+          name = 'Smt. Sarojini Devi (Dyad #8102)';
+          assessments = [
+            calculateZaritScore(
+              { zbi_1: 3, zbi_2: 3, zbi_3: 4, zbi_4: 3, zbi_5: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3, zbi_22: 4 },
+              'ZBI22'
+            ),
+            calculateZaritScore(
+              { zbi_1: 2, zbi_2: 2, zbi_3: 3, zbi_4: 2, zbi_5: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 3 },
+              'ZBI22'
+            )
+          ];
+        } else if (patientUid.includes('ramesh') || patientUid.includes('7641')) {
+          name = 'Shri Ramesh Chand (Dyad #7641)';
+          assessments = [
+            calculateZaritScore(
+              { zbi_1: 2, zbi_2: 2, zbi_3: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 2 },
+              'ZBI22'
+            )
+          ];
+        } else {
+          name = 'Smt. Kamla Gupta (Dyad #8419)';
+          assessments = [
+            calculateZaritScore(
+              { zbi_1: 1, zbi_2: 1, zbi_3: 1, zbi_7: 1, zbi_8: 1, zbi_14: 1, zbi_22: 1 },
+              'ZBI12'
+            )
+          ];
+        }
       }
-    }
 
-    setDisplayName(name);
-    setTrajectory(computeTrajectory(assessments, functionScores));
-    setLatestAssessment(assessments[0] ?? null);
+      setDisplayName(name);
+      setTrajectory(computeTrajectory(assessments, functionScores));
+      setLatestAssessment(assessments[0] ?? null);
+    } catch (err) {
+      console.warn('Error loading dyad profile, falling back gracefully:', err);
+      setDisplayName(patientUid.replace('demo-', '').replace('dyad_', 'Dyad '));
+      setTrajectory(computeTrajectory([], []));
+      setLatestAssessment(null);
+    }
   };
 
   useEffect(() => {

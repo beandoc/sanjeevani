@@ -92,36 +92,55 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
  * cohort when there are zero real grants AND zero pre-registered invites.
  */
 export async function loadCohortRoster(): Promise<CohortRow[]> {
-  const [roster, invites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
-  if (roster.length === 0) {
-    return invites.length > 0 ? [] : DEMO_COHORT_ROWS;
+  try {
+    const [roster, invites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
+    if (roster.length === 0) {
+      return invites.length > 0 ? [] : DEMO_COHORT_ROWS;
+    }
+
+    const rows = await Promise.all(
+      roster.map(async ({ patientUid }) => {
+        try {
+          const [assessments, functionScores, displayName] = await Promise.all([
+            getZaritAssessmentsFor(patientUid),
+            getFunctionScoresFor(patientUid),
+            getPatientDisplayName(patientUid)
+          ]);
+          const trajectory = computeTrajectory(assessments, functionScores);
+          const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
+          return {
+            patientUid,
+            displayName,
+            riskBand: trajectory.riskBand,
+            burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
+            latestBurdenPct: latest?.normalizedPercentage ?? null,
+            hasRedFlag: latest?.hasRedFlag ?? false,
+            latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
+            latestTier: latest?.tier ?? null,
+            latestCompletedAt: latest?.date ?? null
+          } satisfies CohortRow;
+        } catch {
+          return {
+            patientUid,
+            displayName: `Patient ${patientUid.slice(0, 8)}`,
+            riskBand: 'insufficient-data',
+            burdenTrendPerMonth: null,
+            latestBurdenPct: null,
+            hasRedFlag: false,
+            latestAssessmentAgeDays: null,
+            latestTier: null,
+            latestCompletedAt: null
+          } satisfies CohortRow;
+        }
+      })
+    );
+
+    rows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+    return rows;
+  } catch (err) {
+    console.warn('Could not load cohort roster, falling back to demo cohort:', err);
+    return DEMO_COHORT_ROWS;
   }
-
-  const rows = await Promise.all(
-    roster.map(async ({ patientUid }) => {
-      const [assessments, functionScores, displayName] = await Promise.all([
-        getZaritAssessmentsFor(patientUid),
-        getFunctionScoresFor(patientUid),
-        getPatientDisplayName(patientUid)
-      ]);
-      const trajectory = computeTrajectory(assessments, functionScores);
-      const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
-      return {
-        patientUid,
-        displayName,
-        riskBand: trajectory.riskBand,
-        burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
-        latestBurdenPct: latest?.normalizedPercentage ?? null,
-        hasRedFlag: latest?.hasRedFlag ?? false,
-        latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
-        latestTier: latest?.tier ?? null,
-        latestCompletedAt: latest?.date ?? null
-      } satisfies CohortRow;
-    })
-  );
-
-  rows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
-  return rows;
 }
 
 export interface CohortSummary {
