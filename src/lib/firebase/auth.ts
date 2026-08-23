@@ -35,14 +35,19 @@ import type { Role } from '@/context/role-context';
  * once at first sign-up, not silently changed by a later sign-in.
  */
 async function ensureUserProfile(uid: string, role: Role, extra?: Record<string, unknown>) {
-  const ref = doc(db, 'users', uid);
-  const existing = await getDoc(ref);
-  if (!existing.exists()) {
-    await setDoc(ref, {
-      role,
-      createdAt: serverTimestamp(),
-      ...extra
-    });
+  if (!db) return;
+  try {
+    const ref = doc(db, 'users', uid);
+    const existing = await getDoc(ref);
+    if (!existing.exists()) {
+      await setDoc(ref, {
+        role,
+        createdAt: serverTimestamp(),
+        ...extra
+      });
+    }
+  } catch (err) {
+    console.warn('Could not save profile to Firestore:', err);
   }
 }
 
@@ -60,12 +65,14 @@ export async function signUpWithEmail(
   role: Role,
   displayName?: string
 ): Promise<User> {
+  if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await ensureUserProfile(cred.user.uid, role, { displayName, email });
   return cred.user;
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<User> {
+  if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
   const cred = await signInWithEmailAndPassword(auth, email, password);
   return cred.user;
 }
@@ -103,7 +110,8 @@ let recaptchaVerifier: RecaptchaVerifier | null = null;
  * actually challenges the user; Firebase Auth Emulator auto-approves phone
  * verification for any number when appVerificationDisabledForTesting is set.
  */
-export function initRecaptcha(containerId: string): RecaptchaVerifier {
+export function initRecaptcha(containerId: string): RecaptchaVerifier | null {
+  if (!auth) return null;
   if (!recaptchaVerifier) {
     recaptchaVerifier = new RecaptchaVerifier(auth, containerId, { size: 'invisible' });
   }
@@ -115,7 +123,9 @@ export async function sendCaregiverOtp(
   phoneNumber: string,
   containerId: string
 ): Promise<ConfirmationResult> {
+  if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
   const verifier = initRecaptcha(containerId);
+  if (!verifier) throw new Error('Recaptcha verifier could not be initialized.');
   return signInWithPhoneNumber(auth, phoneNumber, verifier);
 }
 
@@ -133,15 +143,32 @@ export async function verifyCaregiverOtp(
  * ------------------------------------------------------------------ */
 
 export async function signOutUser(): Promise<void> {
+  if (!auth) return;
   await firebaseSignOut(auth);
 }
 
 export function subscribeToAuthState(callback: (user: User | null) => void): () => void {
-  return onAuthStateChanged(auth, callback);
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+  try {
+    return onAuthStateChanged(auth, callback);
+  } catch (err) {
+    console.warn('subscribeToAuthState failed:', err);
+    callback(null);
+    return () => {};
+  }
 }
 
 export async function getUserRole(uid: string): Promise<Role | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
-  return (snap.data().role as Role) ?? null;
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) return null;
+    return (snap.data().role as Role) ?? null;
+  } catch (err) {
+    console.warn('getUserRole failed:', err);
+    return null;
+  }
 }

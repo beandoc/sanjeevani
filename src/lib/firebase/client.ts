@@ -31,28 +31,58 @@ const USE_EMULATOR = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 // emulator on every re-render (connectXEmulator throws if called twice).
 let emulatorsConnected = false;
 
-function getFirebaseApp(): FirebaseApp {
-  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+function getFirebaseApp(): FirebaseApp | null {
+  try {
+    if (getApps().length) return getApp();
+    // Validate that apiKey exists before attempting initialization
+    if (!firebaseConfig.apiKey) {
+      console.warn('Firebase API key is missing. Falling back to offline mode.');
+      return null;
+    }
+    return initializeApp(firebaseConfig);
+  } catch (err) {
+    console.warn('Firebase App initialization warning:', err);
+    return null;
+  }
 }
 
-function getFirebaseAuth(): Auth {
-  const auth = getAuth(getFirebaseApp());
-  if (USE_EMULATOR && typeof window !== 'undefined' && !emulatorsConnected) {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-    // Emulator-only: skips the real reCAPTCHA challenge for phone-OTP sign-in
-    // so local development doesn't need a live site key. Never set outside
-    // the emulator — production phone auth must go through real verification.
-    auth.settings.appVerificationDisabledForTesting = true;
+function getFirebaseAuth(): Auth | null {
+  try {
+    const app = getFirebaseApp();
+    if (!app) return null;
+    const authInstance = getAuth(app);
+    if (USE_EMULATOR && typeof window !== 'undefined' && !emulatorsConnected) {
+      try {
+        connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: true });
+        authInstance.settings.appVerificationDisabledForTesting = true;
+      } catch (emuErr) {
+        console.warn('Firebase Auth Emulator connection skipped:', emuErr);
+      }
+    }
+    return authInstance;
+  } catch (err) {
+    console.warn('Firebase Auth initialization skipped (invalid API key or unconfigured project):', err);
+    return null;
   }
-  return auth;
 }
 
-function getFirebaseFirestore(): Firestore {
-  const db = getFirestore(getFirebaseApp());
-  if (USE_EMULATOR && typeof window !== 'undefined' && !emulatorsConnected) {
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+function getFirebaseFirestore(): Firestore | null {
+  try {
+    const app = getFirebaseApp();
+    if (!app) return null;
+    const dbInstance = getFirestore(app);
+    if (USE_EMULATOR && typeof window !== 'undefined' && !emulatorsConnected) {
+      try {
+        connectFirestoreEmulator(dbInstance, '127.0.0.1', 8080);
+      } catch (emuErr) {
+        console.warn('Firestore Emulator connection skipped:', emuErr);
+      }
+    }
+    return dbInstance;
+  } catch (err) {
+    console.warn('Firebase Firestore initialization skipped (falling back to offline mode):', err);
+    return null;
   }
-  return db;
 }
 
 export const firebaseApp = getFirebaseApp();

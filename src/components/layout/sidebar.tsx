@@ -37,11 +37,26 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { useProfile, Role } from '@/context/role-context';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  badge: string | null;
+  isHighlighted?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('Sidebar');
+  const { role, setRole } = useProfile();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const isActive = (href: string) => {
@@ -49,130 +64,268 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
 
-  const navSections = [
+  const isDoctor = role === 'doctor' || role === 'professional';
+  const isNurse = role === 'nurse';
+
+  const doctorSections: NavSection[] = [
     {
-      title: t('groupOverview'),
+      title: 'Doctor & Clinician Portal',
       items: [
         {
-          href: '/dashboard',
-          label: t('dashboard'),
-          icon: LayoutDashboard,
-          badge: null
+          href: '/clinic/roster',
+          label: 'Patient Roster & Risk Banding',
+          icon: Stethoscope,
+          badge: 'Roster',
+          isHighlighted: true
+        },
+        {
+          href: '/sehat-opd',
+          label: 'SeHAT OPD Tele-Consultation',
+          icon: Computer,
+          badge: 'Tele-OPD'
+        },
+        {
+          href: '/reports',
+          label: 'Longitudinal Trajectory Reports',
+          icon: FileText,
+          badge: 'Analytics'
         }
       ]
     },
     {
-      title: t('groupDailyCare'),
+      title: 'Pharmacology & Diagnostics',
       items: [
         {
-          href: '/domiciliary',
-          label: t.has('domiciliary') ? t('domiciliary') : 'Bedside Companion',
-          icon: Bed,
-          badge: null
+          href: '/medications',
+          label: 'AGS Beers 2023 Drug Safety',
+          icon: ClipboardList,
+          badge: 'BEERS'
         },
         {
-          href: '/medications',
-          label: t.has('medications') ? t('medications') : 'Medication Schedule',
-          icon: ClipboardList,
-          badge: null
+          href: '/stress-calculator',
+          label: 'Zarit Psychometrics Review',
+          icon: HeartPulse,
+          badge: 'ZBI-22'
         },
         {
           href: '/vital-logs',
-          label: t('vitalLogs'),
+          label: 'Patient Vitals Telemetry',
           icon: Activity,
-          badge: null
+          badge: 'Vitals'
+        }
+      ]
+    },
+    {
+      title: 'Clinical Workforce & Training',
+      items: [
+        {
+          href: '/modules',
+          label: 'Geriatric Clinical Modules',
+          icon: GraduationCap,
+          badge: 'Modules'
+        },
+        {
+          href: '/simulations',
+          label: 'Virtual Clinical Simulations',
+          icon: Bot,
+          badge: '21 Sims'
+        },
+        {
+          href: '/onboarding',
+          label: 'Patient Intake Wizard',
+          icon: Sparkles,
+          badge: 'Intake'
+        }
+      ]
+    },
+    {
+      title: 'Switch Portal / Sign Out',
+      items: [
+        {
+          href: '/login',
+          label: 'Main Sign In / Account Switcher',
+          icon: Users,
+          badge: 'Login'
+        }
+      ]
+    }
+  ];
+
+  const nurseSections: NavSection[] = [
+    {
+      title: 'Nurse & Attendant Portal',
+      items: [
+        {
+          href: '/domiciliary',
+          label: 'Bedside Companion & Q2H Clock',
+          icon: Bed,
+          badge: 'Bedside',
+          isHighlighted: true
+        },
+        {
+          href: '/vital-logs',
+          label: 'Vital Signs & Shift Telemetry',
+          icon: Activity,
+          badge: 'Vitals'
+        },
+        {
+          href: '/medications',
+          label: 'eMAR Medication Schedule',
+          icon: ClipboardList,
+          badge: 'eMAR'
+        }
+      ]
+    },
+    {
+      title: 'Care Coordination & Pathway',
+      items: [
+        {
+          href: '/appointments',
+          label: 'Telemedicine & Doctor Visits',
+          icon: CalendarDays,
+          badge: 'Visits'
+        },
+        {
+          href: '/care-circle',
+          label: 'Care Circle Dyad Roster',
+          icon: Users,
+          badge: 'Team'
+        },
+        {
+          href: '/onboarding',
+          label: 'Clinical Onboarding Intake',
+          icon: Sparkles,
+          badge: 'Setup'
+        }
+      ]
+    },
+    {
+      title: 'Skill Modules & Training',
+      items: [
+        {
+          href: '/modules',
+          label: 'Practical Nursing Modules',
+          icon: GraduationCap,
+          badge: 'Nursing'
+        },
+        {
+          href: '/simulations',
+          label: 'Interactive Patient Simulations',
+          icon: Bot,
+          badge: '21 Sims'
+        }
+      ]
+    },
+    {
+      title: 'Switch Portal / Sign Out',
+      items: [
+        {
+          href: '/login',
+          label: 'Main Sign In / Account Switcher',
+          icon: Users,
+          badge: 'Login'
+        }
+      ]
+    }
+  ];
+
+  const caregiverSections: NavSection[] = [
+    {
+      title: 'Family Caregiver Portal',
+      items: [
+        {
+          href: '/dashboard',
+          label: 'Caregiver Dashboard',
+          icon: LayoutDashboard,
+          badge: 'Caregiver'
+        },
+        {
+          href: '/domiciliary',
+          label: 'Bedside Care & Turn Alarm',
+          icon: Bed,
+          badge: 'Bedside'
+        },
+        {
+          href: '/medications',
+          label: 'Medication Schedule & Alarms',
+          icon: ClipboardList,
+          badge: 'Schedule'
+        },
+        {
+          href: '/vital-logs',
+          label: 'Vital Signs & Daily Log',
+          icon: Activity,
+          badge: 'Vitals'
         },
         {
           href: '/appointments',
-          label: t('appointments'),
+          label: 'Doctor Appointments',
           icon: CalendarDays,
           badge: null
         },
         {
           href: '/care-circle',
-          label: t('careCircle'),
+          label: 'Family Care Circle',
           icon: Users,
           badge: null
         }
       ]
     },
     {
-      title: t('groupClinicalAssessment'),
+      title: 'Clinical Tools & Assessment',
       items: [
         {
           href: '/onboarding',
-          label: t.has('onboarding') ? t('onboarding') : 'Clinical Onboarding Wizard',
+          label: 'Clinical Onboarding Wizard',
           icon: Sparkles,
           badge: 'Setup',
           isHighlighted: true
         },
         {
-          href: '/stress-calculator',
-          label: t.has('stressCalculator') ? t('stressCalculator') : 'Burden & Stress Gauge',
-          icon: HeartPulse,
-          badge: 'Zarit'
-        },
-        {
           href: '/reports',
-          label: t('reports'),
+          label: 'Clinical Care Gap Reports',
           icon: FileText,
           badge: null
         }
       ]
     },
     {
-      title: t('groupEducation'),
+      title: 'Education & VR Simulations',
       items: [
         {
           href: '/modules',
-          label: t('modules'),
+          label: 'Learning Modules',
           icon: GraduationCap,
           badge: null
         },
         {
           href: '/simulations',
-          label: t('simulations'),
+          label: '21 Virtual Simulations',
           icon: Bot,
-          badge: '21 Sims'
+          badge: 'Sims'
         },
         {
           href: '/assessment-guide',
-          label: t('assessmentuide'),
+          label: 'Clinical Assessment Guide',
           icon: Stethoscope,
           badge: null
         }
       ]
     },
     {
-      title: t('groupKnowledge'),
+      title: 'Account & Login',
       items: [
         {
-          href: '/resources',
-          label: t('resources'),
-          icon: BookMarked,
-          badge: null
-        },
-        {
-          href: '/videos',
-          label: t('videos'),
-          icon: Video,
-          badge: null
-        },
-        {
-          href: '/podcasts',
-          label: t('podcasts'),
-          icon: Mic,
-          badge: null
-        },
-        {
-          href: '/sehat-opd',
-          label: t('sehatOpd'),
-          icon: Computer,
-          badge: null
+          href: '/login',
+          label: 'Main Sign In / Switch Role',
+          icon: Users,
+          badge: 'Login'
         }
       ]
     }
   ];
+
+  const navSections = isDoctor ? doctorSections : isNurse ? nurseSections : caregiverSections;
 
   return (
     <Sidebar
@@ -182,7 +335,8 @@ export function AppSidebar() {
     >
       <SidebarHeader className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
         <Link
-          href="/dashboard"
+          href="/login"
+          title="Navigate to Main Login & Account Selection"
           className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-primary/20 shadow-sm shrink-0">
@@ -205,6 +359,59 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3 gap-4 overflow-y-auto">
+        {/* Active Portal Indicator & Quick Role Switcher */}
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <div className="px-3 py-2.5 rounded-xl bg-sidebar-accent/60 border border-sidebar-border group-data-[collapsible=icon]:hidden space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-mono font-bold text-muted-foreground">Active Portal</span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[9px] font-bold uppercase tracking-wider',
+                    isDoctor ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' :
+                    isNurse ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10' :
+                    'border-primary/40 text-primary bg-primary/10'
+                  )}
+                >
+                  {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-1 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setRole('caregiver')}
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                    role === 'caregiver' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                  )}
+                >
+                  Caregiver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('nurse')}
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                    role === 'nurse' ? 'bg-amber-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                  )}
+                >
+                  Nurse
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('professional')}
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                    isDoctor ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                  )}
+                >
+                  Doctor
+                </button>
+              </div>
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
         {/* Quick Omnibar Search Trigger */}
         <SidebarGroup className="p-0">
           <SidebarGroupContent>

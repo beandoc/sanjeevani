@@ -47,7 +47,7 @@ export function Header() {
           <div className="md:hidden">
             <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-muted/80" />
           </div>
-          <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 md:hidden">
             <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-primary/20">
               <Image
                 src="/logo.png"
@@ -115,7 +115,7 @@ export function Header() {
 
           <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
 
-          {/* Profile Dropdown */}
+          {/* Profile & Role Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -129,11 +129,33 @@ export function Header() {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl p-2 shadow-2xl border-border/60">
-              <DropdownMenuLabel className="px-3 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Caregiver Profile
+            <DropdownMenuContent align="end" className="w-64 mt-2 rounded-2xl p-2 shadow-2xl border-border/60">
+              <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Switch Role / Dashboard
               </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-border/40" />
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
+                  <span>Caregiver Hub</span>
+                  <Badge variant="outline" className="text-[9px]">Caregiver</Badge>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                <Link href="/clinic/roster" className="flex items-center justify-between w-full text-xs font-semibold">
+                  <span>Doctor / Clinician Roster</span>
+                  <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-500/30">Doctor</Badge>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                <Link href="/domiciliary" className="flex items-center justify-between w-full text-xs font-semibold">
+                  <span>Nurse / Bedside Companion</span>
+                  <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Nurse</Badge>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator className="bg-border/40 my-1" />
+              <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Account & Settings
+              </DropdownMenuLabel>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/settings" className="flex items-center gap-2 text-xs font-medium">
                   <User className="h-4 w-4 text-primary" />
@@ -146,11 +168,11 @@ export function Header() {
                   <span>Privacy & DPDP Rights</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-border/40" />
+              <DropdownMenuSeparator className="bg-border/40 my-1" />
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
-                <Link href="/login" className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-primary">
                   <User className="h-4 w-4 text-primary" />
-                  <span>Switch Account / Sign In</span>
+                  <span>Main Login / Switch Persona</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem

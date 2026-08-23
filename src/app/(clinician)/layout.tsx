@@ -34,7 +34,7 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/clinic/roster" className="flex items-center gap-2 font-bold text-sm">
+          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 font-bold text-sm">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Stethoscope className="w-4 h-4 text-primary" />
             </div>

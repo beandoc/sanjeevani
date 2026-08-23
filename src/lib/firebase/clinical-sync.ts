@@ -36,17 +36,21 @@ import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 
 function currentUid(): string | null {
-  return auth.currentUser?.uid ?? null;
+  try {
+    return auth?.currentUser?.uid ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /* ------------------------------------------------------------------ *
  * Caregiver side: sync writes, best-effort
  * ------------------------------------------------------------------ */
 
-/** Mirrors a completed Zarit assessment to Firestore. No-op if signed out. */
+/** Mirrors a completed Zarit assessment to Firestore. No-op if signed out or offline. */
 export async function syncZaritAssessment(result: ZaritEvaluationResult): Promise<void> {
   const uid = currentUid();
-  if (!uid) return;
+  if (!uid || !db) return;
   try {
     const ref = doc(collection(db, 'users', uid, 'zaritAssessments'));
     await setDoc(ref, result);
@@ -62,8 +66,13 @@ export async function recordFunctionScore(
   patientUid: string,
   result: FunctionEvaluationResult
 ): Promise<void> {
-  const ref = doc(collection(db, 'users', patientUid, 'functionScores'));
-  await setDoc(ref, result);
+  if (!db) return;
+  try {
+    const ref = doc(collection(db, 'users', patientUid, 'functionScores'));
+    await setDoc(ref, result);
+  } catch (err) {
+    console.warn('Record function score skipped:', err);
+  }
 }
 
 /** Records an OPD encounter anchor. */
@@ -72,7 +81,7 @@ export async function createEncounter(
   encounter: { visitDate: string; department?: string; notes?: string }
 ): Promise<string> {
   const uid = currentUid();
-  if (!uid) throw new Error('Must be signed in to record an encounter.');
+  if (!uid || !db) throw new Error('Must be signed in to record an encounter.');
   const ref = doc(collection(db, 'users', patientUid, 'encounters'));
   await setDoc(ref, {
     ...encounter,
@@ -96,7 +105,7 @@ export interface ClinicianGrant {
 /** Caregiver grants a clinician (by their uid, from a shared clinic code) access to this dyad. */
 export async function grantClinicianAccess(clinicianUid: string, clinicianLabel?: string): Promise<void> {
   const uid = currentUid();
-  if (!uid) throw new Error('Must be signed in to grant access.');
+  if (!uid || !db) throw new Error('Must be signed in to grant access.');
   const ref = doc(db, 'users', uid, 'clinicianGrants', clinicianUid);
   await setDoc(ref, {
     clinicianUid,
@@ -109,7 +118,7 @@ export async function grantClinicianAccess(clinicianUid: string, clinicianLabel?
 /** Caregiver revokes a previously granted clinician's access. */
 export async function revokeClinicianAccess(clinicianUid: string): Promise<void> {
   const uid = currentUid();
-  if (!uid) throw new Error('Must be signed in to revoke access.');
+  if (!uid || !db) throw new Error('Must be signed in to revoke access.');
   const ref = doc(db, 'users', uid, 'clinicianGrants', clinicianUid);
   await setDoc(ref, { revokedAt: new Date().toISOString() }, { merge: true });
 }
@@ -117,9 +126,13 @@ export async function revokeClinicianAccess(clinicianUid: string): Promise<void>
 /** What the signed-in caregiver has shared, for display in their own consent settings. */
 export async function listMyGrants(): Promise<ClinicianGrant[]> {
   const uid = currentUid();
-  if (!uid) return [];
-  const snap = await getDocs(collection(db, 'users', uid, 'clinicianGrants'));
-  return snap.docs.map((d) => d.data() as ClinicianGrant);
+  if (!uid || !db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'clinicianGrants'));
+    return snap.docs.map((d) => d.data() as ClinicianGrant);
+  } catch {
+    return [];
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -140,18 +153,21 @@ export interface RosterEntry {
  */
 export async function listMyRoster(): Promise<RosterEntry[]> {
   const uid = currentUid();
-  if (!uid) return [];
-  const q = query(
-    collectionGroup(db, 'clinicianGrants'),
-    where('clinicianUid', '==', uid),
-    where('revokedAt', '==', null)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({
-    // Parent of a clinicianGrants doc is users/{patientUid}/clinicianGrants/{clinicianUid}
-    patientUid: d.ref.parent.parent!.id,
-    grant: d.data() as ClinicianGrant
-  }));
+  if (!uid || !db) return [];
+  try {
+    const q = query(
+      collectionGroup(db, 'clinicianGrants'),
+      where('clinicianUid', '==', uid),
+      where('revokedAt', '==', null)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
+      patientUid: d.ref.parent.parent!.id,
+      grant: d.data() as ClinicianGrant
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function toIsoString(value: unknown): string {
@@ -162,29 +178,44 @@ function toIsoString(value: unknown): string {
 
 /** All Zarit assessments for one patient, newest first. Requires an active grant or ownership. */
 export async function getZaritAssessmentsFor(patientUid: string): Promise<ZaritEvaluationResult[]> {
-  const snap = await getDocs(collection(db, 'users', patientUid, 'zaritAssessments'));
-  return snap.docs
-    .map((d) => {
-      const data = d.data();
-      return { ...data, completedAt: toIsoString(data.completedAt) } as ZaritEvaluationResult;
-    })
-    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  if (!db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', patientUid, 'zaritAssessments'));
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        return { ...data, completedAt: toIsoString(data.completedAt) } as ZaritEvaluationResult;
+      })
+      .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  } catch {
+    return [];
+  }
 }
 
 /** All function assessments for one patient, newest first. */
 export async function getFunctionScoresFor(patientUid: string): Promise<FunctionEvaluationResult[]> {
-  const snap = await getDocs(collection(db, 'users', patientUid, 'functionScores'));
-  return snap.docs
-    .map((d) => {
-      const data = d.data();
-      return { ...data, recordedAt: toIsoString(data.recordedAt) } as FunctionEvaluationResult;
-    })
-    .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  if (!db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', patientUid, 'functionScores'));
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        return { ...data, recordedAt: toIsoString(data.recordedAt) } as FunctionEvaluationResult;
+      })
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  } catch {
+    return [];
+  }
 }
 
 /** Basic profile info for the roster/dyad header. Falls back gracefully if the field is absent. */
 export async function getPatientDisplayName(patientUid: string): Promise<string> {
-  const snap = await getDoc(doc(db, 'users', patientUid));
-  const data = snap.data();
-  return (data?.displayName as string) || (data?.phoneNumber as string) || `Patient ${patientUid.slice(0, 6)}`;
+  if (!db) return `Patient ${patientUid.slice(0, 6)}`;
+  try {
+    const snap = await getDoc(doc(db, 'users', patientUid));
+    const data = snap.data();
+    return (data?.displayName as string) || (data?.phoneNumber as string) || `Patient ${patientUid.slice(0, 6)}`;
+  } catch {
+    return `Patient ${patientUid.slice(0, 6)}`;
+  }
 }
