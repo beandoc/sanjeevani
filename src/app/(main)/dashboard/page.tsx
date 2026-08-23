@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -10,42 +9,65 @@ import {
 } from '@/components/ui/card';
 import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
-
 import { useTranslations } from 'next-intl';
+import { Shield, Sparkles, HeartPulse, Stethoscope, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { role } = useProfile();
+  const { role, caregivingScenario } = useProfile();
   const t = useTranslations('Dashboard');
   const welcomeTitle = role === 'professional' ? t('welcomeNurse') : t('welcomeCaregiver');
 
   return (
-    <div className="space-y-10 pb-10">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-slate-900 px-8 py-12 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-slate-900/10 to-transparent animate-gradient" />
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+    <div className="space-y-6 sm:space-y-8 pb-10">
+      {/* Dynamic Hero Section */}
+      <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 md:px-12 md:py-12 text-white shadow-xl border border-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-blue-900/20 to-transparent animate-gradient" />
+        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-2xl space-y-4">
-          <h1 className="font-headline text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+        <div className="relative z-10 max-w-3xl space-y-3 sm:space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary-foreground backdrop-blur-md border border-primary/30">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Geriatric Decision Support • {caregivingScenario}</span>
+          </div>
+
+          <h1 className="font-headline text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
             {welcomeTitle}
           </h1>
-          <p className="text-lg text-slate-300 md:text-xl">
-            Empower yourself with advanced training and simulations to provide the best care possible.
+
+          <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
+            Evidence-based psychometric tracking, clinical triage simulations, and caregiver safety protocols calibrated for Indian geriatric care.
           </p>
-          <div className="flex flex-wrap gap-4 pt-4">
-            <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-md border border-white/10">
-              ✨ {t('advancedCertification')}
-            </div>
-            <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-md border border-white/10">
-              📊 {t('courseCompletion')}
-            </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">
+            <Link
+              href="/stress-calculator"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+            >
+              <HeartPulse className="w-3.5 h-3.5 text-rose-400" />
+              <span>Zarit Burden Gauge</span>
+            </Link>
+            <Link
+              href="/medications"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+            >
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Beers Safety Regimen</span>
+            </Link>
+            <Link
+              href="/simulations"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+            >
+              <Stethoscope className="w-3.5 h-3.5 text-blue-400" />
+              <span>21 Indian Simulations</span>
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Main Content Area */}
-      <div className="container mx-auto px-0">
+      <div className="w-full">
         <DashboardClient />
       </div>
     </div>

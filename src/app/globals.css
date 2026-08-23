@@ -4,93 +4,116 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 210 25% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
+    --primary: 217 91% 50%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 214 32% 95%;
     --secondary-foreground: 222 47% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215.4 16.3% 44%;
+    --accent: 214 32% 95%;
     --accent-foreground: 222 47% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84.2% 58%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
-    --radius: 0.75rem;
+    --border: 214.3 31.8% 90%;
+    --input: 214.3 31.8% 90%;
+    --ring: 217 91% 50%;
+    --radius: 1rem;
 
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
+    --chart-1: 217 91% 50%;
+    --chart-2: 160 84% 39%;
     --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
 
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 222 47% 10%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 217 91% 55%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217 32% 17%;
+    --sidebar-accent: 217 32% 16%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 32% 17%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-border: 217 32% 16%;
+    --sidebar-ring: 217 91% 55%;
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 224 40% 8%;
     --foreground: 210 40% 98%;
-    --card: 217 32% 14%;
+    --card: 222 36% 11%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 222 36% 11%;
     --popover-foreground: 210 40% 98%;
     --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 32% 17%;
+    --primary-foreground: 222 47% 10%;
+    --secondary: 217 32% 16%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217 32% 17%;
+    --muted: 217 32% 15%;
+    --muted-foreground: 215 20.2% 65%;
+    --accent: 217 32% 16%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 75% 55%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 224.3 76.3% 48%;
+    --border: 217 30% 18%;
+    --input: 217 30% 18%;
+    --ring: 217 91% 60%;
 
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 224 40% 7%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 32% 17%;
+    --sidebar-primary-foreground: 222 47% 10%;
+    --sidebar-accent: 217 32% 14%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 32% 17%;
-    --sidebar-ring: 224.3 76.3% 48%;
+    --sidebar-border: 217 32% 14%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-background text-foreground selection:bg-primary/20;
+    @apply bg-background text-foreground selection:bg-primary/25 selection:text-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+
+  /* Custom Smooth Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm;
+    @apply bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm;
   }
 
   .glass-card {
-    @apply bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl;
+    @apply bg-white/60 dark:bg-slate-900/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-300;
   }
 
   .animate-gradient {
@@ -99,62 +122,62 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.8s ease-out forwards;
-    opacity: 0;
+    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   .animate-slide-up {
-    animation: slideUp 0.6s ease-out forwards;
-    opacity: 0;
-    transform: translateY(20px);
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   @keyframes gradient {
-    0% {
-      background-position: 0% 50%;
-    }
-
-    50% {
-      background-position: 100% 50%;
-    }
-
-    100% {
-      background-position: 0% 50%;
-    }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-indigo-500;
+  }
+
+  /* Mobile-first minimum touch target */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
 .font-headline {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   letter-spacing: -0.02em;
 }
 
 .font-body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Print Optimization for Clinical Reports */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  header, aside, nav, button, .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
