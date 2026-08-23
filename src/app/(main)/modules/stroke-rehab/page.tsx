@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -7,15 +6,29 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Brain, Shield, Home, MessageSquare, Activity } from 'lucide-react';
+import {
+  ArrowLeft,
+  Brain,
+  Shield,
+  Home,
+  MessageSquare,
+  Activity,
+  Utensils,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  ShieldAlert
+} from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useProfile } from '@/context/role-context';
 import { useEffect, useState } from 'react';
 import { SectionCard } from '@/components/cards/section-card';
 
 const MODULE_ID = 'stroke-rehab';
-const SECTIONS = 5;
+const SECTIONS = 6;
 
 export default function StrokeRehabModulePage() {
   const { getModuleProgress, updateModuleProgress } = useProfile();
@@ -41,181 +54,274 @@ export default function StrokeRehabModulePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-       <Button variant="outline" asChild>
+      <Button variant="outline" size="sm" asChild className="gap-2 text-xs font-semibold">
         <Link href="/modules">
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to Modules
         </Link>
       </Button>
-      <div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-wider">
+            Neurological Recovery
+          </Badge>
+          <Badge variant="secondary" className="text-[10px]">
+            6 Lessons • 25 Min
+          </Badge>
+        </div>
         <h1 className="text-3xl font-bold font-headline">
-          Stroke Rehabilitation: A Guide for Caregivers
+          Stroke Rehabilitation & Neuro-Care: A Comprehensive Clinical Guide
         </h1>
-        <p className="text-muted-foreground">
-          This module provides essential information for supporting a loved one's recovery after a stroke.
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Evidence-based strategies for post-stroke recovery—covering motor rehabilitation, hemiplegic safe transfers, dysphagia (swallowing) management, aspiration prevention, and aphasia communication.
         </p>
       </div>
 
-      <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-        <AccordionItem value="item-1">
-          <AccordionTrigger className="text-xl font-semibold">
+      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="item-1">
+        {/* Chapter 1: Understanding Stroke */}
+        <AccordionItem value="item-1" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
-              <Brain className="h-6 w-6 text-primary" />
-              Understanding Stroke and Its Effects
+              <Brain className="h-5 w-5 text-primary" />
+              <span>Lesson 1: Understanding Stroke and Neuroplastic Recovery</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2">
+          <AccordionContent className="px-5 pb-5 pt-2">
             <SectionCard
               sectionId={1}
-              title="What Happens After a Stroke"
+              title="1.1 What Happens in the Brain Post-Stroke"
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(1)}
             >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
                 <p>
-                  A stroke can impact many functions, including movement, speech, and thinking. Recovery is a unique journey for each person and requires patience and consistent support.
+                  A stroke occurs when cerebral blood supply is interrupted (ischemic) or a blood vessel ruptures (hemorrhagic). The brain possesses remarkable <strong>neuroplasticity</strong>—the ability to rewire new neural pathways with patient, daily repetitive practice.
                 </p>
-                <h4 className="font-semibold">Common Post-Stroke Challenges:</h4>
-                <ul className="list-disc space-y-2 pl-5">
-                  <li>
-                    <strong>Physical Changes:</strong> Weakness or paralysis on one side of the body (hemiparesis), difficulty with balance and coordination.
-                  </li>
-                  <li>
-                    <strong>Cognitive Changes:</strong> Problems with memory, attention, and problem-solving.
-                  </li>
-                  <li>
-                    <strong>Communication Issues:</strong> Difficulty speaking (aphasia) or understanding speech.
-                  </li>
-                  <li>
-                    <strong>Emotional Changes:</strong> Depression, anxiety, and frustration are common during recovery.
-                  </li>
+                <h4 className="font-bold text-foreground text-sm pt-2">Common Post-Stroke Deficits:</h4>
+                <ul className="list-disc space-y-1.5 pl-5">
+                  <li><strong>Hemiparesis / Hemiplegia:</strong> Weakness or paralysis on the side opposite the brain lesion.</li>
+                  <li><strong>Dysphagia:</strong> Paralysis of cranial nerves controlling the pharynx, causing severe swallowing impairment.</li>
+                  <li><strong>Aphasia & Dysarthria:</strong> Language impairment (Broca&apos;s/Wernicke&apos;s) or slurred motor articulation.</li>
+                  <li><strong>Post-Stroke Emotional Lability:</strong> Sudden crying or laughing, anxiety, and depression.</li>
                 </ul>
+              </div>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="item-2">
-          <AccordionTrigger className="text-xl font-semibold">
+        {/* Chapter 2: Post-Stroke Dysphagia & Safe Feeding (NEW CORE LESSON) */}
+        <AccordionItem value="item-2" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
-              <Activity className="h-6 w-6 text-primary" />
-              Supporting Physical Recovery
+              <Utensils className="h-5 w-5 text-rose-600" />
+              <span>Lesson 2: Dysphagia Management & The Unaffected-Side Safe Feeding Protocol</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2">
+          <AccordionContent className="px-5 pb-5 pt-2">
             <SectionCard
               sectionId={2}
-              title="Helping with Mobility and Daily Activities"
+              title="2.1 Recognizing Swallowing Dysfunction & Preventing Aspiration Pneumonia"
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(2)}
             >
-                 <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Encourage Movement:</strong> Assist with exercises recommended by physical and occupational therapists to regain strength and coordination.
-                    </li>
-                    <li>
-                        <strong>Safe Transfers:</strong> Learn the proper techniques for helping your loved one move from a bed to a chair or wheelchair to prevent falls.
-                    </li>
-                    <li>
-                        <strong>Activities of Daily Living (ADLs):</strong> Be patient and provide assistance with tasks like dressing, bathing, and eating. Encourage them to do as much as they can for themselves to build independence.
-                    </li>
-                    <li>
-                        <strong>Use of Assistive Devices:</strong> Ensure walkers, canes, or braces are used correctly as advised by therapists.
-                    </li>
-                </ul>
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  In post-stroke and hemiplegic patients, pharyngeal muscle weakness frequently leads to <strong>aspiration</strong>—where food or liquid silently enters the trachea and lungs, causing fatal chemical pneumonitis and bacterial lung abscesses.
+                </p>
+
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-200 space-y-1">
+                  <span className="font-bold text-xs flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    Warning Signs of Post-Stroke Dysphagia
+                  </span>
+                  <ul className="list-disc space-y-1 pl-5 text-[11px]">
+                    <li>Sudden recurrent coughing, throat clearing, or choking during eating or drinking.</li>
+                    <li>Food or saliva dribbling out from one corner of the mouth (lip seal weakness).</li>
+                    <li>Food pooling/pocketing in the paralyzed cheek for long periods without swallowing.</li>
+                    <li>Nasal regurgitation (fluids escaping through the nostrils during swallowing).</li>
+                    <li>A &quot;wet&quot; or gurgly voice immediately after taking sips of water.</li>
+                  </ul>
+                </div>
+
+                <h4 className="font-bold text-foreground text-sm pt-2">The Clinical Safe Feeding Protocol:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Feed Strictly on Unaffected Side
+                    </span>
+                    <p className="text-[11px]">
+                      Always introduce food and liquids into the <strong>unaffected (strong) side of the mouth</strong>. This allows intact lingual muscles to control the bolus and direct it safely down the esophagus.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Small Boluses & Pureed/Thick Diet
+                    </span>
+                    <p className="text-[11px]">
+                      Offer small, half-teaspoon boluses. Provide pureed, homogeneous soft textures or commercial food thickeners (nectar/honey consistency). Thin liquids like plain water are the most dangerous for aspiration!
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Strict Upright 90° Seating
+                    </span>
+                    <p className="text-[11px]">
+                      Seat the person upright at <strong>90 degrees in a dining chair</strong> (or fully elevated in bed with pillow support behind the head and shoulders). Never feed a reclined patient!
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Post-Meal 30-Minute Upright Rest
+                    </span>
+                    <p className="text-[11px]">
+                      Maintain an upright posture for at least 30 minutes after completing the meal. Inspect the paralyzed cheek with a penlight and clear any retained food pockets.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="item-3">
-          <AccordionTrigger className="text-xl font-semibold">
+        {/* Chapter 3: Physical Recovery & ADL Assistance */}
+        <AccordionItem value="item-3" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
-              <MessageSquare className="h-6 w-6 text-primary" />
-              Managing Communication and Cognitive Changes
+              <Activity className="h-5 w-5 text-primary" />
+              <span>Lesson 3: Supporting Physical Recovery & Adaptive Dressing</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2">
+          <AccordionContent className="px-5 pb-5 pt-2">
             <SectionCard
               sectionId={3}
-              title="Strategies for Effective Interaction"
+              title="3.1 Mobility Exercises, Safe Transfers & Dressing Rules"
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(3)}
             >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  Physical rehabilitation focuses on relearning movement patterns and preventing subluxation of the hemiplegic shoulder:
+                </p>
                 <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Be Patient:</strong> Give your loved one time to find their words. Avoid finishing their sentences unless they ask for help.
-                    </li>
-                    <li>
-                        <strong>Simplify Communication:</strong> Use simple, direct sentences and ask yes-or-no questions. Use gestures or draw pictures to aid understanding.
-                    </li>
-                    <li>
-                        <strong>Reduce Distractions:</strong> Talk in a quiet environment to help them focus.
-                    </li>
-                    <li>
-                        <strong>Memory Aids:</strong> Use calendars, lists, and pill organizers to help with memory and daily routines.
-                    </li>
+                  <li>
+                    <strong>Hemiplegic Dressing Rule:</strong> When dressing, put the sleeve on the <em>affected (weak) arm first</em>. When undressing, remove the sleeve from the <em>unaffected (strong) arm first</em>.
+                  </li>
+                  <li>
+                    <strong>Shoulder Subluxation Protection:</strong> Never pull the patient up by their paralyzed arm or armpit. Always support under the scapula and use a transfer gait belt around the waist.
+                  </li>
+                  <li>
+                    <strong>Passive Range of Motion:</strong> Support the elbow and wrist while gently elevating the arm through pain-free arcs twice daily.
+                  </li>
                 </ul>
+              </div>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="item-4">
-          <AccordionTrigger className="text-xl font-semibold">
+        {/* Chapter 4: Communication & Aphasia */}
+        <AccordionItem value="item-4" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
-              <Home className="h-6 w-6 text-primary" />
-              Creating a Safe Home Environment
+              <MessageSquare className="h-5 w-5 text-blue-500" />
+              <span>Lesson 4: Managing Communication Deficits (Aphasia)</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pt-2">
+          <AccordionContent className="px-5 pb-5 pt-2">
             <SectionCard
               sectionId={4}
-              title="Adapting the Home for Safety and Independence"
+              title="4.1 Strategies for Meaningful Speech Rehabilitation"
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(4)}
             >
-                <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Fall Prevention:</strong> Remove throw rugs, clear walkways, and ensure good lighting.
-                    </li>
-                    <li>
-                        <strong>Bathroom Safety:</strong> Install grab bars, a shower seat, and non-slip mats.
-                    </li>
-                    <li>
-                        <strong>Accessibility:</strong> Keep frequently used items within easy reach.
-                    </li>
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <ul className="list-disc space-y-1.5 pl-5">
+                  <li><strong>Maintain Eye Contact:</strong> Face the patient directly in a quiet room without TV or background noise.</li>
+                  <li><strong>Short, Direct Sentences:</strong> Ask one simple question at a time (e.g. &quot;Do you want water?&quot; instead of &quot;Would you like tea, water, or juice?&quot;).</li>
+                  <li><strong>Communication Boards:</strong> Use picture cards pointing to common needs (toilet, pain, drink, sleep).</li>
                 </ul>
-            </SectionCard>
-          </AccordionContent>
-        </AccordionItem>
-        
-        <AccordionItem value="item-5">
-          <AccordionTrigger className="text-xl font-semibold">
-            <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 text-primary" />
-              Preventing Complications and Future Strokes
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pt-2">
-            <SectionCard
-              sectionId={5}
-              title="Long-Term Health Management"
-              onComplete={handleSectionComplete}
-              isCompleted={completedSections.has(5)}
-            >
-                <ul className="list-disc space-y-2 pl-5">
-                    <li>
-                        <strong>Medication Management:</strong> Ensure medications are taken exactly as prescribed to manage blood pressure, cholesterol, and other risk factors.
-                    </li>
-                    <li>
-                        <strong>Healthy Lifestyle:</strong> Support a heart-healthy diet, encourage gentle physical activity as approved by the doctor, and help them to quit smoking.
-                    </li>
-                    <li>
-                        <strong>Know the Signs of Stroke:</strong> Be aware of the F.A.S.T. signs (Face drooping, Arm weakness, Speech difficulty, Time to call emergency services) and seek immediate medical help if they occur.
-                    </li>
-                </ul>
+              </div>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
 
+        {/* Chapter 5: Home Safety Adaptation */}
+        <AccordionItem value="item-5" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <Home className="h-5 w-5 text-emerald-600" />
+              <span>Lesson 5: Adapting the Home Environment for Hemiplegia</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-5 pb-5 pt-2">
+            <SectionCard
+              sectionId={5}
+              title="5.1 Fall-Proofing and Assistive Hardware"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(5)}
+            >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <ul className="list-disc space-y-1.5 pl-5">
+                  <li>Install grab bars on the unaffected side of the toilet and shower.</li>
+                  <li>Clear all floor rugs, electrical wires, and door thresholds.</li>
+                  <li>Ensure the wheelchair footrests are swung away during all standing transfers.</li>
+                </ul>
+              </div>
+            </SectionCard>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Chapter 6: Preventing Secondary Strokes (FAST) */}
+        <AccordionItem value="item-6" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
+          <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <Shield className="h-5 w-5 text-amber-500" />
+              <span>Lesson 6: Secondary Stroke Prevention & The F.A.S.T. Protocol</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-5 pb-5 pt-2">
+            <SectionCard
+              sectionId={6}
+              title="6.1 Emergency Recognition and Risk Management"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(6)}
+            >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  Secondary stroke prevention requires strict control of hypertension, antiplatelet adherence (Aspirin/Clopidogrel), and statin therapy:
+                </p>
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 mt-1">
+                  <strong>F.A.S.T. Emergency Signs:</strong><br />
+                  <strong>F (Face Drooping):</strong> One side of face droops when smiling.<br />
+                  <strong>A (Arm Weakness):</strong> One arm drifts downward when raised.<br />
+                  <strong>S (Speech Difficulty):</strong> Slurred or strange speech.<br />
+                  <strong>T (Time to Call 112):</strong> Call emergency hospital immediately.
+                </div>
+              </div>
+            </SectionCard>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
+
+      {/* Footer Navigation */}
+      <div className="flex items-center justify-between pt-6 border-t border-border/60">
+        <Button variant="outline" size="sm" asChild className="text-xs">
+          <Link href="/modules">Browse All Modules</Link>
+        </Button>
+        <Button size="sm" asChild className="text-xs font-bold gap-1.5">
+          <Link href="/modules/elderly-garments-adaptive-dressing">
+            <span>Next: Adaptive Garment Care</span>
+            <Brain className="w-3.5 h-3.5" />
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
