@@ -17,10 +17,13 @@ export interface CaregiverAttributes {
   name: string;
   age: number;
   gender: 'female' | 'male' | 'other';
-  kinship: 'spouse' | 'son' | 'daughter' | 'daughter_in_law' | 'sibling' | 'paid_attendant' | 'other';
+  kinship: 'spouse' | 'son' | 'daughter' | 'daughter_in_law' | 'sibling' | 'grandchild' | 'paid_attendant' | 'other';
   coResidence: 'lives_together' | 'nearby' | 'long_distance';
   education: 'primary' | 'secondary' | 'graduate' | 'post_graduate';
   employment: 'full_time' | 'part_time' | 'homemaker' | 'retired' | 'unemployed';
+  functionalCapacity?: 'fully_independent' | 'mild_frailty' | 'moderate_limitations' | 'severe_disability';
+  otherFamilyMembersCount?: number;
+  financialStatus?: 'manageable' | 'moderate_strain' | 'severe_toxicity';
   caregiverHealth: {
     hasBackPain: boolean;
     hasHypertension: boolean;
@@ -237,6 +240,19 @@ export class CareGapEngine {
       capacityHours = Math.min(capacityHours, 7.0);
     }
 
+    // Caregiver Functional Capacity Reductions
+    const funcCap = caregiver.functionalCapacity || 'fully_independent';
+    let funcDeduction = 0;
+    if (funcCap === 'mild_frailty') funcDeduction = 1.0;
+    else if (funcCap === 'moderate_limitations') funcDeduction = 2.5;
+    else if (funcCap === 'severe_disability') funcDeduction = 4.5;
+
+    // Kinship / Senior Dyad Strain
+    let kinshipDeduction = 0;
+    if (caregiver.kinship === 'spouse' && caregiver.age >= 65) {
+      kinshipDeduction = 1.0; // Senior spouse dyad fatigue
+    }
+
     // Caregiver's Own Health Reductions
     let healthDeduction = 0;
     if (caregiver.caregiverHealth.hasBackPain) healthDeduction += 1.5;
@@ -244,7 +260,21 @@ export class CareGapEngine {
     if (caregiver.caregiverHealth.hasInsomnia) healthDeduction += 1.0;
     if (caregiver.age >= 65) healthDeduction += 1.5; // Senior caring for senior dyad
 
-    const caregiverSafeCapacityHours = Math.max(1.5, Math.round((capacityHours - healthDeduction) * 10) / 10);
+    // Secondary Family Members Support Network Buffer
+    const secondaryFamilyCount = caregiver.otherFamilyMembersCount ?? 1;
+    let familyNetworkBuffer = 0;
+    if (secondaryFamilyCount >= 3) {
+      familyNetworkBuffer = 3.0; // 3+ family network members absorb 3 hrs/day
+    } else if (secondaryFamilyCount === 2) {
+      familyNetworkBuffer = 2.0;
+    } else if (secondaryFamilyCount === 1) {
+      familyNetworkBuffer = 1.0;
+    }
+
+    const caregiverSafeCapacityHours = Math.max(
+      1.0,
+      Math.round((capacityHours - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
+    );
 
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
     const netCareGapHours = Math.max(0, Math.round((residualDemand - caregiverSafeCapacityHours) * 10) / 10);

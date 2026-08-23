@@ -22,7 +22,8 @@ import {
   Sparkles,
   Bed,
   Activity,
-  Heart
+  Heart,
+  User
 } from 'lucide-react';
 import { useProfile, Role } from '@/context/role-context';
 import { HealthRepository } from '@/lib/db/health-repository';
@@ -362,51 +363,202 @@ export default function OnboardingIntakePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Primary Caregiver Name</Label>
-                  <Input
-                    value={caregiver.name}
-                    onChange={(e) => setCaregiver({ ...caregiver, name: e.target.value })}
-                    className="h-9 text-xs"
-                  />
+              {/* Section 1: Caregiver Identity & Relationship */}
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" /> Caregiver Identity & Family Relationship
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Primary Caregiver Name</Label>
+                    <Input
+                      value={caregiver.name}
+                      onChange={(e) => setCaregiver({ ...caregiver, name: e.target.value })}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Age (Years)</Label>
+                    <Input
+                      type="number"
+                      value={caregiver.age}
+                      onChange={(e) => setCaregiver({ ...caregiver, age: parseInt(e.target.value) || 0 })}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Relationship to Patient</Label>
+                    <Select
+                      value={caregiver.kinship}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, kinship: v })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="spouse" className="text-xs">Spouse / Partner</SelectItem>
+                        <SelectItem value="son" className="text-xs">Son</SelectItem>
+                        <SelectItem value="daughter" className="text-xs">Daughter</SelectItem>
+                        <SelectItem value="daughter_in_law" className="text-xs">Daughter-in-Law</SelectItem>
+                        <SelectItem value="grandchild" className="text-xs">Grandchild</SelectItem>
+                        <SelectItem value="sibling" className="text-xs">Sibling</SelectItem>
+                        <SelectItem value="paid_attendant" className="text-xs">Primary Paid Attendant</SelectItem>
+                        <SelectItem value="other" className="text-xs">Other Relative</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Age (Years)</Label>
-                  <Input
-                    type="number"
-                    value={caregiver.age}
-                    onChange={(e) => setCaregiver({ ...caregiver, age: parseInt(e.target.value) || 0 })}
-                    className="h-9 text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Employment Status</Label>
-                  <Select
-                    value={caregiver.employment}
-                    onValueChange={(v: any) => setCaregiver({ ...caregiver, employment: v })}
-                  >
-                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="full_time" className="text-xs">Full-Time (40+ hrs/wk)</SelectItem>
-                      <SelectItem value="part_time" className="text-xs">Part-Time</SelectItem>
-                      <SelectItem value="homemaker" className="text-xs">Homemaker</SelectItem>
-                      <SelectItem value="retired" className="text-xs">Retired Senior</SelectItem>
-                      <SelectItem value="unemployed" className="text-xs">Full-Time Carer</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Co-Residence Arrangement</Label>
+                    <Select
+                      value={caregiver.coResidence}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, coResidence: v })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lives_together" className="text-xs">Lives Together in Same Household</SelectItem>
+                        <SelectItem value="nearby" className="text-xs">Lives Nearby (&lt; 5 km)</SelectItem>
+                        <SelectItem value="long_distance" className="text-xs">Different City / Long Distance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Education Level</Label>
+                    <Select
+                      value={caregiver.education}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, education: v })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="primary" className="text-xs">Primary Schooling</SelectItem>
+                        <SelectItem value="secondary" className="text-xs">Secondary / High School</SelectItem>
+                        <SelectItem value="graduate" className="text-xs">College Graduate</SelectItem>
+                        <SelectItem value="post_graduate" className="text-xs">Post-Graduate / Professional</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
-              {/* Formal Support Infrastructure */}
+              {/* Section 2: Functional Capacity & Health Status */}
+              <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5" /> Functional Capacity & Health Constraints
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Employment Commitment</Label>
+                    <Select
+                      value={caregiver.employment}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, employment: v })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full_time" className="text-xs">Full-Time Job (40+ hrs/wk)</SelectItem>
+                        <SelectItem value="part_time" className="text-xs">Part-Time Employment</SelectItem>
+                        <SelectItem value="homemaker" className="text-xs">Homemaker</SelectItem>
+                        <SelectItem value="retired" className="text-xs">Retired Senior</SelectItem>
+                        <SelectItem value="unemployed" className="text-xs">Full-Time Family Carer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Caregiver Functional Physical Capacity</Label>
+                    <Select
+                      value={caregiver.functionalCapacity || 'fully_independent'}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, functionalCapacity: v })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fully_independent" className="text-xs">Fully Independent & Physically Fit</SelectItem>
+                        <SelectItem value="mild_frailty" className="text-xs">Mild Physical Limitations / Frailty</SelectItem>
+                        <SelectItem value="moderate_limitations" className="text-xs">Moderate Physical Limitations</SelectItem>
+                        <SelectItem value="severe_disability" className="text-xs">Severe Physical Disability / Illness</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Label className="text-[11px] font-semibold text-muted-foreground block mb-1">Caregiver Pre-existing Health Constraints</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'hasBackPain', label: 'Lumbar Strain / Back Pain' },
+                      { id: 'hasHypertension', label: 'Hypertension' },
+                      { id: 'hasArthritis', label: 'Arthritis / Joint Stiffness' },
+                      { id: 'hasInsomnia', label: 'Insomnia / Sleep Strain' }
+                    ].map((item) => (
+                      <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-card border border-border/60 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={(caregiver.caregiverHealth as any)[item.id]}
+                          onChange={(e) => {
+                            setCaregiver({
+                              ...caregiver,
+                              caregiverHealth: {
+                                ...caregiver.caregiverHealth,
+                                [item.id]: e.target.checked
+                              }
+                            });
+                          }}
+                          className="rounded-sm text-primary"
+                        />
+                        <span className="text-[11px] font-medium leading-tight">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Family Network & Financial Capacity */}
+              <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" /> Family Network & Financial Support Status
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Other Secondary Family Members Assisting</Label>
+                    <Select
+                      value={String(caregiver.otherFamilyMembersCount ?? 1)}
+                      onValueChange={(v: any) => setCaregiver({ ...caregiver, otherFamilyMembersCount: parseInt(v) })}
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0" className="text-xs">Solo Caregiver (0 Other Family Members)</SelectItem>
+                        <SelectItem value="1" className="text-xs">1 Secondary Family Member</SelectItem>
+                        <SelectItem value="2" className="text-xs">2 Secondary Family Members</SelectItem>
+                        <SelectItem value="3" className="text-xs">3+ Family Member Support Network</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Monthly Financial Burden / Out-of-Pocket Strain</Label>
+                    <Select
+                      value={caregiver.financialStatus || caregiver.monthlyOutOfPocketBurden}
+                      onValueChange={(v: any) =>
+                        setCaregiver({ ...caregiver, financialStatus: v, monthlyOutOfPocketBurden: v })
+                      }
+                    >
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manageable" className="text-xs">Manageable Out-of-Pocket Budget</SelectItem>
+                        <SelectItem value="moderate_strain" className="text-xs">Moderate Financial Strain</SelectItem>
+                        <SelectItem value="severe_toxicity" className="text-xs">Severe Financial Toxicity / Medical Debt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Multi-Select Formal Support Infrastructure */}
               <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" /> Caregiver Team & Support Infrastructure
+                      <Building2 className="w-3.5 h-3.5" /> Caregiver Team & Medical Support Infrastructure
                     </Label>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Select all medical professionals, attendants, and family members assisting in care.
+                      Multi-select all clinical nurses, attendants, physio aides, and family members assisting.
                     </p>
                   </div>
                   <Badge variant={(caregiver.formalSupport?.types?.length || 0) > 0 ? 'default' : 'outline'} className="text-[10px] font-mono">
@@ -538,27 +690,6 @@ export default function OnboardingIntakePage() {
                       </button>
                     );
                   })}
-                </div>
-
-                <div className="pt-2 border-t border-border/40 space-y-1 text-xs">
-                  <Label className="text-[11px] font-semibold text-muted-foreground block">Caregiver Health Constraints</Label>
-                  <label className="flex items-center gap-2 cursor-pointer mt-1">
-                    <input
-                      type="checkbox"
-                      checked={caregiver.caregiverHealth.hasBackPain}
-                      onChange={(e) => {
-                        setCaregiver({
-                          ...caregiver,
-                          caregiverHealth: {
-                            ...caregiver.caregiverHealth,
-                            hasBackPain: e.target.checked
-                          }
-                        });
-                      }}
-                      className="rounded-sm text-primary"
-                    />
-                    <span className="text-[11px]">Caregiver has pre-existing back pain / lumbar strain</span>
-                  </label>
                 </div>
               </div>
             </CardContent>
