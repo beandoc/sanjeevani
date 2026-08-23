@@ -33,6 +33,7 @@ export interface CaregiverAttributes {
   formalTrainingReceived: boolean;
   formalSupport?: {
     type: FormalSupportType;
+    types?: FormalSupportType[];
     hoursPerDay: number;
     handlesHeavyTransfers: boolean;
     handlesMedicationWoundCare: boolean;
@@ -204,16 +205,22 @@ export class CareGapEngine {
     // 4. Compute Formal / Ancillary Support Hours Absorbed
     let formalSupportAbsorbedHours = 0;
     const formal = caregiver.formalSupport;
-    if (formal && formal.type !== 'none') {
-      if (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h') {
-        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 18.0);
-      } else if (formal.type === 'paid_attendant_12h' || formal.type === 'trained_nurse_12h') {
-        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 10.0);
-      } else if (formal.type === 'medical_assistant') {
-        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, 6.0);
-      } else if (formal.type === 'multi_family_rotation') {
-        formalSupportAbsorbedHours = Math.min(patientCareDemandHours, formal.hoursPerDay || 6.0);
+    if (formal) {
+      const selectedTypes: FormalSupportType[] =
+        formal.types && formal.types.length > 0
+          ? formal.types
+          : formal.type && formal.type !== 'none'
+          ? [formal.type]
+          : [];
+
+      let rawAbsorbed = 0;
+      for (const t of selectedTypes) {
+        if (t === 'paid_attendant_24h' || t === 'trained_nurse_24h') rawAbsorbed += 16.0;
+        else if (t === 'paid_attendant_12h' || t === 'trained_nurse_12h') rawAbsorbed += 10.0;
+        else if (t === 'medical_assistant') rawAbsorbed += 6.0;
+        else if (t === 'multi_family_rotation') rawAbsorbed += 6.0;
       }
+      formalSupportAbsorbedHours = Math.min(patientCareDemandHours, rawAbsorbed);
     }
     formalSupportAbsorbedHours = Math.round(formalSupportAbsorbedHours * 10) / 10;
 

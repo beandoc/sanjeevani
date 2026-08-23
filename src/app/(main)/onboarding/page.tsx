@@ -31,7 +31,8 @@ import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
   DEFAULT_PATIENT_PROFILE,
   CaregiverAttributes,
-  PatientDependenceProfile
+  PatientDependenceProfile,
+  FormalSupportType
 } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -398,66 +399,166 @@ export default function OnboardingIntakePage() {
               </div>
 
               {/* Formal Support Infrastructure */}
-              <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3">
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5" /> Formal Care Support Configuration
-                  </Label>
-                  <Badge variant={caregiver.formalSupport?.type !== 'none' ? 'default' : 'outline'} className="text-[10px] font-mono">
-                    {caregiver.formalSupport?.type !== 'none' ? 'Support Active' : 'Solo Family'}
+                  <div>
+                    <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5" /> Caregiver Team & Support Infrastructure
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Select all medical professionals, attendants, and family members assisting in care.
+                    </p>
+                  </div>
+                  <Badge variant={(caregiver.formalSupport?.types?.length || 0) > 0 ? 'default' : 'outline'} className="text-[10px] font-mono">
+                    {(caregiver.formalSupport?.types?.length || 0) > 0
+                      ? `${caregiver.formalSupport?.types?.length} Team Members Active`
+                      : 'Solo Family'}
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Support Staff Type</Label>
-                    <Select
-                      value={caregiver.formalSupport?.type || 'none'}
-                      onValueChange={(v: any) => {
-                        setCaregiver({
-                          ...caregiver,
-                          formalSupport: {
-                            type: v,
-                            hoursPerDay: v === 'paid_attendant_24h' || v === 'trained_nurse_24h' ? 24 : v === 'paid_attendant_12h' || v === 'trained_nurse_12h' ? 12 : v === 'medical_assistant' ? 6 : 0,
-                            handlesHeavyTransfers: v !== 'none',
-                            handlesMedicationWoundCare: v.includes('nurse') || v === 'medical_assistant'
-                          }
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none" className="text-xs">None (Solo Family Caregiver)</SelectItem>
-                        <SelectItem value="paid_attendant_12h" className="text-xs">Paid Attendant (12 Hours Day/Night)</SelectItem>
-                        <SelectItem value="paid_attendant_24h" className="text-xs">Paid Attendant (24 Hours Live-In)</SelectItem>
-                        <SelectItem value="trained_nurse_12h" className="text-xs">Certified Nurse (12 Hours)</SelectItem>
-                        <SelectItem value="trained_nurse_24h" className="text-xs">Certified Nurse (24 Hours Live-In)</SelectItem>
-                        <SelectItem value="medical_assistant" className="text-xs">Trained Medical Assistant / Physio Aide</SelectItem>
-                        <SelectItem value="multi_family_rotation" className="text-xs">Multi-Caregiver Family Rotation</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Multi-Select Options Grid (Medical Help on Top) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  {[
+                    {
+                      id: 'trained_nurse_24h' as FormalSupportType,
+                      title: 'Certified Nurse (24h Live-In)',
+                      category: 'Medical / Nursing Care',
+                      desc: 'IV meds, wound care, catheter, vital monitoring',
+                      isMedical: true
+                    },
+                    {
+                      id: 'trained_nurse_12h' as FormalSupportType,
+                      title: 'Certified Nurse (12h Shift)',
+                      category: 'Medical / Nursing Care',
+                      desc: 'Day or night clinical nursing shift',
+                      isMedical: true
+                    },
+                    {
+                      id: 'medical_assistant' as FormalSupportType,
+                      title: 'Medical Assistant / Physio Aide',
+                      category: 'Clinical & Physio Aide',
+                      desc: 'Physiotherapy, exercise, vital logging',
+                      isMedical: true
+                    },
+                    {
+                      id: 'paid_attendant_24h' as FormalSupportType,
+                      title: 'Paid Attendant (24h Live-In)',
+                      category: 'Physical Assistance',
+                      desc: 'Bathing, turning, feeding, continuous aid',
+                      isMedical: false
+                    },
+                    {
+                      id: 'paid_attendant_12h' as FormalSupportType,
+                      title: 'Paid Attendant (12h Shift)',
+                      category: 'Physical Assistance',
+                      desc: 'Daily hygiene, mobility, and turn support',
+                      isMedical: false
+                    },
+                    {
+                      id: 'multi_family_rotation' as FormalSupportType,
+                      title: 'Multi-Family Member Rotation',
+                      category: 'Family Support Network',
+                      desc: 'Shared caregiving among siblings & relatives',
+                      isMedical: false
+                    },
+                    {
+                      id: 'none' as FormalSupportType,
+                      title: 'None (Solo Family Caregiver)',
+                      category: 'Solo Family Care',
+                      desc: 'Sole family carer managing all care responsibilities',
+                      isMedical: false
+                    }
+                  ].map((opt) => {
+                    const currentTypes =
+                      caregiver.formalSupport?.types ||
+                      (caregiver.formalSupport?.type && caregiver.formalSupport.type !== 'none'
+                        ? [caregiver.formalSupport.type]
+                        : []);
+                    const isSelected = opt.id === 'none' ? currentTypes.length === 0 : currentTypes.includes(opt.id);
 
-                  <div className="space-y-1 text-xs">
-                    <Label className="text-[11px] font-semibold text-muted-foreground block">Caregiver Health Constraints</Label>
-                    <label className="flex items-center gap-2 cursor-pointer mt-1">
-                      <input
-                        type="checkbox"
-                        checked={caregiver.caregiverHealth.hasBackPain}
-                        onChange={(e) => {
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          let updated: FormalSupportType[] = [...currentTypes];
+                          if (opt.id === 'none') {
+                            updated = [];
+                          } else {
+                            if (updated.includes(opt.id)) {
+                              updated = updated.filter((t) => t !== opt.id);
+                            } else {
+                              updated.push(opt.id);
+                            }
+                          }
+                          const primary = updated.length > 0 ? updated[0] : 'none';
+                          const hasMedical = updated.some((t) => t.includes('nurse') || t === 'medical_assistant');
+
                           setCaregiver({
                             ...caregiver,
-                            caregiverHealth: {
-                              ...caregiver.caregiverHealth,
-                              hasBackPain: e.target.checked
+                            formalSupport: {
+                              type: primary,
+                              types: updated,
+                              hoursPerDay: updated.length * 8,
+                              handlesHeavyTransfers: updated.length > 0,
+                              handlesMedicationWoundCare: hasMedical
                             }
                           });
                         }}
-                        className="rounded-sm text-primary"
-                      />
-                      <span className="text-[11px]">Caregiver has pre-existing back pain / lumbar strain</span>
-                    </label>
-                  </div>
+                        className={cn(
+                          'p-3 rounded-xl border text-left transition-all flex flex-col justify-between space-y-1.5',
+                          isSelected
+                            ? opt.isMedical
+                              ? 'border-emerald-500/80 bg-emerald-500/10 text-emerald-950 dark:text-emerald-300 font-bold shadow-xs'
+                              : 'border-primary bg-primary/10 text-foreground font-bold shadow-xs'
+                            : 'border-border/70 hover:border-primary/40 bg-card'
+                        )}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="rounded text-primary pointer-events-none"
+                            />
+                            <span className="text-xs font-bold">{opt.title}</span>
+                          </div>
+                          <Badge
+                            variant={isSelected ? (opt.isMedical ? 'default' : 'secondary') : 'outline'}
+                            className={cn(
+                              'text-[9px] font-mono shrink-0',
+                              opt.isMedical && 'bg-emerald-600 text-white border-emerald-500/30'
+                            )}
+                          >
+                            {opt.category}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-snug pl-5">{opt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-border/40 space-y-1 text-xs">
+                  <Label className="text-[11px] font-semibold text-muted-foreground block">Caregiver Health Constraints</Label>
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={caregiver.caregiverHealth.hasBackPain}
+                      onChange={(e) => {
+                        setCaregiver({
+                          ...caregiver,
+                          caregiverHealth: {
+                            ...caregiver.caregiverHealth,
+                            hasBackPain: e.target.checked
+                          }
+                        });
+                      }}
+                      className="rounded-sm text-primary"
+                    />
+                    <span className="text-[11px]">Caregiver has pre-existing back pain / lumbar strain</span>
+                  </label>
                 </div>
               </div>
             </CardContent>
