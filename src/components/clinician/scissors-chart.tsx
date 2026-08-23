@@ -1,0 +1,143 @@
+'use client';
+
+import {
+  ComposedChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+  ResponsiveContainer
+} from 'recharts';
+import { format } from 'date-fns';
+import type { TrajectoryResult } from '@/lib/analytics/trajectory';
+
+interface ScissorsChartProps {
+  trajectory: TrajectoryResult;
+}
+
+interface ChartRow {
+  date: string;
+  dateLabel: string;
+  burdenPct: number | null;
+  dependencyPct: number | null;
+  tierChange?: string;
+}
+
+/**
+ * The core visualization: caregiver burden (ZBI normalized %, rising = worse)
+ * plotted against care-recipient dependency (100 - Barthel, rising = worse)
+ * on a shared 0-100 axis, so both curves move in the same direction and a
+ * widening gap between them is visible without any rescaling trick.
+ *
+ * Burden and function are recorded on independent schedules (not paired 1:1),
+ * so this renders two separate series on a unified date axis rather than
+ * forcing them into synthetic shared data points — recharts handles sparse
+ * series on a shared axis natively via distinct dataKeys with `connectNulls`.
+ */
+export function ScissorsChart({ trajectory }: ScissorsChartProps) {
+  const { burdenSeries, functionSeries, tierChanges } = trajectory;
+
+  const rows = new Map<string, ChartRow>();
+
+  for (const point of burdenSeries) {
+    const key = point.date;
+    rows.set(key, {
+      date: key,
+      dateLabel: format(new Date(key), 'dd MMM yy'),
+      burdenPct: point.normalizedPercentage,
+      dependencyPct: rows.get(key)?.dependencyPct ?? null
+    });
+  }
+  for (const point of functionSeries) {
+    const key = point.date;
+    const existing = rows.get(key);
+    rows.set(key, {
+      date: key,
+      dateLabel: format(new Date(key), 'dd MMM yy'),
+      burdenPct: existing?.burdenPct ?? null,
+      dependencyPct: point.dependencyPercentage
+    });
+  }
+
+  const sortedRows = Array.from(rows.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  for (const tc of tierChanges) {
+    const row = sortedRows.find((r) => r.date === tc.date);
+    if (row) row.tierChange = `${tc.fromTier} → ${tc.toTier}`;
+  }
+
+  if (sortedRows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground border border-dashed rounded-xl">
+        <p className="text-sm font-medium">No burden or function assessments recorded yet.</p>
+        <p className="text-xs mt-1">The trajectory chart appears once at least one of each is on file.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <ResponsiveContainer width="100%" height={340}>
+        <ComposedChart data={sortedRows} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+          <XAxis dataKey="dateLabel" tick={{ fontSize: 11 }} />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fontSize: 11 }}
+            label={{ value: '0-100, higher = worse', angle: -90, position: 'insideLeft', fontSize: 10 }}
+          />
+          <Tooltip
+            formatter={(value: number, name: string) => [
+              value === null ? '—' : `${value}%`,
+              name === 'burdenPct' ? 'Caregiver Burden (ZBI)' : 'Care-Recipient Dependency (100 − Barthel)'
+            ]}
+            labelFormatter={(label) => label}
+          />
+          <Legend
+            formatter={(value) =>
+              value === 'burdenPct' ? 'Caregiver Burden (ZBI %)' : 'Care-Recipient Dependency (%)'
+            }
+          />
+          {tierChanges.map((tc) => (
+            <ReferenceLine
+              key={tc.date}
+              x={format(new Date(tc.date), 'dd MMM yy')}
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="4 4"
+              label={{ value: `Tier: ${tc.toTier}`, fontSize: 9, position: 'top' }}
+            />
+          ))}
+          <Line
+            type="monotone"
+            dataKey="burdenPct"
+            stroke="hsl(var(--destructive))"
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+            connectNulls
+            name="burdenPct"
+          />
+          <Line
+            type="monotone"
+            dataKey="dependencyPct"
+            stroke="hsl(var(--primary))"
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+            connectNulls
+            name="dependencyPct"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+      {tierChanges.length > 0 && (
+        <p className="text-[11px] text-muted-foreground px-1">
+          Dashed lines mark a change in Zarit tier (ZBI-22/12/4) — the burden score before and after
+          a tier change is not directly comparable point-to-point; only the normalized % trend is.
+        </p>
+      )}
+    </div>
+  );
+}

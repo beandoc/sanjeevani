@@ -19,6 +19,24 @@ service cloud.firestore {
       return ts is timestamp;
     }
 
+    // Clinician dashboard: a caregiver's account is professional-verified,
+    // and has been actively (never revoked) granted access to this specific
+    // patient's dyad by the owning caregiver. Both conditions are required —
+    // a grant document alone is not enough if the grantee's own account was
+    // never marked 'professional', and a 'professional' role alone grants
+    // nothing without an explicit per-patient grant from the caregiver.
+    function isProfessional(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+          && get(/databases/$(database)/documents/users/$(uid)).data.role == 'professional';
+    }
+
+    function hasActiveGrant(userId) {
+      return isAuthenticated()
+          && isProfessional(request.auth.uid)
+          && exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null;
+    }
+
     // 1. User Profiles & Role Mapping
     match /users/{userId} {
       allow read: if isOwner(userId);
@@ -64,8 +82,13 @@ service cloud.firestore {
       }
 
       // Subcollection: Zarit Caregiver Burden Assessments (ZBI-22, ZBI-12, ZBI-4)
+      // Stores only aggregate scores/factors — never raw per-item Likert
+      // responses (see calculateZaritScore) — so every document here is
+      // already "summary scope" by construction. This is why a clinician
+      // grant can safely read the whole document with no field redaction:
+      // there is no item-level answer (e.g. "do you feel angry...") to leak.
       match /zaritAssessments/{assessmentId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create: if isOwner(userId)
                       && request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']
                       && request.resource.data.totalScore is int
@@ -73,6 +96,50 @@ service cloud.firestore {
                       && request.resource.data.totalScore <= 88
                       && request.resource.data.completedAt is string;
         allow update, delete: if isOwner(userId);
+      }
+
+      // Subcollection: Care-recipient functional status (Barthel ADL / Lawton
+      // IADL). Higher barthelScore = more independent. Either the owning
+      // caregiver or a currently-granted clinician may record a reading —
+      // clinicians typically administer this during an OPD encounter.
+      match /functionScores/{scoreId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.barthelScore is int
+                              && request.resource.data.barthelScore >= 0
+                              && request.resource.data.barthelScore <= 100
+                              && request.resource.data.lawtonScore is int
+                              && request.resource.data.lawtonScore >= 0
+                              && request.resource.data.lawtonScore <= 8
+                              && request.resource.data.recordedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Subcollection: OPD encounters. The visit anchor that Zarit/function
+      // readings and clinical prescriptions attach to.
+      match /encounters/{encounterId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.visitDate is string
+                              && request.resource.data.clinicianUid is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Subcollection: Clinician access grants (consent). One document per
+      // clinician a caregiver has shared this dyad with. Only the owning
+      // caregiver can create, update, or revoke a grant — consent can never
+      // be self-issued by the clinician side, and a grant is deleted or
+      // revoked (revokedAt set), never silently mutated into wider scope.
+      // The grantee may read their own grant document to check its status.
+      match /clinicianGrants/{clinicianUid} {
+        allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid);
+        allow create: if isOwner(userId)
+                      && request.resource.data.clinicianUid == clinicianUid
+                      && request.resource.data.grantedAt is string
+                      && request.resource.data.revokedAt == null;
+        allow update: if isOwner(userId)
+                      && request.resource.data.clinicianUid == clinicianUid;
+        allow delete: if isOwner(userId);
       }
     }
 

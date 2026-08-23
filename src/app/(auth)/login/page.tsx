@@ -32,6 +32,17 @@ import {
 import { useProfile, Role } from '@/context/role-context';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useToast } from '@/hooks/use-toast';
+import type { ConfirmationResult } from 'firebase/auth';
+import {
+  signInWithEmail,
+  signUpWithEmail,
+  sendCaregiverOtp,
+  verifyCaregiverOtp,
+  signInOrCreateDemoAccount,
+  getUserRole
+} from '@/lib/firebase/auth';
+
+const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,6 +53,7 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<Role>(role || 'caregiver');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -50,23 +62,55 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [abhaId, setAbhaId] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setRole(selectedRole);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: 'Authentication Successful',
-        description: `Welcome back to Sanjeevani as ${selectedRole === 'professional' ? 'Healthcare Professional' : 'Primary Caregiver'}.`,
-      });
-      router.push('/dashboard');
-    }, 600);
+  /** Routes by the account's actual stored role, not the login toggle — a
+   * returning user's role is authoritative in Firestore, so this can't be
+   * fooled by whichever tab they happened to leave selected. */
+  const completeSignIn = async (uid: string, fallbackRole: Role) => {
+    const actualRole = (await getUserRole(uid)) ?? fallbackRole;
+    setRole(actualRole);
+    toast({
+      title: 'Authentication Successful',
+      description: `Welcome to Sanjeevani as ${actualRole === 'professional' ? 'Healthcare Professional' : 'Primary Caregiver'}.`
+    });
+    router.push(actualRole === 'professional' ? '/clinic/roster' : '/dashboard');
   };
 
-  const handleSendOtp = () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      if (authMethod === 'email') {
+        const user = isSignUp
+          ? await signUpWithEmail(email, password, selectedRole)
+          : await signInWithEmail(email, password);
+        await completeSignIn(user.uid, selectedRole);
+      } else if (authMethod === 'mobile') {
+        if (!confirmationResult) {
+          toast({ variant: 'destructive', title: 'Send an OTP first', description: 'Request a verification code before submitting.' });
+          return;
+        }
+        const user = await verifyCaregiverOtp(confirmationResult, otp);
+        await completeSignIn(user.uid, 'caregiver');
+      } else {
+        toast({
+          title: 'ABDM Gateway Not Connected in This Environment',
+          description: 'ABHA sign-in requires production NHA credentials. Use Email or Mobile OTP here instead.'
+        });
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Failed',
+        description: err instanceof Error ? err.message : 'Please check your credentials and try again.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
     if (!mobile || mobile.length < 10) {
       toast({
         variant: 'destructive',
@@ -75,23 +119,41 @@ export default function LoginPage() {
       });
       return;
     }
-    setIsOtpSent(true);
-    toast({
-      title: 'OTP Dispatched',
-      description: `A 6-digit verification code was sent to +91 ${mobile.slice(-4).padStart(10, '•')}`,
-    });
+    try {
+      const result = await sendCaregiverOtp(`+91${mobile}`, RECAPTCHA_CONTAINER_ID);
+      setConfirmationResult(result);
+      setIsOtpSent(true);
+      toast({
+        title: 'OTP Dispatched',
+        description: `A 6-digit verification code was sent to +91 ${mobile.slice(-4).padStart(10, '•')}`,
+      });
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Could Not Send OTP',
+        description: err instanceof Error ? err.message : 'Please try again.'
+      });
+    }
   };
 
-  const handleDemoLogin = (demoRole: Role) => {
+  const handleDemoLogin = async (demoRole: Role) => {
     setIsLoading(true);
-    setRole(demoRole);
-    toast({
-      title: `Demo Session: ${demoRole === 'professional' ? 'Clinician' : 'Family Caregiver'}`,
-      description: 'Launching clinical dashboard with pre-configured patient dyad.',
-    });
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 400);
+    try {
+      const user = await signInOrCreateDemoAccount(demoRole);
+      toast({
+        title: `Demo Session: ${demoRole === 'professional' ? 'Clinician' : 'Family Caregiver'}`,
+        description: 'Launching with a real emulator-backed account.',
+      });
+      await completeSignIn(user.uid, demoRole);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Demo Sign-In Failed',
+        description: err instanceof Error ? err.message : 'Is the Firebase emulator running? (npm run emulators)'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -279,6 +341,18 @@ export default function LoginPage() {
             {/* METHOD 1: EMAIL */}
             {authMethod === 'email' && (
               <>
+                <div className="flex items-center justify-between -mt-1 mb-1">
+                  <span className="text-[11px] text-muted-foreground">
+                    {isSignUp ? 'Creating a new account' : 'Signing in to an existing account'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp((v) => !v)}
+                    className="text-[11px] text-primary hover:underline font-semibold"
+                  >
+                    {isSignUp ? 'Have an account? Sign in' : 'New here? Create account'}
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-semibold">Institutional / Account Email</Label>
                   <div className="relative">
@@ -397,6 +471,12 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Invisible container Firebase Auth mounts its reCAPTCHA
+                verifier into for phone OTP. Emulator mode bypasses the
+                actual challenge (see client.ts) but the SDK still requires
+                this element to exist. */}
+            <div id={RECAPTCHA_CONTAINER_ID} />
+
             <Button
               type="submit"
               disabled={isLoading}
@@ -406,7 +486,9 @@ export default function LoginPage() {
                 <span>Verifying Credentials...</span>
               ) : (
                 <>
-                  <span>Sign In to Clinical Workspace</span>
+                  <span>
+                    {authMethod === 'email' && isSignUp ? 'Create Account' : 'Sign In to Clinical Workspace'}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

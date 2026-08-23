@@ -53,9 +53,16 @@ export const iconMap: { [key: string]: React.ElementType } = {
   'Vision Problems': Eye,
   'Oral Health': Smile,
   'Exercise': Dumbbell,
+  'Geriatric Foundations': HeartHandshake,
 };
 
 export const caregiverModules = [
+  {
+    id: 'caregiver-foundations',
+    title: 'The Need for Caregivers: Aging Physiology & Home Care',
+    description: 'Understand age-related functional decline, chronic multimorbidity, and why home is the best place for long-term care.',
+    category: 'Geriatric Foundations',
+  },
   {
     id: 'medication-management-caregiver',
     title: 'Helping Your Loved One Stay Safe with Medicines',

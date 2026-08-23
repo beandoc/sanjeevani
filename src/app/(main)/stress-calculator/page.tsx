@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 
 import { HealthRepository } from '@/lib/db/health-repository';
+import { syncZaritAssessment } from '@/lib/firebase/clinical-sync';
 
 export default function StressCalculatorPage() {
   const [currentResult, setCurrentResult] = useState<ZaritEvaluationResult | null>(null);
@@ -38,6 +39,10 @@ export default function StressCalculatorPage() {
     setCurrentResult(res);
     const updated = HealthRepository.saveZaritAssessment(res);
     setHistory(updated);
+    // Best-effort mirror to Firestore so a clinician (if granted access) can
+    // see it on the clinician dashboard. Never blocks or fails the local
+    // save above, which remains the source of truth for this device.
+    void syncZaritAssessment(res);
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

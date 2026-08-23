@@ -138,6 +138,25 @@ export default function IntroductionPage() {
             </p>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle className="text-xl font-semibold">
+                Section 1.4: The Essential Need for Family Caregivers & Home-Based Long-Term Care (LTC)
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <p>
+                With age-related physiological changes and progressive homeostenosis, older adults experience an inevitable reduction in functional reserve and independence. Concurrently, their vulnerability to chronic multimorbidities—including hypertension, osteoporosis, osteoarthritis, chronic obstructive pulmonary disease (COPD), stroke, dementia, late-life depression, sensory loss (vision/hearing), and malnutrition—escalates significantly.
+            </p>
+            <p>
+                Managing these complex chronic conditions (e.g., diabetes mellitus, post-stroke deficits, Alzheimer&apos;s disease) demands sustained, long-term care. Clinical consensus and patient-centered research affirm that <strong>the home is the optimal sanctuary for long-term and end-of-life care</strong>. Familiar surroundings reduce delirium, preserve psychological security, prevent nosocomial infections, and allow individuals to live with maximum dignity and comfort during palliative stages.
+            </p>
+            <p>
+                Consequently, family caregivers must continually adapt to the evolving and fluctuating needs of the older adult. Because caregiving responsibilities span across short-term recovery, prolonged maintenance, or unpredictable acute exacerbations, supporting caregiver longevity through structured education, strain screening (Zarit Scale), and task sharing is indispensable for sustainable geriatric care.
+            </p>
+        </CardContent>
+      </Card>
 
        <Card>
         <CardHeader>

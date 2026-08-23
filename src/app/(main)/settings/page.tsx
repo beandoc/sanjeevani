@@ -20,6 +20,7 @@ import {
 import { useProfile, SkillLevel } from '@/context/role-context';
 import { ConsentManager } from '@/components/privacy/consent-manager';
 import { CaregiverDyadProfiler } from '@/components/profile/caregiver-dyad-profiler';
+import { ShareWithClinicianCard } from '@/components/clinician/share-with-clinician-card';
 import { User, Settings as SettingsIcon, HeartPulse } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -117,6 +118,9 @@ export default function SettingsPage() {
           <ConsentManager mode="full" />
         </div>
       </div>
+
+      {/* 3. Clinician Sharing (consent-gated dyad access for the clinician dashboard) */}
+      <ShareWithClinicianCard />
     </div>
   );
 }
