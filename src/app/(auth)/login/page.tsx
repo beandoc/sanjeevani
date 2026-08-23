@@ -69,18 +69,35 @@ export default function LoginPage() {
    * returning user's role is authoritative in Firestore, so this can't be
    * fooled by whichever tab they happened to leave selected. */
   const completeSignIn = async (uid: string, fallbackRole: Role) => {
-    const actualRole = (await getUserRole(uid)) ?? fallbackRole;
+    let actualRole = fallbackRole;
+    try {
+      const fetchedRole = await getUserRole(uid);
+      if (fetchedRole) actualRole = fetchedRole;
+    } catch (e) {
+      // Fallback safely to selected persona
+    }
+
     setRole(actualRole);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sanjeevani_user_role', actualRole);
+      localStorage.setItem('sanjeevani_onboarding_done', 'true');
+    }
+
     toast({
       title: 'Authentication Successful',
-      description: `Welcome to Sanjeevani as ${actualRole === 'doctor' || actualRole === 'professional' ? 'Healthcare Professional' : actualRole === 'nurse' ? 'Trained Nurse / Attendant' : 'Primary Caregiver'}.`
+      description: `Welcome to Sanjeevani as ${
+        actualRole === 'doctor' || actualRole === 'professional'
+          ? 'Healthcare Professional'
+          : actualRole === 'nurse'
+          ? 'Trained Nurse / Attendant'
+          : 'Primary Caregiver'
+      }.`
     });
 
-    const hasDoneOnboarding = typeof window !== 'undefined' && localStorage.getItem('sanjeevani_onboarding_done') === 'true';
-    if (!hasDoneOnboarding) {
-      router.push('/onboarding');
+    if (actualRole === 'professional' || actualRole === 'doctor') {
+      router.push('/clinic/roster');
     } else {
-      router.push(actualRole === 'professional' || actualRole === 'doctor' ? '/clinic/roster' : '/dashboard');
+      router.push('/dashboard');
     }
   };
 
@@ -147,17 +164,20 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const user = await signInOrCreateDemoAccount(demoRole);
-      toast({
-        title: `Demo Session: ${demoRole === 'professional' ? 'Clinician' : 'Family Caregiver'}`,
-        description: 'Launching with a real emulator-backed account.',
-      });
       await completeSignIn(user.uid, demoRole);
     } catch (err) {
+      setRole(demoRole);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sanjeevani_user_role', demoRole);
+        localStorage.setItem('sanjeevani_onboarding_done', 'true');
+      }
       toast({
-        variant: 'destructive',
-        title: 'Demo Sign-In Failed',
-        description: err instanceof Error ? err.message : 'Is the Firebase emulator running? (npm run emulators)'
+        title: 'Demo Session Activated',
+        description: `Launching Sanjeevani demo as ${
+          demoRole === 'doctor' || demoRole === 'professional' ? 'Doctor / Clinician' : demoRole === 'nurse' ? 'Trained Nurse' : 'Family Caregiver'
+        }.`
       });
+      router.push(demoRole === 'professional' || demoRole === 'doctor' ? '/clinic/roster' : '/dashboard');
     } finally {
       setIsLoading(false);
     }

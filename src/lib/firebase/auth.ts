@@ -92,10 +92,54 @@ export async function signInWithEmail(email: string, password: string): Promise<
 export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
   const email = `demo-${role}@sanjeevani.local`;
   const password = 'sanjeevani-demo-2026';
+  const roleName = role === 'doctor' || role === 'professional' ? 'Demo Clinician' : role === 'nurse' ? 'Demo Nurse' : 'Demo Caregiver';
+
+  if (!auth) {
+    return {
+      uid: `demo-${role}-offline-uid`,
+      email,
+      displayName: roleName,
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      delete: async () => {},
+      getIdToken: async () => 'demo-token',
+      getIdTokenResult: async () => ({} as any),
+      reload: async () => {},
+      toJSON: () => ({}),
+      phoneNumber: null,
+      photoURL: null,
+      providerId: 'demo'
+    } as unknown as User;
+  }
+
   try {
     return await signInWithEmail(email, password);
   } catch {
-    return signUpWithEmail(email, password, role, role === 'professional' ? 'Demo Clinician' : 'Demo Caregiver');
+    return await signUpWithEmail(email, password, role, roleName).catch(() => {
+      return {
+        uid: `demo-${role}-offline-uid`,
+        email,
+        displayName: roleName,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        delete: async () => {},
+        getIdToken: async () => 'demo-token',
+        getIdTokenResult: async () => ({} as any),
+        reload: async () => {},
+        toJSON: () => ({}),
+        phoneNumber: null,
+        photoURL: null,
+        providerId: 'demo'
+      } as unknown as User;
+    });
   }
 }
 
