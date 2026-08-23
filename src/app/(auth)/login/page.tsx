@@ -32,14 +32,14 @@ import {
 import { useProfile, Role } from '@/context/role-context';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useToast } from '@/hooks/use-toast';
-import type { ConfirmationResult } from 'firebase/auth';
 import {
   signInWithEmail,
   signUpWithEmail,
   sendCaregiverOtp,
   verifyCaregiverOtp,
   signInOrCreateDemoAccount,
-  getUserRole
+  getUserRole,
+  type ConfirmationResult
 } from '@/lib/firebase/auth';
 
 const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';

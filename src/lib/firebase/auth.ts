@@ -29,6 +29,8 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './client';
 import type { Role } from '@/context/role-context';
 
+export type { User, ConfirmationResult };
+
 /**
  * Create the users/{uid} profile document if it does not already exist.
  * Never overwrites an existing role — a returning user's role is decided

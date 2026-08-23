@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { User } from 'firebase/auth';
-import { subscribeToAuthState } from '@/lib/firebase/auth';
+import { subscribeToAuthState, type User } from '@/lib/firebase/auth';
 
 export interface AuthUserState {
   user: User | null;
