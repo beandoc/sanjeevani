@@ -5,6 +5,16 @@
  */
 
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
+import {
+  CaregiverAttributes,
+  PatientDependenceProfile,
+  CareGapEvaluationResult,
+  CareGapEngine,
+  DEFAULT_CAREGIVER_ATTRIBUTES,
+  DEFAULT_PATIENT_PROFILE
+} from '@/lib/clinical/care-gap-engine';
+
+export type { CaregiverAttributes, PatientDependenceProfile, CareGapEvaluationResult };
 
 export interface VitalRecord {
   id: string;
@@ -96,7 +106,9 @@ const STORAGE_KEYS = {
   EMERGENCY_CONTACTS: 'sanjeevani_emergency_contacts',
   MEDICATIONS: 'sanjeevani_medications_vault',
   CARE_CIRCLE_MEMBERS: 'sanjeevani_circle_members',
-  CARE_CIRCLE_TASKS: 'sanjeevani_circle_tasks'
+  CARE_CIRCLE_TASKS: 'sanjeevani_circle_tasks',
+  CAREGIVER_ATTRIBUTES: 'sanjeevani_caregiver_attributes',
+  PATIENT_PROFILE: 'sanjeevani_patient_dependence_profile'
 };
 
 const DEFAULT_CONSENT: UserConsentPreferences = {
@@ -573,7 +585,61 @@ export class HealthRepository {
     return updated;
   }
 
-  // --- 9. Data Portability & Right to Erasure (DPDP Act 2023) ---
+  // --- 9. Caregiver Dyad Profiling & Care Gap Estimation ---
+
+  static getCaregiverAttributes(): CaregiverAttributes {
+    if (typeof window === 'undefined') return DEFAULT_CAREGIVER_ATTRIBUTES;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CAREGIVER_ATTRIBUTES);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.name) return parsed;
+      }
+    } catch (e) {
+      console.error('Error reading caregiver attributes:', e);
+    }
+    return DEFAULT_CAREGIVER_ATTRIBUTES;
+  }
+
+  static saveCaregiverAttributes(attrs: CaregiverAttributes): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.CAREGIVER_ATTRIBUTES, JSON.stringify(attrs));
+    } catch (e) {
+      console.error('Error saving caregiver attributes:', e);
+    }
+  }
+
+  static getPatientProfile(): PatientDependenceProfile {
+    if (typeof window === 'undefined') return DEFAULT_PATIENT_PROFILE;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.name) return parsed;
+      }
+    } catch (e) {
+      console.error('Error reading patient profile:', e);
+    }
+    return DEFAULT_PATIENT_PROFILE;
+  }
+
+  static savePatientProfile(prof: PatientDependenceProfile): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PATIENT_PROFILE, JSON.stringify(prof));
+    } catch (e) {
+      console.error('Error saving patient profile:', e);
+    }
+  }
+
+  static getCareGapEvaluation(): CareGapEvaluationResult {
+    const caregiver = this.getCaregiverAttributes();
+    const patient = this.getPatientProfile();
+    return CareGapEngine.evaluate(caregiver, patient);
+  }
+
+  // --- 10. Data Portability & Right to Erasure (DPDP Act 2023) ---
 
   static exportAllUserData(): {
     exportedAt: string;
@@ -586,6 +652,9 @@ export class HealthRepository {
     zaritAssessments: ZaritEvaluationResult[];
     emergencyContacts: EmergencyContact[];
     medications: MedicationItem[];
+    caregiverAttributes: CaregiverAttributes;
+    patientProfile: PatientDependenceProfile;
+    careGapEvaluation: CareGapEvaluationResult;
     careCircle: {
       members: CareCircleMember[];
       tasks: CareCircleTask[];
@@ -602,6 +671,9 @@ export class HealthRepository {
       zaritAssessments: this.getZaritAssessments(),
       emergencyContacts: this.getEmergencyContacts(),
       medications: this.getMedications(),
+      caregiverAttributes: this.getCaregiverAttributes(),
+      patientProfile: this.getPatientProfile(),
+      careGapEvaluation: this.getCareGapEvaluation(),
       careCircle: {
         members: this.getCareCircleMembers(),
         tasks: this.getCareCircleTasks()

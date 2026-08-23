@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
-import { VitalRecord, MedicationItem } from '@/lib/db/health-repository';
+import { VitalRecord, MedicationItem, HealthRepository } from '@/lib/db/health-repository';
 import { format } from 'date-fns';
 
 interface ClinicalSummaryPrintProps {
@@ -67,6 +67,11 @@ export function ClinicalSummaryPrint({
     else bpClassification = 'Stage 2 HTN';
   }
 
+  // Load Care Gap Evaluation
+  const caregiverAttrs = HealthRepository.getCaregiverAttributes();
+  const patientProfile = HealthRepository.getPatientProfile();
+  const careGapEval = HealthRepository.getCareGapEvaluation();
+
   return (
     <div className="bg-white text-black p-8 max-w-4xl mx-auto font-sans leading-relaxed text-xs space-y-6 print:p-0 print:m-0 print:text-black print:bg-white">
       {/* 1. Header & Clinic Encounter Banner */}
@@ -85,21 +90,39 @@ export function ClinicalSummaryPrint({
         </div>
       </div>
 
-      {/* 2. Patient & Caregiver Dyad Profile */}
+      {/* 2. Patient & Caregiver Dyad Profile Matrix */}
       <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-300 rounded-lg">
         <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold text-slate-500">Patient Demographics</span>
-          <p className="text-sm font-bold text-slate-900">{patientName}</p>
-          <p className="text-xs text-slate-700">Primary Diagnosis: Multimorbidity (Hypertension, Mild Cognitive Decline, Osteoarthritis)</p>
+          <span className="text-[10px] uppercase font-bold text-slate-500">Patient Demographics & Functional State</span>
+          <p className="text-sm font-bold text-slate-900">{patientProfile.name} (Age {patientProfile.age})</p>
+          <p className="text-xs text-slate-700">Conditions: {patientProfile.primaryConditions.join(', ')}</p>
+          <p className="text-xs font-medium text-slate-800">
+            Katz ADL Independence: <strong>{careGapEval.katzAdlScore}/6</strong> ({careGapEval.katzDependenceLevel.replace('_', ' ')})
+          </p>
         </div>
         <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold text-slate-500">Caregiver Profile</span>
-          <p className="text-sm font-bold text-slate-900">{caregiverName}</p>
-          <p className="text-xs text-slate-700">Role: {caregiverRelation} • Care Duration: 2+ Years</p>
+          <span className="text-[10px] uppercase font-bold text-slate-500">Caregiver Dyad Profile & Capacity</span>
+          <p className="text-sm font-bold text-slate-900">{caregiverAttrs.name} (Age {caregiverAttrs.age}, {caregiverAttrs.kinship})</p>
+          <p className="text-xs text-slate-700">
+            Employment: {caregiverAttrs.employment.replace('_', ' ')} • Available: {caregiverAttrs.dailyHoursCommitted} hrs/day
+          </p>
+          <p className="text-xs font-medium text-slate-800">
+            Care Gap: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs deficit/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
+          </p>
         </div>
       </div>
 
-      {/* 3. Standardized Zarit Caregiver Burden Scale (ZBI) Psychometrics */}
+      {/* 3. Care Gap & Biomechanical Deficit Findings */}
+      <div className="p-3 bg-amber-50/60 border border-amber-300 rounded-lg text-xs space-y-1">
+        <span className="text-[10px] uppercase font-bold text-amber-900 block">
+          Geriatric Care Gap & Physical Fatigue Indicator
+        </span>
+        <p className="text-slate-800">
+          Patient requires <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance. Caregiver safe physical threshold is <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong> (Caregiver Lumbar Injury Risk: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>).
+        </p>
+      </div>
+
+      {/* 4. Standardized Zarit Caregiver Burden Scale (ZBI) Psychometrics */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
           <h3 className="text-sm font-bold text-slate-900 uppercase">
@@ -157,7 +180,7 @@ export function ClinicalSummaryPrint({
         )}
       </div>
 
-      {/* 4. Longitudinal Vitals Record Table & Window Analytics */}
+      {/* 5. Longitudinal Vitals Record Table & Window Analytics */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
           <h3 className="text-sm font-bold text-slate-900 uppercase">
@@ -206,7 +229,7 @@ export function ClinicalSummaryPrint({
         )}
       </div>
 
-      {/* 5. Active Medication Regimen & Beers Safety */}
+      {/* 6. Active Medication Regimen & Beers Safety */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
         <h3 className="text-sm font-bold text-slate-900 uppercase border-b border-slate-200 pb-2">
           3. Active Medication Schedule ({medications.length} Prescriptions)
@@ -240,7 +263,7 @@ export function ClinicalSummaryPrint({
         )}
       </div>
 
-      {/* 6. Clinician Clinical Notes & Recommendations Box */}
+      {/* 7. Clinician Clinical Notes & Orders Box */}
       <div className="border-2 border-dashed border-slate-400 p-4 rounded-lg space-y-6">
         <span className="text-[10px] uppercase font-bold text-slate-600 block">
           4. Attending Geriatrician / Clinician Assessment & Orders

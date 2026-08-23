@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/select';
 import { useProfile, SkillLevel } from '@/context/role-context';
 import { ConsentManager } from '@/components/privacy/consent-manager';
-import { User, Settings as SettingsIcon } from 'lucide-react';
+import { CaregiverDyadProfiler } from '@/components/profile/caregiver-dyad-profiler';
+import { User, Settings as SettingsIcon, HeartPulse } from 'lucide-react';
 
 export default function SettingsPage() {
   const { 
@@ -41,47 +42,29 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto p-4 sm:p-6">
+      {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
           <SettingsIcon className="w-4 h-4" />
           <span>Preferences & Data Governance</span>
         </div>
-        <h1 className="text-3xl font-bold font-headline">Profile & Privacy Settings</h1>
+        <h1 className="text-3xl font-bold font-headline">Profile, Dyad Matrix & Privacy</h1>
         <p className="text-muted-foreground text-sm">
-          Manage your account profile, clinical focus conditions, and DPDP Act 2023 data rights.
+          Configure caregiver socio-demographics, patient Katz ADL functional dependence, and DPDP Act 2023 consent rights.
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <Card className="border-border shadow-sm bg-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Caregiver Identity</CardTitle>
-            <CardDescription className="text-xs">Update your local profile name.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-xs font-semibold">Name</Label>
-              <Input id="name" defaultValue="Suresh Kumar" className="h-9 text-xs" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-semibold">Contact Email</Label>
-              <Input
-                id="email"
-                type="email"
-                defaultValue="caregiver@sanjeevani.local"
-                className="h-9 text-xs"
-              />
-            </div>
-            <Button size="sm" className="font-bold text-xs">Save Profile</Button>
-          </CardContent>
-        </Card>
+      {/* 1. Caregiver Dyad Profiler & Care Gap Engine */}
+      <CaregiverDyadProfiler />
 
+      {/* 2. Clinical Focus & Learning Path Preferences */}
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-border shadow-sm bg-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Clinical Learning Path</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold">Clinical Learning Path</CardTitle>
             <CardDescription className="text-xs">
-              Personalize recommendations based on your recipient&apos;s condition.
+              Calibrate decision support and simulation difficulty.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -99,7 +82,7 @@ export default function SettingsPage() {
                     Beginner (New to caregiving)
                   </SelectItem>
                   <SelectItem value="intermediate" className="text-xs">
-                    Intermediate (Some experience)
+                    Intermediate (Some care experience)
                   </SelectItem>
                   <SelectItem value="advanced" className="text-xs">
                     Advanced (Years of experience / Clinical)
@@ -107,8 +90,9 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="condition" className="text-xs font-semibold">Primary Care Focus</Label>
+              <Label htmlFor="condition" className="text-xs font-semibold">Primary Care Focus Profile</Label>
               <Select
                 value={caregivingScenario}
                 onValueChange={setCaregivingScenario}
@@ -125,13 +109,14 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button size="sm" className="font-bold text-xs">Update Preferences</Button>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Consent Manager Section */}
-      <ConsentManager mode="full" />
+        {/* DPDP Act Consent Manager */}
+        <div className="space-y-4">
+          <ConsentManager mode="full" />
+        </div>
+      </div>
     </div>
   );
 }
