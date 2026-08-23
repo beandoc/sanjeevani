@@ -82,6 +82,12 @@ export const caregiverModules = [
     category: 'Geriatric Foundations',
   },
   {
+    id: 'elderly-garments-adaptive-dressing',
+    title: 'Adaptive Clothing & Garment Care: Dignity, Autonomy & Laundry',
+    description: 'Guidelines for choosing adaptive senior clothing (Velcro, open-back), stroke dressing rules, and sunlight disinfection.',
+    category: 'Geriatric Foundations',
+  },
+  {
     id: 'medication-management-caregiver',
     title: 'Helping Your Loved One Stay Safe with Medicines',
     description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
