@@ -158,6 +158,33 @@ export default function IntroductionPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+            <CardTitle className="text-xl font-semibold">
+                Section 1.5: Multidimensional Roles & Competencies of the Primary Caregiver
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <p>
+                The primary caregiver undertakes four core pillars of geriatric support:
+            </p>
+            <ul className="list-disc space-y-2 pl-5">
+                <li>
+                    <strong>Direct Personal ADL Assistance:</strong> Supporting core activities of daily living (bathing, oral hygiene/brushing, assisted feeding, and dignified toileting/continence management) while actively preserving the patient&apos;s autonomy and self-respect.
+                </li>
+                <li>
+                    <strong>Resource Management & Environmental Adaptation:</strong> Modifying the home architecture to prevent falls (installing grab bars, non-slip flooring, and glare-free lighting), managing family healthcare finances, and serving as the primary liaison with medical professionals.
+                </li>
+                <li>
+                    <strong>Medication Synchronization & Social Stimulation:</strong> Ensuring strict adherence to drug regimens, organizing cognitive and recreational activities (reading, music therapy, temple/park visits), and facilitating family social interactions.
+                </li>
+                <li>
+                    <strong>Psychological Counseling & Pain Relief:</strong> Managing behavioral mood shifts (frustration, anxiety, late-life depression), providing empathetic emotional reassurance against the fear of death (thanatophobia), and championing holistic palliative comfort.
+                </li>
+            </ul>
+        </CardContent>
+      </Card>
+
        <Card>
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Table 1: Comparative Analysis of Geriatric Competency Frameworks</CardTitle>

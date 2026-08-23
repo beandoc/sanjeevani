@@ -64,6 +64,12 @@ export const caregiverModules = [
     category: 'Geriatric Foundations',
   },
   {
+    id: 'caregiver-roles-responsibilities',
+    title: 'Role of the Caregiver: ADL Care, Environment & Mental Support',
+    description: 'Master personal hygiene assistance, home safety adaptation, social engagement, and psychological reassurance for older adults.',
+    category: 'Geriatric Foundations',
+  },
+  {
     id: 'medication-management-caregiver',
     title: 'Helping Your Loved One Stay Safe with Medicines',
     description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
