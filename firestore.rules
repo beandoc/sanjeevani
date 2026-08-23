@@ -144,16 +144,19 @@ service cloud.firestore {
     }
 
     // 1b. Collection-group read access for clinicianGrants. The nested rule
-    // above (inside match /users/{userId}) governs direct-path get/create/
-    // update/delete. A `list` (query) request against the *collection
-    // group* — e.g. the clinician roster's
-    // `collectionGroup('clinicianGrants').where('clinicianUid','==',me)` —
-    // additionally needs a rule declared with the `{path=**}` wildcard;
-    // Firestore does not extend the nested rule to group-query `list`
-    // requests on its own. `path[1]` recovers the caregiver's userId from
-    // the captured `users/{userId}/clinicianGrants/{clinicianUid}` prefix.
+    // above (inside match /users/{userId}) already covers the caregiver's
+    // own direct-path get/list/create/update/delete. This additional
+    // `{path=**}` rule exists only for the clinician roster's
+    // cross-caregiver `list`: `collectionGroup('clinicianGrants')
+    // .where('clinicianUid','==',me)`. A collection-group `list` needs a
+    // rule declared at the `{path=**}` level to be authorized at all — the
+    // nested rule doesn't extend to it automatically. Keyed off the
+    // document's own `clinicianUid` field (not a path-segment variable,
+    // which this rules engine does not bind for list requests) — that
+    // field is required and immutable-by-caregiver-only per the create/
+    // update rules above, so it's a trustworthy match target.
     match /{path=**}/clinicianGrants/{clinicianUid} {
-      allow read: if isOwner(path[1]) || (isAuthenticated() && request.auth.uid == clinicianUid);
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.clinicianUid;
     }
 
     // 2. Care Circles (Multi-caregiver team collaboration)
