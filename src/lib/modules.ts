@@ -76,6 +76,12 @@ export const caregiverModules = [
     category: 'Geriatric Foundations',
   },
   {
+    id: 'sensory-hygiene-bedmaking',
+    title: 'Sensory Care & Bed-Making: Eyes, Ears, Hearing Aids & Beds',
+    description: 'Clinical techniques for eye care (inner-to-outer canthus), hearing aid insertion, O2/NG tube care, and wrinkle-free bed making.',
+    category: 'Geriatric Foundations',
+  },
+  {
     id: 'medication-management-caregiver',
     title: 'Helping Your Loved One Stay Safe with Medicines',
     description: 'Learn to manage medications safely and act as a key partner in their healthcare.',
