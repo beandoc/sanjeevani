@@ -14,7 +14,8 @@ export interface ModuleRecommendation {
   moduleId: string;
   title: string;
   category: 'clinical' | 'caregiver-wellness' | 'practical-nursing' | 'medication-safety';
-  matchScore: number; // 0 to 100
+  rawScore: number;
+  matchScore: number; // 0 to 100 for display
   urgency: 'critical' | 'high' | 'recommended' | 'elective';
   clinicalRationale: string[];
   targetRole: 'caregiver' | 'professional' | 'both';
@@ -224,42 +225,44 @@ export class ClinicalRecommendationEngine {
     const crisisTriggers: string[] = [];
     let crisisEscalationRequired = false;
 
-    // 1. Evaluate Crisis Flags from Zarit
+    // 1. Evaluate Crisis Flags from Zarit (reconciled with ZBI engine)
     if (lastZarit) {
-      if (lastZarit.severityBand === 'critical_red' || lastZarit.severityBand === 'red') {
+      if (lastZarit.isCrisisTriggered || lastZarit.severityBand === 'critical_red') {
         crisisEscalationRequired = true;
-        crisisTriggers.push(`Severe overall Zarit burden score: ${lastZarit.totalScore}/88`);
+        crisisTriggers.push(`Severe overall Zarit burden score: ${lastZarit.totalScore}/${lastZarit.maxScore} (${lastZarit.normalizedPercentage}%)`);
       }
       if (lastZarit.redFlags && lastZarit.redFlags.length > 0) {
         crisisEscalationRequired = true;
-        lastZarit.redFlags.forEach((rf) => crisisTriggers.push(rf));
+        lastZarit.redFlags.forEach((rf) => {
+          if (!crisisTriggers.includes(rf)) crisisTriggers.push(rf);
+        });
       }
     }
 
-    // 2. Score All Modules Deterministically
+    // 2. Score All Modules Deterministically with Unclamped Continuous Ranking
     const scoredModules: ModuleRecommendation[] = ALL_MODULES_CATALOG.map((mod) => {
-      let score = 0;
+      let rawScore = 0;
       const rationale: string[] = [];
 
       // Base scenario alignment (Weight: 40%)
       const scenarioWeight = mod.baseScenarioWeights[caregivingScenario] || 50;
-      score += scenarioWeight * 0.4;
+      rawScore += scenarioWeight * 0.4;
       if (scenarioWeight >= 85) {
         rationale.push(`Directly targets your recipient's profile: "${caregivingScenario}".`);
       }
 
       // Skill level calibration (Weight: 25%)
       const skillScore = mod.skillLevelRelevance[skillLevel] || 80;
-      score += skillScore * 0.25;
+      rawScore += skillScore * 0.25;
       if (skillLevel === 'beginner' && mod.skillLevelRelevance.beginner >= 90) {
         rationale.push(`Calibrated for beginner caregivers with step-by-step guidance.`);
       }
 
       // Role calibration (Weight: 15%)
       if (mod.targetRole === role || mod.targetRole === 'both') {
-        score += 15;
+        rawScore += 15;
       } else {
-        score += 5;
+        rawScore += 5;
       }
 
       // Zarit Subscale Psychometrics Boosts (Weight: 20%)
@@ -267,20 +270,20 @@ export class ClinicalRecommendationEngine {
         const factors = lastZarit.factors;
 
         // Personal Strain elevated
-        if ((factors.personal_strain?.percentage || 0) >= 60 && mod.category === 'caregiver-wellness') {
-          score += 15;
+        if (factors.personal_strain.isMeasured && (factors.personal_strain.percentage ?? 0) >= 60 && mod.category === 'caregiver-wellness') {
+          rawScore += 15;
           rationale.push(`Elevated Zarit Personal Strain (${factors.personal_strain.percentage}%): prioritize caregiver respite.`);
         }
 
         // Competency / Control strain elevated
-        if ((factors.competency?.percentage || 0) >= 50 && (mod.category === 'practical-nursing' || mod.category === 'medication-safety')) {
-          score += 12;
+        if (factors.competency.isMeasured && (factors.competency.percentage ?? 0) >= 50 && (mod.category === 'practical-nursing' || mod.category === 'medication-safety')) {
+          rawScore += 12;
           rationale.push(`Elevated Role Ambiguity & Uncertainty: structured clinical checklists recommended.`);
         }
 
-        // Severe fall or physical strain
-        if ((factors.role_strain?.percentage || 0) >= 60 && mod.moduleId === 'fall-prevention') {
-          score += 10;
+        // Severe role strain
+        if (factors.role_strain.isMeasured && (factors.role_strain.percentage ?? 0) >= 60 && mod.moduleId === 'fall-prevention') {
+          rawScore += 10;
           rationale.push(`High Role Strain: proactive fall mitigation prevents sudden crisis events.`);
         }
       }
@@ -289,22 +292,26 @@ export class ClinicalRecommendationEngine {
       const modProgress = completedSectionMap[mod.moduleId];
       const completedCount = modProgress?.completedSections?.length || 0;
       if (completedCount > 0 && completedCount < 4) {
-        score += 8;
+        rawScore += 8;
         rationale.push(`You have completed ${completedCount} of 4 sections in this module.`);
       } else if (completedCount >= 4) {
-        score -= 20; // Completed module drops down to make room for new content
+        rawScore -= 20; // Completed module drops down to make room for new content
       }
 
       // Determine Urgency Level
       let urgency: ModuleRecommendation['urgency'] = 'recommended';
-      if (score >= 85) urgency = 'high';
+      if (rawScore >= 95) urgency = 'high';
       if (crisisEscalationRequired && mod.category === 'caregiver-wellness') urgency = 'critical';
+
+      // Normalized display match percentage (10% to 100%)
+      const matchScore = Math.min(100, Math.max(10, Math.round((rawScore / 115) * 100)));
 
       return {
         moduleId: mod.moduleId,
         title: mod.title,
         category: mod.category,
-        matchScore: Math.min(100, Math.round(score)),
+        rawScore,
+        matchScore,
         urgency,
         clinicalRationale: rationale.length > 0 ? rationale : [`Standard core geriatric protocol for ${caregivingScenario}.`],
         targetRole: mod.targetRole,
@@ -312,27 +319,30 @@ export class ClinicalRecommendationEngine {
       };
     });
 
-    // Sort by match score descending
-    const sorted = scoredModules.sort((a, b) => b.matchScore - a.matchScore);
+    // Unclamped continuous sorting: True rawScore descending prevents clamp-induced declaration-order ties
+    const sorted = scoredModules.sort((a, b) => b.rawScore - a.rawScore);
 
     // 3. Generate Specific Clinical Prescriptions
     const clinicalPrescriptions: ClinicalPrescriptionAction[] = [];
 
-    if (lastZarit && lastZarit.factors) {
-      const { personal_strain, role_strain, financial_strain, guilt } = lastZarit.factors;
+    if (lastZarit) {
+      const { personal_strain, role_strain, guilt } = lastZarit.factors;
 
-      if ((personal_strain?.percentage || 0) >= 60) {
+      if (
+        (personal_strain.isMeasured && (personal_strain.percentage ?? 0) >= 60) ||
+        lastZarit.normalizedPercentage >= 65
+      ) {
         clinicalPrescriptions.push({
           id: 'rx-respite-block',
           title: 'Mandatory 4-Hour Weekly Respite Block',
           action: 'Delegate continuous care tasks to a secondary care circle member or day-care center for at least 4 continuous daytime hours this week.',
-          rationale: `Personal strain score (${personal_strain.rawScore}/${personal_strain.maxScore}) indicates high risk for clinical burnout and sleep disruption.`,
+          rationale: `Personal strain indicator (${lastZarit.totalScore}/${lastZarit.maxScore}) reflects elevated risk for clinical burnout and sleep disruption.`,
           priority: 'immediate',
           category: 'respite'
         });
       }
 
-      if ((role_strain?.percentage || 0) >= 50) {
+      if (role_strain.isMeasured && (role_strain.percentage ?? 0) >= 50) {
         clinicalPrescriptions.push({
           id: 'rx-care-circle-sync',
           title: 'Formal Care Circle Task Redistribution',
@@ -343,22 +353,26 @@ export class ClinicalRecommendationEngine {
         });
       }
 
-      if ((guilt?.percentage || 0) >= 50) {
+      // Tele-MANAS support reachable for all tiers (full or short forms)
+      if (
+        (guilt.isMeasured && (guilt.percentage ?? 0) >= 50) ||
+        lastZarit.normalizedPercentage >= 55 ||
+        lastZarit.isCrisisTriggered
+      ) {
         clinicalPrescriptions.push({
           id: 'rx-telemanas-support',
-          title: 'Caregiver Psychological Triage (Tele-MANAS)',
+          title: 'Caregiver Psychological Triage (Tele-MANAS 14416)',
           action: 'Connect with a certified geriatric counselor via toll-free Tele-MANAS (14416) for emotional grounding.',
-          rationale: `Guilt and anxiety markers detected in psychometric evaluation.`,
+          rationale: 'Elevated psychometric strain detected in Zarit evaluation.',
           priority: 'high',
           category: 'respite'
         });
       }
     } else {
-      // Default baseline prescription for new caregivers
       clinicalPrescriptions.push({
         id: 'rx-baseline-zarit',
         title: 'Conduct Baseline Zarit Burden Assessment',
-        action: 'Complete the 12-question Zarit Short Form to establish your baseline stress gauge.',
+        action: 'Complete the Zarit Burden Scale to establish your baseline stress gauge.',
         rationale: 'Clinical decision-support tools require regular psychometric tracking.',
         priority: 'routine',
         category: 'medical-review'

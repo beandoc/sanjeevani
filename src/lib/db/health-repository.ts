@@ -55,6 +55,7 @@ export interface MedicationItem {
   prescribedBy?: string;
   beersWarning?: string;
   takenToday?: boolean;
+  takenSlots?: ('morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos')[];
   lastTakenDate?: string;
 }
 
@@ -443,17 +444,32 @@ export class HealthRepository {
   // --- 7. Medications Regimen ---
 
   static getMedications(): MedicationItem[] {
-    if (typeof window === 'undefined') return DEFAULT_MEDICATIONS;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.MEDICATIONS);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let meds: MedicationItem[] = DEFAULT_MEDICATIONS;
+
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.MEDICATIONS);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) meds = parsed;
+        }
+      } catch (e) {
+        console.error('Error reading medications:', e);
       }
-    } catch (e) {
-      console.error('Error reading medications:', e);
     }
-    return DEFAULT_MEDICATIONS;
+
+    // Daily reset check: If lastTakenDate is from a previous calendar day, reset today's taken slots
+    return meds.map((m) => {
+      const isSameDay = m.lastTakenDate && m.lastTakenDate.slice(0, 10) === todayStr;
+      const takenSlots = isSameDay ? (m.takenSlots || (m.takenToday ? m.timeOfDay : [])) : [];
+      const takenToday = takenSlots.length > 0 && m.timeOfDay.every((s) => takenSlots.includes(s));
+      return {
+        ...m,
+        takenSlots,
+        takenToday
+      };
+    });
   }
 
   static saveMedications(meds: MedicationItem[]): void {
@@ -465,18 +481,39 @@ export class HealthRepository {
     }
   }
 
-  static toggleMedicationTaken(medId: string): MedicationItem[] {
+  static toggleMedicationTaken(
+    medId: string,
+    slot?: 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos'
+  ): MedicationItem[] {
     const meds = this.getMedications();
+    const todayStr = new Date().toISOString();
+
     const updated = meds.map((m) => {
       if (m.id === medId) {
+        let currentSlots = [...(m.takenSlots || [])];
+        if (slot) {
+          if (currentSlots.includes(slot)) {
+            currentSlots = currentSlots.filter((s) => s !== slot);
+          } else {
+            currentSlots.push(slot);
+          }
+        } else {
+          // Toggle all slots for this medicine
+          const allCompleted = m.timeOfDay.every((s) => currentSlots.includes(s));
+          currentSlots = allCompleted ? [] : [...m.timeOfDay];
+        }
+
+        const isFullyTaken = m.timeOfDay.length > 0 && m.timeOfDay.every((s) => currentSlots.includes(s));
         return {
           ...m,
-          takenToday: !m.takenToday,
-          lastTakenDate: new Date().toISOString()
+          takenSlots: currentSlots,
+          takenToday: isFullyTaken,
+          lastTakenDate: todayStr
         };
       }
       return m;
     });
+
     this.saveMedications(updated);
     return updated;
   }

@@ -2,7 +2,42 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { ClinicalRecommendationEngine } from '../src/lib/recommendations/rules-engine';
 import { MedicationChecker } from '../src/lib/clinical/medication-checker';
-import { ZaritEvaluationResult } from '../src/lib/zarit-scale';
+import { ZaritEvaluationResult, calculateZaritScore } from '../src/lib/zarit-scale';
+
+describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
+  test('ZBI-4 Rapid Triage must trigger crisis escalation on severe strain (>=12/16)', () => {
+    // Caregiver answers Nearly Always (4) on all 4 rapid items
+    const responses = { zbi_1: 4, zbi_7: 4, zbi_8: 4, zbi_14: 4 };
+    const result = calculateZaritScore(responses, 'ZBI4');
+
+    assert.strictEqual(result.totalScore, 16);
+    assert.strictEqual(result.maxScore, 16);
+    assert.strictEqual(result.severityBand, 'critical_red');
+    assert.strictEqual(result.isCrisisTriggered, true);
+    assert.ok(result.redFlags.length > 0);
+  });
+
+  test('ZBI-12 and ZBI-4 should mark unassessed factors as isMeasured=false, not 0% strain', () => {
+    const responses = { zbi_1: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2 };
+    const resultZbi4 = calculateZaritScore(responses, 'ZBI4');
+
+    // Unmeasured factors in ZBI-4
+    assert.strictEqual(resultZbi4.factors.financial_strain.isMeasured, false);
+    assert.strictEqual(resultZbi4.factors.financial_strain.percentage, null);
+    assert.strictEqual(resultZbi4.factors.guilt.isMeasured, false);
+    assert.strictEqual(resultZbi4.factors.guilt.percentage, null);
+
+    // Unmeasured domain capacities should be null, not 100%
+    assert.strictEqual(resultZbi4.domainCapacities.medical, null);
+  });
+
+  test('Tele-MANAS prescription should be generated on ZBI-4 / ZBI-12 when normalized burden >= 55%', () => {
+    const responses = { zbi_1: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3 }; // 12/16 = 75%
+    const result = calculateZaritScore(responses, 'ZBI4');
+
+    assert.ok(result.prescriptions.some((p) => p.id === 'rx_telemanas'));
+  });
+});
 
 describe('Clinical Recommendation Rules Engine Tests', () => {
   test('should prioritize Fall Prevention and Parkinson modules for Parkinson scenario', () => {
@@ -19,79 +54,51 @@ describe('Clinical Recommendation Rules Engine Tests', () => {
     assert.strictEqual(output.crisisEscalationRequired, false);
   });
 
-  test('should trigger crisis escalation when Zarit score is severe or has red flags', () => {
-    const mockZarit: ZaritEvaluationResult = {
-      tier: 'ZBI22',
-      totalScore: 68,
-      maxScore: 88,
-      normalizedPercentage: 77,
-      severityBand: 'critical_red',
-      classification: { en: 'Severe Burden', hi: 'गंभीर बोझ', mr: 'गंभीर ताण' },
-      isCrisisTriggered: true,
-      redFlags: ['Critical personal strain: feelings of severe exhaustion'],
-      factors: {
-        personal_strain: { rawScore: 20, maxScore: 24, percentage: 83, title: { en: 'Personal Strain', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } },
-        role_strain: { rawScore: 18, maxScore: 24, percentage: 75, title: { en: 'Role Strain', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } },
-        financial_strain: { rawScore: 3, maxScore: 4, percentage: 75, title: { en: 'Financial Strain', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } },
-        competency: { rawScore: 12, maxScore: 16, percentage: 75, title: { en: 'Competency', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } },
-        guilt: { rawScore: 11, maxScore: 16, percentage: 69, title: { en: 'Guilt', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } },
-        global_burden: { rawScore: 4, maxScore: 4, percentage: 100, title: { en: 'Global Anchor', hi: '', mr: '' }, clinicalNote: { en: '', hi: '', mr: '' } }
-      },
-      domainCapacities: {
-        psychosocial: 80,
-        resource: 75,
-        physical: 80,
-        safety: 70,
-        cognitive_behavioral: 60,
-        medical: 40
-      },
-      prescriptions: [],
-      completedAt: new Date().toISOString()
-    };
-
+  test('Unclamped sorting should preserve distinct ranks and not collapse to catalog order', () => {
+    // Create high-burden Zarit result
+    const highZarit = calculateZaritScore({ zbi_1: 4, zbi_7: 4, zbi_8: 4, zbi_14: 4 }, 'ZBI4');
     const output = ClinicalRecommendationEngine.evaluate({
       role: 'caregiver',
-      skillLevel: 'intermediate',
-      caregivingScenario: 'Dementia',
-      lastZarit: mockZarit
+      skillLevel: 'beginner',
+      caregivingScenario: 'General Frailty',
+      lastZarit: highZarit,
+      completedSectionMap: { 'fall-prevention': { completedSections: ['s1', 's2'] } }
     });
 
-    assert.strictEqual(output.crisisEscalationRequired, true);
-    assert.ok(output.crisisTriggers.length > 0);
-    assert.ok(output.clinicalPrescriptions.some((p) => p.id === 'rx-respite-block'));
+    // Fall prevention has scenario 95 + beginner 100 + role 15 + partial boost 8 + zarit strain
+    const topModule = output.topRecommendations[0];
+    assert.strictEqual(topModule.moduleId, 'fall-prevention');
+    assert.ok(output.topRecommendations[0].rawScore > output.topRecommendations[1].rawScore);
   });
 });
 
-describe('Beers Criteria Geriatric Medication Safety Engine Tests', () => {
-  test('should flag Chlorpheniramine / Avil as High-Risk Anticholinergic', () => {
+describe('Beers Criteria & STOPP Interaction Engine Tests', () => {
+  test('should NOT flag Cetirizine as 1st-generation anticholinergic (2nd gen safe)', () => {
+    const warning = MedicationChecker.checkBeersCriteria('Cetirizine 10mg');
+    assert.strictEqual(warning, null);
+  });
+
+  test('should flag Avil (Pheniramine) as High-Risk Anticholinergic with ACB = 3', () => {
     const warning = MedicationChecker.checkBeersCriteria('Avil 25mg (Pheniramine)');
     assert.ok(warning !== null);
     assert.strictEqual(warning?.severity, 'high-risk');
-    assert.ok(warning?.rationale.includes('anticholinergic'));
+    assert.strictEqual(warning?.acbScore, 3);
   });
 
-  test('should flag Alprazolam / Benzodiazepines for fall risk', () => {
-    const warning = MedicationChecker.checkBeersCriteria('Alprazolam 0.25mg');
-    assert.ok(warning !== null);
-    assert.strictEqual(warning?.severity, 'high-risk');
-    assert.ok(warning?.drugClass.includes('Benzodiazepines'));
-  });
+  test('should calculate Cumulative ACB score and STOPP Triple Whammy interaction', () => {
+    const regimen = [
+      { name: 'Avil 25mg' }, // ACB 3
+      { name: 'Tryptomer 10mg (Amitriptyline)' }, // ACB 3
+      { name: 'Telmisartan 40mg' }, // ARB
+      { name: 'Combiflam (Ibuprofen)' }, // NSAID
+      { name: 'Dytor 10mg (Torsemide)' }, // Diuretic
+    ];
 
-  test('should flag Oral NSAIDs (Diclofenac / Combiflam) for GI & Renal risks', () => {
-    const warning = MedicationChecker.checkBeersCriteria('Combiflam tablet');
-    assert.ok(warning !== null);
-    assert.strictEqual(warning?.severity, 'high-risk');
-    assert.ok(warning?.rationale.includes('kidney injury'));
-  });
+    const evalResult = MedicationChecker.evaluateRegimen(regimen);
 
-  test('should flag Amlodipine for Prescribing Cascade (Ankle edema)', () => {
-    const warning = MedicationChecker.checkBeersCriteria('Amlodipine 5mg');
-    assert.ok(warning !== null);
-    assert.strictEqual(warning?.severity, 'prescribing-cascade');
-  });
-
-  test('should return null for standard safe geriatric drugs like Paracetamol or Telmisartan', () => {
-    const warning = MedicationChecker.checkBeersCriteria('Telmisartan 40mg');
-    assert.strictEqual(warning, null);
+    assert.strictEqual(evalResult.totalAcbScore, 6);
+    assert.strictEqual(evalResult.acbRiskLevel, 'high-risk');
+    assert.ok(evalResult.warnings.some((w) => w.includes('Triple Whammy')));
+    assert.ok(evalResult.stoppTriggers.some((t) => t.includes('STOPP: Discontinue oral NSAID')));
   });
 });

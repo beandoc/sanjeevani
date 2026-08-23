@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
-import { VitalRecord, MedicationItem, EmergencyContact } from '@/lib/db/health-repository';
+import { VitalRecord, MedicationItem } from '@/lib/db/health-repository';
 import { format } from 'date-fns';
 
 interface ClinicalSummaryPrintProps {
@@ -24,11 +24,48 @@ export function ClinicalSummaryPrint({
 }: ClinicalSummaryPrintProps) {
   const currentDate = new Date();
 
-  // Compute Vitals Summary
+  // Consistent 10-Record / Recent 14-Day Window Analytics
   const recentVitals = vitals.slice(0, 10);
-  const bpReadings = vitals.map((v) => v.bp).filter(Boolean);
-  const pulseReadings = vitals.map((v) => Number(v.pulse)).filter((p) => !isNaN(p) && p > 0);
-  const avgPulse = pulseReadings.length > 0 ? Math.round(pulseReadings.reduce((a, b) => a + b, 0) / pulseReadings.length) : null;
+
+  const systolicValues = recentVitals
+    .map((v) => parseInt(v.bp?.split('/')[0] || ''))
+    .filter((n) => !isNaN(n) && n > 0);
+  const diastolicValues = recentVitals
+    .map((v) => parseInt(v.bp?.split('/')[1] || ''))
+    .filter((n) => !isNaN(n) && n > 0);
+  const meanSystolic =
+    systolicValues.length > 0
+      ? Math.round(systolicValues.reduce((a, b) => a + b, 0) / systolicValues.length)
+      : null;
+  const meanDiastolic =
+    diastolicValues.length > 0
+      ? Math.round(diastolicValues.reduce((a, b) => a + b, 0) / diastolicValues.length)
+      : null;
+
+  const pulseValues = recentVitals
+    .map((v) => Number(v.pulse))
+    .filter((p) => !isNaN(p) && p > 0);
+  const meanPulse =
+    pulseValues.length > 0
+      ? Math.round(pulseValues.reduce((a, b) => a + b, 0) / pulseValues.length)
+      : null;
+
+  const sugarValues = recentVitals
+    .map((v) => Number(v.bloodSugar))
+    .filter((s) => !isNaN(s) && s > 0);
+  const meanSugar =
+    sugarValues.length > 0
+      ? Math.round(sugarValues.reduce((a, b) => a + b, 0) / sugarValues.length)
+      : null;
+
+  // BP Stage Interpretation
+  let bpClassification = '';
+  if (meanSystolic && meanDiastolic) {
+    if (meanSystolic < 120 && meanDiastolic < 80) bpClassification = 'Normotensive';
+    else if (meanSystolic <= 129 && meanDiastolic < 80) bpClassification = 'Elevated';
+    else if (meanSystolic <= 139 || meanDiastolic <= 89) bpClassification = 'Stage 1 HTN';
+    else bpClassification = 'Stage 2 HTN';
+  }
 
   return (
     <div className="bg-white text-black p-8 max-w-4xl mx-auto font-sans leading-relaxed text-xs space-y-6 print:p-0 print:m-0 print:text-black print:bg-white">
@@ -70,7 +107,7 @@ export function ClinicalSummaryPrint({
           </h3>
           {zaritResult && (
             <span className="font-mono font-bold text-xs px-2 py-0.5 bg-slate-200 text-slate-900 rounded">
-              Tier: {zaritResult.tier}
+              Instrument: {zaritResult.tier} ({zaritResult.totalScore}/{zaritResult.maxScore})
             </span>
           )}
         </div>
@@ -86,7 +123,7 @@ export function ClinicalSummaryPrint({
               </div>
               <div className="p-2.5 bg-slate-100 rounded text-center">
                 <span className="text-[10px] uppercase font-bold text-slate-600">Severity Band</span>
-                <p className="text-base font-bold text-slate-900 capitalize">{zaritResult.severityBand} Burden</p>
+                <p className="text-base font-bold text-slate-900 capitalize">{zaritResult.severityBand.replace('_', ' ')}</p>
               </div>
               <div className="p-2.5 bg-slate-100 rounded text-center">
                 <span className="text-[10px] uppercase font-bold text-slate-600">Scaled Strain</span>
@@ -97,26 +134,13 @@ export function ClinicalSummaryPrint({
             {/* Subscale Factor Decomposition */}
             {zaritResult.factors && (
               <div className="pt-2">
-                <span className="text-[10px] uppercase font-bold text-slate-600">Subscale Factor Breakdown (0-100% Normalized)</span>
+                <span className="text-[10px] uppercase font-bold text-slate-600">Subscale Factor Breakdown</span>
                 <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Personal Strain:</strong> {zaritResult.factors.personal_strain?.percentage || 0}%
-                  </div>
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Role Strain:</strong> {zaritResult.factors.role_strain?.percentage || 0}%
-                  </div>
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Financial Strain:</strong> {zaritResult.factors.financial_strain?.percentage || 0}%
-                  </div>
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Competency:</strong> {zaritResult.factors.competency?.percentage || 0}%
-                  </div>
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Guilt:</strong> {zaritResult.factors.guilt?.percentage || 0}%
-                  </div>
-                  <div className="p-1.5 border border-slate-200 rounded">
-                    <strong>Global Anchor:</strong> {zaritResult.factors.global_burden?.percentage || 0}%
-                  </div>
+                  {Object.entries(zaritResult.factors).map(([key, f]) => (
+                    <div key={key} className={`p-1.5 border rounded ${f.isMeasured ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
+                      <strong>{f.title.en}:</strong> {f.isMeasured && f.percentage !== null ? `${f.percentage}% (${f.rawScore}/${f.maxScore})` : 'Unassessed'}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -133,13 +157,21 @@ export function ClinicalSummaryPrint({
         )}
       </div>
 
-      {/* 4. Longitudinal Vitals Record Table */}
+      {/* 4. Longitudinal Vitals Record Table & Window Analytics */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
           <h3 className="text-sm font-bold text-slate-900 uppercase">
-            2. Recent Clinical Vitals & Parameters ({recentVitals.length} Logs)
+            2. Recent Clinical Vitals & Parameters ({recentVitals.length} Logs Analyzed)
           </h3>
-          {avgPulse && <span className="text-[11px] text-slate-600">Mean Pulse: {avgPulse} bpm</span>}
+          <div className="flex items-center gap-3 text-[11px] text-slate-700">
+            {meanSystolic && meanDiastolic && (
+              <span className="font-semibold">
+                Mean BP: <strong>{meanSystolic}/{meanDiastolic} mmHg</strong> ({bpClassification})
+              </span>
+            )}
+            {meanPulse && <span>Mean Pulse: <strong>{meanPulse} bpm</strong></span>}
+            {meanSugar && <span>Mean Sugar: <strong>{meanSugar} mg/dL</strong></span>}
+          </div>
         </div>
 
         {recentVitals.length > 0 ? (

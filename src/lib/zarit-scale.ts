@@ -99,9 +99,9 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     number: 6,
     factor: 'role_strain',
     text: {
-      en: 'Do you feel that your relative currently affects your relationships with other family members or friends in a negative way?',
-      hi: 'क्या आपको लगता है कि आपके परिजन की वजह से परिवार के अन्य सदस्यों या दोस्तों के साथ आपके रिश्तों पर बुरा असर पड़ रहा है?',
-      mr: 'नातेवाईकांमुळे कुटुंबातील इतर सदस्यांशी किंवा मित्रांशी असलेल्या संबंधांवर वाईट परिणाम होत आहे असे वाटते का?'
+      en: 'Do you feel that your relative currently affects your relationship with other family members or friends in a negative way?',
+      hi: 'क्या आपको लगता है कि परिजन की स्थिति आपके अन्य पारिवारिक या सामाजिक रिश्तों पर बुरा असर डाल रही है?',
+      mr: 'नातेवाईकांच्या परिस्थितीमुळे इतर कुटुंबियांशी किंवा मित्रांशी संबंध बिघडत आहेत असे वाटते का?'
     },
     domainWeights: { psychosocial: 0.7, resource: 0.3 }
   },
@@ -110,22 +110,28 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     number: 7,
     factor: 'personal_strain',
     text: {
-      en: 'Are you afraid of what the future holds for your relative?',
+      en: 'Are you afraid about what the future holds for your relative?',
       hi: 'क्या आप अपने परिजन के भविष्य को लेकर डरे या चिंतित रहते हैं?',
-      mr: 'नातेवाईकांच्या भविष्याबद्दल तुम्हाला भीती वाटते का?'
+      mr: 'तुम्हाला तुमच्या नातेवाईकांच्या भविष्याबद्दल भीती किंवा चिंता वाटते का?'
     },
-    domainWeights: { psychosocial: 1.0 }
+    domainWeights: { psychosocial: 0.6, cognitive_behavioral: 0.4 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 4,
+    redFlagReason: 'Severe Future Anxiety & Panic Strain'
   },
   {
     id: 'zbi_8',
     number: 8,
     factor: 'personal_strain',
     text: {
-      en: 'Do you feel your relative is dependent upon you?',
+      en: 'Do you feel that your relative is dependent upon you?',
       hi: 'क्या आपको लगता है कि आपका परिजन पूरी तरह आप पर ही निर्भर है?',
       mr: 'तुमचे नातेवाईक पूर्णपणे तुमच्यावर अवलंबून आहेत असे वाटते का?'
     },
-    domainWeights: { psychosocial: 0.7, physical: 0.3 }
+    domainWeights: { psychosocial: 0.7, physical: 0.3 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 4,
+    redFlagReason: 'Absolute Perceived Dependency / Sole Caregiver Strain'
   },
   {
     id: 'zbi_9',
@@ -133,10 +139,13 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'personal_strain',
     text: {
       en: 'Do you feel strained when you are around your relative?',
-      hi: 'क्या अपने परिजन के आसपास रहने पर आप खिंचाव या भारीपन महसूस करते हैं?',
-      mr: 'नातेवाईकांजवळ असताना तुम्हाला ताण जाणवतो का?'
+      hi: 'क्या परिजन के पास रहने पर आप लगातार मानसिक तनाव या दबाव महसूस करते हैं?',
+      mr: 'नातेवाईकांजवळ असताना तुम्हाला मानसिक ताण जाणवतो का?'
     },
-    domainWeights: { psychosocial: 1.0 }
+    domainWeights: { psychosocial: 1.0 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 4,
+    redFlagReason: 'Acute Psychological Exhaustion'
   },
   {
     id: 'zbi_10',
@@ -144,13 +153,13 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'personal_strain',
     text: {
       en: 'Do you feel your health has suffered because of your involvement with your relative?',
-      hi: 'क्या आपको लगता है कि परिजन की देखभाल में लगे रहने से आपका अपना स्वास्थ्य खराब हुआ है?',
-      mr: 'नातेवाईकांची काळजी घेताना तुमचे स्वतःचे आरोग्य खालावले आहे असे वाटते का?'
+      hi: 'क्या आपको लगता है कि परिजन की देखभाल के चक्कर में आपका खुद का स्वास्थ्य खराब हो रहा है?',
+      mr: 'नातेवाईकांची काळजी घेताना तुमचे स्वतःचे आरोग्य खालावत आहे असे वाटते का?'
     },
-    domainWeights: { physical: 0.6, psychosocial: 0.4 },
+    domainWeights: { physical: 0.8, medical: 0.2 },
     isRedFlagTrigger: true,
     redFlagThreshold: 3,
-    redFlagReason: 'Caregiver Health Deterioration reported at severe level'
+    redFlagReason: 'Caregiver Physical Health Breakdown'
   },
   {
     id: 'zbi_11',
@@ -158,10 +167,10 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'role_strain',
     text: {
       en: "Do you feel that you don't have as much privacy as you would like because of your relative?",
-      hi: 'क्या आपको लगता है कि परिजन की वजह से आपको उतनी एकांतता (प्राइवेसी) नहीं मिलती जितनी आप चाहते हैं?',
-      mr: 'नातेवाईकांमुळे तुम्हाला हवी तशी वैयक्तिक शांतता आणि एकांत मिळत नाही असे वाटते का?'
+      hi: 'क्या आपको लगता है कि परिजन की देखभाल की वजह से आपको निजी जिंदगी/एकांत नहीं मिल पाता?',
+      mr: 'नातेवाईकांमुळे तुम्हाला स्वतःची प्रायव्हसी किंवा एकांत मिळत नाही असे वाटते का?'
     },
-    domainWeights: { resource: 0.7, psychosocial: 0.3 }
+    domainWeights: { resource: 0.6, psychosocial: 0.4 }
   },
   {
     id: 'zbi_12',
@@ -169,21 +178,21 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'role_strain',
     text: {
       en: 'Do you feel that your social life has suffered because you are caring for your relative?',
-      hi: 'क्या आपको लगता है कि परिजन की देखभाल करने के कारण आपका सामाजिक जीवन प्रभावित हुआ है?',
-      mr: 'नातेवाईकांची काळजी घेतल्यामुळे तुमचे सामाजिक जीवन बाधित झाले आहे असे वाटते का?'
+      hi: 'क्या परिजन की देखभाल के कारण आपका सामाजिक जीवन पूरी तरह ठप हो गया है?',
+      mr: 'काळजी घेण्यामुळे तुमचे सामाजिक जीवन किंवा नातेसंबंध प्रभावित झाले आहेत का?'
     },
-    domainWeights: { resource: 0.8, psychosocial: 0.2 }
+    domainWeights: { resource: 0.7, psychosocial: 0.3 }
   },
   {
     id: 'zbi_13',
     number: 13,
-    factor: 'role_strain',
+    factor: 'personal_strain',
     text: {
-      en: 'Do you feel uncomfortable about having friends over because of your relative?',
-      hi: 'क्या अपने परिजन की वजह से आपको घर पर दोस्तों या मेहमानों को बुलाने में असहजता महसूस होती है?',
-      mr: 'नातेवाईकांमुळे घरी मित्रांना किंवा पाहुण्यांना बोलावण्यास तुम्हाला अवघडल्यासारखे वाटते का?'
+      en: 'Do you feel uncomfortable about having your friends over because of your relative?',
+      hi: 'क्या परिजन के कारण आप दोस्तों या मेहमानों को घर बुलाने में असहज महसूस करते हैं?',
+      mr: 'नातेवाईकांमुळे मित्रांना किंवा पाहुण्यांना घरी बोलवण्यास तुम्हाला संकोच वाटतो का?'
     },
-    domainWeights: { psychosocial: 0.7, resource: 0.3 }
+    domainWeights: { psychosocial: 0.8, cognitive_behavioral: 0.2 }
   },
   {
     id: 'zbi_14',
@@ -191,10 +200,13 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'personal_strain',
     text: {
       en: 'Do you feel that your relative seems to expect you to take care of him/her as if you were the only one he/she could depend on?',
-      hi: 'क्या आपको लगता है कि आपका परिजन आपसे ऐसी उम्मीद करता है मानो दुनिया में सिर्फ आप ही उनकी देखभाल कर सकते हैं?',
-      mr: 'नातेवाईकांना वाटते की फक्त तुम्हीच त्यांची काळजी घेऊ शकता, अशी अवास्तव अपेक्षा ते ठेवतात का?'
+      hi: 'क्या आपका परिजन आपसे ऐसी उम्मीद रखता है जैसे इस दुनिया में केवल आप ही उसके एकमात्र सहारे हैं?',
+      mr: 'नातेवाईक केवळ तुमच्यावरच विसंबून राहावे अशी अपेक्षा ठेवतात असे वाटते का?'
     },
-    domainWeights: { psychosocial: 0.8, resource: 0.2 }
+    domainWeights: { psychosocial: 0.7, resource: 0.3 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 4,
+    redFlagReason: 'Extreme Isolation & Sole Dependency Burden'
   },
   {
     id: 'zbi_15',
@@ -202,10 +214,13 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'financial_strain',
     text: {
       en: "Do you feel that you don't have enough money to care for your relative in addition to the rest of your expenses?",
-      hi: 'क्या आपको लगता है कि घर के बाकी खर्चों के अलावा परिजन की देखभाल के लिए आपके पास पर्याप्त पैसे नहीं हैं?',
-      mr: 'इतर खर्चांव्यतिरिक्त नातेवाईकांच्या काळजीसाठी पुरेसे पैसे नाहीत असे वाटते का?'
+      hi: 'क्या आपको लगता है कि अपने अन्य खर्चों के अलावा परिजन की देखभाल के लिए आपके पास पैसों की तंगी है?',
+      mr: 'इतर खर्चांव्यतिरिक्त नातेवाईकांची काळजी घेण्यासाठी पुरेसे पैसे नाहीत असे वाटते का?'
     },
-    domainWeights: { resource: 1.0 }
+    domainWeights: { resource: 1.0 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 4,
+    redFlagReason: 'Severe Financial Toxicity in Caregiving'
   },
   {
     id: 'zbi_16',
@@ -213,35 +228,38 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
     factor: 'competency',
     text: {
       en: 'Do you feel that you will be unable to take care of your relative much longer?',
-      hi: 'क्या आपको लगता है कि आप अब बहुत लंबे समय तक अपने परिजन की देखभाल नहीं कर पाएंगे?',
-      mr: 'तुम्हाला वाटते का की तुम्ही यापुढे फार काळ नातेवाईकांची काळजी घेऊ शकणार नाही?'
+      hi: 'क्या आपको लगता है कि आप ज्यादा लंबे समय तक इस तरह देखभाल जारी नहीं रख पाएंगे?',
+      mr: 'तुम्ही फार काळ नातेवाईकांची काळजी घेऊ शकणार नाही असे तुम्हाला वाटते का?'
     },
-    domainWeights: { safety: 0.5, psychosocial: 0.5 },
+    domainWeights: { physical: 0.5, psychosocial: 0.5 },
     isRedFlagTrigger: true,
     redFlagThreshold: 3,
-    redFlagReason: 'Imminent Caregiver Relinquishment / Breakdown Risk'
+    redFlagReason: 'Caregiver Imminent Resignation / Burnout Threshold'
   },
   {
     id: 'zbi_17',
     number: 17,
     factor: 'personal_strain',
     text: {
-      en: "Do you feel you have lost control of your life since your relative's illness?",
-      hi: 'क्या आपको लगता है कि परिजन की बीमारी के बाद से आपने अपने जीवन पर से नियंत्रण खो दिया है?',
-      mr: 'नातेवाईकांच्या आजारपणानंतर तुमच्या आयुष्यावरील नियंत्रण सुटले आहे असे वाटते का?'
+      en: 'Do you feel you have lost control of your life since your relative’s illness?',
+      hi: 'क्या आपको लगता है कि परिजन की बीमारी के बाद से आपकी जिंदगी पर आपका कोई नियंत्रण नहीं रहा?',
+      mr: 'नातेवाईकांच्या आजारपणानंतर तुमचे तुमच्या आयुष्यावरील नियंत्रण सुटले आहे असे वाटते का?'
     },
-    domainWeights: { psychosocial: 0.8, resource: 0.2 }
+    domainWeights: { psychosocial: 0.8, cognitive_behavioral: 0.2 },
+    isRedFlagTrigger: true,
+    redFlagThreshold: 3,
+    redFlagReason: 'Loss of Personal Autonomy / Clinical Hopelessness'
   },
   {
     id: 'zbi_18',
     number: 18,
-    factor: 'personal_strain',
+    factor: 'competency',
     text: {
-      en: 'Do you wish you could just leave the care of your relative to someone else?',
-      hi: 'क्या आपका मन करता है कि आप परिजन की देखभाल की जिम्मेदारी किसी और को सौंप दें?',
-      mr: 'नातेवाईकांची काळजी घेण्याची जबाबदारी इतर कोणावर तरी सोपवावी असे वाटते का?'
+      en: 'Do you wish you could leave the care of your relative to someone else?',
+      hi: 'क्या आपका मन करता है कि कोई और इस देखभाल की जिम्मेदारी संभाल ले और आप इससे मुक्त हो सकें?',
+      mr: 'नातेवाईकांची काळजी घेण्याची जबाबदारी दुसऱ्या कोणावर तरी सोपवावी असे तुम्हाला वाटते का?'
     },
-    domainWeights: { psychosocial: 0.7, safety: 0.3 }
+    domainWeights: { psychosocial: 0.7, resource: 0.3 }
   },
   {
     id: 'zbi_19',
@@ -299,7 +317,8 @@ export interface FactorDetail {
   title: { en: string; hi: string; mr: string };
   rawScore: number;
   maxScore: number;
-  percentage: number;
+  percentage: number | null; // null if unmeasured in this tier
+  isMeasured: boolean;
   clinicalNote: { en: string; hi: string; mr: string };
 }
 
@@ -322,12 +341,12 @@ export interface ZaritEvaluationResult {
   severityBand: SeverityBand;
   factors: Record<ZbiFactor, FactorDetail>;
   domainCapacities: {
-    psychosocial: number;
-    resource: number;
-    physical: number;
-    safety: number;
-    cognitive_behavioral: number;
-    medical: number;
+    psychosocial: number | null;
+    resource: number | null;
+    physical: number | null;
+    safety: number | null;
+    cognitive_behavioral: number | null;
+    medical: number | null;
   };
   redFlags: string[];
   isCrisisTriggered: boolean;
@@ -402,7 +421,7 @@ export function calculateZaritScore(
 
   const normalizedPercentage = Math.round((totalScore / maxScore) * 100);
 
-  // Determine Severity and Classification
+  // Determine Severity and Classification per tier
   let severityBand: SeverityBand = 'normal';
   let classification = {
     en: 'Little to No Burden',
@@ -431,149 +450,180 @@ export function calculateZaritScore(
     } else if (totalScore < 17) {
       severityBand = 'amber';
       classification = { en: 'Moderate Burden (Watchlist)', hi: 'मध्यम तनाव', mr: 'मध्यम ताण' };
-    } else {
+    } else if (totalScore < 28) {
       severityBand = 'red';
       classification = { en: 'High Burden (Burnout Risk Exceeded)', hi: 'उच्च तनाव (बर्नआउट जोखिम)', mr: 'उच्च ताण (थकवा धोका)' };
+    } else {
+      severityBand = 'critical_red';
+      classification = { en: 'Critical Burden (Crisis Imminent)', hi: 'अत्यधिक गंभीर संकट स्तर', mr: 'अति-गंभीर संकट पातळी' };
     }
   } else {
-    // ZBI-4
-    if (totalScore < 8) {
+    // ZBI-4 Rapid Triage Instrument
+    if (totalScore <= 5) {
       severityBand = 'normal';
       classification = { en: 'Screening Negative', hi: 'स्क्रीनिंग सामान्य', mr: 'स्क्रीनिंग सामान्य' };
-    } else {
+    } else if (totalScore <= 9) {
+      severityBand = 'amber';
+      classification = { en: 'Moderate Acute Strain', hi: 'मध्यम तीव्र तनाव', mr: 'मध्यम तीव्र ताण' };
+    } else if (totalScore <= 11) {
       severityBand = 'red';
-      classification = { en: 'Positive for Acute Fatigue (Follow-up needed)', hi: 'तीव्र थकान के संकेत (पूर्ण जांच आवश्यक)', mr: 'तीव्र थकव्याची लक्षणे (तपासणी आवश्यक)' };
+      classification = { en: 'High Acute Fatigue (Full ZBI Recommended)', hi: 'उच्च थकान (पूर्ण जांच आवश्यक)', mr: 'उच्च थकवा (पूर्ण तपासणी आवश्यक)' };
+    } else {
+      severityBand = 'critical_red';
+      classification = { en: 'Critical Triage Escalation (Immediate Relief Required)', hi: 'गंभीर संकट स्तर (तत्काल राहत आवश्यक)', mr: 'गंभीर संकट पातळी (तातडीने मदत आवश्यक)' };
     }
   }
 
-  // Factor details
+  // Factor details (guarding against unmeasured factors in short forms)
   const factorTitles: Record<ZbiFactor, { en: string; hi: string; mr: string }> = {
-    personal_strain: { en: 'Personal Strain & Emotional Load', hi: 'व्यक्तिगत व भावनात्मक दबाव', mr: 'वैयक्तिक व भावनिक ताण' },
-    role_strain: { en: 'Role Conflict & Time Restriction', hi: 'समय की कमी और भूमिका संघर्ष', mr: 'वेळेची कमतरता आणि जबाबदाऱ्या' },
-    financial_strain: { en: 'Financial Depletion', hi: 'आर्थिक दबाव', mr: 'आर्थिक ताण' },
-    competency: { en: 'Care Competence & Control', hi: 'देखभाल क्षमता और नियंत्रण', mr: 'काळजी घेण्याची क्षमता' },
-    guilt: { en: 'Guilt & Self-Expectation', hi: 'दोष भावना और अत्यधिक अपेक्षाएं', mr: 'अपराधीपणाची भावना' },
-    global_burden: { en: 'Overall Perceived Burden', hi: 'समग्र बोझ का अनुभव', mr: 'एकूण जाणवणारा ताण' }
-  };
-
-  const factorNotes: Record<ZbiFactor, { en: string; hi: string; mr: string }> = {
-    personal_strain: { en: 'Emotional exhaustion from constant vigilance.', hi: 'निरंतर देखभाल से भावनात्मक थकान।', mr: 'सततच्या देखभालीमुळे भावनिक थकवा.' },
-    role_strain: { en: 'Care duties encroaching on personal & family time.', hi: 'व्यक्तिगत जीवन और काम के बीच संतुलन का अभाव।', mr: 'स्वतःच्या जीवनासाठी वेळेचा अभाव.' },
-    financial_strain: { en: 'Direct and indirect caregiving expense strain.', hi: 'दवाइयों और देखभाल के अतिरिक्त खर्च का तनाव।', mr: 'औषधोपचार आणि देखभालीचा आर्थिक भार.' },
-    competency: { en: 'Anxiety regarding long-term care sustainability.', hi: 'लंबे समय तक सेवा जारी रखने में अनिश्चितता।', mr: 'दीर्घकाळ काळजी घेण्याबाबत साशंकता.' },
-    guilt: { en: 'Internal pressure feeling care could be better.', hi: 'खुद पर अत्यधिक दबाव और आत्म-संदेह।', mr: 'स्वतःकडून जास्त अपेक्षा ठेवण्याचा दबाव.' },
-    global_burden: { en: 'Global acute weight of day-to-day caregiving.', hi: 'दैनिक दिनचर्या का समग्र मानसिक भार।', mr: 'दैनंदिन देखभालीचा मानसिक भार.' }
+    personal_strain: { en: 'Personal Strain', hi: 'व्यक्तिगत तनाव', mr: 'वैयक्तिक ताण' },
+    role_strain: { en: 'Role Strain & Conflict', hi: 'भूमिका टकराव और समय की कमी', mr: 'कौटुंबिक आणि सामाजिक जबाबदाऱ्यांचा ताण' },
+    financial_strain: { en: 'Financial Strain', hi: 'आर्थिक दबाव', mr: 'आर्थिक भार' },
+    competency: { en: 'Care Competency & Uncertainty', hi: 'देखभाल क्षमता और अनिश्चितता', mr: 'काळजी घेण्याची क्षमता आणि अनिश्चितता' },
+    guilt: { en: 'Guilt & Self-Criticism', hi: 'अपराधबोध और आत्म-आलोचना', mr: 'अपराधभाव आणि असमाधान' },
+    global_burden: { en: 'Global Burden Anchor', hi: 'समग्र बोझ', mr: 'एकंदरीत ताण' }
   };
 
   const factors = {} as Record<ZbiFactor, FactorDetail>;
-  for (const [key, acc] of Object.entries(factorAccumulators) as [ZbiFactor, { score: number; max: number }][]) {
-    const pct = acc.max > 0 ? Math.round((acc.score / acc.max) * 100) : 0;
-    factors[key] = {
-      title: factorTitles[key],
+  for (const factorKey of Object.keys(factorAccumulators) as ZbiFactor[]) {
+    const acc = factorAccumulators[factorKey];
+    const isMeasured = acc.max > 0;
+    const percentage = isMeasured ? Math.round((acc.score / acc.max) * 100) : null;
+    
+    let note = {
+      en: isMeasured ? 'Within normal manageable threshold.' : 'Not assessed in this short form. Take ZBI-22 for complete factor analysis.',
+      hi: isMeasured ? 'सामान्य सीमा के भीतर।' : 'इस छोटे फॉर्म में इसका मूल्यांकन नहीं किया गया है।',
+      mr: isMeasured ? 'सर्वसाधारण मर्यादेत.' : 'या संक्षिप्त फॉर्ममध्ये याचे मूल्यांकन केलेले नाही.'
+    };
+
+    if (isMeasured && percentage !== null) {
+      if (percentage >= 70) {
+        note = {
+          en: 'Severe strain marker: High risk of exhaustion. Structured relief plan strongly advised.',
+          hi: 'गंभीर तनाव: अत्यधिक थकान का उच्च जोखिम। तुरंत राहत योजना बनाएं।',
+          mr: 'गंभीर ताण: त्वरित विश्रांती आणि सहाय्य आवश्यक.'
+        };
+      } else if (percentage >= 50) {
+        note = {
+          en: 'Moderate strain: Emerging role strain requiring targeted support.',
+          hi: 'मध्यम तनाव: लक्षित सहायता और विश्राम की आवश्यकता।',
+          mr: 'मध्यम ताण: नियोजित मदत आवश्यक.'
+        };
+      }
+    }
+
+    factors[factorKey] = {
+      title: factorTitles[factorKey],
       rawScore: acc.score,
       maxScore: acc.max,
-      percentage: pct,
-      clinicalNote: factorNotes[key]
+      percentage,
+      isMeasured,
+      clinicalNote: note
     };
   }
 
-  // Compute CGG Capacities (Capacity = 100 - average load)
-  const domainCapacities = {
-    psychosocial: 100,
-    resource: 100,
-    physical: 100,
-    safety: 100,
-    cognitive_behavioral: 100,
-    medical: 100
+  // Domain Capacities (Remaining % = 100 - load)
+  const domainCapacities: ZaritEvaluationResult['domainCapacities'] = {
+    psychosocial: domainWeightsTotal.psychosocial > 0 ? Math.max(0, Math.round(100 - (domainLoads.psychosocial / domainWeightsTotal.psychosocial))) : null,
+    resource: domainWeightsTotal.resource > 0 ? Math.max(0, Math.round(100 - (domainLoads.resource / domainWeightsTotal.resource))) : null,
+    physical: domainWeightsTotal.physical > 0 ? Math.max(0, Math.round(100 - (domainLoads.physical / domainWeightsTotal.physical))) : null,
+    safety: domainWeightsTotal.safety > 0 ? Math.max(0, Math.round(100 - (domainLoads.safety / domainWeightsTotal.safety))) : null,
+    cognitive_behavioral: domainWeightsTotal.cognitive_behavioral > 0 ? Math.max(0, Math.round(100 - (domainLoads.cognitive_behavioral / domainWeightsTotal.cognitive_behavioral))) : null,
+    medical: domainWeightsTotal.medical > 0 ? Math.max(0, Math.round(100 - (domainLoads.medical / domainWeightsTotal.medical))) : null
   };
 
-  for (const dom of Object.keys(domainCapacities) as (keyof typeof domainCapacities)[]) {
-    if (domainWeightsTotal[dom] > 0) {
-      const avgStrain = domainLoads[dom] / domainWeightsTotal[dom];
-      domainCapacities[dom] = Math.round(Math.max(0, Math.min(100, 100 - avgStrain)));
-    }
-  }
-
-  // Generate Tailored Caregiver Prescriptions
+  // Structured Clinical Prescriptions
   const prescriptions: CaregiverPrescription[] = [];
 
-  if (factors.role_strain.percentage >= 40 || factors.personal_strain.percentage >= 50) {
+  // Prescription 1: Respite & Physical Relief (Triggered on personal strain >= 50% or overall severity)
+  if (
+    (factors.personal_strain.percentage !== null && factors.personal_strain.percentage >= 50) ||
+    severityBand === 'red' ||
+    severityBand === 'critical_red'
+  ) {
     prescriptions.push({
       id: 'rx_respite',
       category: 'Respite & Relief',
-      urgency: factors.personal_strain.percentage >= 70 ? 'urgent' : 'priority',
       title: {
-        en: 'Schedule 4-Hour Weekly Respite Break',
-        hi: 'साप्ताहिक 4 घंटे का विश्राम (रेस्पाइट) तय करें',
-        mr: 'आठवड्यातून ४ तासांची विश्रांती निश्चित करा'
+        en: 'Mandatory Scheduled Weekly Respite',
+        hi: 'साप्ताहिक अनिवार्य देखभाल विश्राम',
+        mr: 'साप्ताहिक नियोजित विश्रांती'
       },
       action: {
-        en: 'Delegate care duties to a secondary family member or community volunteer once a week for personal rejuvenation.',
-        hi: 'हफ्ते में एक बार देखभाल का कार्य किसी अन्य परिजन या स्वयंसेवक को सौंपें ताकि आप स्वयं के लिए समय निकाल सकें।',
-        mr: 'स्वतःच्या आरोग्यासाठी आठवड्यातून एकदा देखभालीची जबाबदारी इतर कुटुंबातील सदस्याकडे सोपवा.'
-      }
+        en: 'Designate at least 4 continuous daytime hours this week where another family member or attendant takes full charge of direct care.',
+        hi: 'इस सप्ताह कम से कम 4 घंटे का समय तय करें जिसमें परिवार का कोई अन्य सदस्य देखभाल की पूरी जिम्मेदारी संभाले।',
+        mr: 'या आठवड्यात किमान ४ तास इतर कोणाकडे तरी सर्व जबाबदारी सोपवून स्वतःसाठी वेळ काढा.'
+      },
+      recommendedLink: '/care-circle',
+      linkText: {
+        en: 'Delegate in Care Circle',
+        hi: 'केयर सर्कल में कार्य सौंपें',
+        mr: 'केअर सर्कलमध्ये कामे सोपवा'
+      },
+      urgency: severityBand === 'critical_red' ? 'urgent' : 'priority'
     });
   }
 
-  if (factors.competency.percentage >= 40) {
+  // Prescription 2: Tele-MANAS Psychological Support (Triggered on guilt >= 50% OR overall normalized >= 55% for short forms)
+  if (
+    (factors.guilt.isMeasured && factors.guilt.percentage !== null && factors.guilt.percentage >= 50) ||
+    normalizedPercentage >= 55 ||
+    severityBand === 'critical_red'
+  ) {
     prescriptions.push({
-      id: 'rx_skills',
-      category: 'Skill Training',
-      urgency: 'priority',
-      title: {
-        en: 'Caregiver Bed-Bound & Transfer Techniques',
-        hi: 'रोगी को उठाने व स्थिति बदलने की सही तकनीक सीखें',
-        mr: 'रुग्णाची हालचाल आणि देखभाल करण्याचे योग्य तंत्र शिका'
-      },
-      action: {
-        en: 'Complete Sanjeevani practical modules to avoid personal physical injury and simplify daily routines.',
-        hi: 'संजीवनी के वीडियो मॉड्यूल्स देखकर सही पोस्चर और मरीज को शिफ्ट करने का तरीका सीखें।',
-        mr: 'स्वतःला दुखापत टाळण्यासाठी संजीवनी व्हिडिओ मॉड्यूल्स पहा.'
-      },
-      recommendedLink: '/modules/bed-bound-care',
-      linkText: { en: 'Open Bed-Bound Module', hi: 'मॉड्यूल देखें', mr: 'मॉड्यूल उघडा' }
-    });
-  }
-
-  if (factors.financial_strain.percentage >= 50) {
-    prescriptions.push({
-      id: 'rx_financial',
-      category: 'Resource Assistance',
-      urgency: 'priority',
-      title: {
-        en: 'Access Assistive Aid & Government Subsidies',
-        hi: 'सरकारी सहायता व रियायती उपकरण प्राप्त करें',
-        mr: 'सरकारी योजना आणि सहाय्यक उपकरणांची मदत घ्या'
-      },
-      action: {
-        en: 'Connect with local ASHA or Medical Social Worker for subsidized diapers, air-mattresses, and Ayushman Bharat benefits.',
-        hi: 'सस्ती दवाइयों, व्हीलचेयर और सरकारी योजनाओं की जानकारी हेतु आशा कार्यकर्ता या सामाजिक कार्यकर्ता से संपर्क करें।',
-        mr: 'सवलतीच्या दरातील औषधे व उपकरणांसाठी आशा सेविकेशी संपर्क साधा.'
-      },
-      recommendedLink: '/resources',
-      linkText: { en: 'View Welfare Directory', hi: 'सहायता निर्देशिका देखें', mr: 'मार्गदर्शिका पहा' }
-    });
-  }
-
-  if (severityBand === 'red' || severityBand === 'critical_red' || redFlags.length > 0) {
-    prescriptions.push({
-      id: 'rx_psych_support',
+      id: 'rx_telemanas',
       category: 'Psychological Support',
-      urgency: 'urgent',
       title: {
-        en: 'Clinical Tele-Consultation for Caregiver Burnout',
-        hi: 'मनोवैज्ञानिक परामर्श व डॉक्टर से टेली-कंसल्टेशन',
-        mr: 'मानसोपचारतज्ज्ञांशी टेली-सल्लामसलत'
+        en: 'Tele-MANAS Psychological Counseling',
+        hi: 'टेली-मानस निःशुल्क मानसिक परामर्श (14416)',
+        mr: 'टेलि-मानस मोफत समुपदेशन (14416)'
       },
       action: {
-        en: 'Book an expedited consultation with a geriatric counselor to safeguard your emotional health and prevent acute breakdown.',
-        hi: 'देखभालकर्ता बर्नआउट से बचाव के लिए संजीवनी टेलीमेडिसिन के जरिए डॉक्टर से तुरंत संपर्क करें।',
-        mr: 'तीव्र मानसिक ताणापासून बचावासाठी डॉक्टरांशी तात्काळ संपर्क साधा.'
+        en: 'Speak with a certified clinical counselor via toll-free 14416 to process caregiver anxiety, guilt, and emotional exhaustion.',
+        hi: 'देखभाल संबंधी चिंता, थकान और अपराधबोध से उबरने के लिए टोल-फ्री 14416 पर बात करें।',
+        mr: 'ताण आणि चिंता निवारणासाठी टोल-फ्री १४४१६ वर संपर्क साधा.'
       },
-      recommendedLink: '/appointments',
-      linkText: { en: 'Book Consultation', hi: 'परामर्श बुक करें', mr: 'सल्लामसलत बुक करा' }
+      recommendedLink: 'tel:14416',
+      linkText: {
+        en: 'Call 14416 (24x7 Toll-Free)',
+        hi: '14416 पर कॉल करें',
+        mr: '१४४१६ वर कॉल करा'
+      },
+      urgency: severityBand === 'critical_red' ? 'urgent' : 'priority'
     });
   }
+
+  // Prescription 3: Fall & Bed-Bound Safety Checklist
+  if (factors.personal_strain.percentage !== null && factors.personal_strain.percentage >= 40) {
+    prescriptions.push({
+      id: 'rx_fall_safety',
+      category: 'Skill Training',
+      title: {
+        en: 'Fall Prevention & Positioning Review',
+        hi: 'गिरने से बचाव और सुरक्षित पोस्चर प्रशिक्षण',
+        mr: 'पडणे प्रतिबंध आणि योग्य पोझिशनिंग'
+      },
+      action: {
+        en: 'Review transfer biomechanics to protect your back and conduct a home safety scan for throw rugs, wet tiles, and poor lighting.',
+        hi: 'कमर के बचाव के लिए सुरक्षित लिफ्टिंग तकनीक सीखें और घर में फिसलने वाली जगहों की जांच करें।',
+        mr: 'स्वतःच्या पाठीच्या संरक्षणासाठी योग्य पद्धती वापरा आणि घरातील सुरक्षितता तपासा.'
+      },
+      recommendedLink: '/modules/fall-prevention',
+      linkText: {
+        en: 'Open Fall Prevention Module',
+        hi: 'फॉल प्रिवेंशन मॉड्यूल खोलें',
+        mr: 'पडणे प्रतिबंध मॉड्यूल उघडा'
+      },
+      urgency: 'routine'
+    });
+  }
+
+  // Crisis evaluation: Evaluates red flags, critical band, or short-form clinical cutoffs
+  const isCrisisTriggered =
+    redFlags.length > 0 ||
+    severityBand === 'critical_red' ||
+    (tier === 'ZBI4' && totalScore >= 12) ||
+    (tier === 'ZBI12' && totalScore >= 28);
 
   return {
     tier,
@@ -585,7 +635,7 @@ export function calculateZaritScore(
     factors,
     domainCapacities,
     redFlags,
-    isCrisisTriggered: redFlags.length > 0 || severityBand === 'critical_red',
+    isCrisisTriggered,
     prescriptions,
     completedAt: new Date().toISOString()
   };

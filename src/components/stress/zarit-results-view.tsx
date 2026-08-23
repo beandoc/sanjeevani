@@ -310,19 +310,20 @@ export function ZaritResultsView({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4">
                   {Object.entries(result.domainCapacities).map(([dom, cap]) => {
-                    const isLow = cap < 50;
+                    const isMeasured = cap !== null;
+                    const isLow = isMeasured && cap < 50;
                     return (
                       <div key={dom} className="p-3 rounded-xl bg-card border border-border/60 text-center">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
                           {dom.replace('_', ' ')}
                         </span>
-                        <span className={cn('text-xl font-extrabold font-mono my-1 block', isLow ? 'text-rose-500' : 'text-primary')}>
-                          {cap}%
+                        <span className={cn('text-xl font-extrabold font-mono my-1 block', !isMeasured ? 'text-muted-foreground text-base font-medium' : isLow ? 'text-rose-500' : 'text-primary')}>
+                          {isMeasured ? `${cap}%` : 'N/A'}
                         </span>
                         <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                           <div
                             className={cn('h-full', isLow ? 'bg-rose-500' : 'bg-primary')}
-                            style={{ width: `${cap}%` }}
+                            style={{ width: `${isMeasured ? cap : 0}%` }}
                           />
                         </div>
                       </div>
@@ -347,7 +348,25 @@ export function ZaritResultsView({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(Object.entries(result.factors) as [ZbiFactor, typeof result.factors[ZbiFactor]][]).map(([key, factor]) => {
-                  const isHigh = factor.percentage >= 50;
+                  if (!factor.isMeasured) {
+                    return (
+                      <div key={key} className="p-5 rounded-2xl bg-muted/30 border border-border/50 space-y-2 opacity-65">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-sm text-muted-foreground">
+                            {factor.title[lang] || factor.title.en}
+                          </h4>
+                          <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
+                            Unassessed in {result.tier}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {factor.clinicalNote[lang] || factor.clinicalNote.en}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  const isHigh = (factor.percentage ?? 0) >= 50;
                   return (
                     <div key={key} className="p-5 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3">
                       <div className="flex items-center justify-between">
@@ -365,7 +384,7 @@ export function ZaritResultsView({
                           <span>{factor.percentage}%</span>
                         </div>
                         <Progress
-                          value={factor.percentage}
+                          value={factor.percentage ?? 0}
                           className={cn('h-2.5 rounded-full', isHigh ? '[&>div]:bg-rose-500' : '[&>div]:bg-primary')}
                         />
                       </div>
