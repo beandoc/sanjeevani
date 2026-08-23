@@ -203,11 +203,11 @@ export default function DashboardClient() {
                 {latestZarit ? (
                   <>
                     <span className="text-2xl font-black text-foreground">
-                      {latestZarit.totalScore}
+                      {latestZarit.totalScore ?? 0}
                     </span>
-                    <span className="text-xs text-muted-foreground font-mono">/ {latestZarit.maxScore}</span>
+                    <span className="text-xs text-muted-foreground font-mono">/ {latestZarit.maxScore ?? 88}</span>
                     <Badge variant={latestZarit.severityBand === 'critical_red' ? 'destructive' : 'secondary'} className="text-[10px] ml-auto font-mono">
-                      {latestZarit.normalizedPercentage}%
+                      {latestZarit.normalizedPercentage ?? 0}%
                     </Badge>
                   </>
                 ) : (
@@ -215,7 +215,11 @@ export default function DashboardClient() {
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground truncate">
-                {latestZarit ? `${latestZarit.classification.en}` : 'Establish clinical baseline'}
+                {latestZarit
+                  ? (typeof latestZarit.classification === 'string'
+                      ? latestZarit.classification
+                      : (latestZarit.classification?.en || 'Burden Assessment'))
+                  : 'Establish clinical baseline'}
               </p>
             </CardContent>
           </Card>

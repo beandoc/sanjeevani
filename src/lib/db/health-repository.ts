@@ -408,7 +408,47 @@ export class HealthRepository {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          return parsed.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+          return parsed
+            .map((item) => {
+              if (!item || typeof item !== 'object') return null;
+              const classification =
+                typeof item.classification === 'object' && item.classification !== null
+                  ? {
+                      en: item.classification.en || 'Standard Assessment',
+                      hi: item.classification.hi || item.classification.en || 'मानक मूल्यांकन',
+                      mr: item.classification.mr || item.classification.en || 'मानक मूल्यांकन'
+                    }
+                  : {
+                      en: String(item.classification || 'Standard Assessment'),
+                      hi: String(item.classification || 'मानक मूल्यांकन'),
+                      mr: String(item.classification || 'मानक मूल्यांकन')
+                    };
+
+              return {
+                ...item,
+                tier: item.tier || 'ZBI22',
+                totalScore: Number(item.totalScore ?? 0),
+                maxScore: Number(item.maxScore ?? 88),
+                normalizedPercentage: Number(item.normalizedPercentage ?? 0),
+                severityBand: item.severityBand || 'normal',
+                classification,
+                domainCapacities: item.domainCapacities || {
+                  psychosocial: null,
+                  resource: null,
+                  physical: null,
+                  safety: null,
+                  cognitive_behavioral: null,
+                  medical: null
+                },
+                factors: item.factors || {},
+                redFlags: Array.isArray(item.redFlags) ? item.redFlags : [],
+                isCrisisTriggered: Boolean(item.isCrisisTriggered),
+                prescriptions: Array.isArray(item.prescriptions) ? item.prescriptions : [],
+                completedAt: item.completedAt || new Date().toISOString()
+              } as ZaritEvaluationResult;
+            })
+            .filter((item): item is ZaritEvaluationResult => item !== null)
+            .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
         }
       }
     } catch (e) {

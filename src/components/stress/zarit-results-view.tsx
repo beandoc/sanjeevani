@@ -49,7 +49,29 @@ export function ZaritResultsView({
   const [activeTab, setActiveTab] = useState<'overview' | 'factors' | 'prescriptions' | 'history'>('overview');
 
   const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
-  const config = SEVERITY_CONFIGS[result.severityBand];
+  const config = SEVERITY_CONFIGS[result?.severityBand] || SEVERITY_CONFIGS.normal;
+  const redFlags = result?.redFlags || [];
+  const prescriptions = result?.prescriptions || [];
+  const domainCapacities = result?.domainCapacities || {};
+  const factors = result?.factors || {};
+
+  const classificationText = typeof result?.classification === 'string'
+    ? result.classification
+    : (result?.classification?.[lang] || result?.classification?.en || 'Burden Assessment');
+
+  const formatSafeDate = (isoString?: string) => {
+    if (!isoString) return 'Recently';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return 'Recently';
+      return d.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    } catch {
+      return 'Recently';
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -60,12 +82,12 @@ export function ZaritResultsView({
       <CrisisEscalationModal
         isOpen={isCrisisModalOpen}
         onClose={() => setIsCrisisModalOpen(false)}
-        severityReason={result.redFlags.length > 0 ? result.redFlags.join(' • ') : `Zarit Burden Score: ${result.totalScore}/${result.maxScore}`}
-        isSelfHarmBranch={result.isCrisisTriggered}
+        severityReason={redFlags.length > 0 ? redFlags.join(' • ') : `Zarit Burden Score: ${result?.totalScore || 0}/${result?.maxScore || 88}`}
+        isSelfHarmBranch={Boolean(result?.isCrisisTriggered)}
       />
 
       {/* Top Banner Alert if Red Flags Exist */}
-      {result.isCrisisTriggered && (
+      {result?.isCrisisTriggered && (
         <div className="p-4 sm:p-5 rounded-2xl bg-destructive/10 border-2 border-destructive/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in-50">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-xl bg-destructive/20 text-destructive mt-0.5 animate-pulse">
@@ -76,7 +98,7 @@ export function ZaritResultsView({
                 Clinical Safety & Crisis Escalation Triggered
               </h4>
               <p className="text-xs sm:text-sm text-destructive/90 mt-1 font-medium">
-                {result.redFlags.length > 0 ? result.redFlags.join(' • ') : 'Severe caregiver fatigue requires immediate escalation.'}
+                {redFlags.length > 0 ? redFlags.join(' • ') : 'Severe caregiver fatigue requires immediate escalation.'}
               </p>
             </div>
           </div>
@@ -100,18 +122,15 @@ export function ZaritResultsView({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Badge className={cn('font-bold text-xs px-3 py-1 shadow-sm', config.badgeBg)}>
-                  {result.tier} Assessment Complete
+                  {result?.tier || 'ZBI'} Assessment Complete
                 </Badge>
                 <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
                   <Clock className="w-3.5 h-3.5" />
-                  {new Date(result.completedAt).toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                  })}
+                  {formatSafeDate(result?.completedAt)}
                 </span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                {result.classification[lang] || result.classification.en}
+                {classificationText}
               </h2>
               <p className="text-sm text-foreground/80 max-w-2xl leading-relaxed">
                 {config.desc[lang] || config.desc.en}
@@ -123,18 +142,18 @@ export function ZaritResultsView({
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Burden Score</span>
               <div className="flex items-baseline gap-1 my-1">
                 <span className={cn('text-4xl sm:text-5xl font-black font-mono', config.color)}>
-                  {result.totalScore}
+                  {result?.totalScore ?? 0}
                 </span>
-                <span className="text-sm font-bold text-muted-foreground">/ {result.maxScore}</span>
+                <span className="text-sm font-bold text-muted-foreground">/ {result?.maxScore ?? 88}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2 mt-2 overflow-hidden">
                 <div
                   className={cn('h-full transition-all duration-500', config.badgeBg)}
-                  style={{ width: `${result.normalizedPercentage}%` }}
+                  style={{ width: `${result?.normalizedPercentage ?? 0}%` }}
                 />
               </div>
               <span className="text-[11px] font-bold text-muted-foreground mt-1.5">
-                {result.normalizedPercentage}% Scaled Strain
+                {result?.normalizedPercentage ?? 0}% Scaled Strain
               </span>
             </div>
           </div>
@@ -194,16 +213,18 @@ export function ZaritResultsView({
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs font-semibold">
-                    {result.prescriptions.length} Prescribed Actions
+                    {prescriptions.length} Prescribed Actions
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {result.prescriptions.map((rx) => {
-                    const isUrgent = rx.urgency === 'urgent';
+                  {prescriptions.map((rx) => {
+                    const isUrgent = rx?.urgency === 'urgent';
+                    const rxTitle = typeof rx?.title === 'string' ? rx.title : (rx?.title?.[lang] || rx?.title?.en || 'Clinical Recommendation');
+                    const rxAction = typeof rx?.action === 'string' ? rx.action : (rx?.action?.[lang] || rx?.action?.en || '');
                     return (
                       <div
-                        key={rx.id}
+                        key={rx.id || Math.random()}
                         className={cn(
                           'p-5 rounded-2xl border transition-all flex flex-col justify-between',
                           isUrgent
@@ -214,20 +235,20 @@ export function ZaritResultsView({
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">
-                              {rx.category}
+                              {rx.category || 'Prescription'}
                             </span>
                             <Badge
                               variant={isUrgent ? 'destructive' : 'secondary'}
                               className="text-[10px] font-bold uppercase tracking-wider"
                             >
-                              {rx.urgency}
+                              {rx.urgency || 'routine'}
                             </Badge>
                           </div>
                           <h4 className="font-bold text-base text-foreground mb-1.5">
-                            {rx.title[lang] || rx.title.en}
+                            {rxTitle}
                           </h4>
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            {rx.action[lang] || rx.action.en}
+                            {rxAction}
                           </p>
                         </div>
 
@@ -267,9 +288,9 @@ export function ZaritResultsView({
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4">
-                  {Object.entries(result.domainCapacities).map(([dom, cap]) => {
-                    const isMeasured = cap !== null;
-                    const isLow = isMeasured && cap < 50;
+                  {Object.entries(domainCapacities).map(([dom, cap]) => {
+                    const isMeasured = cap !== null && cap !== undefined;
+                    const isLow = isMeasured && (cap as number) < 50;
                     return (
                       <div key={dom} className="p-3 rounded-xl bg-card border border-border/60 text-center">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
@@ -281,7 +302,7 @@ export function ZaritResultsView({
                         <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
                           <div
                             className={cn('h-full', isLow ? 'bg-rose-500' : 'bg-primary')}
-                            style={{ width: `${isMeasured ? cap : 0}%` }}
+                            style={{ width: `${isMeasured ? (cap as number) : 0}%` }}
                           />
                         </div>
                       </div>
@@ -305,41 +326,45 @@ export function ZaritResultsView({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(Object.entries(result.factors) as [ZbiFactor, typeof result.factors[ZbiFactor]][]).map(([key, factor]) => {
-                  if (!factor.isMeasured) {
+                {(Object.entries(factors) as [ZbiFactor, typeof result.factors[ZbiFactor]][]).map(([key, factor]) => {
+                  if (!factor || !factor.isMeasured) {
+                    const factorTitle = factor?.title?.[lang] || factor?.title?.en || key.replace('_', ' ');
+                    const clinicalNote = factor?.clinicalNote?.[lang] || factor?.clinicalNote?.en || 'Not assessed in this tier.';
                     return (
                       <div key={key} className="p-5 rounded-2xl bg-muted/30 border border-border/50 space-y-2 opacity-65">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-sm text-muted-foreground">
-                            {factor.title[lang] || factor.title.en}
+                          <h4 className="font-bold text-sm text-muted-foreground capitalize">
+                            {factorTitle}
                           </h4>
                           <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
-                            Unassessed in {result.tier}
+                            Unassessed in {result?.tier || 'Current Tier'}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          {factor.clinicalNote[lang] || factor.clinicalNote.en}
+                          {clinicalNote}
                         </p>
                       </div>
                     );
                   }
 
                   const isHigh = (factor.percentage ?? 0) >= 50;
+                  const factorTitle = factor.title?.[lang] || factor.title?.en || key.replace('_', ' ');
+                  const clinicalNote = factor.clinicalNote?.[lang] || factor.clinicalNote?.en || '';
                   return (
                     <div key={key} className="p-5 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-sm text-foreground">
-                          {factor.title[lang] || factor.title.en}
+                        <h4 className="font-bold text-sm text-foreground capitalize">
+                          {factorTitle}
                         </h4>
                         <Badge variant={isHigh ? 'destructive' : 'secondary'} className="text-xs font-mono font-bold">
-                          {factor.percentage}% Strain
+                          {factor.percentage ?? 0}% Strain
                         </Badge>
                       </div>
 
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs text-muted-foreground font-semibold">
-                          <span>Raw Score: {factor.rawScore} / {factor.maxScore}</span>
-                          <span>{factor.percentage}%</span>
+                          <span>Raw Score: {factor.rawScore ?? 0} / {factor.maxScore ?? 0}</span>
+                          <span>{factor.percentage ?? 0}%</span>
                         </div>
                         <Progress
                           value={factor.percentage ?? 0}
@@ -348,7 +373,7 @@ export function ZaritResultsView({
                       </div>
 
                       <p className="text-xs text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
-                        {factor.clinicalNote[lang] || factor.clinicalNote.en}
+                        {clinicalNote}
                       </p>
                     </div>
                   );
@@ -369,7 +394,7 @@ export function ZaritResultsView({
                 </p>
               </div>
 
-              {pastAssessments.length === 0 ? (
+              {(!pastAssessments || pastAssessments.length === 0) ? (
                 <div className="p-8 text-center bg-muted/20 border border-dashed border-border rounded-2xl">
                   <Clock className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-semibold text-foreground">No prior assessments on record</p>
@@ -379,37 +404,45 @@ export function ZaritResultsView({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {pastAssessments.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-xl bg-card border border-border/80 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-mono">
-                          #{pastAssessments.length - idx}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-foreground">
-                            {item.classification[lang] || item.classification.en}
+                  {pastAssessments.map((item, idx) => {
+                    const itemClassification = typeof item?.classification === 'string'
+                      ? item.classification
+                      : (item?.classification?.[lang] || item?.classification?.en || 'Burden Assessment');
+                    const itemDate = !item?.completedAt || isNaN(new Date(item.completedAt).getTime())
+                      ? 'Past'
+                      : new Date(item.completedAt).toLocaleDateString();
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-xl bg-card border border-border/80 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-mono">
+                            #{pastAssessments.length - idx}
                           </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-2">
-                            <span>{new Date(item.completedAt).toLocaleDateString()}</span>
-                            <span>•</span>
-                            <span>{item.tier} Tier</span>
+                          <div>
+                            <div className="font-bold text-sm text-foreground">
+                              {itemClassification}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-2">
+                              <span>{itemDate}</span>
+                              <span>•</span>
+                              <span>{item?.tier || 'ZBI'} Tier</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right">
-                        <span className="text-lg font-bold font-mono text-primary block">
-                          {item.totalScore} / {item.maxScore}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-semibold uppercase">
-                          {item.normalizedPercentage}% Strain
-                        </span>
+                        <div className="text-right">
+                          <span className="text-lg font-bold font-mono text-primary block">
+                            {item?.totalScore ?? 0} / {item?.maxScore ?? 88}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-semibold uppercase">
+                            {item?.normalizedPercentage ?? 0}% Strain
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

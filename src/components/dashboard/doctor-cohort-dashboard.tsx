@@ -78,13 +78,13 @@ export function DoctorCohortDashboard() {
           <CardHeader className="pb-2">
             <span className="text-[10px] uppercase font-bold text-muted-foreground">Patient Katz ADL Function</span>
             <CardTitle className="text-xl font-bold flex items-baseline gap-2">
-              <span>{careGap.katzAdlScore}/6</span>
-              <span className="text-xs font-normal text-muted-foreground capitalize">({careGap.katzDependenceLevel.replace('_', ' ')})</span>
+              <span>{careGap?.katzAdlScore ?? 0}/6</span>
+              <span className="text-xs font-normal text-muted-foreground capitalize">({careGap?.katzDependenceLevel ? careGap.katzDependenceLevel.replace('_', ' ') : 'Evaluation Pending'})</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• {patient.primaryConditions.join(', ')}</p>
-            <p>• Cognitive: {patient.cognitiveBehavioralLoad.replace('_', ' ')}</p>
+            <p>• {Array.isArray(patient?.primaryConditions) && patient.primaryConditions.length > 0 ? patient.primaryConditions.join(', ') : 'Geriatric Multi-Morbidity'}</p>
+            <p>• Cognitive: {patient?.cognitiveBehavioralLoad ? patient.cognitiveBehavioralLoad.replace('_', ' ') : 'Standard Load'}</p>
           </CardContent>
         </Card>
 
@@ -102,8 +102,8 @@ export function DoctorCohortDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• Caregiver: {caregiver.name} ({caregiver.kinship})</p>
-            <p>• Lumbar Injury Risk: <strong>{careGap.caregiverInjuryRiskScore}%</strong></p>
+            <p>• Caregiver: {caregiver?.name || 'Primary Caregiver'} ({caregiver?.kinship || 'Family'})</p>
+            <p>• Lumbar Injury Risk: <strong>{careGap?.caregiverInjuryRiskScore ?? 0}%</strong></p>
           </CardContent>
         </Card>
 
@@ -112,14 +112,14 @@ export function DoctorCohortDashboard() {
           <CardHeader className="pb-2">
             <span className="text-[10px] uppercase font-bold text-muted-foreground">Formal Support & Net Care Gap</span>
             <CardTitle className="text-xl font-bold flex items-baseline gap-2">
-              <span className={careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-emerald-600'}>
-                {careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h Deficit'}
+              <span className={(careGap?.netCareGapHours ?? 0) > 2 ? 'text-rose-600' : 'text-emerald-600'}>
+                {(careGap?.netCareGapHours ?? 0) > 0 ? `+${careGap.netCareGapHours}h` : '0h Deficit'}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-xs text-muted-foreground">
-            <p>• Formal Setup: <strong>{caregiver.formalSupport?.type ? caregiver.formalSupport.type.replace(/_/g, ' ') : 'None'}</strong></p>
-            <p>• Absorbed: <strong>{careGap.formalSupportAbsorbedHours} hrs/day</strong></p>
+            <p>• Formal Setup: <strong>{caregiver?.formalSupport?.type ? caregiver.formalSupport.type.replace(/_/g, ' ') : 'None'}</strong></p>
+            <p>• Absorbed: <strong>{careGap?.formalSupportAbsorbedHours ?? 0} hrs/day</strong></p>
           </CardContent>
         </Card>
       </div>
