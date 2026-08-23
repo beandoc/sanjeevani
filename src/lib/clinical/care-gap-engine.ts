@@ -4,6 +4,8 @@
  * and caregiver physical/temporal capacity (Age, Health, Employment, Kinship, Formal Support Infrastructure).
  */
 
+import { performsHeavyTransfers, resolveSupportTypes } from './formal-support';
+
 export type FormalSupportType =
   | 'none'
   | 'paid_attendant_12h'
@@ -150,10 +152,18 @@ export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
 };
 
 export class CareGapEngine {
+  /**
+   * @param now Injectable clock. Defaults to the current time; pass a fixed
+   *            value in tests and anywhere a stable result identity matters.
+   */
   static evaluate(
-    caregiver: CaregiverAttributes,
-    patient: PatientDependenceProfile
+    caregiver: CaregiverAttributes | null | undefined,
+    patient: PatientDependenceProfile | null | undefined,
+    now: Date = new Date()
   ): CareGapEvaluationResult {
+    // Every branch below reads these merged locals rather than the raw params.
+    // Reading the params directly (as this engine previously did from step 3
+    // onward) made the guards inert — evaluate(null, null) still threw.
     const safePatient = patient || DEFAULT_PATIENT_PROFILE;
     const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
 
@@ -185,143 +195,163 @@ export class CareGapEngine {
     demandHours += iadlDeficits * 0.5;
 
     // Behavioral & Cognitive Load Adds Vigilance Hours
-    if (patient.cognitiveBehavioralLoad === 'wandering_agitation') {
+    if (safePatient.cognitiveBehavioralLoad === 'wandering_agitation') {
       demandHours += 2.5;
-    } else if (patient.cognitiveBehavioralLoad === 'severe_sundowning') {
+    } else if (safePatient.cognitiveBehavioralLoad === 'severe_sundowning') {
       demandHours += 4.0;
-    } else if (patient.cognitiveBehavioralLoad === 'mild_forgetfulness') {
+    } else if (safePatient.cognitiveBehavioralLoad === 'mild_forgetfulness') {
       demandHours += 1.0;
     }
 
     // Bed-bound 2-hourly turning and incontinence management
-    if (patient.isBedBound) {
+    if (safePatient.isBedBound) {
       demandHours += 2.0;
     }
 
-    // Recent fall vulnerability
-    if (patient.fallHistoryLast6Months > 0) {
-      demandHours += 1.0;
+    // Recent fall vulnerability. Repeat fallers carry materially higher
+    // supervision load than a single fall, so the count is graded rather than
+    // collapsed to a boolean (capped so an outlier count cannot dominate).
+    const fallCount = Math.max(0, safePatient.fallHistoryLast6Months ?? 0);
+    if (fallCount > 0) {
+      demandHours += Math.min(2.0, 1.0 + (fallCount - 1) * 0.5);
     }
 
     const patientCareDemandHours = Math.round(demandHours * 10) / 10;
 
     // 4. Compute Formal / Ancillary Support Hours Absorbed
-    let formalSupportAbsorbedHours = 0;
-    const formal = caregiver.formalSupport;
-    if (formal) {
-      const selectedTypes: FormalSupportType[] =
-        formal.types && formal.types.length > 0
-          ? formal.types
-          : formal.type && formal.type !== 'none'
-          ? [formal.type]
-          : [];
+    const selectedTypes = resolveSupportTypes(safeCaregiver.formalSupport);
 
-      let rawAbsorbed = 0;
-      for (const t of selectedTypes) {
-        if (t === 'paid_attendant_24h' || t === 'trained_nurse_24h') rawAbsorbed += 16.0;
-        else if (t === 'paid_attendant_12h' || t === 'trained_nurse_12h') rawAbsorbed += 10.0;
-        else if (t === 'medical_assistant') rawAbsorbed += 6.0;
-        else if (t === 'multi_family_rotation') rawAbsorbed += 6.0;
-      }
-      formalSupportAbsorbedHours = Math.min(patientCareDemandHours, rawAbsorbed);
+    // Per-type task hours a support member can absorb from the family.
+    const contributions = selectedTypes
+      .map((t) => {
+        if (t === 'paid_attendant_24h' || t === 'trained_nurse_24h') return 16.0;
+        if (t === 'paid_attendant_12h' || t === 'trained_nurse_12h') return 10.0;
+        if (t === 'medical_assistant') return 6.0;
+        if (t === 'multi_family_rotation') return 6.0;
+        return 0;
+      })
+      .sort((a, b) => b - a);
+
+    // Support members overlap in time — two 24h attendants do not cover 32
+    // hours of a 24-hour day. The largest contributor counts in full; each
+    // subsequent one is discounted, so stacking types has diminishing returns
+    // instead of summing to a physically impossible total.
+    let rawAbsorbed = 0;
+    for (let i = 0; i < contributions.length; i++) {
+      rawAbsorbed += contributions[i] * (i === 0 ? 1 : i === 1 ? 0.5 : 0.25);
     }
-    formalSupportAbsorbedHours = Math.round(formalSupportAbsorbedHours * 10) / 10;
+
+    // Formal support absorbs hands-on task hours, not the family caregiver's
+    // supervision, care coordination and emotional labour. Capping absorption
+    // at 100% of demand let a single live-in attendant drive the net gap to
+    // exactly zero regardless of the caregiver's own age, health or job, which
+    // contradicts the burden literature: paid help attenuates caregiver load,
+    // it does not eliminate it. This residual floor keeps a fully staffed dyad
+    // visible rather than reporting it as "sustainable" by construction.
+    const MAX_ABSORBABLE_FRACTION = 0.85;
+    const formalSupportAbsorbedHours =
+      Math.round(Math.min(patientCareDemandHours * MAX_ABSORBABLE_FRACTION, rawAbsorbed) * 10) / 10;
 
     // Residual Patient Demand after Formal Staff absorption
     const residualDemand = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
 
     // 5. Compute Primary Caregiver Safe Daily Capacity (Hours/Day)
-    let capacityHours = caregiver.dailyHoursCommitted;
+    let capacityHours = safeCaregiver.dailyHoursCommitted;
 
     // Employment deductions (Work fatigue reduces effective high-intensity care capacity)
-    if (caregiver.employment === 'full_time') {
+    if (safeCaregiver.employment === 'full_time') {
       capacityHours = Math.min(capacityHours, 5.0);
-    } else if (caregiver.employment === 'part_time') {
+    } else if (safeCaregiver.employment === 'part_time') {
       capacityHours = Math.min(capacityHours, 7.0);
     }
 
     // Caregiver Functional Capacity Reductions
-    const funcCap = caregiver.functionalCapacity || 'fully_independent';
+    const funcCap = safeCaregiver.functionalCapacity || 'fully_independent';
     let funcDeduction = 0;
     if (funcCap === 'mild_frailty') funcDeduction = 1.0;
     else if (funcCap === 'moderate_limitations') funcDeduction = 2.5;
     else if (funcCap === 'severe_disability') funcDeduction = 4.5;
 
-    // Kinship / Senior Dyad Strain
+    // Kinship / Senior Dyad Strain. The >= 65 health deduction below already
+    // captures the caregiver's own ageing, so this adds only the increment
+    // specific to a senior spouse dyad (co-resident, no relief shift).
     let kinshipDeduction = 0;
-    if (caregiver.kinship === 'spouse' && caregiver.age >= 65) {
-      kinshipDeduction = 1.0; // Senior spouse dyad fatigue
+    if (safeCaregiver.kinship === 'spouse' && safeCaregiver.age >= 65) {
+      kinshipDeduction = 1.0;
     }
 
     // Caregiver's Own Health Reductions
     let healthDeduction = 0;
-    if (caregiver.caregiverHealth.hasBackPain) healthDeduction += 1.5;
-    if (caregiver.caregiverHealth.hasArthritis) healthDeduction += 1.0;
-    if (caregiver.caregiverHealth.hasInsomnia) healthDeduction += 1.0;
-    if (caregiver.age >= 65) healthDeduction += 1.5; // Senior caring for senior dyad
+    if (safeHealth.hasBackPain) healthDeduction += 1.5;
+    if (safeHealth.hasArthritis) healthDeduction += 1.0;
+    if (safeHealth.hasInsomnia) healthDeduction += 1.0;
+    if (safeCaregiver.age >= 65) healthDeduction += 1.5; // Senior caring for senior dyad
 
-    // Secondary Family Members Support Network Buffer
-    const secondaryFamilyCount = caregiver.otherFamilyMembersCount ?? 1;
-    let familyNetworkBuffer = 0;
-    if (secondaryFamilyCount >= 3) {
-      familyNetworkBuffer = 3.0; // 3+ family network members absorb 3 hrs/day
-    } else if (secondaryFamilyCount === 2) {
-      familyNetworkBuffer = 2.0;
-    } else if (secondaryFamilyCount === 1) {
-      familyNetworkBuffer = 1.0;
-    }
+    // Secondary Family Members Support Network Buffer. Secondary relatives take
+    // discrete tasks (a grocery run, an evening medication round) rather than
+    // full shifts, so the buffer is deliberately smaller than a formal support
+    // contribution and is capped well below it.
+    const secondaryFamilyCount = Math.max(0, safeCaregiver.otherFamilyMembersCount ?? 0);
+    const familyNetworkBuffer = Math.min(1.5, secondaryFamilyCount * 0.5);
 
     const caregiverSafeCapacityHours = Math.max(
       1.0,
-      Math.round((capacityHours - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
+      Math.round(
+        (capacityHours + familyNetworkBuffer - funcDeduction - kinshipDeduction - healthDeduction) * 10
+      ) / 10
     );
 
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
     const netCareGapHours = Math.max(0, Math.round((residualDemand - caregiverSafeCapacityHours) * 10) / 10);
 
-    // 7. Care Gap Severity Classification
+    // 7. Care Gap Severity Classification.
+    // These boundaries are the single source of truth for both the severity
+    // label and the burnout level below; they previously disagreed (4.5 vs 4.0),
+    // so a 4.2h gap rendered "High Deficit" and "Critical Burnout" side by side.
+    const GAP_CRITICAL_THRESHOLD = 4.0;
+    const GAP_HIGH_THRESHOLD = 2.0;
+
     let careGapSeverity: CareGapEvaluationResult['careGapSeverity'] = 'sustainable';
-    if (netCareGapHours > 4.5) careGapSeverity = 'critical_overload';
-    else if (netCareGapHours > 2.0) careGapSeverity = 'high_deficit';
+    if (netCareGapHours > GAP_CRITICAL_THRESHOLD) careGapSeverity = 'critical_overload';
+    else if (netCareGapHours > GAP_HIGH_THRESHOLD) careGapSeverity = 'high_deficit';
     else if (netCareGapHours > 0.0) careGapSeverity = 'mild_deficit';
 
     // 8. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
     let injuryScore = 20;
-    const selectedTypes: FormalSupportType[] =
-      formal?.types && formal.types.length > 0
-        ? formal.types
-        : formal?.type && formal.type !== 'none'
-        ? [formal.type]
-        : [];
 
-    const isTransfersHandledByStaff =
-      formal &&
-      (formal.handlesHeavyTransfers ||
-        selectedTypes.some((t) => t.includes('24h') || t.includes('12h') || t === 'medical_assistant'));
+    // Only a dedicated attendant or nurse physically performs the daily
+    // bed-to-chair lifts. A visiting medical assistant / physio aide does not,
+    // and a multi-family rotation means the lifting is still being done by
+    // untrained family members — the exact population that needs the transfer
+    // safety guidance below. Neither may suppress lumbar-risk output.
+    const isTransfersHandledByStaff = selectedTypes.some(performsHeavyTransfers);
 
-    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring) {
-      injuryScore += isTransfersHandledByStaff ? 10 : 35; // 70% reduction in lumbar risk if staff handles lifts
+    if (safeHealth.hasBackPain && !safeKatz.transferring) {
+      injuryScore += isTransfersHandledByStaff ? 10 : 35;
     }
-    if (caregiver.caregiverHealth.hasArthritis && !patient.katzAdl.bathing) {
+    if (safeHealth.hasArthritis && !safeKatz.bathing) {
       injuryScore += isTransfersHandledByStaff ? 5 : 20;
     }
-    if (caregiver.age >= 60) injuryScore += 15;
-    if (!caregiver.formalTrainingReceived) injuryScore += 15;
+    if (safeCaregiver.age >= 60) injuryScore += 15;
+    if (!safeCaregiver.formalTrainingReceived) injuryScore += 15;
     if (netCareGapHours > 3.0) injuryScore += 20;
 
-    // Formal & Medical Support Team mitigates overall family injury strain
-    if (selectedTypes.length >= 2 || selectedTypes.some((t) => t.includes('24h'))) {
-      injuryScore = Math.max(10, injuryScore - 35);
-    } else if (selectedTypes.length >= 1) {
-      injuryScore = Math.max(15, injuryScore - 25);
-    }
-
+    // NOTE: formal support is already discounted inside the per-condition
+    // branches above, which is where it is clinically meaningful (staff perform
+    // the lifts, so the caregiver's own back is spared). An additional blanket
+    // deduction here used to collapse every supported dyad into a 10-30 band,
+    // where a frail 68-year-old with back pain scored identically to a healthy
+    // trained caregiver. One discount only.
     const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
 
     let caregiverBurnoutRiskLevel: CareGapEvaluationResult['caregiverBurnoutRiskLevel'] = 'low';
-    if (netCareGapHours > 4.0 || caregiverInjuryRiskScore >= 75) caregiverBurnoutRiskLevel = 'critical';
-    else if (netCareGapHours > 2.0 || caregiverInjuryRiskScore >= 55) caregiverBurnoutRiskLevel = 'high';
-    else if (netCareGapHours > 0.0) caregiverBurnoutRiskLevel = 'moderate';
+    if (netCareGapHours > GAP_CRITICAL_THRESHOLD || caregiverInjuryRiskScore >= 75) {
+      caregiverBurnoutRiskLevel = 'critical';
+    } else if (netCareGapHours > GAP_HIGH_THRESHOLD || caregiverInjuryRiskScore >= 55) {
+      caregiverBurnoutRiskLevel = 'high';
+    } else if (netCareGapHours > 0.0) {
+      caregiverBurnoutRiskLevel = 'moderate';
+    }
 
     // 9. Clinical Findings & Prescriptions
     const clinicalFindings: string[] = [];
@@ -341,7 +371,7 @@ export class CareGapEngine {
       const teamList = selectedTypes.map((t) => typeLabels[t] || t).join(' + ');
 
       clinicalFindings.push(
-        `Multi-Disciplinary Caregiver Team Active (${teamList}): Successfully absorbs ${formalSupportAbsorbedHours} hrs/day of patient clinical and physical demands, protecting the primary caregiver from severe burnout and lumbar strain.`
+        `Multi-Disciplinary Caregiver Team Active (${teamList}): absorbs an estimated ${formalSupportAbsorbedHours} hrs/day of the patient's hands-on care demand. Supervision, care coordination and emotional load remain with the primary caregiver and are not offset by formal support.`
       );
     }
 
@@ -355,7 +385,7 @@ export class CareGapEngine {
       );
     }
 
-    if (caregiver.caregiverHealth.hasBackPain && !patient.katzAdl.transferring && !isTransfersHandledByStaff) {
+    if (safeHealth.hasBackPain && !safeKatz.transferring && !isTransfersHandledByStaff) {
       clinicalFindings.push(
         'High musculoskeletal injury risk: Caregiver has pre-existing back pain while patient is dependent in bed-to-chair transfers.'
       );
@@ -363,22 +393,28 @@ export class CareGapEngine {
         id: 'rx_transfer_biomechanics',
         title: 'Transfer Assistive Equipment & Biomechanics Protocol',
         action: 'Acquire a transfer belt or swivel disc, adjust bed height to caregiver waist level, and review ergonomic pivot transfer techniques.',
-        impact: 'Reduces peak lumbar spine torque by 65% during daily bed transfers.',
+        impact: 'Substantially reduces lumbar load during daily bed transfers.',
         urgency: 'urgent'
       });
     }
 
-    if (netCareGapHours >= 3.0 && (!formal || formal.type === 'none')) {
+    // Gate on the resolved team, not formal.type — a dyad whose support was
+    // saved as { type: 'none', types: [...] } was previously still told to hire
+    // an attendant it already had.
+    if (netCareGapHours >= 3.0 && selectedTypes.length === 0) {
       prescriptions.push({
         id: 'rx_formal_attendant',
         title: 'Formal Respite / Semi-Skilled Attendant (4-6 Hours/Day)',
         action: 'Hire a certified daytime attendant for morning sponge bath, toileting, and transfer assistance, or register with local senior daycare.',
-        impact: 'Directly absorbs the 4+ hour daily care deficit, preventing caregiver acute physical collapse.',
+        impact: 'Directly absorbs the daily care deficit, reducing the risk of acute caregiver physical collapse.',
         urgency: 'urgent'
       });
     }
 
-    if (caregiver.monthlyOutOfPocketBurden === 'severe_toxicity' && formal && (formal.type === 'paid_attendant_24h' || formal.type === 'trained_nurse_24h')) {
+    const hasLiveInStaff = selectedTypes.some(
+      (t) => t === 'paid_attendant_24h' || t === 'trained_nurse_24h'
+    );
+    if (safeCaregiver.monthlyOutOfPocketBurden === 'severe_toxicity' && hasLiveInStaff) {
       prescriptions.push({
         id: 'rx_financial_counseling',
         title: 'Geriatric Financial Optimization & Govt Senior Schemes',
@@ -388,7 +424,7 @@ export class CareGapEngine {
       });
     }
 
-    if (caregiver.employment === 'full_time' && netCareGapHours > 1.5) {
+    if (safeCaregiver.employment === 'full_time' && netCareGapHours > 1.5) {
       prescriptions.push({
         id: 'rx_care_circle_redistribution',
         title: 'Care Circle Family Task Delegation',
@@ -398,7 +434,7 @@ export class CareGapEngine {
       });
     }
 
-    if (!caregiver.formalTrainingReceived) {
+    if (!safeCaregiver.formalTrainingReceived) {
       prescriptions.push({
         id: 'rx_practical_nursing_training',
         title: 'Geriatric Home Nursing & Safe Positioning Modules',
@@ -421,7 +457,7 @@ export class CareGapEngine {
       caregiverBurnoutRiskLevel,
       clinicalFindings,
       prescriptions,
-      evaluatedAt: new Date().toISOString()
+      evaluatedAt: now.toISOString()
     };
   }
 }

@@ -313,6 +313,31 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
 export const ZBI_12_ITEM_IDS = ['zbi_1', 'zbi_2', 'zbi_3', 'zbi_7', 'zbi_8', 'zbi_9', 'zbi_11', 'zbi_12', 'zbi_13', 'zbi_14', 'zbi_15', 'zbi_22'];
 export const ZBI_4_ITEM_IDS = ['zbi_1', 'zbi_7', 'zbi_8', 'zbi_14'];
 
+/**
+ * Recommended reassessment cadence per tier, in days. Nothing in the product
+ * previously prompted a retake, so `computeTrajectory` (trajectory.ts) almost
+ * never saw the 3+ observations spanning 3+ weeks it needs to report a trend.
+ *
+ * ZBI-4 is a 4-item rapid triage instrument, cheap enough to retake often; a
+ * 14-30 day window (midpoint used here) also matches the ~21-day minimum
+ * observation span the trajectory engine requires before it will fit a slope.
+ * ZBI-22/12 are longer full instruments better suited to a quarterly cadence,
+ * matching the trajectory engine's own 90-day staleness threshold.
+ */
+export const REASSESSMENT_CADENCE_DAYS: Record<ZbiTier, number> = {
+  ZBI4: 21,
+  ZBI12: 90,
+  ZBI22: 90
+};
+
+export function isReassessmentDue(lastAssessment: { tier: ZbiTier; completedAt: string } | null | undefined, now: Date = new Date()): boolean {
+  if (!lastAssessment) return true;
+  const completedAt = new Date(lastAssessment.completedAt).getTime();
+  if (isNaN(completedAt)) return true;
+  const daysSince = (now.getTime() - completedAt) / (24 * 60 * 60 * 1000);
+  return daysSince >= REASSESSMENT_CADENCE_DAYS[lastAssessment.tier];
+}
+
 export interface FactorDetail {
   title: { en: string; hi: string; mr: string };
   rawScore: number;

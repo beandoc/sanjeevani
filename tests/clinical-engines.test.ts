@@ -1,8 +1,8 @@
-import { test, describe } from 'node:test';
+import { test, describe } from 'vitest';
 import assert from 'node:assert';
 import { ClinicalRecommendationEngine } from '../src/lib/recommendations/rules-engine';
 import { MedicationChecker } from '../src/lib/clinical/medication-checker';
-import { ZaritEvaluationResult, calculateZaritScore } from '../src/lib/zarit-scale';
+import { ZaritEvaluationResult, calculateZaritScore, isReassessmentDue } from '../src/lib/zarit-scale';
 
 describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
   test('ZBI-4 Rapid Triage must trigger crisis escalation on severe strain (>=12/16)', () => {
@@ -100,5 +100,30 @@ describe('Beers Criteria & STOPP Interaction Engine Tests', () => {
     assert.strictEqual(evalResult.acbRiskLevel, 'high-risk');
     assert.ok(evalResult.warnings.some((w) => w.includes('Triple Whammy')));
     assert.ok(evalResult.stoppTriggers.some((t) => t.includes('STOPP: Discontinue oral NSAID')));
+  });
+});
+
+describe('isReassessmentDue — reassessment cadence', () => {
+  const now = new Date('2026-06-15T00:00:00.000Z');
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  test('is due with no prior assessment at all', () => {
+    assert.strictEqual(isReassessmentDue(null, now), true);
+    assert.strictEqual(isReassessmentDue(undefined, now), true);
+  });
+
+  test('ZBI-4 is due after ~21 days, not due sooner', () => {
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI4', completedAt: daysAgo(10) }, now), false);
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI4', completedAt: daysAgo(25) }, now), true);
+  });
+
+  test('ZBI-22 / ZBI-12 are due quarterly, not on the ZBI-4 cadence', () => {
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI22', completedAt: daysAgo(25) }, now), false);
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI22', completedAt: daysAgo(95) }, now), true);
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI12', completedAt: daysAgo(95) }, now), true);
+  });
+
+  test('treats an unparseable completedAt as due', () => {
+    assert.strictEqual(isReassessmentDue({ tier: 'ZBI22', completedAt: 'not-a-date' }, now), true);
   });
 });

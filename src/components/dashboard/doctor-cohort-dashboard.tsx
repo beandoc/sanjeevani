@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,14 +20,40 @@ import {
 import Link from 'next/link';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { ClinicalSummaryPrint } from '@/components/reports/clinical-summary-print';
+import { resolveUnifiedRiskBand, SEVERITY_CONFIGS } from '@/lib/clinical/severity-theme';
+import { cn } from '@/lib/utils';
+
+type CohortSnapshot = {
+  patient: ReturnType<typeof HealthRepository.getPatientProfile>;
+  caregiver: ReturnType<typeof HealthRepository.getCaregiverAttributes>;
+  careGap: ReturnType<typeof HealthRepository.getCareGapEvaluation>;
+  zarit: ReturnType<typeof HealthRepository.getZaritAssessments>[number] | undefined;
+  vitals: ReturnType<typeof HealthRepository.getVitals>;
+  medications: ReturnType<typeof HealthRepository.getMedications>;
+};
 
 export function DoctorCohortDashboard() {
-  const patient = HealthRepository.getPatientProfile();
-  const caregiver = HealthRepository.getCaregiverAttributes();
-  const careGap = HealthRepository.getCareGapEvaluation();
-  const zarit = HealthRepository.getZaritAssessments()[0];
-  const vitals = HealthRepository.getVitals();
-  const medications = HealthRepository.getMedications();
+  // These all read localStorage, which does not exist during the server render.
+  // Reading them in the render body produced a hydration mismatch; load once on
+  // mount instead, matching the pattern in dashboard-client.tsx.
+  const [snapshot, setSnapshot] = useState<CohortSnapshot | null>(null);
+
+  useEffect(() => {
+    setSnapshot({
+      patient: HealthRepository.getPatientProfile(),
+      caregiver: HealthRepository.getCaregiverAttributes(),
+      careGap: HealthRepository.getCareGapEvaluation(),
+      zarit: HealthRepository.getZaritAssessments()[0],
+      vitals: HealthRepository.getVitals(),
+      medications: HealthRepository.getMedications()
+    });
+  }, []);
+
+  if (!snapshot) return null;
+
+  const { patient, caregiver, careGap, zarit, vitals, medications } = snapshot;
+  const unifiedRisk = resolveUnifiedRiskBand(zarit?.severityBand, careGap?.careGapSeverity);
+  const unifiedConfig = SEVERITY_CONFIGS[unifiedRisk.band];
 
   return (
     <div className="space-y-6">
@@ -51,6 +77,21 @@ export function DoctorCohortDashboard() {
               <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
                 Review multi-morbidity risk bands, caregiver burnout scissors curves, and generate OPD Clinical Care Briefs.
               </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {/* The ZBI severity band and the care-gap hours heuristic can
+                disagree (e.g. "sustainable" hours vs. "critical_red" ZBI).
+                This is the single resolved reading — see resolveUnifiedRiskBand
+                — with the validated instrument as the floor. */}
+            <div className="text-right hidden md:block">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                Unified Risk
+              </span>
+              <Badge className={cn('text-[11px] font-bold', unifiedConfig.badgeBg)}>
+                {unifiedRisk.band.replace('_', ' ')}
+              </Badge>
             </div>
           </div>
 

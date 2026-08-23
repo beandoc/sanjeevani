@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert';
 import { BED_SIDE_TASKS } from '../src/components/domiciliary/daily-bedside-routine';
 import { EMERGENCY_ACTION_CARDS } from '../src/components/domiciliary/bedside-emergency-cards';

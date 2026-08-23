@@ -6,6 +6,7 @@
  */
 
 import type { SeverityBand } from '@/lib/zarit-scale';
+import type { CareGapEvaluationResult } from './care-gap-engine';
 
 export interface SeverityConfig {
   color: string;
@@ -56,3 +57,65 @@ export const SEVERITY_CONFIGS: Record<SeverityBand, SeverityConfig> = {
     }
   }
 };
+
+/* ------------------------------------------------------------------ *
+ * Unifying the three parallel risk vocabularies.
+ *
+ * The product has three independent risk readings that can disagree on the
+ * same dyad at the same moment:
+ *   - Zarit severityBand:        normal / amber / red / critical_red
+ *   - CareGapEngine severity:    sustainable / mild_deficit / high_deficit / critical_overload
+ *   - CareGapEngine burnout:     low / moderate / high / critical
+ *   - trajectory riskBand:       stable / deteriorating / critical / lost-to-follow-up / insufficient-data
+ *
+ * A dyad could read "sustainable" on the care-gap engine's hours heuristic
+ * while the validated ZBI instrument reads "critical_red" for the same
+ * caregiver, with no rule for which one a clinician should trust. This
+ * resolver expresses that trust order explicitly: severityBand (from the
+ * validated psychometric instrument) is the floor. The hours heuristic is
+ * real signal — it can escalate attention — but it is not a validated
+ * instrument, so it may raise the unified band by at most one step above
+ * where ZBI put it, and it may never single-handedly claim the top band.
+ * ------------------------------------------------------------------ */
+const SEVERITY_ORDER: SeverityBand[] = ['normal', 'amber', 'red', 'critical_red'];
+const CARE_GAP_SEVERITY_ORDER: CareGapEvaluationResult['careGapSeverity'][] = [
+  'sustainable',
+  'mild_deficit',
+  'high_deficit',
+  'critical_overload'
+];
+
+export interface UnifiedRiskResult {
+  band: SeverityBand;
+  /** Which signal ultimately determined the returned band. */
+  source: 'zarit' | 'zarit-elevated-by-care-gap' | 'care-gap-only' | 'none';
+}
+
+export function resolveUnifiedRiskBand(
+  zaritBand: SeverityBand | null | undefined,
+  careGapSeverity: CareGapEvaluationResult['careGapSeverity'] | null | undefined
+): UnifiedRiskResult {
+  const careGapIndex =
+    careGapSeverity != null ? CARE_GAP_SEVERITY_ORDER.indexOf(careGapSeverity) : -1;
+
+  if (zaritBand != null) {
+    const zaritIndex = SEVERITY_ORDER.indexOf(zaritBand);
+    if (careGapIndex > zaritIndex) {
+      // Escalate by exactly one step, never straight to the ZBI reading's own
+      // top band via an unvalidated heuristic.
+      const escalatedIndex = Math.min(zaritIndex + 1, SEVERITY_ORDER.length - 1);
+      return { band: SEVERITY_ORDER[escalatedIndex], source: 'zarit-elevated-by-care-gap' };
+    }
+    return { band: zaritBand, source: 'zarit' };
+  }
+
+  if (careGapIndex >= 0) {
+    // No validated instrument on file — cap the heuristic-only reading below
+    // the top band, which is reserved for a validated crisis signal (a ZBI
+    // red flag or critical_red score).
+    const cappedIndex = Math.min(careGapIndex, SEVERITY_ORDER.length - 2);
+    return { band: SEVERITY_ORDER[cappedIndex], source: 'care-gap-only' };
+  }
+
+  return { band: 'normal', source: 'none' };
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ZaritEvaluationResult, ZbiFactor } from '@/lib/zarit-scale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { SEVERITY_CONFIGS } from '@/lib/clinical/severity-theme';
+import { computeTrajectory } from '@/lib/analytics/trajectory';
 
 interface ZaritResultsViewProps {
   result: ZaritEvaluationResult;
@@ -54,6 +55,15 @@ export function ZaritResultsView({
   const prescriptions = result?.prescriptions || [];
   const domainCapacities = result?.domainCapacities || {};
   const factors = result?.factors || {};
+
+  // The caregiver-facing trend. computeTrajectory is otherwise clinician-only
+  // (roster/dyad pages); pastAssessments already includes the just-completed
+  // result (health-repository returns it in saveZaritAssessment's response),
+  // so this reflects the same series clinicians see, without a Barthel axis.
+  const trajectory = useMemo(() => computeTrajectory(pastAssessments, []), [pastAssessments]);
+  const priorAssessment = pastAssessments.find((a) => a.completedAt !== result?.completedAt);
+  const scoreDelta =
+    priorAssessment && result ? result.normalizedPercentage - priorAssessment.normalizedPercentage : null;
 
   const classificationText = typeof result?.classification === 'string'
     ? result.classification
@@ -155,6 +165,23 @@ export function ZaritResultsView({
               <span className="text-[11px] font-bold text-muted-foreground mt-1.5">
                 {result?.normalizedPercentage ?? 0}% Scaled Strain
               </span>
+              {scoreDelta !== null && (
+                <span
+                  className={cn(
+                    'text-[11px] font-bold mt-1 flex items-center gap-1',
+                    scoreDelta > 0 ? 'text-rose-500' : scoreDelta < 0 ? 'text-emerald-500' : 'text-muted-foreground'
+                  )}
+                >
+                  {scoreDelta > 0 ? (
+                    <TrendingUp className="w-3.5 h-3.5" />
+                  ) : scoreDelta < 0 ? (
+                    <TrendingDown className="w-3.5 h-3.5" />
+                  ) : null}
+                  {scoreDelta === 0
+                    ? 'No change since last assessment'
+                    : `${scoreDelta > 0 ? '+' : ''}${scoreDelta} pts vs. last assessment`}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -403,47 +430,97 @@ export function ZaritResultsView({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {pastAssessments.map((item, idx) => {
-                    const itemClassification = typeof item?.classification === 'string'
-                      ? item.classification
-                      : (item?.classification?.[lang] || item?.classification?.en || 'Burden Assessment');
-                    const itemDate = !item?.completedAt || isNaN(new Date(item.completedAt).getTime())
-                      ? 'Past'
-                      : new Date(item.completedAt).toLocaleDateString();
-                    return (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-xl bg-card border border-border/80 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-mono">
-                            #{pastAssessments.length - idx}
-                          </div>
-                          <div>
-                            <div className="font-bold text-sm text-foreground">
-                              {itemClassification}
-                            </div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-2">
-                              <span>{itemDate}</span>
-                              <span>•</span>
-                              <span>{item?.tier || 'ZBI'} Tier</span>
-                            </div>
-                          </div>
-                        </div>
+                <>
+                  {/* Trend summary — the same computeTrajectory engine the
+                      clinician roster uses, so the caregiver sees the identical
+                      band and never a fabricated date, only a direction. */}
+                  <div
+                    className={cn(
+                      'p-4 rounded-xl border flex items-center gap-3',
+                      trajectory.riskBand === 'critical' || trajectory.riskBand === 'lost-to-follow-up'
+                        ? 'bg-destructive/10 border-destructive/30'
+                        : trajectory.riskBand === 'deteriorating'
+                        ? 'bg-amber-500/10 border-amber-500/30'
+                        : trajectory.riskBand === 'stable'
+                        ? 'bg-emerald-500/10 border-emerald-500/30'
+                        : 'bg-muted/30 border-border/60'
+                    )}
+                  >
+                    {trajectory.riskBand === 'stable' ? (
+                      <TrendingDown className="w-5 h-5 text-emerald-600 shrink-0" />
+                    ) : trajectory.riskBand === 'deteriorating' || trajectory.riskBand === 'critical' ? (
+                      <TrendingUp className="w-5 h-5 text-rose-600 shrink-0" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-foreground capitalize">
+                        {trajectory.riskBand.replace(/-/g, ' ')}
+                        {trajectory.burdenSlope.isReliable && trajectory.burdenSlope.slopePerMonth !== null && (
+                          <span className="font-mono font-normal text-muted-foreground ml-2 text-xs">
+                            ({trajectory.burdenSlope.slopePerMonth > 0 ? '+' : ''}
+                            {trajectory.burdenSlope.slopePerMonth} pts / 30 days)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {trajectory.riskReasons[0] ||
+                          'Complete at least 3 assessments spanning 3+ weeks to establish a trend.'}
+                      </p>
+                    </div>
+                  </div>
 
-                        <div className="text-right">
-                          <span className="text-lg font-bold font-mono text-primary block">
-                            {item?.totalScore ?? 0} / {item?.maxScore ?? 88}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-semibold uppercase">
-                            {item?.normalizedPercentage ?? 0}% Strain
-                          </span>
+                  <div className="space-y-3">
+                    {pastAssessments.map((item, idx) => {
+                      const itemClassification = typeof item?.classification === 'string'
+                        ? item.classification
+                        : (item?.classification?.[lang] || item?.classification?.en || 'Burden Assessment');
+                      const itemDate = !item?.completedAt || isNaN(new Date(item.completedAt).getTime())
+                        ? 'Past'
+                        : new Date(item.completedAt).toLocaleDateString();
+                      // pastAssessments is newest-first, so the next entry is the prior one.
+                      const prior = pastAssessments[idx + 1];
+                      const delta = prior ? item.normalizedPercentage - prior.normalizedPercentage : null;
+                      return (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl bg-card border border-border/80 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs font-mono">
+                              #{pastAssessments.length - idx}
+                            </div>
+                            <div>
+                              <div className="font-bold text-sm text-foreground">
+                                {itemClassification}
+                              </div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                <span>{itemDate}</span>
+                                <span>•</span>
+                                <span>{item?.tier || 'ZBI'} Tier</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-lg font-bold font-mono text-primary block">
+                              {item?.totalScore ?? 0} / {item?.maxScore ?? 88}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-semibold uppercase flex items-center justify-end gap-1">
+                              {item?.normalizedPercentage ?? 0}% Strain
+                              {delta !== null && delta !== 0 && (
+                                <span className={cn('flex items-center', delta > 0 ? 'text-rose-500' : 'text-emerald-500')}>
+                                  {delta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                  {Math.abs(delta)}
+                                </span>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           )}

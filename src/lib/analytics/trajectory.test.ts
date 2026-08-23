@@ -272,3 +272,138 @@ describe('computeTrajectory — risk band', () => {
     expect(result.riskBand).toBe('stable');
   });
 });
+
+describe('computeTrajectory — trend admissibility', () => {
+  it('refuses to fit a trend to three assessments taken within a few days', () => {
+    // Steeply rising, perfectly linear, but observed over only 4 days. A
+    // per-30-day slope here extrapolates ~7x beyond the observation window.
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 4, tier: 'ZBI4', totalScore: 6 }),
+        makeAssessment({ daysAgo: 2, tier: 'ZBI4', totalScore: 9 }),
+        makeAssessment({ daysAgo: 0, tier: 'ZBI4', totalScore: 11 })
+      ],
+      []
+    );
+
+    expect(result.burdenSlope.isReliable).toBe(false);
+    expect(result.burdenSlope.slopePerMonth).toBeNull();
+    expect(result.burdenSlope.spanDays).toBe(4);
+    expect(result.riskBand).toBe('insufficient-data');
+  });
+
+  it('accepts a trend once the series spans a meaningful window', () => {
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 60, totalScore: 20 }),
+        makeAssessment({ daysAgo: 30, totalScore: 32 }),
+        makeAssessment({ daysAgo: 0, totalScore: 44 })
+      ],
+      []
+    );
+    expect(result.burdenSlope.isReliable).toBe(true);
+    expect(result.burdenSlope.spanDays).toBe(60);
+  });
+
+  it('does not call a noisy, poorly-fit series "deteriorating"', () => {
+    // Net rise clears the MCID, but the series zig-zags so the linear fit is
+    // weak. R² must veto the escalation.
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 120, totalScore: 20, severityBand: 'amber' }),
+        makeAssessment({ daysAgo: 90, totalScore: 60, severityBand: 'amber' }),
+        makeAssessment({ daysAgo: 60, totalScore: 18, severityBand: 'amber' }),
+        makeAssessment({ daysAgo: 30, totalScore: 62, severityBand: 'amber' }),
+        makeAssessment({ daysAgo: 0, totalScore: 44, severityBand: 'amber' })
+      ],
+      []
+    );
+
+    expect(result.burdenSlope.rSquared).toBeLessThan(0.4);
+    expect(result.riskBand).not.toBe('deteriorating');
+    expect(result.riskBand).not.toBe('critical');
+  });
+
+  it('does not flag divergence on sub-MCID function drift', () => {
+    // Burden clearly rising; dependency creeping up by ~1 pt/30 days, well
+    // under the Barthel minimal important change.
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 60, totalScore: Math.round(0.2 * 88) }),
+        makeAssessment({ daysAgo: 30, totalScore: Math.round(0.4 * 88) }),
+        makeAssessment({ daysAgo: 0, totalScore: Math.round(0.6 * 88) })
+      ],
+      [
+        makeFunctionScore({ daysAgo: 60, barthelScore: 80 }),
+        makeFunctionScore({ daysAgo: 30, barthelScore: 79 }),
+        makeFunctionScore({ daysAgo: 0, barthelScore: 78 })
+      ]
+    );
+
+    expect(result.isDiverging).toBe(false);
+    expect(result.riskBand).not.toBe('critical');
+  });
+});
+
+describe('computeTrajectory — follow-up state', () => {
+  it('reports lost-to-follow-up when a red-flagged dyad has gone quiet', () => {
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 200, totalScore: 50, severityBand: 'red' }),
+        makeAssessment({ daysAgo: 160, totalScore: 55, severityBand: 'red' }),
+        makeAssessment({ daysAgo: 120, totalScore: 60, severityBand: 'red', hasRedFlag: true })
+      ],
+      []
+    );
+    expect(result.riskBand).toBe('lost-to-follow-up');
+  });
+
+  it('still reports plain insufficient-data when a low-risk dyad goes quiet', () => {
+    const result = computeTrajectory(
+      [
+        makeAssessment({ daysAgo: 200, totalScore: 10, severityBand: 'normal' }),
+        makeAssessment({ daysAgo: 160, totalScore: 11, severityBand: 'normal' }),
+        makeAssessment({ daysAgo: 120, totalScore: 10, severityBand: 'normal' })
+      ],
+      []
+    );
+    expect(result.riskBand).toBe('insufficient-data');
+  });
+
+  it('rejects future-dated assessments instead of treating them as fresh', () => {
+    const result = computeTrajectory(
+      [makeAssessment({ daysAgo: -30, totalScore: 10, severityBand: 'normal' })],
+      []
+    );
+    expect(result.riskBand).toBe('insufficient-data');
+  });
+
+  it('is deterministic when a clock is injected', () => {
+    const assessments = [
+      makeAssessment({ daysAgo: 60, totalScore: 20 }),
+      makeAssessment({ daysAgo: 30, totalScore: 22 }),
+      makeAssessment({ daysAgo: 0, totalScore: 24 })
+    ];
+    const now = new Date();
+    expect(computeTrajectory(assessments, [], now)).toEqual(
+      computeTrajectory(assessments, [], now)
+    );
+  });
+});
+
+describe('buildDivergenceSeries — pairing', () => {
+  it('never reuses one burden point for multiple function points', () => {
+    // Three function readings clustered around a single burden reading.
+    const result = computeTrajectory(
+      [makeAssessment({ daysAgo: 30, totalScore: 44 })],
+      [
+        makeFunctionScore({ daysAgo: 32, barthelScore: 80 }),
+        makeFunctionScore({ daysAgo: 30, barthelScore: 70 }),
+        makeFunctionScore({ daysAgo: 28, barthelScore: 60 })
+      ]
+    );
+
+    expect(result.divergence).toHaveLength(1);
+    expect(result.divergence[0].dependencyPct).toBe(30); // the exact-date match
+  });
+});

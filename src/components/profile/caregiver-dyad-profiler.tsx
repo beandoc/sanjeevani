@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,30 +38,43 @@ import {
   CareGapEvaluationResult
 } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
+import {
+  FORMAL_SUPPORT_OPTIONS,
+  buildFormalSupport,
+  resolveSupportTypes,
+  toggleSupportType
+} from '@/lib/clinical/formal-support';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { syncPatientProfile } from '@/lib/firebase/clinical-sync';
 
 export function CaregiverDyadProfiler() {
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patient, setPatient] = useState<PatientDependenceProfile | null>(null);
-  const [evaluation, setEvaluation] = useState<CareGapEvaluationResult | null>(null);
   const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>('gap');
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadedCaregiver = HealthRepository.getCaregiverAttributes();
-    const loadedPatient = HealthRepository.getPatientProfile();
-    setCaregiver(loadedCaregiver);
-    setPatient(loadedPatient);
-    setEvaluation(CareGapEngine.evaluate(loadedCaregiver, loadedPatient));
+    setCaregiver(HealthRepository.getCaregiverAttributes());
+    setPatient(HealthRepository.getPatientProfile());
   }, []);
+
+  // Derived, never stored. Every edit handler previously had to remember to
+  // re-invoke the engine and setEvaluation; a handler that forgot silently
+  // rendered stale numbers against fresh inputs.
+  const evaluation: CareGapEvaluationResult | null = useMemo(
+    () => (caregiver && patient ? CareGapEngine.evaluate(caregiver, patient) : null),
+    [caregiver, patient]
+  );
 
   if (!caregiver || !patient || !evaluation) return null;
 
   const handleSave = () => {
     HealthRepository.saveCaregiverAttributes(caregiver);
     HealthRepository.savePatientProfile(patient);
-    const updatedEval = CareGapEngine.evaluate(caregiver, patient);
-    setEvaluation(updatedEval);
+    // Best-effort mirror so a clinician with an active grant sees edits made
+    // here (e.g. from Settings), not just the onboarding-wizard snapshot.
+    void syncPatientProfile(patient);
     toast({
       title: 'Dyad Profile Saved',
       description: 'Caregiver capacity and patient dependence metrics updated.',
@@ -69,39 +82,33 @@ export function CaregiverDyadProfiler() {
   };
 
   const toggleCaregiverHealth = (key: keyof CaregiverAttributes['caregiverHealth']) => {
-    const updatedCaregiver = {
+    setCaregiver({
       ...caregiver,
       caregiverHealth: {
         ...caregiver.caregiverHealth,
         [key]: !caregiver.caregiverHealth[key]
       }
-    };
-    setCaregiver(updatedCaregiver);
-    setEvaluation(CareGapEngine.evaluate(updatedCaregiver, patient));
+    });
   };
 
   const toggleKatzAdl = (key: keyof PatientDependenceProfile['katzAdl']) => {
-    const updatedPatient = {
+    setPatient({
       ...patient,
       katzAdl: {
         ...patient.katzAdl,
         [key]: !patient.katzAdl[key]
       }
-    };
-    setPatient(updatedPatient);
-    setEvaluation(CareGapEngine.evaluate(caregiver, updatedPatient));
+    });
   };
 
   const toggleLawtonIadl = (key: keyof PatientDependenceProfile['lawtonIadl']) => {
-    const updatedPatient = {
+    setPatient({
       ...patient,
       lawtonIadl: {
         ...patient.lawtonIadl,
         [key]: !patient.lawtonIadl[key]
       }
-    };
-    setPatient(updatedPatient);
-    setEvaluation(CareGapEngine.evaluate(caregiver, updatedPatient));
+    });
   };
 
   return (
@@ -428,81 +435,79 @@ export function CaregiverDyadProfiler() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Formal Care Setup Type</Label>
-                  <Select
-                    value={caregiver.formalSupport?.type || 'none'}
-                    onValueChange={(v: any) => {
-                      const updated = {
-                        ...caregiver,
-                        formalSupport: {
-                          type: v,
-                          hoursPerDay: v === 'paid_attendant_24h' || v === 'trained_nurse_24h' ? 24 : v === 'paid_attendant_12h' || v === 'trained_nurse_12h' ? 12 : v === 'medical_assistant' ? 6 : 0,
-                          handlesHeavyTransfers: v !== 'none',
-                          handlesMedicationWoundCare: v.includes('nurse') || v === 'medical_assistant'
-                        }
-                      };
-                      setCaregiver(updated);
-                      setEvaluation(CareGapEngine.evaluate(updated, patient));
-                    }}
-                  >
-                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" className="text-xs">None (Solo Family Caregiver)</SelectItem>
-                      <SelectItem value="paid_attendant_12h" className="text-xs">Paid General Attendant (12 Hours Day/Night)</SelectItem>
-                      <SelectItem value="paid_attendant_24h" className="text-xs">Paid General Attendant (24 Hours Live-In)</SelectItem>
-                      <SelectItem value="trained_nurse_12h" className="text-xs">Certified Geriatric Nurse (12 Hours)</SelectItem>
-                      <SelectItem value="trained_nurse_24h" className="text-xs">Certified Geriatric Nurse (24 Hours Live-In)</SelectItem>
-                      <SelectItem value="medical_assistant" className="text-xs">Trained Medical Assistant / Physio Aide</SelectItem>
-                      <SelectItem value="multi_family_rotation" className="text-xs">Multi-Caregiver Family Rotation (Shared Care Circle)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs font-semibold">Caregiver Team & Medical Support</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Select every nurse, attendant, physio aide, and family member assisting.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {FORMAL_SUPPORT_OPTIONS.map((opt) => {
+                      const currentTypes = resolveSupportTypes(caregiver.formalSupport);
+                      const isSelected =
+                        opt.id === 'none' ? currentTypes.length === 0 : currentTypes.includes(opt.id);
+
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() =>
+                            setCaregiver({
+                              ...caregiver,
+                              formalSupport: buildFormalSupport(toggleSupportType(currentTypes, opt.id))
+                            })
+                          }
+                          className={cn(
+                            'p-2.5 rounded-lg border text-left transition-all',
+                            isSelected
+                              ? opt.isMedical
+                                ? 'border-emerald-500/80 bg-emerald-500/10 font-bold'
+                                : 'border-primary bg-primary/10 font-bold'
+                              : 'border-border/70 hover:border-primary/40 bg-card'
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="rounded text-primary pointer-events-none"
+                            />
+                            <span className="text-[11px] font-bold">{opt.title}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-snug pl-5 mt-0.5">
+                            {opt.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {caregiver.formalSupport && caregiver.formalSupport.type !== 'none' && (
-                  <div className="space-y-2 text-xs pt-1">
+                {/* Capabilities are derived from who is on the team, not toggled
+                    by hand — a family rotation cannot declare itself to be
+                    handling transfers and suppress the lumbar-risk guidance. */}
+                {resolveSupportTypes(caregiver.formalSupport).length > 0 && (
+                  <div className="space-y-1.5 text-xs pt-1 sm:col-span-2">
                     <Label className="text-[11px] font-semibold text-muted-foreground block">
-                      Support Capabilities & Duties
+                      Derived Support Capabilities
                     </Label>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={caregiver.formalSupport.handlesHeavyTransfers}
-                          onChange={(e) => {
-                            const updated = {
-                              ...caregiver,
-                              formalSupport: {
-                                ...caregiver.formalSupport!,
-                                handlesHeavyTransfers: e.target.checked
-                              }
-                            };
-                            setCaregiver(updated);
-                            setEvaluation(CareGapEngine.evaluate(updated, patient));
-                          }}
-                          className="rounded-sm text-primary"
-                        />
-                        <span className="text-[11px]">Staff handles heavy physical transfers (Reduces family lumbar strain by 70%)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={caregiver.formalSupport.handlesMedicationWoundCare}
-                          onChange={(e) => {
-                            const updated = {
-                              ...caregiver,
-                              formalSupport: {
-                                ...caregiver.formalSupport!,
-                                handlesMedicationWoundCare: e.target.checked
-                              }
-                            };
-                            setCaregiver(updated);
-                            setEvaluation(CareGapEngine.evaluate(updated, patient));
-                          }}
-                          className="rounded-sm text-primary"
-                        />
-                        <span className="text-[11px]">Staff handles medication dosing, injections, or catheter/wound care</span>
-                      </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge
+                        variant={caregiver.formalSupport?.handlesHeavyTransfers ? 'default' : 'outline'}
+                        className="text-[10px]"
+                      >
+                        {caregiver.formalSupport?.handlesHeavyTransfers
+                          ? 'Staff performs heavy transfers'
+                          : 'Family performs heavy transfers'}
+                      </Badge>
+                      <Badge
+                        variant={caregiver.formalSupport?.handlesMedicationWoundCare ? 'default' : 'outline'}
+                        className="text-[10px]"
+                      >
+                        {caregiver.formalSupport?.handlesMedicationWoundCare
+                          ? 'Staff handles medication / wound care'
+                          : 'Family handles medication / wound care'}
+                      </Badge>
                     </div>
                   </div>
                 )}
@@ -612,7 +617,6 @@ export function CaregiverDyadProfiler() {
                   onValueChange={(v: any) => {
                     const updated = { ...patient, cognitiveBehavioralLoad: v };
                     setPatient(updated);
-                    setEvaluation(CareGapEngine.evaluate(caregiver, updated));
                   }}
                 >
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
@@ -633,7 +637,6 @@ export function CaregiverDyadProfiler() {
                   onChange={(e) => {
                     const updated = { ...patient, fallHistoryLast6Months: parseInt(e.target.value) || 0 };
                     setPatient(updated);
-                    setEvaluation(CareGapEngine.evaluate(caregiver, updated));
                   }}
                   className="h-9 text-xs"
                 />

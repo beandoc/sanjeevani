@@ -459,7 +459,31 @@ export class HealthRepository {
 
   static saveZaritAssessment(result: ZaritEvaluationResult): ZaritEvaluationResult[] {
     const current = this.getZaritAssessments();
-    const updated = [result, ...current].slice(0, 30);
+
+    // A double-click (or a retry after a slow render) on the finish button
+    // saves the identical result twice. Two points at the same timestamp
+    // don't just duplicate a row — they inflate `n` toward the reliability
+    // floor and push the OLS fit toward the sxx=0 degenerate case, so guard
+    // against near-simultaneous saves of the same completion.
+    const DUPLICATE_WINDOW_MS = 5000;
+    const isDuplicate = current.some(
+      (prev) =>
+        prev.tier === result.tier &&
+        prev.totalScore === result.totalScore &&
+        Math.abs(new Date(prev.completedAt).getTime() - new Date(result.completedAt).getTime()) <
+          DUPLICATE_WINDOW_MS
+    );
+    if (isDuplicate) return current;
+
+    // At the recommended cadence (isReassessmentDue in zarit-scale.ts: ~21
+    // days for ZBI-4, quarterly for ZBI-22/12), 30 records is under 2.5 years
+    // of history for what is often a multi-year caregiving journey — and the
+    // Firestore mirror (clinical-sync.ts) keeps every record uncapped, so a
+    // long-running local device and the cloud copy silently diverge in
+    // length. 180 covers a decade of quarterly assessments (or several years
+    // of mixed-cadence use) while still bounding local storage.
+    const MAX_LOCAL_ZARIT_HISTORY = 180;
+    const updated = [result, ...current].slice(0, MAX_LOCAL_ZARIT_HISTORY);
     try {
       localStorage.setItem(STORAGE_KEYS.ZARIT, JSON.stringify(updated));
     } catch (e) {

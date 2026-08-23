@@ -42,7 +42,45 @@ import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
  * ------------------------------------------------------------------ */
 export const ZBI_MCID_PERCENTAGE_POINTS_PER_30_DAYS = 9; // ~8pt/88 on ZBI-22, applied as normalized %
 
-export type RiskBand = 'stable' | 'deteriorating' | 'critical' | 'insufficient-data';
+/* ------------------------------------------------------------------ *
+ * Minimal important change for the care-recipient function axis.
+ *
+ * Expressed on dependencyPercentage (0-100, = 100 - Barthel), so it is
+ * directly comparable to the Barthel literature: the minimal detectable
+ * change on the Barthel Index is around 4 points and published MCID
+ * estimates cluster near 9. We take a conservative mid value so ordinary
+ * measurement noise on the function axis cannot, by itself, push a dyad into
+ * the 'critical' divergence band.
+ *
+ * Previously this axis had NO threshold at all (any slope > 0 counted as
+ * "declining"), which meant the divergence band was effectively gated on the
+ * burden side only.
+ * ------------------------------------------------------------------ */
+export const BARTHEL_MCID_PERCENTAGE_POINTS_PER_30_DAYS = 5;
+
+/* ------------------------------------------------------------------ *
+ * Trend admissibility.
+ *
+ * Three points are necessary but not sufficient. Three assessments taken
+ * across four days can be fit to a mathematically valid line whose slope,
+ * expressed per 30 days, extrapolates roughly seven-fold beyond the window
+ * actually observed — enough to report a triple-digit "points per 30 days"
+ * rise on a 0-100 scale. A trend is only reported when the series also spans
+ * a clinically meaningful stretch of time.
+ *
+ * The R² floor is applied to the *rising* decision rather than to
+ * reliability, deliberately: a flat, noisy series is genuinely "stable"
+ * information, not missing information.
+ * ------------------------------------------------------------------ */
+const MIN_OBSERVATION_SPAN_DAYS = 21;
+const MIN_R_SQUARED_FOR_TREND = 0.4;
+
+export type RiskBand =
+  | 'stable'
+  | 'deteriorating'
+  | 'critical'
+  | 'lost-to-follow-up'
+  | 'insufficient-data';
 
 export interface SlopeResult {
   /** Points per 30 days. Positive = rising. Null if insufficient data. */
@@ -51,7 +89,12 @@ export interface SlopeResult {
   rSquared: number | null;
   /** Number of points the slope was fit over. */
   n: number;
-  /** True when n >= 3 and the fit is not degenerate (e.g. all-same-day points). */
+  /** Days between the first and last point in the series. */
+  spanDays: number;
+  /**
+   * True when the series has enough points, spans enough time, and the fit is
+   * not degenerate (e.g. all-same-day points).
+   */
   isReliable: boolean;
 }
 
@@ -122,13 +165,19 @@ const MIN_POINTS_FOR_TREND = 3;
 function olsSlopePerMonth(points: { date: string; value: number }[]): SlopeResult {
   const n = points.length;
   if (n < MIN_POINTS_FOR_TREND) {
-    return { slopePerMonth: null, rSquared: null, n, isReliable: false };
+    return { slopePerMonth: null, rSquared: null, n, spanDays: 0, isReliable: false };
   }
 
   const sorted = [...points].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const t0 = new Date(sorted[0].date).getTime();
   const xs = sorted.map((p) => (new Date(p.date).getTime() - t0) / MS_PER_DAY);
   const ys = sorted.map((p) => p.value);
+
+  const spanDays = Math.round(xs[xs.length - 1] - xs[0]);
+  if (spanDays < MIN_OBSERVATION_SPAN_DAYS) {
+    // Too short a window to extrapolate a per-30-day rate from.
+    return { slopePerMonth: null, rSquared: null, n, spanDays, isReliable: false };
+  }
 
   const xMean = xs.reduce((a, b) => a + b, 0) / n;
   const yMean = ys.reduce((a, b) => a + b, 0) / n;
@@ -146,7 +195,7 @@ function olsSlopePerMonth(points: { date: string; value: number }[]): SlopeResul
 
   // Degenerate: all points on the same day (or duplicate timestamps).
   if (sxx === 0) {
-    return { slopePerMonth: null, rSquared: null, n, isReliable: false };
+    return { slopePerMonth: null, rSquared: null, n, spanDays, isReliable: false };
   }
 
   const slopePerDay = sxy / sxx;
@@ -159,8 +208,25 @@ function olsSlopePerMonth(points: { date: string; value: number }[]): SlopeResul
     slopePerMonth: Math.round(slopePerMonth * 100) / 100,
     rSquared: Math.round(rSquared * 100) / 100,
     n,
-    isReliable: n >= MIN_POINTS_FOR_TREND
+    spanDays,
+    isReliable: true
   };
+}
+
+/**
+ * The single definition of "burden is meaningfully rising", used by both the
+ * risk band and the divergence flag. These previously disagreed: the band
+ * required the MCID while divergence accepted any positive slope, so
+ * `isDiverging` fired on pure noise.
+ */
+function isRisingBeyondMcid(slope: SlopeResult, mcid: number): boolean {
+  return (
+    slope.isReliable &&
+    slope.slopePerMonth !== null &&
+    slope.rSquared !== null &&
+    slope.rSquared >= MIN_R_SQUARED_FOR_TREND &&
+    slope.slopePerMonth >= mcid
+  );
 }
 
 /**
@@ -238,28 +304,41 @@ function buildDivergenceSeries(
 ): DivergencePoint[] {
   if (burdenSeries.length === 0 || functionSeries.length === 0) return [];
 
-  const points: DivergencePoint[] = [];
-  for (const fPoint of functionSeries) {
-    const fTime = new Date(fPoint.date).getTime();
-    let nearest: BurdenSeriesPoint | null = null;
-    let nearestDist = Infinity;
-    for (const bPoint of burdenSeries) {
-      const dist = Math.abs(new Date(bPoint.date).getTime() - fTime);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearest = bPoint;
+  // Candidate pairings, closest first. A burden point may only be consumed
+  // once: allowing reuse repeated a single burden reading across several chart
+  // points, drawing a line that implies measurements which were never taken.
+  const candidates: { fIndex: number; bIndex: number; dist: number }[] = [];
+  for (let fIndex = 0; fIndex < functionSeries.length; fIndex++) {
+    const fTime = new Date(functionSeries[fIndex].date).getTime();
+    for (let bIndex = 0; bIndex < burdenSeries.length; bIndex++) {
+      const dist = Math.abs(new Date(burdenSeries[bIndex].date).getTime() - fTime);
+      if (dist <= toleranceDays * MS_PER_DAY) {
+        candidates.push({ fIndex, bIndex, dist });
       }
     }
-    if (nearest && nearestDist <= toleranceDays * MS_PER_DAY) {
-      points.push({
-        date: fPoint.date,
-        burdenPct: nearest.normalizedPercentage,
-        dependencyPct: fPoint.dependencyPercentage,
-        divergenceIndex: nearest.normalizedPercentage - fPoint.dependencyPercentage
-      });
-    }
   }
-  return points;
+  candidates.sort((a, b) => a.dist - b.dist);
+
+  const usedFunction = new Set<number>();
+  const usedBurden = new Set<number>();
+  const points: DivergencePoint[] = [];
+
+  for (const { fIndex, bIndex } of candidates) {
+    if (usedFunction.has(fIndex) || usedBurden.has(bIndex)) continue;
+    usedFunction.add(fIndex);
+    usedBurden.add(bIndex);
+
+    const fPoint = functionSeries[fIndex];
+    const bPoint = burdenSeries[bIndex];
+    points.push({
+      date: fPoint.date,
+      burdenPct: bPoint.normalizedPercentage,
+      dependencyPct: fPoint.dependencyPercentage,
+      divergenceIndex: bPoint.normalizedPercentage - fPoint.dependencyPercentage
+    });
+  }
+
+  return points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 function determineRiskBand(
@@ -274,14 +353,37 @@ function determineRiskBand(
     return { band: 'insufficient-data', reasons: ['No caregiver burden assessments recorded yet.'] };
   }
 
-  if (latestAssessmentAgeDays === null || latestAssessmentAgeDays > STALE_ASSESSMENT_DAYS) {
+  const latest = burdenSeries[burdenSeries.length - 1];
+
+  if (
+    latestAssessmentAgeDays === null ||
+    latestAssessmentAgeDays < 0 ||
+    latestAssessmentAgeDays > STALE_ASSESSMENT_DAYS
+  ) {
+    if (latestAssessmentAgeDays !== null && latestAssessmentAgeDays < 0) {
+      reasons.push('Latest assessment is dated in the future — record cannot be trusted.');
+      return { band: 'insufficient-data', reasons };
+    }
+
     reasons.push(
       `Last assessment is ${latestAssessmentAgeDays ?? 'unknown'} days old (>${STALE_ASSESSMENT_DAYS}-day staleness threshold) — trend cannot be trusted.`
     );
+
+    // A dyad that was escalating when we last saw it and has since gone quiet
+    // is a higher-attention state than one we simply have too little data on.
+    // Collapsing both into 'insufficient-data' sorted an unresolved red flag
+    // to the bottom of the clinician roster.
+    if (latest.severityBand === 'critical_red' || latest.severityBand === 'red' || latest.hasRedFlag) {
+      reasons.push(
+        latest.hasRedFlag
+          ? 'Last contact triggered clinical red flags and has not been followed up.'
+          : `Last contact was in the ${latest.severityBand === 'critical_red' ? 'critical' : 'high'}-burden band and has not been followed up.`
+      );
+      return { band: 'lost-to-follow-up', reasons };
+    }
+
     return { band: 'insufficient-data', reasons };
   }
-
-  const latest = burdenSeries[burdenSeries.length - 1];
 
   // Critical: current band is severe, OR any red flag ever fired at the latest visit.
   if (latest.severityBand === 'critical_red') {
@@ -294,14 +396,12 @@ function determineRiskBand(
     return { band: 'critical', reasons };
   }
 
-  const isBurdenRising =
-    burdenSlope.isReliable &&
-    burdenSlope.slopePerMonth !== null &&
-    burdenSlope.slopePerMonth >= ZBI_MCID_PERCENTAGE_POINTS_PER_30_DAYS;
-  const isFunctionDeclining =
-    functionSlope.isReliable &&
-    functionSlope.slopePerMonth !== null &&
-    functionSlope.slopePerMonth > 0; // dependencyPercentage rising = function declining
+  const isBurdenRising = isRisingBeyondMcid(burdenSlope, ZBI_MCID_PERCENTAGE_POINTS_PER_30_DAYS);
+  // dependencyPercentage rising = function declining
+  const isFunctionDeclining = isRisingBeyondMcid(
+    functionSlope,
+    BARTHEL_MCID_PERCENTAGE_POINTS_PER_30_DAYS
+  );
 
   if (isBurdenRising && isFunctionDeclining) {
     reasons.push(
@@ -337,7 +437,8 @@ function determineRiskBand(
  */
 export function computeTrajectory(
   assessments: ZaritEvaluationResult[],
-  functionScores: FunctionEvaluationResult[]
+  functionScores: FunctionEvaluationResult[],
+  now: Date = new Date()
 ): TrajectoryResult {
   const { series: burdenSeries, tierChanges } = buildBurdenSeries(assessments);
   const functionSeries = buildFunctionSeries(functionScores);
@@ -347,16 +448,15 @@ export function computeTrajectory(
 
   const divergence = buildDivergenceSeries(burdenSeries, functionSeries);
 
+  // Same predicate the risk band uses — see isRisingBeyondMcid.
   const isDiverging =
-    burdenSlope.isReliable &&
-    functionSlope.isReliable &&
-    (burdenSlope.slopePerMonth ?? 0) > 0 &&
-    (functionSlope.slopePerMonth ?? 0) > 0; // dependency rising = function declining
+    isRisingBeyondMcid(burdenSlope, ZBI_MCID_PERCENTAGE_POINTS_PER_30_DAYS) &&
+    isRisingBeyondMcid(functionSlope, BARTHEL_MCID_PERCENTAGE_POINTS_PER_30_DAYS);
 
   const latestAssessmentAgeDays =
     burdenSeries.length > 0
       ? Math.round(
-          (Date.now() - new Date(burdenSeries[burdenSeries.length - 1].date).getTime()) / MS_PER_DAY
+          (now.getTime() - new Date(burdenSeries[burdenSeries.length - 1].date).getTime()) / MS_PER_DAY
         )
       : null;
 

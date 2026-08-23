@@ -19,6 +19,12 @@ service cloud.firestore {
       return ts is timestamp;
     }
 
+    // Maximum raw Zarit Burden Interview score for each instrument tier:
+    // 22 items x 4 = 88, 12 items x 4 = 48, 4 items x 4 = 16.
+    function zbiMaxScore(tier) {
+      return tier == 'ZBI22' ? 88 : (tier == 'ZBI12' ? 48 : 16);
+    }
+
     // Clinician dashboard: a caregiver's account is professional-verified,
     // and has been actively (never revoked) granted access to this specific
     // patient's dyad by the owning caregiver. Both conditions are required —
@@ -87,13 +93,20 @@ service cloud.firestore {
       // already "summary scope" by construction. This is why a clinician
       // grant can safely read the whole document with no field redaction:
       // there is no item-level answer (e.g. "do you feel angry...") to leak.
+      // The score ceiling is per-tier: ZBI-22 maxes at 88, ZBI-12 at 48 and
+      // ZBI-4 at 16. A flat <= 88 bound let a tier/score mismatch through
+      // (e.g. tier 'ZBI4' with totalScore 88), which yields a normalized
+      // percentage far above 100 and corrupts every downstream trend slope.
       match /zaritAssessments/{assessmentId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create: if isOwner(userId)
                       && request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']
                       && request.resource.data.totalScore is int
                       && request.resource.data.totalScore >= 0
-                      && request.resource.data.totalScore <= 88
+                      && request.resource.data.totalScore <= zbiMaxScore(request.resource.data.tier)
+                      && request.resource.data.normalizedPercentage is int
+                      && request.resource.data.normalizedPercentage >= 0
+                      && request.resource.data.normalizedPercentage <= 100
                       && request.resource.data.completedAt is string;
         allow update, delete: if isOwner(userId);
       }
@@ -112,6 +125,22 @@ service cloud.firestore {
                               && request.resource.data.lawtonScore >= 0
                               && request.resource.data.lawtonScore <= 8
                               && request.resource.data.recordedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Subcollection: Patient dependence profile (Katz ADL / Lawton IADL /
+      // cognitive-behavioral load), synced from the caregiver's local
+      // CareGapEngine intake. Single fixed-id document ('current') — there is
+      // exactly one patient per caregiver's dyad in this data model, same as
+      // functionScores below. A granted clinician may also write this
+      // (e.g. from the onboarding wizard's doctor-mode patient picker,
+      // recording a fresh Katz assessment during an OPD visit).
+      match /patientProfile/{profileId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.katzAdl is map
+                              && request.resource.data.lawtonIadl is map
+                              && request.resource.data.updatedAt is string;
         allow delete: if isOwner(userId);
       }
 

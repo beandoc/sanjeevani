@@ -22,6 +22,11 @@ const RISK_BAND_CONFIG: Record<RiskBand, { label: string; badgeClass: string; ic
     badgeClass: 'bg-red-600 text-white animate-pulse',
     icon: AlertTriangle
   },
+  'lost-to-follow-up': {
+    label: 'Lost to Follow-Up',
+    badgeClass: 'bg-orange-600 text-white',
+    icon: AlertTriangle
+  },
   'insufficient-data': {
     label: 'Insufficient Data',
     badgeClass: 'bg-slate-400 text-white',

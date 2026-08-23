@@ -34,6 +34,7 @@ import {
 import { auth, db } from './client';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
+import type { PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
 
 function currentUid(): string | null {
   try {
@@ -73,6 +74,59 @@ export async function recordFunctionScore(
   } catch (err) {
     console.warn('Record function score skipped:', err);
   }
+}
+
+/**
+ * Mirrors the caregiver's own patient dependence profile (Katz ADL / Lawton
+ * IADL / cognitive-behavioral load) to Firestore, so a granted clinician can
+ * see and — via the onboarding wizard's doctor-mode patient picker — update
+ * it. `HealthRepository.getPatientProfile()`/`savePatientProfile()` remain
+ * the local source of truth for the caregiver's own device; this is a
+ * best-effort mirror only, called explicitly at the same sites that already
+ * call `syncZaritAssessment`.
+ */
+export async function syncPatientProfile(profile: PatientDependenceProfile): Promise<void> {
+  const uid = currentUid();
+  if (!uid || !db) return;
+  try {
+    const ref = doc(db, 'users', uid, 'patientProfile', 'current');
+    await setDoc(ref, { ...profile, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.warn('Patient profile sync skipped (offline or not signed in):', err);
+  }
+}
+
+/** Reads one patient's synced dependence profile. Requires ownership or an active grant. */
+export async function getPatientProfileFor(
+  patientUid: string
+): Promise<(PatientDependenceProfile & { updatedAt: string }) | null> {
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', patientUid, 'patientProfile', 'current'));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return { ...data, updatedAt: toIsoString(data.updatedAt) } as PatientDependenceProfile & {
+      updatedAt: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes a patient's dependence profile on their behalf. Used by a granted
+ * clinician (e.g. recording a fresh Katz assessment during an OPD visit via
+ * the onboarding wizard's patient picker) — mirrors the `patientUid`-
+ * parameterized shape of `recordFunctionScore` above, since the caller is
+ * acting on a dyad that isn't their own.
+ */
+export async function savePatientProfileFor(
+  patientUid: string,
+  profile: PatientDependenceProfile
+): Promise<void> {
+  if (!db) return;
+  const ref = doc(db, 'users', patientUid, 'patientProfile', 'current');
+  await setDoc(ref, { ...profile, updatedAt: new Date().toISOString() });
 }
 
 /** Records an OPD encounter anchor. */

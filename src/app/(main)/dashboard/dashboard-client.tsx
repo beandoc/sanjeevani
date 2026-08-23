@@ -54,7 +54,7 @@ import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
 import { getPersonalizedPath, PersonalizedPathResult } from '@/lib/learning-paths';
 import { HealthRepository, MedicationItem, CareGapEvaluationResult } from '@/lib/db/health-repository';
-import { ZaritEvaluationResult } from '@/lib/zarit-scale';
+import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
 import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
 import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
 
@@ -221,6 +221,14 @@ export default function DashboardClient() {
                       : (latestZarit.classification?.en || 'Burden Assessment'))
                   : 'Establish clinical baseline'}
               </p>
+              {/* Nothing else in the product ever prompts a retake, so without
+                  this a caregiver typically never accumulates the 3+
+                  assessments the longitudinal trend engine needs. */}
+              {latestZarit && isReassessmentDue(latestZarit) && (
+                <Badge variant="outline" className="text-[10px] font-semibold text-amber-600 border-amber-500/40 w-fit">
+                  Reassessment due
+                </Badge>
+              )}
             </CardContent>
           </Card>
         </Link>

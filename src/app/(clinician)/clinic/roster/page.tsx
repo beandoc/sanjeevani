@@ -23,15 +23,20 @@ interface RosterRow {
   latestAssessmentAgeDays: number | null;
 }
 
+// A dyad that was escalating at last contact and has since gone quiet ranks
+// directly below an active critical case — it is an unresolved risk, not an
+// absence of information, and must not sort to the bottom of the roster.
 const BAND_ORDER: Record<RiskBand, number> = {
   critical: 0,
-  deteriorating: 1,
-  'insufficient-data': 2,
-  stable: 3
+  'lost-to-follow-up': 1,
+  deteriorating: 2,
+  'insufficient-data': 3,
+  stable: 4
 };
 
 const BAND_STYLE: Record<RiskBand, string> = {
   critical: 'bg-red-600 text-white',
+  'lost-to-follow-up': 'bg-orange-600 text-white',
   deteriorating: 'bg-amber-500 text-white',
   stable: 'bg-emerald-500 text-white',
   'insufficient-data': 'bg-slate-400 text-white'

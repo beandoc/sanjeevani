@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe } from 'vitest';
 import assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -35,7 +35,30 @@ describe('Firestore Security Rules Compliance Audit', () => {
     assert.ok(rulesContent.includes("match /zaritAssessments/{assessmentId}"));
     assert.ok(rulesContent.includes("request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']"));
     assert.ok(rulesContent.includes("request.resource.data.totalScore >= 0"));
-    assert.ok(rulesContent.includes("request.resource.data.totalScore <= 88"));
+    // The ceiling must be per-tier, not a flat 88 — a flat bound admits a
+    // ZBI-4 document claiming a score of 88 (max is 16).
+    assert.ok(rulesContent.includes("function zbiMaxScore(tier)"));
+    assert.ok(
+      rulesContent.includes('request.resource.data.totalScore <= zbiMaxScore(request.resource.data.tier)')
+    );
+    assert.ok(!rulesContent.includes('request.resource.data.totalScore <= 88'));
+    assert.ok(rulesContent.includes('request.resource.data.normalizedPercentage <= 100'));
+  });
+
+  test('should secure patientProfile subcollection for owner and granted-clinician read/write', () => {
+    assert.ok(rulesContent.includes("match /patientProfile/{profileId}"));
+    // A granted clinician (e.g. via the onboarding wizard's doctor-mode patient
+    // picker) may read AND write this, unlike zaritAssessments which is
+    // caregiver-only for create — patientProfile mirrors functionScores in
+    // being clinician-writable, since a doctor may record a fresh Katz
+    // assessment during an OPD visit.
+    assert.ok(rulesContent.includes('allow read: if isOwner(userId) || hasActiveGrant(userId);'));
+    assert.ok(
+      rulesContent.includes('allow create, update: if (isOwner(userId) || hasActiveGrant(userId))')
+    );
+    assert.ok(rulesContent.includes('request.resource.data.katzAdl is map'));
+    assert.ok(rulesContent.includes('request.resource.data.lawtonIadl is map'));
+    assert.ok(rulesContent.includes('request.resource.data.updatedAt is string'));
   });
 
   test('should secure careCircles multi-caregiver access controls', () => {

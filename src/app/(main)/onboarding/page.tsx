@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,11 +32,24 @@ import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
   DEFAULT_PATIENT_PROFILE,
   CaregiverAttributes,
-  PatientDependenceProfile,
-  FormalSupportType
+  PatientDependenceProfile
 } from '@/lib/clinical/care-gap-engine';
+import {
+  FORMAL_SUPPORT_OPTIONS,
+  buildFormalSupport,
+  resolveSupportTypes,
+  toggleSupportType
+} from '@/lib/clinical/formal-support';
+import {
+  listMyRoster,
+  getPatientDisplayName,
+  getPatientProfileFor,
+  savePatientProfileFor,
+  syncPatientProfile
+} from '@/lib/firebase/clinical-sync';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function OnboardingIntakePage() {
   const router = useRouter();
@@ -44,7 +57,22 @@ export default function OnboardingIntakePage() {
   const { toast } = useToast();
 
   const [step, setStep] = useState<number>(1);
-  const [selectedRole, setSelectedRole] = useState<Role>(role || 'caregiver');
+  const [selectedRole, setSelectedRole] = useState<Role>(() => {
+    if (role === 'professional' || role === 'doctor') return 'doctor';
+    if (role === 'nurse') return 'nurse';
+    return 'caregiver';
+  });
+  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
+
+  useEffect(() => {
+    if (role === 'professional' || role === 'doctor') {
+      setSelectedRole('doctor');
+    } else if (role === 'nurse') {
+      setSelectedRole('nurse');
+    } else {
+      setSelectedRole('caregiver');
+    }
+  }, [role]);
 
   // Working state for Patient & Caregiver
   const [patient, setPatient] = useState<PatientDependenceProfile>(() => {
@@ -68,9 +96,65 @@ export default function OnboardingIntakePage() {
     }));
   };
 
+  // Doctor persona: Step 2 edits a specific granted patient's ADL profile
+  // (synced to Firestore), not the single local profile the caregiver/nurse
+  // personas use — a doctor has no local dyad of their own.
+  const isDoctorPersona = selectedRole === 'doctor';
+  const [doctorPatients, setDoctorPatients] = useState<{ patientUid: string; label: string }[]>([]);
+  const [isLoadingRoster, setIsLoadingRoster] = useState(false);
+  const [selectedPatientUid, setSelectedPatientUid] = useState<string | null>(null);
+  const [isLoadingPatientProfile, setIsLoadingPatientProfile] = useState(false);
+
+  useEffect(() => {
+    if (!isDoctorPersona) return;
+    let cancelled = false;
+    setIsLoadingRoster(true);
+    listMyRoster()
+      .then(async (entries) => {
+        const withNames = await Promise.all(
+          entries.map(async (e) => ({
+            patientUid: e.patientUid,
+            label: await getPatientDisplayName(e.patientUid)
+          }))
+        );
+        if (!cancelled) setDoctorPatients(withNames);
+      })
+      .catch(() => {
+        if (!cancelled) setDoctorPatients([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingRoster(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-run if the user switches into doctor persona after the wizard mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDoctorPersona]);
+
+  const handleSelectPatient = async (patientUid: string) => {
+    setSelectedPatientUid(patientUid);
+    setIsLoadingPatientProfile(true);
+    try {
+      const profile = await getPatientProfileFor(patientUid);
+      setPatient(profile ?? { ...DEFAULT_PATIENT_PROFILE, name: '', age: 0 });
+    } finally {
+      setIsLoadingPatientProfile(false);
+    }
+  };
+
   const handleFinishOnboarding = () => {
-    HealthRepository.savePatientProfile(patient);
-    HealthRepository.saveCaregiverAttributes(caregiver);
+    if (isDoctorPersona) {
+      // No local dyad belongs to the doctor's own account — write only to
+      // whichever granted patient was selected, and only if one was.
+      if (selectedPatientUid) {
+        void savePatientProfileFor(selectedPatientUid, patient);
+      }
+    } else {
+      HealthRepository.savePatientProfile(patient);
+      HealthRepository.saveCaregiverAttributes(caregiver);
+      void syncPatientProfile(patient);
+    }
     setRole(selectedRole);
     completeOnboarding();
 
@@ -86,6 +170,9 @@ export default function OnboardingIntakePage() {
     }
   };
 
+  const isDoctorMode = role === 'doctor' || role === 'professional';
+  const isNurseMode = role === 'nurse';
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-3xl w-full space-y-6">
@@ -99,7 +186,7 @@ export default function OnboardingIntakePage() {
               <span className="text-xs text-muted-foreground font-mono">Step {step} of 4</span>
             </div>
             <h1 className="text-2xl font-bold font-headline">
-              {step === 1 && '1. Select Your Healthcare Role'}
+              {step === 1 && '1. Healthcare Role Calibration'}
               {step === 2 && '2. Patient Health Status & Functional ADLs'}
               {step === 3 && '3. Caregiver Profile & Formal Support Setup'}
               {step === 4 && '4. Baseline Care Gap Calibration & Launch'}
@@ -126,103 +213,184 @@ export default function OnboardingIntakePage() {
           </div>
         </div>
 
-        {/* STEP 1: ROLE SELECTION */}
+        {/* STEP 1: ROLE SELECTION (AUTO-SELECTED FOR DOCTOR / CLINICIAN PORTAL) */}
         {step === 1 && (
           <Card className="border-border shadow-md">
-            <CardHeader>
-              <CardTitle className="text-lg">How will you be using Sanjeevani?</CardTitle>
-              <CardDescription className="text-xs">
-                Your selected role activates tailored dashboards, workflows, clinical scales, and shift tools.
-              </CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold font-headline">
+                    {isDoctorMode
+                      ? 'Doctor / Geriatrician Portal Setup'
+                      : isNurseMode
+                      ? 'Nurse Shift Mode Intake'
+                      : 'Caregiver Portal Setup'}
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    {isDoctorMode
+                      ? 'Your Doctor / Geriatrician role has been auto-selected for your clinical workspace.'
+                      : isNurseMode
+                      ? 'Your Nurse / Attendant role has been auto-selected for clinical shift mode.'
+                      : 'Your Family Caregiver role has been auto-selected for your home care workspace.'}
+                  </CardDescription>
+                </div>
+                <Badge variant="default" className="bg-emerald-600 text-white text-[10px] font-mono shrink-0">
+                  Auto-Selected
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Option 1: Family Caregiver */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('caregiver')}
-                  className={cn(
-                    'p-5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
-                    selectedRole === 'caregiver'
-                      ? 'border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20'
-                      : 'border-border/80 hover:border-primary/40 bg-card'
-                  )}
-                >
+              {/* Doctor Portal View: Dedicated Doctor Card (Family Caregiver & Nurse removed) */}
+              {isDoctorMode && !showRoleSwitcher && (
+                <div className="p-5 rounded-2xl border-2 border-blue-600 bg-blue-500/5 shadow-sm space-y-3">
                   <div className="flex items-center justify-between w-full">
-                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                      <Heart className="w-5 h-5" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600">
+                        <Stethoscope className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-foreground">Doctor / Geriatrician (Dr. Vivek)</h3>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">Consulting Physician & Geriatric Specialist</p>
+                      </div>
                     </div>
-                    {selectedRole === 'caregiver' && <CheckCircle2 className="w-5 h-5 text-primary" />}
+                    <Badge variant="outline" className="text-xs text-blue-600 border-blue-500/30 bg-blue-500/10 font-bold">
+                      Physician Portal Active
+                    </Badge>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-foreground">Family Caregiver</h3>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Primary family carers (son, daughter, spouse). Access Stress Gauge, Bedside Companion, and medication alerts.
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] self-start">
-                    Family Dashboard
-                  </Badge>
-                </button>
+                  <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                    Your portal is auto-calibrated for clinical decision support: Patient Cohort Risk Roster, Dyad Trajectory Scissors, AGS Beers 2023 Med Safety, and OPD Teleconsultation Briefs.
+                  </p>
+                </div>
+              )}
 
-                {/* Option 2: Nurse / Medical Attendant */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('nurse')}
-                  className={cn(
-                    'p-5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
-                    selectedRole === 'nurse'
-                      ? 'border-emerald-600 bg-emerald-500/5 shadow-sm ring-2 ring-emerald-500/20'
-                      : 'border-border/80 hover:border-emerald-500/40 bg-card'
-                  )}
-                >
+              {/* Nurse Portal View: Dedicated Nurse Card */}
+              {isNurseMode && !showRoleSwitcher && (
+                <div className="p-5 rounded-2xl border-2 border-emerald-600 bg-emerald-500/5 shadow-sm space-y-3">
                   <div className="flex items-center justify-between w-full">
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600">
-                      <UserCheck className="w-5 h-5" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600">
+                        <UserCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-foreground">Nurse / Attendant (Nurse Sister Anjali)</h3>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Shift Care Attendant & Home Nurse</p>
+                      </div>
                     </div>
-                    {selectedRole === 'nurse' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                    <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-500/30 bg-emerald-500/10 font-bold">
+                      Clinical Shift Mode Active
+                    </Badge>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-foreground">Nurse / Attendant</h3>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Paid home-care nurses and general attendants. Access Shift Handoff, MAR log, and nursing checklists.
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] self-start text-emerald-600 border-emerald-500/30">
-                    Clinical Shift Mode
-                  </Badge>
-                </button>
+                  <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                    Your portal is auto-calibrated for bedside shift management: Shift Handoff, eMAR medication log, vital sign recording, and nursing checklists.
+                  </p>
+                </div>
+              )}
 
-                {/* Option 3: Doctor / Geriatrician */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('doctor')}
-                  className={cn(
-                    'p-5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
-                    selectedRole === 'doctor'
-                      ? 'border-blue-600 bg-blue-500/5 shadow-sm ring-2 ring-blue-500/20'
-                      : 'border-border/80 hover:border-blue-500/40 bg-card'
-                  )}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600">
-                      <Stethoscope className="w-5 h-5" />
+              {/* Caregiver Portal or Expanded Role Switcher */}
+              {(!isDoctorMode && !isNurseMode) || showRoleSwitcher ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  {/* Option 1: Family Caregiver */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('caregiver')}
+                    className={cn(
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
+                      selectedRole === 'caregiver'
+                        ? 'border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20'
+                        : 'border-border/80 hover:border-primary/40 bg-card'
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                        <Heart className="w-5 h-5" />
+                      </div>
+                      {selectedRole === 'caregiver' && <CheckCircle2 className="w-5 h-5 text-primary" />}
                     </div>
-                    {selectedRole === 'doctor' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-foreground">Doctor / Geriatrician</h3>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Consulting physicians & specialists. Access Cohort Risk Roster, Dyad Trajectory Scissors, and OPD Briefs.
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] self-start text-blue-600 border-blue-500/30">
-                    Physician Portal
-                  </Badge>
-                </button>
-              </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Family Caregiver</h3>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        Primary family carers (son, daughter, spouse). Access Stress Gauge, Bedside Companion, and medication alerts.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] self-start">
+                      Family Dashboard
+                    </Badge>
+                  </button>
+
+                  {/* Option 2: Nurse / Medical Attendant */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('nurse')}
+                    className={cn(
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
+                      selectedRole === 'nurse'
+                        ? 'border-emerald-600 bg-emerald-500/5 shadow-sm ring-2 ring-emerald-500/20'
+                        : 'border-border/80 hover:border-emerald-500/40 bg-card'
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                        <UserCheck className="w-5 h-5" />
+                      </div>
+                      {selectedRole === 'nurse' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Nurse / Attendant</h3>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        Paid home-care nurses and general attendants. Access Shift Handoff, MAR log, and nursing checklists.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] self-start text-emerald-600 border-emerald-500/30">
+                      Clinical Shift Mode
+                    </Badge>
+                  </button>
+
+                  {/* Option 3: Doctor / Geriatrician */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('doctor')}
+                    className={cn(
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
+                      selectedRole === 'doctor'
+                        ? 'border-blue-600 bg-blue-500/5 shadow-sm ring-2 ring-blue-500/20'
+                        : 'border-border/80 hover:border-blue-500/40 bg-card'
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                        <Stethoscope className="w-5 h-5" />
+                      </div>
+                      {selectedRole === 'doctor' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Doctor / Geriatrician</h3>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        Consulting physicians & specialists. Access Cohort Risk Roster, Dyad Trajectory Scissors, and OPD Briefs.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] self-start text-blue-600 border-blue-500/30">
+                      Physician Portal
+                    </Badge>
+                  </button>
+                </div>
+              ) : null}
+
+              {(isDoctorMode || isNurseMode) && (
+                <div className="pt-2 flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => setShowRoleSwitcher(!showRoleSwitcher)}
+                    className="text-[11px] text-primary hover:underline font-semibold"
+                  >
+                    {showRoleSwitcher ? '← Hide persona options' : 'Change persona / View all 3 healthcare roles →'}
+                  </button>
+                </div>
+              )}
             </CardContent>
-            <CardFooter className="flex justify-end pt-4 border-t border-border/60">
+            <CardFooter className="flex justify-between pt-4 border-t border-border/60">
+              <span className="text-[11px] text-muted-foreground self-center font-mono">
+                Active: {selectedRole === 'doctor' ? 'Dr. Vivek (Doctor Portal)' : selectedRole === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar'}
+              </span>
               <Button onClick={() => setStep(2)} className="gap-1.5 font-bold text-xs">
                 <span>Continue to Patient Status</span>
                 <ArrowRight className="w-4 h-4" />
@@ -242,12 +410,69 @@ export default function OnboardingIntakePage() {
                     Mark which activities of daily living (ADLs) the senior can perform independently.
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="font-mono text-xs">
-                  Katz ADL: {evaluation.katzAdlScore}/6
-                </Badge>
+                {(!isDoctorPersona || selectedPatientUid) && (
+                  <Badge variant="outline" className="font-mono text-xs">
+                    Katz ADL: {evaluation.katzAdlScore}/6
+                  </Badge>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
+              {/* Doctor persona: a doctor has no dyad of their own — pick which
+                  granted patient this ADL assessment belongs to. */}
+              {isDoctorPersona && (
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" /> Select Patient
+                    </Label>
+                    {doctorPatients.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        {doctorPatients.length} Patient{doctorPatients.length === 1 ? '' : 's'} Mapped
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Choose from patients who have granted you clinical access. Recording ADLs here updates their shared profile.
+                  </p>
+
+                  {isLoadingRoster ? (
+                    <p className="text-xs text-muted-foreground py-2">Loading your patient roster…</p>
+                  ) : doctorPatients.length === 0 ? (
+                    <div className="p-3 rounded-xl border border-dashed border-border text-xs text-muted-foreground">
+                      No patients have granted you access yet. Ask a caregiver to share access with your clinician
+                      account, then check{' '}
+                      <Link href="/clinic/roster" className="text-primary underline font-semibold">
+                        your roster
+                      </Link>
+                      .
+                    </div>
+                  ) : (
+                    <Select
+                      value={selectedPatientUid ?? undefined}
+                      onValueChange={handleSelectPatient}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Choose a patient…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {doctorPatients.map((p) => (
+                          <SelectItem key={p.patientUid} value={p.patientUid} className="text-xs">
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {isLoadingPatientProfile && (
+                    <p className="text-xs text-muted-foreground">Loading patient profile…</p>
+                  )}
+                </div>
+              )}
+
+              {(!isDoctorPersona || selectedPatientUid) && (
+                <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Patient Full Name</Label>
@@ -340,6 +565,8 @@ export default function OnboardingIntakePage() {
                   </Select>
                 </div>
               </div>
+                </>
+              )}
             </CardContent>
             <CardFooter className="flex justify-between pt-4 border-t border-border/60">
               <Button variant="outline" size="sm" onClick={() => setStep(1)} className="gap-1.5 text-xs">
@@ -570,93 +797,20 @@ export default function OnboardingIntakePage() {
 
                 {/* Multi-Select Options Grid (Medical Help on Top) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  {[
-                    {
-                      id: 'trained_nurse_24h' as FormalSupportType,
-                      title: 'Certified Nurse (24h Live-In)',
-                      category: 'Medical / Nursing Care',
-                      desc: 'IV meds, wound care, catheter, vital monitoring',
-                      isMedical: true
-                    },
-                    {
-                      id: 'trained_nurse_12h' as FormalSupportType,
-                      title: 'Certified Nurse (12h Shift)',
-                      category: 'Medical / Nursing Care',
-                      desc: 'Day or night clinical nursing shift',
-                      isMedical: true
-                    },
-                    {
-                      id: 'medical_assistant' as FormalSupportType,
-                      title: 'Medical Assistant / Physio Aide',
-                      category: 'Clinical & Physio Aide',
-                      desc: 'Physiotherapy, exercise, vital logging',
-                      isMedical: true
-                    },
-                    {
-                      id: 'paid_attendant_24h' as FormalSupportType,
-                      title: 'Paid Attendant (24h Live-In)',
-                      category: 'Physical Assistance',
-                      desc: 'Bathing, turning, feeding, continuous aid',
-                      isMedical: false
-                    },
-                    {
-                      id: 'paid_attendant_12h' as FormalSupportType,
-                      title: 'Paid Attendant (12h Shift)',
-                      category: 'Physical Assistance',
-                      desc: 'Daily hygiene, mobility, and turn support',
-                      isMedical: false
-                    },
-                    {
-                      id: 'multi_family_rotation' as FormalSupportType,
-                      title: 'Multi-Family Member Rotation',
-                      category: 'Family Support Network',
-                      desc: 'Shared caregiving among siblings & relatives',
-                      isMedical: false
-                    },
-                    {
-                      id: 'none' as FormalSupportType,
-                      title: 'None (Solo Family Caregiver)',
-                      category: 'Solo Family Care',
-                      desc: 'Sole family carer managing all care responsibilities',
-                      isMedical: false
-                    }
-                  ].map((opt) => {
-                    const currentTypes =
-                      caregiver.formalSupport?.types ||
-                      (caregiver.formalSupport?.type && caregiver.formalSupport.type !== 'none'
-                        ? [caregiver.formalSupport.type]
-                        : []);
+                  {FORMAL_SUPPORT_OPTIONS.map((opt) => {
+                    const currentTypes = resolveSupportTypes(caregiver.formalSupport);
                     const isSelected = opt.id === 'none' ? currentTypes.length === 0 : currentTypes.includes(opt.id);
 
                     return (
                       <button
                         key={opt.id}
                         type="button"
-                        onClick={() => {
-                          let updated: FormalSupportType[] = [...currentTypes];
-                          if (opt.id === 'none') {
-                            updated = [];
-                          } else {
-                            if (updated.includes(opt.id)) {
-                              updated = updated.filter((t) => t !== opt.id);
-                            } else {
-                              updated.push(opt.id);
-                            }
-                          }
-                          const primary = updated.length > 0 ? updated[0] : 'none';
-                          const hasMedical = updated.some((t) => t.includes('nurse') || t === 'medical_assistant');
-
+                        onClick={() =>
                           setCaregiver({
                             ...caregiver,
-                            formalSupport: {
-                              type: primary,
-                              types: updated,
-                              hoursPerDay: updated.length * 8,
-                              handlesHeavyTransfers: updated.length > 0,
-                              handlesMedicationWoundCare: hasMedical
-                            }
-                          });
-                        }}
+                            formalSupport: buildFormalSupport(toggleSupportType(currentTypes, opt.id))
+                          })
+                        }
                         className={cn(
                           'p-3 rounded-xl border text-left transition-all flex flex-col justify-between space-y-1.5',
                           isSelected
