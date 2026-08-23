@@ -155,10 +155,42 @@ export default function DailyCaregivingRoutinePage() {
                   <div className="p-3 rounded-xl border border-border bg-background space-y-1">
                     <span className="font-bold text-foreground flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Brushing & Denture Care
+                      Denture & Oral Hygiene
                     </span>
                     <p className="text-[11px]">
-                      Brush teeth twice daily with ultra-soft bristles and fluoride toothpaste. Remove and soak dentures overnight in cleansing solution; rinse thoroughly before morning insertion.
+                      Clean dentures over a water-filled sink lined with a towel to prevent breakage if dropped. Grasp firmly with gauze squares, wash with lukewarm water only, and remove at night to allow gums to rest.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Shaving & Facial Grooming Sub-protocol */}
+                <div className="pt-3 mt-3 border-t border-border/60 space-y-2">
+                  <h4 className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    Facial Shaving Protocol: Boosting Self-Esteem with Skin Safety
+                  </h4>
+                  <p>
+                    Shaving maintains personal dignity and psychological well-being. Because geriatric skin is thin, fragile, and easily torn (senile purpura), follow these safety steps:
+                  </p>
+                  <ul className="list-disc space-y-1.5 pl-5">
+                    <li>
+                      <strong>Pre-Shave Dermatological Check:</strong> Inspect the face and neck for bulging warts, rashes, pigmented spots, open sores, or pimples before starting.
+                    </li>
+                    <li>
+                      <strong>Timing & Skin Softening:</strong> Shave immediately after bathing or shampooing when facial hair is hydrated. Apply a warm, damp washcloth over the face for 1–2 minutes, followed by shaving gel/foam to soften stubble and prevent skin scraping.
+                    </li>
+                    <li>
+                      <strong>Razor Biomechanics:</strong> Pull the skin gently taut with your free hand. Hold the manual razor at a <strong>45-degree angle</strong> and shave strictly <strong>in the direction of hair growth</strong> to eliminate painful pulling and micro-cuts.
+                    </li>
+                  </ul>
+
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 mt-2 space-y-1">
+                    <span className="font-bold text-xs flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                      Critical Bleeding Safety Precaution: Electric Razors
+                    </span>
+                    <p className="text-[11px] leading-relaxed">
+                      <strong>Never use manual razor blades</strong> on patients receiving anticoagulant / antiplatelet therapy (Aspirin, Clopidogrel, Warfarin, Apixaban), or patients with confusion, cognitive agitation, or severe tremors. <strong>Always use an electric rotary/foil razor</strong> to completely eliminate the risk of uncontrollable hemorrhage and skin lacerations.
                     </p>
                   </div>
                 </div>

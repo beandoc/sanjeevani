@@ -143,6 +143,19 @@ service cloud.firestore {
       }
     }
 
+    // 1b. Collection-group read access for clinicianGrants. The nested rule
+    // above (inside match /users/{userId}) governs direct-path get/create/
+    // update/delete. A `list` (query) request against the *collection
+    // group* — e.g. the clinician roster's
+    // `collectionGroup('clinicianGrants').where('clinicianUid','==',me)` —
+    // additionally needs a rule declared with the `{path=**}` wildcard;
+    // Firestore does not extend the nested rule to group-query `list`
+    // requests on its own. `path[1]` recovers the caregiver's userId from
+    // the captured `users/{userId}/clinicianGrants/{clinicianUid}` prefix.
+    match /{path=**}/clinicianGrants/{clinicianUid} {
+      allow read: if isOwner(path[1]) || (isAuthenticated() && request.auth.uid == clinicianUid);
+    }
+
     // 2. Care Circles (Multi-caregiver team collaboration)
     match /careCircles/{circleId} {
       allow read: if isCircleMember(resource.data);

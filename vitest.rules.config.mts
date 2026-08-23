@@ -4,6 +4,11 @@ import { fileURLToPath } from 'url';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Separate config for the Firestore emulator-backed rules tests. Kept apart
+ * from vitest.config.mts, which deliberately excludes *.emulator.test.ts so
+ * the default `npm test` run never depends on an external emulator process.
+ */
 export default defineConfig({
   resolve: {
     alias: {
@@ -12,9 +17,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
-    // Excluded from the default run: needs the Firebase emulator suite
-    // running externally. Run explicitly via `npm run test:rules`.
-    exclude: ['**/node_modules/**', '**/*.emulator.test.ts']
+    include: ['src/**/*.emulator.test.ts'],
+    testTimeout: 20000
   }
 });
