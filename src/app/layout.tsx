@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ReactNode } from 'react';
@@ -8,12 +8,15 @@ import { RoleProvider } from '@/context/role-context';
 
 import { PwaRegister } from '@/components/layout/pwa-register';
 
+export const viewport: Viewport = {
+  themeColor: '#0f766e',
+};
+
 export const metadata: Metadata = {
   title: 'Sanjeevani — Geriatric Decision Support & Caregiver Training',
   description:
     'Evidence-based geriatric caregiver decision support, Zarit burden assessment, and clinical simulation platform for India.',
   manifest: '/manifest.json',
-  themeColor: '#0f766e',
 };
 
 import { NextIntlClientProvider } from 'next-intl';
