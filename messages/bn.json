@@ -107,9 +107,34 @@
             "foot-care": "Foot Care Essentials",
             "joint-problems-caregiver": "Understanding Joint Pain & Arthritis",
             "vision-problems-caregiver": "Vision and Eye Problems",
-            "lung-infections-caregiver": "Protecting Your Loved One from Pneumonia"
+            "lung-infections-caregiver": "Protecting Your Loved One from Pneumonia",
+            "caregiver-foundations": "The Need for Caregivers: Aging Physiology & Home Care",
+            "caregiver-roles-responsibilities": "Role of the Caregiver: ADL Care, Environment & Mental Support",
+            "daily-caregiving-routine": "Daily Caregiving Blueprint: Hygiene, Transfers & Companionship",
+            "sensory-hygiene-bedmaking": "Sensory Care & Bed-Making: Eyes, Ears, Hearing Aids & Beds",
+            "elderly-garments-adaptive-dressing": "Adaptive Clothing & Garment Care: Dignity, Autonomy & Laundry"
         },
         "list": {
+            "caregiver-foundations": {
+                "title": "The Need for Caregivers: Aging Physiology & Home Care",
+                "description": "Understand age-related functional decline, chronic multimorbidity, and why home is the best place for long-term care."
+            },
+            "caregiver-roles-responsibilities": {
+                "title": "Role of the Caregiver: ADL Care, Environment & Mental Support",
+                "description": "Master personal hygiene assistance, home safety adaptation, social engagement, and psychological reassurance for older adults."
+            },
+            "daily-caregiving-routine": {
+                "title": "Daily Caregiving Blueprint: Hygiene, Transfers & Companionship",
+                "description": "Daily protocols for bathing, grooming, doctor-prescribed diets, safe transfers (bed/toilet/car), and health tracking."
+            },
+            "sensory-hygiene-bedmaking": {
+                "title": "Sensory Care & Bed-Making: Eyes, Ears, Hearing Aids & Beds",
+                "description": "Clinical techniques for eye care (inner-to-outer canthus), hearing aid insertion, O2/NG tube care, and wrinkle-free bed making."
+            },
+            "elderly-garments-adaptive-dressing": {
+                "title": "Adaptive Clothing & Garment Care: Dignity, Autonomy & Laundry",
+                "description": "Guidelines for choosing adaptive senior clothing (Velcro, open-back), stroke dressing rules, and sunlight disinfection."
+            },
             "medication-management-caregiver": {
                 "title": "Helping Your Loved One Stay Safe with Medicines",
                 "description": "Learn to manage medications safely and act as a key partner in their healthcare."

@@ -38,23 +38,27 @@ const ModuleCard = ({ module }: { module: Module }) => {
   const t = useTranslations('Modules.list');
   const tPage = useTranslations('Modules.page');
   const Icon = module.icon || ShieldAlert; // Fallback icon to prevent crashes
+
+  const title = t.has(`${module.id}.title`) ? t(`${module.id}.title`) : module.title;
+  const description = t.has(`${module.id}.description`) ? t(`${module.id}.description`) : module.description;
+
   return (
-    <Card key={module.id} className="flex flex-col">
+    <Card key={module.id} className="flex flex-col border-border/80 bg-card hover:border-primary/40 hover:shadow-md transition-all">
       <CardHeader>
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
             <Icon className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="font-headline text-xl">
-            {t(`${module.id}.title`)}
+          <CardTitle className="font-headline text-lg font-bold">
+            {title}
           </CardTitle>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
-        <CardDescription>{t(`${module.id}.description`)}</CardDescription>
+        <CardDescription className="text-xs leading-relaxed">{description}</CardDescription>
       </CardContent>
       <CardFooter>
-        <Button asChild className="w-full">
+        <Button asChild className="w-full text-xs font-bold shadow-xs">
           <Link href={`/modules/${module.id}`}>
             {tPage('startModule')} <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
