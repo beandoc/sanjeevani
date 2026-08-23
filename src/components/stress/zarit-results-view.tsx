@@ -104,7 +104,7 @@ export function ZaritResultsView({
                 </Badge>
                 <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
                   <Clock className="w-3.5 h-3.5" />
-                  {new Date(result.completedAt).toLocaleDateString(undefined, {
+                  {new Date(result.completedAt).toLocaleString(undefined, {
                     dateStyle: 'medium',
                     timeStyle: 'short'
                   })}
