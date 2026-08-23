@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -30,15 +31,18 @@ import {
   Bed,
   Sparkles,
   Activity,
-  Stethoscope
+  Stethoscope,
+  Search,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { GlobalCommandPalette } from '@/components/search/global-command-palette';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('Sidebar');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === href;
@@ -201,6 +205,29 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3 gap-4 overflow-y-auto">
+        {/* Quick Omnibar Search Trigger */}
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setIsSearchOpen(true)}
+                  tooltip={{ children: 'Quick Search (⌘K)' }}
+                  className="h-9 px-3 rounded-xl bg-primary/5 hover:bg-primary/15 text-primary font-semibold text-xs border border-primary/20 transition-all flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Search className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">Quick Search</span>
+                  </div>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 group-data-[collapsible=icon]:hidden">
+                    ⌘K
+                  </span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {navSections.map((section, idx) => (
           <SidebarGroup key={idx} className="p-0">
             {section.title && (
@@ -262,6 +289,12 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
+
+      {/* Global Omnibar Command Palette */}
+      <GlobalCommandPalette
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
     </Sidebar>
   );
 }

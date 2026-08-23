@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Bell, User, LifeBuoy, ShieldAlert, PhoneCall, Sparkles } from 'lucide-react';
+import { Bell, User, LifeBuoy, ShieldAlert, PhoneCall, Sparkles, Search, HeartPulse } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,14 +19,30 @@ import Link from 'next/link';
 import { HeaderControls } from './header-controls';
 import { LanguageSwitcher } from '../language-switcher';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
+import { GlobalCommandPalette } from '@/components/search/global-command-palette';
+import { CaregiverTroubleshootingModal } from '@/components/search/caregiver-troubleshooting-modal';
 
 export function Header() {
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
+
+  // Global Cmd+K / Ctrl+K keyboard shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <>
       <header className="sticky top-0 z-40 flex h-16 sm:h-20 items-center justify-between gap-2 sm:gap-4 bg-background/80 px-4 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
-        {/* Left: Mobile Trigger & Brand */}
+        {/* Left: Mobile Trigger & Brand & Search */}
         <div className="flex items-center gap-3">
           <div className="md:hidden">
             <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-muted/80" />
@@ -44,10 +60,44 @@ export function Header() {
               Sanjeevani
             </span>
           </Link>
+
+          {/* Desktop Global Search Input Trigger */}
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="hidden md:flex items-center gap-3 h-10 px-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-muted-foreground transition-all w-64 lg:w-80 text-xs text-left"
+          >
+            <Search className="h-4 w-4 text-primary shrink-0" />
+            <span className="truncate flex-1">Search tools, drugs, triage...</span>
+            <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium">
+              ⌘K
+            </kbd>
+          </button>
         </div>
 
         {/* Right Controls */}
         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4">
+          {/* Mobile Search Icon Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSearchOpen(true)}
+            className="md:hidden h-9 w-9 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground"
+            title="Global Search (⌘K)"
+          >
+            <Search className="h-4 w-4 text-primary" />
+          </Button>
+
+          {/* Caregiver Bedside Troubleshooting Trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTroubleshootingOpen(true)}
+            className="hidden lg:flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-xs gap-1.5 shrink-0"
+          >
+            <HeartPulse className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Bedside Triage</span>
+          </Button>
+
           {/* Quick 1-Click Crisis Escalation Trigger */}
           <Button
             variant="outline"
@@ -120,6 +170,18 @@ export function Header() {
         isOpen={isCrisisOpen}
         onClose={() => setIsCrisisOpen(false)}
         severityReason="Immediate caregiver crisis support requested."
+      />
+
+      {/* Global Command Palette (Cmd+K) */}
+      <GlobalCommandPalette
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+
+      {/* Caregiver Bedside Troubleshooting Modal */}
+      <CaregiverTroubleshootingModal
+        isOpen={isTroubleshootingOpen}
+        onClose={() => setIsTroubleshootingOpen(false)}
       />
     </>
   );
