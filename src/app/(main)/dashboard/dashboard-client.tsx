@@ -43,7 +43,9 @@ import {
   Clock,
   Sparkles,
   Building2,
-  PhoneCall
+  PhoneCall,
+  Bed,
+  Compass
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/context/role-context';
@@ -276,6 +278,40 @@ export default function DashboardClient() {
               </CardContent>
             </Card>
           )}
+
+          {/* Domiciliary Bedside Companion & JIT Emergency Access Card */}
+          <Card className="border-primary/30 bg-primary/5 shadow-xs overflow-hidden">
+            <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                  <Bed className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider text-primary border-primary/30">
+                      Real-Time Bedside Companion
+                    </Badge>
+                    <span className="text-xs font-mono text-muted-foreground">• Q2H Turning Clock Active</span>
+                  </div>
+                  <h3 className="font-bold text-sm sm:text-base text-foreground">
+                    Home Care Daily Routine & JIT Emergency Action Cards
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+                    Live bedside checklist, 2-hourly turning countdown, emergency flash protocols (choking/delirium), and 14-day post-discharge roadmap.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <Button asChild size="sm" className="font-bold text-xs gap-1.5 shadow-xs">
+                  <Link href="/domiciliary">
+                    <span>Open Bedside Hub</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Clinical Learning & Recommendations */}
           <Card className="border-border bg-card shadow-sm overflow-hidden">

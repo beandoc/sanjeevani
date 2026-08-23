@@ -26,6 +26,7 @@ import {
   ClipboardList,
   HeartPulse,
   Users,
+  Bed,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,8 +40,9 @@ export function AppSidebar() {
     { href: `/dashboard`, label: t('dashboard'), icon: LayoutDashboard },
     { href: `/modules`, label: t('modules'), icon: GraduationCap },
     { href: `/simulations`, label: t('simulations'), icon: Bot },
-    { href: '/stress-calculator', label: t('stressCalculator'), icon: HeartPulse },
-    { href: '/medications', label: t('medications'), icon: ClipboardList },
+    { href: '/stress-calculator', label: t.has('stressCalculator') ? t('stressCalculator') : 'Stress Gauge', icon: HeartPulse },
+    { href: '/domiciliary', label: t.has('domiciliary') ? t('domiciliary') : 'Bedside Companion', icon: Bed },
+    { href: '/medications', label: t.has('medications') ? t('medications') : 'Medications', icon: ClipboardList },
     { href: '/care-circle', label: t('careCircle'), icon: Users },
     { href: `/appointments`, label: t('appointments'), icon: CalendarDays },
     { href: '/vital-logs', label: t('vitalLogs'), icon: HeartPulse },
