@@ -80,25 +80,14 @@ export default function LoginPage() {
     setRole(actualRole);
     if (typeof window !== 'undefined') {
       localStorage.setItem('sanjeevani_user_role', actualRole);
-      localStorage.setItem('sanjeevani_onboarding_done', 'true');
     }
 
     toast({
       title: 'Authentication Successful',
-      description: `Welcome to Sanjeevani as ${
-        actualRole === 'doctor' || actualRole === 'professional'
-          ? 'Healthcare Professional'
-          : actualRole === 'nurse'
-          ? 'Trained Nurse / Attendant'
-          : 'Primary Caregiver'
-      }.`
+      description: `Welcome to Sanjeevani. Please complete the Clinical Intake & Dyad Setup Wizard.`
     });
 
-    if (actualRole === 'professional' || actualRole === 'doctor') {
-      router.push('/clinic/roster');
-    } else {
-      router.push('/dashboard');
-    }
+    router.push('/onboarding');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -169,15 +158,12 @@ export default function LoginPage() {
       setRole(demoRole);
       if (typeof window !== 'undefined') {
         localStorage.setItem('sanjeevani_user_role', demoRole);
-        localStorage.setItem('sanjeevani_onboarding_done', 'true');
       }
       toast({
         title: 'Demo Session Activated',
-        description: `Launching Sanjeevani demo as ${
-          demoRole === 'doctor' || demoRole === 'professional' ? 'Doctor / Clinician' : demoRole === 'nurse' ? 'Trained Nurse' : 'Family Caregiver'
-        }.`
+        description: 'Launching Clinical Intake Wizard for baseline calibration.'
       });
-      router.push(demoRole === 'professional' || demoRole === 'doctor' ? '/clinic/roster' : '/dashboard');
+      router.push('/onboarding');
     } finally {
       setIsLoading(false);
     }
