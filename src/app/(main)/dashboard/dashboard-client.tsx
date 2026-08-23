@@ -42,18 +42,21 @@ import {
   AlertTriangle,
   Clock,
   Sparkles,
-  Building2,
   PhoneCall,
   Bed,
-  Compass
+  Compass,
+  UserCheck,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
-import { useProfile } from '@/context/role-context';
+import { useProfile, Role } from '@/context/role-context';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
 import { getPersonalizedPath, PersonalizedPathResult } from '@/lib/learning-paths';
 import { HealthRepository, MedicationItem, CareGapEvaluationResult } from '@/lib/db/health-repository';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
+import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
+import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -89,7 +92,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export default function DashboardClient() {
-  const { role, skillLevel, caregivingScenario, moduleProgress } = useProfile();
+  const { role, setRole, skillLevel, caregivingScenario, moduleProgress } = useProfile();
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathResult | null>(null);
   const [latestZarit, setLatestZarit] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
@@ -128,6 +131,62 @@ export default function DashboardClient() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Role Switcher & Onboarding Bridge */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-muted/40 rounded-2xl border border-border/60">
+        <div className="flex items-center gap-1.5 p-1 bg-background rounded-xl border border-border/60">
+          <button
+            type="button"
+            onClick={() => setRole('caregiver')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              role === 'caregiver'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <HeartPulse className="w-3.5 h-3.5" />
+            <span>Family Caregiver</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('nurse')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              role === 'nurse'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Nurse / Attendant</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('doctor')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              role === 'doctor' || role === 'professional'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Stethoscope className="w-3.5 h-3.5" />
+            <span>Doctor / OPD</span>
+          </button>
+        </div>
+
+        <Link href="/onboarding">
+          <Button variant="ghost" size="sm" className="h-8 text-xs font-semibold gap-1 text-primary hover:bg-primary/10">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Intake & Dyad Setup Wizard</span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Render Role-Specific Views */}
+      {role === 'nurse' ? (
+        <NurseShiftDashboard />
+      ) : role === 'doctor' || role === 'professional' ? (
+        <DoctorCohortDashboard />
+      ) : (
+        <>
       {/* 1. Quick KPI Cards Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Zarit Burden Gauge Metric */}
@@ -486,6 +545,8 @@ export default function DashboardClient() {
           </Card>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

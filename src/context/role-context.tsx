@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { HealthRepository, ModuleSectionProgress } from '@/lib/db/health-repository';
 
-export type Role = 'caregiver' | 'professional';
+export type Role = 'caregiver' | 'nurse' | 'doctor' | 'professional';
 export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export type ModuleProgressMap = {
@@ -20,6 +20,8 @@ type ProfileContextType = {
   setSkillLevel: (level: SkillLevel) => void;
   caregivingScenario: string;
   setCaregivingScenario: (scenario: string) => void;
+  isOnboardingCompleted: boolean;
+  completeOnboarding: () => void;
   moduleProgress: { [moduleId: string]: number }; // percentage map for UI compatibility
   moduleSectionMap: ModuleProgressMap;
   updateModuleProgress: (moduleId: string, progress: number, sectionId?: string | number) => void;
@@ -32,13 +34,24 @@ type ProfileContextType = {
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>('caregiver');
+  const [role, setRoleState] = useState<Role>('caregiver');
   const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
   const [caregivingScenario, setCaregivingScenario] = useState('General Frailty');
+  const [isOnboardingCompleted, setIsOnboardingCompleted] = useState<boolean>(true);
   const [moduleSectionMap, setModuleSectionMap] = useState<ModuleProgressMap>({});
   const [modulePercentages, setModulePercentages] = useState<{ [moduleId: string]: number }>({});
 
   useEffect(() => {
+    // Load stored role and onboarding status
+    if (typeof window !== 'undefined') {
+      const storedRole = localStorage.getItem('sanjeevani_user_role') as Role | null;
+      if (storedRole) {
+        setRoleState(storedRole);
+      }
+      const onboarded = localStorage.getItem('sanjeevani_onboarding_done');
+      setIsOnboardingCompleted(onboarded === 'true');
+    }
+
     // Load from HealthRepository
     const stored = HealthRepository.getModuleProgressMap();
     setModuleSectionMap(stored);
@@ -46,11 +59,24 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     // Compute initial percentages
     const percentages: { [moduleId: string]: number } = {};
     for (const [modId, data] of Object.entries(stored)) {
-      // Default estimate if total sections unknown, or use array length
       percentages[modId] = Math.min(100, Math.round((data.completedSections.length / 4) * 100));
     }
     setModulePercentages(percentages);
   }, []);
+
+  const setRole = (newRole: Role) => {
+    setRoleState(newRole);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sanjeevani_user_role', newRole);
+    }
+  };
+
+  const completeOnboarding = () => {
+    setIsOnboardingCompleted(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sanjeevani_onboarding_done', 'true');
+    }
+  };
 
   const toggleSection = useCallback((moduleId: string, sectionId: string | number): string[] => {
     const secStr = String(sectionId);
@@ -103,11 +129,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     <ProfileContext.Provider
       value={{
         role,
-        setRole: setRole as (role: Role) => void,
+        setRole,
         skillLevel,
-        setSkillLevel: setSkillLevel as (level: SkillLevel) => void,
+        setSkillLevel,
         caregivingScenario,
         setCaregivingScenario,
+        isOnboardingCompleted,
+        completeOnboarding,
         moduleProgress: modulePercentages,
         moduleSectionMap,
         updateModuleProgress,
@@ -124,7 +152,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
 export function useProfile() {
   const context = useContext(ProfileContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useProfile must be used within a RoleProvider');
   }
   return context;

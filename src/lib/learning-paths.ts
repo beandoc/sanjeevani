@@ -23,7 +23,7 @@ export interface PersonalizedPathResult {
 export const getPersonalizedPath = (
   skillLevel: 'beginner' | 'intermediate' | 'advanced',
   caregivingScenario: string,
-  role: 'caregiver' | 'professional' = 'caregiver'
+  role: 'caregiver' | 'nurse' | 'doctor' | 'professional' = 'caregiver'
 ): PersonalizedPathResult => {
   const zaritHistory = HealthRepository.getZaritAssessments();
   const lastZarit = zaritHistory.length > 0 ? zaritHistory[0] : null;

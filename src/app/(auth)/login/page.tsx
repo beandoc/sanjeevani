@@ -72,9 +72,15 @@ export default function LoginPage() {
     setRole(actualRole);
     toast({
       title: 'Authentication Successful',
-      description: `Welcome to Sanjeevani as ${actualRole === 'professional' ? 'Healthcare Professional' : 'Primary Caregiver'}.`
+      description: `Welcome to Sanjeevani as ${actualRole === 'doctor' || actualRole === 'professional' ? 'Healthcare Professional' : actualRole === 'nurse' ? 'Trained Nurse / Attendant' : 'Primary Caregiver'}.`
     });
-    router.push(actualRole === 'professional' ? '/clinic/roster' : '/dashboard');
+
+    const hasDoneOnboarding = typeof window !== 'undefined' && localStorage.getItem('sanjeevani_onboarding_done') === 'true';
+    if (!hasDoneOnboarding) {
+      router.push('/onboarding');
+    } else {
+      router.push(actualRole === 'professional' || actualRole === 'doctor' ? '/clinic/roster' : '/dashboard');
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {

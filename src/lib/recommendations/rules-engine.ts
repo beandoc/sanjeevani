@@ -23,7 +23,7 @@ export interface ModuleRecommendation {
 }
 
 export interface RecommendationEngineInput {
-  role: 'caregiver' | 'professional';
+  role: 'caregiver' | 'nurse' | 'doctor' | 'professional';
   skillLevel: 'beginner' | 'intermediate' | 'advanced';
   caregivingScenario: string;
   lastZarit?: ZaritEvaluationResult | null;
