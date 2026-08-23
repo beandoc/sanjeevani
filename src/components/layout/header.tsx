@@ -97,6 +97,12 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/40" />
+              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                <Link href="/login" className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  <User className="h-4 w-4 text-primary" />
+                  <span>Switch Account / Sign In</span>
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setIsCrisisOpen(true)}
                 className="rounded-xl px-3 py-2 cursor-pointer focus:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2"
