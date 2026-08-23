@@ -16,7 +16,12 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const { role, caregivingScenario } = useProfile();
   const t = useTranslations('Dashboard');
-  const welcomeTitle = role === 'professional' ? t('welcomeNurse') : t('welcomeCaregiver');
+  const welcomeTitle =
+    role === 'doctor' || role === 'professional'
+      ? 'Welcome, Dr. Vivek!'
+      : role === 'nurse'
+      ? 'Welcome, Nurse Sister Anjali!'
+      : 'Welcome, Suresh Kumar!';
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-10">

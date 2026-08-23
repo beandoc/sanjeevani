@@ -21,8 +21,10 @@ import { LanguageSwitcher } from '../language-switcher';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
 import { CaregiverTroubleshootingModal } from '@/components/search/caregiver-troubleshooting-modal';
+import { useProfile } from '@/context/role-context';
 
 export function Header() {
+  const { role } = useProfile();
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
@@ -124,7 +126,7 @@ export function Header() {
               >
                 <Avatar className="h-full w-full rounded-none">
                   <AvatarFallback className="rounded-none bg-primary/15 text-primary text-xs font-bold">
-                    SK
+                    {role === 'doctor' || role === 'professional' ? 'DV' : role === 'nurse' ? 'NA' : 'SK'}
                   </AvatarFallback>
                 </Avatar>
               </Button>

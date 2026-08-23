@@ -92,7 +92,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
   const email = `demo-${role}@sanjeevani.local`;
   const password = 'sanjeevani-demo-2026';
-  const roleName = role === 'doctor' || role === 'professional' ? 'Demo Clinician' : role === 'nurse' ? 'Demo Nurse' : 'Demo Caregiver';
+  const roleName = role === 'doctor' || role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar';
 
   if (!auth) {
     return {
