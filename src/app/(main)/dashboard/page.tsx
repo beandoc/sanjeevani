@@ -9,13 +9,11 @@ import {
 } from '@/components/ui/card';
 import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
-import { useTranslations } from 'next-intl';
 import { Shield, Sparkles, HeartPulse, Stethoscope, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { role, caregivingScenario } = useProfile();
-  const t = useTranslations('Dashboard');
   const welcomeTitle =
     role === 'doctor' || role === 'professional'
       ? 'Welcome, Dr. Vivek!'
