@@ -41,6 +41,7 @@ export function AssistedZaritAssessmentForm({
   const [open, setOpen] = useState(false);
   const [tier, setTier] = useState<ZbiTier>('ZBI12');
   const [responses, setResponses] = useState<Record<string, number>>({});
+  const [assessmentDate, setAssessmentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   const items = getItemsForTier(tier);
@@ -56,9 +57,15 @@ export function AssistedZaritAssessmentForm({
     setIsSaving(true);
     try {
       const result = calculateZaritScore(responses, tier);
+      const dateObj = new Date(assessmentDate);
+      const now = new Date();
+      dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      result.completedAt = dateObj.toISOString();
+
       await onComplete(result);
       setOpen(false);
       setResponses({});
+      setAssessmentDate(new Date().toISOString().split('T')[0]);
     } finally {
       setIsSaving(false);
     }
@@ -113,10 +120,21 @@ export function AssistedZaritAssessmentForm({
               </button>
             </div>
           </div>
-          <DialogDescription className="text-xs">
-            Administer directly with <strong>{caregiverName || 'the caregiver'}</strong> for {patientName || 'this patient'}.
-            Unanswered questions default to 0 (Never).
-          </DialogDescription>
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-1.5">
+            <DialogDescription className="text-xs">
+              Administer directly with <strong>{caregiverName || 'the caregiver'}</strong> for {patientName || 'this patient'}.
+              Unanswered questions default to 0 (Never).
+            </DialogDescription>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground shrink-0">Assessment Date:</span>
+              <input
+                type="date"
+                value={assessmentDate}
+                onChange={(e) => setAssessmentDate(e.target.value)}
+                className="h-7 text-xs px-2.5 rounded-lg border border-input bg-background font-mono focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+              />
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4 my-2">

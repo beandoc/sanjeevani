@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { useProfile, Role } from '@/context/role-context';
+import { auth } from '@/lib/firebase/client';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
 
 interface NavItem {
@@ -58,6 +59,28 @@ export function AppSidebar() {
   const t = useTranslations('Sidebar');
   const { role, setRole } = useProfile();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = auth.onAuthStateChanged((user) => {
+      const email = user?.email || '';
+      setUserEmail(email);
+      
+      // Auto-correct active role if it's doctor/professional but the user is not a doctor
+      if (email) {
+        const isEmailDoctor = email.toLowerCase().includes('doctor') || email.toLowerCase().includes('clinic');
+        if (!isEmailDoctor && (role === 'doctor' || role === 'professional')) {
+          setRole('caregiver');
+        } else if (isEmailDoctor && (role === 'caregiver' || role === 'nurse')) {
+          setRole('doctor');
+        }
+      }
+    });
+    return () => unsub();
+  }, [role, setRole]);
+
+  const isUserDoctor = userEmail.toLowerCase().includes('doctor') || userEmail.toLowerCase().includes('clinic');
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === href;
@@ -377,37 +400,43 @@ export function AppSidebar() {
                   {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
                 </Badge>
               </div>
-              <div className="flex items-center gap-1 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setRole('caregiver')}
-                  className={cn(
-                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                    role === 'caregiver' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
-                  )}
-                >
-                  Caregiver
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('nurse')}
-                  className={cn(
-                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                    role === 'nurse' ? 'bg-amber-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
-                  )}
-                >
-                  Nurse
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('doctor')}
-                  className={cn(
-                    'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                    isDoctor ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
-                  )}
-                >
-                  Doctor
-                </button>
+              <div className="flex items-center gap-1 pt-0.5 w-full">
+                {!isUserDoctor && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setRole('caregiver')}
+                      className={cn(
+                        'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                        role === 'caregiver' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                      )}
+                    >
+                      Caregiver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('nurse')}
+                      className={cn(
+                        'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                        role === 'nurse' ? 'bg-amber-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                      )}
+                    >
+                      Nurse
+                    </button>
+                  </>
+                )}
+                {isUserDoctor && (
+                  <button
+                    type="button"
+                    onClick={() => setRole('doctor')}
+                    className={cn(
+                      'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
+                      isDoctor ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground'
+                    )}
+                  >
+                    Doctor
+                  </button>
+                )}
               </div>
             </div>
           </SidebarGroupContent>

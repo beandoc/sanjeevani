@@ -68,11 +68,15 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState(false);
 
-  const [patientName, setPatientName] = useState('');
+  const [patientFirstName, setPatientFirstName] = useState('');
+  const [patientLastName, setPatientLastName] = useState('');
   const [patientAge, setPatientAge] = useState('');
+  const [patientWeight, setPatientWeight] = useState('');
+  const [patientHeight, setPatientHeight] = useState('');
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [customCondition, setCustomCondition] = useState('');
-  const [caregiverName, setCaregiverName] = useState('');
+  const [caregiverFirstName, setCaregiverFirstName] = useState('');
+  const [caregiverLastName, setCaregiverLastName] = useState('');
   const [caregiverPhone, setCaregiverPhone] = useState('');
 
   const [caregiverKinship, setCaregiverKinship] = useState<CaregiverAttributes['kinship']>('spouse');
@@ -81,11 +85,15 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [formalSupportHours, setFormalSupportHours] = useState<string>('0');
 
   const resetForm = () => {
-    setPatientName('');
+    setPatientFirstName('');
+    setPatientLastName('');
     setPatientAge('');
+    setPatientWeight('');
+    setPatientHeight('');
     setSelectedConditions([]);
     setCustomCondition('');
-    setCaregiverName('');
+    setCaregiverFirstName('');
+    setCaregiverLastName('');
     setCaregiverPhone('');
     setCaregiverKinship('spouse');
     setSecondaryFamily(0);
@@ -118,11 +126,14 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   };
 
   const handleSubmit = async () => {
-    if (!patientName.trim()) {
+    const patientName = `${patientFirstName.trim()} ${patientLastName.trim()}`.trim();
+    const caregiverName = `${caregiverFirstName.trim()} ${caregiverLastName.trim()}`.trim();
+
+    if (!patientFirstName.trim() || !patientLastName.trim()) {
       toast({
         variant: 'destructive',
         title: 'Patient Name Required',
-        description: 'Please enter the patient’s full name or identifier.'
+        description: 'Please enter the patient’s first and last name.'
       });
       return;
     }
@@ -156,7 +167,9 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         patientAge: ageNum || 0,
         primaryConditions: selectedConditions,
         caregiverName: caregiverName.trim() || undefined,
-        caregiverPhone: formattedPhone
+        caregiverPhone: formattedPhone,
+        weightKg: patientWeight ? Number(patientWeight) : null,
+        heightCm: patientHeight ? Number(patientHeight) : null
       });
 
       // Persist the caregiver capacity & formal support matrix
@@ -337,15 +350,27 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 space-y-1">
-                    <Label className="text-xs font-semibold">Patient Full Name <span className="text-destructive">*</span></Label>
-                    <Input
-                      placeholder="e.g. Ramesh Chandra Verma"
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      className="h-9 text-xs"
-                      required
-                    />
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Patient First Name <span className="text-destructive">*</span></Label>
+                      <Input
+                        placeholder="e.g. Ramesh"
+                        value={patientFirstName}
+                        onChange={(e) => setPatientFirstName(e.target.value)}
+                        className="h-9 text-xs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Patient Last Name <span className="text-destructive">*</span></Label>
+                      <Input
+                        placeholder="e.g. Verma"
+                        value={patientLastName}
+                        onChange={(e) => setPatientLastName(e.target.value)}
+                        className="h-9 text-xs"
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Age (Years)</Label>
@@ -357,6 +382,31 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                       className="h-9 text-xs font-mono"
                       min={0}
                       max={130}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Weight (kg) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 68"
+                      value={patientWeight}
+                      onChange={(e) => setPatientWeight(e.target.value)}
+                      className="h-9 text-xs font-mono"
+                      min={0}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Height (cm) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 165"
+                      value={patientHeight}
+                      onChange={(e) => setPatientHeight(e.target.value)}
+                      className="h-9 text-xs font-mono"
+                      min={0}
                     />
                   </div>
                 </div>
@@ -433,14 +483,25 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Caregiver Name</Label>
-                    <Input
-                      placeholder="e.g. Suresh Verma (Son)"
-                      value={caregiverName}
-                      onChange={(e) => setCaregiverName(e.target.value)}
-                      className="h-9 text-xs"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Caregiver First Name</Label>
+                      <Input
+                        placeholder="e.g. Suresh"
+                        value={caregiverFirstName}
+                        onChange={(e) => setCaregiverFirstName(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Caregiver Last Name</Label>
+                      <Input
+                        placeholder="e.g. Verma"
+                        value={caregiverLastName}
+                        onChange={(e) => setCaregiverLastName(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Caregiver Mobile Number</Label>
@@ -548,7 +609,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 type="button"
                 size="sm"
                 onClick={handleSubmit}
-                disabled={isSubmitting || !patientName.trim()}
+                disabled={isSubmitting || !patientFirstName.trim() || !patientLastName.trim()}
                 className="text-xs font-bold gap-1.5 shadow-sm"
               >
                 {isSubmitting ? (

@@ -54,6 +54,30 @@ export function CaregiverDyadProfiler() {
   const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>('gap');
   const { toast } = useToast();
 
+  const [caregiverFirstName, setCaregiverFirstName] = useState('');
+  const [caregiverLastName, setCaregiverLastName] = useState('');
+
+  // Sync caregiver name to first/last inputs
+  useEffect(() => {
+    if (caregiver?.name) {
+      const parts = caregiver.name.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      if (first !== caregiverFirstName) setCaregiverFirstName(first);
+      if (last !== caregiverLastName) setCaregiverLastName(last);
+    }
+  }, [caregiver?.name]);
+
+  const handleCaregiverFirstNameChange = (val: string) => {
+    setCaregiverFirstName(val);
+    setCaregiver((prev) => prev ? { ...prev, name: `${val.trim()} ${caregiverLastName.trim()}`.trim() } : null);
+  };
+
+  const handleCaregiverLastNameChange = (val: string) => {
+    setCaregiverLastName(val);
+    setCaregiver((prev) => prev ? { ...prev, name: `${caregiverFirstName.trim()} ${val.trim()}`.trim() } : null);
+  };
+
   useEffect(() => {
     setCaregiver(HealthRepository.getCaregiverAttributes());
     setPatient(HealthRepository.getPatientProfile());
@@ -303,13 +327,23 @@ export function CaregiverDyadProfiler() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Caregiver Name</Label>
-                <Input
-                  value={caregiver.name}
-                  onChange={(e) => setCaregiver({ ...caregiver, name: e.target.value })}
-                  className="h-9 text-xs"
-                />
+              <div className="grid grid-cols-2 gap-2 col-span-1">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Caregiver First Name</Label>
+                  <Input
+                    value={caregiverFirstName}
+                    onChange={(e) => handleCaregiverFirstNameChange(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Caregiver Last Name</Label>
+                  <Input
+                    value={caregiverLastName}
+                    onChange={(e) => handleCaregiverLastNameChange(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">

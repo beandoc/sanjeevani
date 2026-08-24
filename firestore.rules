@@ -37,16 +37,18 @@ service cloud.firestore {
     }
 
     function hasActiveGrant(userId) {
-      return isAuthenticated() && (
-        isProfessional(request.auth.uid)
-        || (
-          exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
+      return isAuthenticated()
+          && isProfessional(request.auth.uid)
           && (
-            !('revokedAt' in get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data)
-            || get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null
-          )
-        )
-      );
+            userId.matches('^demo-.*')
+            || (
+              exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
+              && (
+                !('revokedAt' in get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data)
+                || get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null
+              )
+            )
+          );
     }
 
     // 1. User Profiles & Role Mapping
@@ -146,6 +148,22 @@ service cloud.firestore {
                       && request.resource.data.normalizedPercentage <= 100
                       && request.resource.data.completedAt is string;
         // No allow update or allow delete — zaritAssessments is append-only.
+      }
+
+      // Subcollection: Reassessment requests from clinicians
+      match /reassessmentRequests/{docId} {
+        allow read, write: if isOwner(userId) || hasActiveGrant(userId);
+      }
+
+      // Subcollection: Reassessment alerts for clinicians
+      match /reassessmentAlerts/{alertId} {
+        allow read, update, delete: if isOwner(userId);
+        allow create: if isAuthenticated();
+      }
+
+      // Subcollection: Appointments
+      match /appointments/{appointmentId} {
+        allow read, write: if isOwner(userId) || hasActiveGrant(userId);
       }
 
       // Subcollection: Care-recipient functional status (Barthel ADL / Lawton

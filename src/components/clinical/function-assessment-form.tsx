@@ -34,6 +34,7 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
   const [open, setOpen] = useState(false);
   const [barthelResponses, setBarthelResponses] = useState<Record<string, number>>({});
   const [lawtonResponses, setLawtonResponses] = useState<Record<string, number>>({});
+  const [assessmentDate, setAssessmentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   const totalItems = BARTHEL_ITEMS.length + LAWTON_ITEMS.length;
@@ -43,10 +44,16 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
     setIsSaving(true);
     try {
       const result = calculateFunctionScore(barthelResponses, lawtonResponses);
+      const dateObj = new Date(assessmentDate);
+      const now = new Date();
+      dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      result.recordedAt = dateObj.toISOString();
+
       await onComplete(result);
       setOpen(false);
       setBarthelResponses({});
       setLawtonResponses({});
+      setAssessmentDate(new Date().toISOString().split('T')[0]);
     } finally {
       setIsSaving(false);
     }
@@ -64,9 +71,20 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Barthel ADL + Lawton IADL</DialogTitle>
-          <DialogDescription>
-            {answeredItems} of {totalItems} items answered. Unanswered items default to 0 (fully dependent) when saved.
-          </DialogDescription>
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-1.5">
+            <DialogDescription className="text-xs">
+              {answeredItems} of {totalItems} items answered. Unanswered items default to 0 (fully dependent) when saved.
+            </DialogDescription>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground shrink-0">Assessment Date:</span>
+              <input
+                type="date"
+                value={assessmentDate}
+                onChange={(e) => setAssessmentDate(e.target.value)}
+                className="h-7 text-xs px-2.5 rounded-lg border border-input bg-background font-mono focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+              />
+            </div>
+          </div>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-5 my-2">
           <div className="space-y-4">

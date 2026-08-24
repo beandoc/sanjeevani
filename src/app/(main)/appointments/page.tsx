@@ -34,6 +34,7 @@ import {
 import { CalendarDays, Clock, Trash2, User, Hospital, CalendarCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { HealthRepository, AppointmentRecord } from '@/lib/db/health-repository';
+import { syncAppointment } from '@/lib/firebase/clinical-sync';
 
 const appointmentSchema = z.object({
   department: z.string().min(1, { message: 'Department is required.' }),
@@ -91,6 +92,8 @@ export default function AppointmentsPage() {
       notes: data.notes,
     });
 
+    void syncAppointment(newRecord);
+
     setAppointments(HealthRepository.getAppointments());
     form.reset();
     toast({
@@ -100,8 +103,12 @@ export default function AppointmentsPage() {
   }
 
   function deleteAppointment(id: string) {
+    const appt = appointments.find((a) => a.id === id);
     HealthRepository.deleteAppointment(id);
     setAppointments(HealthRepository.getAppointments());
+    if (appt) {
+      void syncAppointment({ ...appt, status: 'cancelled' });
+    }
     toast({
       title: '🗑️ Appointment Cancelled',
       description: 'The appointment has been removed from your calendar.',

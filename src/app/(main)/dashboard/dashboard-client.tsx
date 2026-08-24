@@ -38,6 +38,7 @@ import {
   Shield,
   FileText,
   CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   AlertTriangle,
   Clock,
@@ -50,6 +51,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile, Role } from '@/context/role-context';
+import { auth } from '@/lib/firebase/client';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
 import { getPersonalizedPath, PersonalizedPathResult } from '@/lib/learning-paths';
@@ -57,6 +59,7 @@ import { HealthRepository, MedicationItem, CareGapEvaluationResult } from '@/lib
 import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
 import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
 import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
+import { subscribeToReassessmentRequest } from '@/lib/firebase/clinical-sync';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -97,6 +100,28 @@ export default function DashboardClient() {
   const [latestZarit, setLatestZarit] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [careGap, setCareGap] = useState<CareGapEvaluationResult | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [currentUserUid, setCurrentUserUid] = useState<string>('');
+  const [reassessmentRequest, setReassessmentRequest] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = auth.onAuthStateChanged((user) => {
+      setUserEmail(user?.email || '');
+      setCurrentUserUid(user?.uid || '');
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserUid) return;
+    const unsub = subscribeToReassessmentRequest(currentUserUid, (req) => {
+      setReassessmentRequest(req);
+    });
+    return () => unsub();
+  }, [currentUserUid]);
+
+  const isUserDoctor = userEmail.toLowerCase().includes('doctor') || userEmail.toLowerCase().includes('clinic');
 
   useEffect(() => {
     const path = getPersonalizedPath(skillLevel, caregivingScenario, role);
@@ -134,42 +159,48 @@ export default function DashboardClient() {
       {/* Role Switcher & Onboarding Bridge */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-muted/40 rounded-2xl border border-border/60">
         <div className="flex items-center gap-1.5 p-1 bg-background rounded-xl border border-border/60">
-          <button
-            type="button"
-            onClick={() => setRole('caregiver')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              role === 'caregiver'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <HeartPulse className="w-3.5 h-3.5" />
-            <span>Family Caregiver</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('nurse')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              role === 'nurse'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Nurse / Attendant</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('doctor')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              role === 'doctor' || role === 'professional'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Stethoscope className="w-3.5 h-3.5" />
-            <span>Doctor / OPD</span>
-          </button>
+          {!isUserDoctor && (
+            <>
+              <button
+                type="button"
+                onClick={() => setRole('caregiver')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  role === 'caregiver'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <HeartPulse className="w-3.5 h-3.5" />
+                <span>Family Caregiver</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('nurse')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  role === 'nurse'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Nurse / Attendant</span>
+              </button>
+            </>
+          )}
+          {isUserDoctor && (
+            <button
+              type="button"
+              onClick={() => setRole('doctor')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                role === 'doctor' || role === 'professional'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Stethoscope className="w-3.5 h-3.5" />
+              <span>Doctor / OPD</span>
+            </button>
+          )}
         </div>
 
         <Link href="/onboarding">
@@ -187,8 +218,35 @@ export default function DashboardClient() {
         <DoctorCohortDashboard />
       ) : (
         <>
-      {/* 1. Quick KPI Cards Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {reassessmentRequest && reassessmentRequest.status === 'pending' && (
+            <Card className="border-amber-500 bg-amber-500/10 shadow-xs mb-6 animate-in fade-in duration-300">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
+                    <CalendarClock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300">
+                      Repeat Assessment Requested by Physician
+                    </h4>
+                    <p className="text-xs text-amber-850 dark:text-amber-400 mt-0.5 leading-relaxed">
+                      Your care team has requested a repeat Caregiver Burden Assessment to update your care plan.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/stress-calculator" className="shrink-0">
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                  >
+                    Start ZBI Assessment
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+          {/* 1. Quick KPI Cards Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Zarit Burden Gauge Metric */}
         <Link href="/stress-calculator" className="group">
           <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">

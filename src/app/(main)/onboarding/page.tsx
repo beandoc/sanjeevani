@@ -90,6 +90,53 @@ export default function OnboardingIntakePage() {
     return HealthRepository.getCaregiverAttributes() || DEFAULT_CAREGIVER_ATTRIBUTES;
   });
 
+  const [patientFirstName, setPatientFirstName] = useState('');
+  const [patientLastName, setPatientLastName] = useState('');
+  const [caregiverFirstName, setCaregiverFirstName] = useState('');
+  const [caregiverLastName, setCaregiverLastName] = useState('');
+
+  // Sync patient name to first/last inputs
+  useEffect(() => {
+    if (patient.name) {
+      const parts = patient.name.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      if (first !== patientFirstName) setPatientFirstName(first);
+      if (last !== patientLastName) setPatientLastName(last);
+    }
+  }, [patient.name]);
+
+  // Sync caregiver name to first/last inputs
+  useEffect(() => {
+    if (caregiver.name) {
+      const parts = caregiver.name.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      if (first !== caregiverFirstName) setCaregiverFirstName(first);
+      if (last !== caregiverLastName) setCaregiverLastName(last);
+    }
+  }, [caregiver.name]);
+
+  const handlePatientFirstNameChange = (val: string) => {
+    setPatientFirstName(val);
+    setPatient((prev) => ({ ...prev, name: `${val.trim()} ${patientLastName.trim()}`.trim() }));
+  };
+
+  const handlePatientLastNameChange = (val: string) => {
+    setPatientLastName(val);
+    setPatient((prev) => ({ ...prev, name: `${patientFirstName.trim()} ${val.trim()}`.trim() }));
+  };
+
+  const handleCaregiverFirstNameChange = (val: string) => {
+    setCaregiverFirstName(val);
+    setCaregiver((prev) => ({ ...prev, name: `${val.trim()} ${caregiverLastName.trim()}`.trim() }));
+  };
+
+  const handleCaregiverLastNameChange = (val: string) => {
+    setCaregiverLastName(val);
+    setCaregiver((prev) => ({ ...prev, name: `${caregiverFirstName.trim()} ${val.trim()}`.trim() }));
+  };
+
   const evaluation = CareGapEngine.evaluate(caregiver, patient);
 
   const toggleKatzItem = (key: keyof PatientDependenceProfile['katzAdl']) => {
@@ -633,22 +680,54 @@ export default function OnboardingIntakePage() {
               {(!isDoctorPersona || selectedPatientUid || pendingInvite) && (
                 <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Patient Full Name</Label>
-                  <Input
-                    value={patient.name}
-                    onChange={(e) => setPatient({ ...patient, name: e.target.value })}
-                    className="h-9 text-xs"
-                  />
+                <div className="grid grid-cols-2 gap-2 col-span-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Patient First Name</Label>
+                    <Input
+                      value={patientFirstName}
+                      onChange={(e) => handlePatientFirstNameChange(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Patient Last Name</Label>
+                    <Input
+                      value={patientLastName}
+                      onChange={(e) => handlePatientLastNameChange(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Age (Years)</Label>
-                  <Input
-                    type="number"
-                    value={patient.age}
-                    onChange={(e) => setPatient({ ...patient, age: parseInt(e.target.value) || 0 })}
-                    className="h-9 text-xs"
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Age (Years)</Label>
+                    <Input
+                      type="number"
+                      value={patient.age || ''}
+                      onChange={(e) => setPatient({ ...patient, age: parseInt(e.target.value) || 0 })}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Weight (kg)</Label>
+                    <Input
+                      type="number"
+                      value={patient.weightKg || ''}
+                      onChange={(e) => setPatient({ ...patient, weightKg: parseInt(e.target.value) || undefined })}
+                      placeholder="Optional"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Height (cm)</Label>
+                    <Input
+                      type="number"
+                      value={patient.heightCm || ''}
+                      onChange={(e) => setPatient({ ...patient, heightCm: parseInt(e.target.value) || undefined })}
+                      placeholder="Optional"
+                      className="h-9 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -755,13 +834,23 @@ export default function OnboardingIntakePage() {
                   <User className="w-3.5 h-3.5" /> Caregiver Identity & Family Relationship
                 </Label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Primary Caregiver Name</Label>
-                    <Input
-                      value={caregiver.name}
-                      onChange={(e) => setCaregiver({ ...caregiver, name: e.target.value })}
-                      className="h-9 text-xs"
-                    />
+                  <div className="grid grid-cols-2 gap-2 col-span-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Caregiver First Name</Label>
+                      <Input
+                        value={caregiverFirstName}
+                        onChange={(e) => handleCaregiverFirstNameChange(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Caregiver Last Name</Label>
+                      <Input
+                        value={caregiverLastName}
+                        onChange={(e) => handleCaregiverLastNameChange(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Age (Years)</Label>

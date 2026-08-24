@@ -26,7 +26,15 @@ import {
   Activity,
   CheckCircle2,
   RefreshCw,
-  Stethoscope
+  Stethoscope,
+  Users2,
+  TrendingUp,
+  BookOpen,
+  Car,
+  ShieldCheck,
+  Calendar,
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -40,9 +48,11 @@ import {
   recordZaritAssessmentFor,
   getCaregiverAttributesFor,
   saveCaregiverAttributesFor,
-  getPatientProfileFor
+  getPatientProfileFor,
+  getAppointmentsFor
 } from '@/lib/firebase/clinical-sync';
 import type { MedicationItem, VitalRecord } from '@/lib/db/health-repository';
+import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
 import { computeTrajectory, type TrajectoryResult } from '@/lib/analytics/trajectory';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
@@ -64,16 +74,20 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
   global_burden: 'Global Burden'
 };
 
+type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'modules' | 'emergency';
+
 export default function DyadDetailPage({ params }: { params: Promise<{ patientUid: string }> }) {
   const { patientUid } = usePromise(params);
   const { toast } = useToast();
 
   const [isMounted, setIsMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<DyadTab>('matrix');
   const [displayName, setDisplayName] = useState<string>('');
   const [trajectory, setTrajectory] = useState<TrajectoryResult | null>(null);
   const [latestAssessment, setLatestAssessment] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
 
@@ -100,14 +114,16 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
       let assessments = await getZaritAssessmentsFor(patientUid);
       let functionScores = await getFunctionScoresFor(patientUid);
       let name = await getPatientDisplayName(patientUid);
-      const [meds, vitalRecords, cgAttrs, prof] = await Promise.all([
+      const [meds, vitalRecords, cgAttrs, prof, appts] = await Promise.all([
         getMedicationsFor(patientUid).catch(() => []),
         getVitalsFor(patientUid).catch(() => []),
         getCaregiverAttributesFor(patientUid).catch(() => null),
-        getPatientProfileFor(patientUid).catch(() => null)
+        getPatientProfileFor(patientUid).catch(() => null),
+        getAppointmentsFor(patientUid).catch(() => [])
       ]);
       setMedications(meds);
       setVitals(vitalRecords);
+      setAppointments(appts);
       setCaregiver(cgAttrs);
       setPatientProfile(prof);
 
@@ -269,10 +285,12 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     return <p className="text-sm text-muted-foreground p-6">Loading dyad…</p>;
   }
 
+  const careGapResult = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-border/60">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-border/60 bg-card/60 p-4 rounded-3xl backdrop-blur">
         <div className="flex items-center gap-3">
           <Link href="/clinic/roster">
             <Button variant="outline" size="icon" className="h-9 w-9">
@@ -280,12 +298,17 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             </Button>
           </Link>
           <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
+            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-bold">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-bold font-headline">{displayName}</h1>
-              <p className="text-xs text-muted-foreground">Caregiver burden vs. care-recipient functional trajectory</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold font-headline">{displayName}</h1>
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  {patientUid.replace('demo-', '').toUpperCase()}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">Comprehensive Geriatric Care Dyad & Infrastructure Workspace</p>
             </div>
           </div>
         </div>
@@ -301,282 +324,488 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         </div>
       </div>
 
-      <RiskHeader trajectory={trajectory} />
-
-      {/* Scissors Chart */}
-      <Card className="rounded-3xl shadow-xs">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Longitudinal Scissors Trajectory</CardTitle>
-          <CardDescription className="text-xs">
-            Rising lines are worse on both series — a widening gap between them signals care demand
-            outstripping caregiver capacity.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScissorsChart trajectory={trajectory} />
-        </CardContent>
-      </Card>
-
-      {latestAssessment && (
-        <Card className="rounded-3xl shadow-xs">
+      {/* Quality of Care Warning Banner */}
+      {careGapResult.qualityOfCareWarnings.length > 0 && (
+        <Card className="border-red-500/30 bg-red-500/5 shadow-xs animate-in fade-in duration-300">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Latest Factor Breakdown</CardTitle>
-            <CardDescription className="text-xs">
-              {latestAssessment.tier} · {new Date(latestAssessment.completedAt).toLocaleDateString()}
-              {latestAssessment.redFlags.length > 0 && (
-                <span className="ml-2 inline-flex items-center gap-1 text-red-600 font-semibold">
-                  <AlertTriangle className="w-3 h-3" /> {latestAssessment.redFlags.length} red flag
-                  {latestAssessment.redFlags.length === 1 ? '' : 's'}
-                </span>
-              )}
-            </CardDescription>
+            <CardTitle className="text-xs font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5 uppercase tracking-wider">
+              <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" />
+              Quality of Care Alerts (Potential Neglect / Care Breakdown)
+            </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {(Object.entries(latestAssessment.factors) as [ZbiFactor, typeof latestAssessment.factors[ZbiFactor]][]).map(
-              ([key, factor]) => (
-                <div key={key} className="p-3 rounded-xl border border-border/60 bg-card">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
-                    {FACTOR_LABELS[key]}
-                  </p>
-                  {factor.isMeasured ? (
-                    <p className="text-lg font-extrabold font-mono">{factor.percentage}%</p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic mt-1">Not assessed in {latestAssessment.tier}</p>
-                  )}
-                </div>
-              )
-            )}
+          <CardContent className="space-y-2 p-4 pt-0">
+            {careGapResult.qualityOfCareWarnings.map((warning, index) => (
+              <div key={index} className="p-3 rounded-xl border border-red-200 bg-white dark:bg-zinc-900 flex items-start gap-2.5 text-xs">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <p className="text-foreground leading-relaxed">{warning}</p>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Multi-Caregiver Family Network & Formal Support Matrix */}
-      <CaregiverSupportMatrix
-        patientUid={patientUid}
-        caregiver={caregiver}
-        patient={patientProfile}
-        onSave={handleSaveCaregiverMatrix}
-      />
+      {/* TWO-COLUMN LAYOUT: LEFT SIDEBAR MENU + MAIN WORKSPACE */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+        {/* LEFT SIDEBAR NAVIGATION MENU */}
+        <div className="md:col-span-1 space-y-3">
+          <div className="p-3 rounded-2xl bg-card border border-border/70 shadow-xs space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
+              Family & Clinical Workspace
+            </span>
 
-      {/* Medications and Vitals Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Active Medications */}
-        <Card className="rounded-3xl shadow-xs">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Pill className="w-4 h-4 text-primary" /> Active Medications
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {medications.length} prescription{medications.length === 1 ? '' : 's'} on file
-              </CardDescription>
+            {/* Menu Item 1: Care Support Matrix (Highlighted) */}
+            <button
+              onClick={() => setActiveTab('matrix')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'matrix'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Users2 className="w-4 h-4" />
+                <span>Support Matrix & Rota</span>
+              </span>
+              <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
+                ⭐ Core
+              </Badge>
+            </button>
+
+            {/* Menu Item 2: Trajectory & Overview */}
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'overview'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                <span>Scissors Trajectory</span>
+              </span>
+              <Badge variant="outline" className="text-[9px]">
+                {trajectory.riskBand}
+              </Badge>
+            </button>
+
+            {/* Menu Item 3: Active Medications */}
+            <button
+              onClick={() => setActiveTab('medications')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'medications'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Pill className="w-4 h-4" />
+                <span>Active Prescriptions</span>
+              </span>
+              <Badge variant="outline" className="text-[9px]">
+                {medications.length}
+              </Badge>
+            </button>
+
+            {/* Menu Item 4: Vitals & Observations */}
+            <button
+              onClick={() => setActiveTab('vitals')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'vitals'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <HeartPulse className="w-4 h-4" />
+                <span>Vitals Stream</span>
+              </span>
+              <Badge variant="outline" className="text-[9px]">
+                {vitals.length}
+              </Badge>
+            </button>
+
+            {/* Menu Item 5: Assigned Modules */}
+            <button
+              onClick={() => setActiveTab('modules')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'modules'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                <span>Education Modules</span>
+              </span>
+            </button>
+
+            {/* Menu Item 6: Emergency Readiness */}
+            <button
+              onClick={() => setActiveTab('emergency')}
+              className={cn(
+                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                activeTab === 'emergency'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                  : 'text-foreground hover:bg-muted border-transparent'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <Car className="w-4 h-4 text-red-600" />
+                <span>Emergency Readiness</span>
+              </span>
+              {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              )}
+            </button>
+          </div>
+
+          {/* Quick Snapshot Card in Sidebar */}
+          <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs space-y-2">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+              Dyad Care Balance
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Net Care Gap:</span>
+              <span className="font-bold text-foreground font-mono">
+                {careGapResult.netCareGapHours > 0 ? `${careGapResult.netCareGapHours}h / day` : '0h (Balanced)'}
+              </span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Burnout Tier:</span>
+              <Badge className={cn('text-[9px] uppercase font-bold', careGapResult.caregiverBurnoutRiskLevel === 'critical' ? 'bg-red-600' : 'bg-emerald-600')}>
+                {careGapResult.caregiverBurnoutRiskLevel}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Spine Risk:</span>
+              <span className="font-bold text-foreground font-mono">{careGapResult.caregiverInjuryRiskScore}%</span>
+            </div>
+          </div>
+        </div>
 
-            <Dialog open={isMedModalOpen} onOpenChange={setIsMedModalOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 text-xs gap-1 font-semibold">
-                  <Plus className="w-3.5 h-3.5" /> Add
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-base font-bold">Add Prescription / Medication</DialogTitle>
-                  <DialogDescription className="text-xs">
-                    Prescribed medication for {displayName}. Saved directly to the dyad record.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddMedication} className="space-y-3 py-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Medication Name</Label>
-                    <Input
-                      placeholder="e.g. Amlodipine, Donepezil, Paracetamol"
-                      value={medName}
-                      onChange={(e) => setMedName(e.target.value)}
-                      className="h-9 text-xs"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Dosage</Label>
-                      <Input
-                        placeholder="e.g. 5mg, 500mg"
-                        value={medDosage}
-                        onChange={(e) => setMedDosage(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Slot</Label>
-                      <select
-                        value={medFrequency}
-                        onChange={(e) => setMedFrequency(e.target.value)}
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
-                      >
-                        <option value="Morning">Morning</option>
-                        <option value="Afternoon">Afternoon</option>
-                        <option value="Evening">Evening</option>
-                        <option value="Night">Night</option>
-                      </select>
-                    </div>
-                  </div>
-                  <DialogFooter className="pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsMedModalOpen(false)} className="text-xs">
-                      Cancel
+        {/* MAIN WORKSPACE CONTENT AREA */}
+        <div className="md:col-span-3 space-y-6">
+          {/* TAB 1: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
+          {(activeTab === 'matrix') && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <CaregiverSupportMatrix
+                patientUid={patientUid}
+                caregiver={caregiver}
+                patient={patientProfile}
+                onSave={handleSaveCaregiverMatrix}
+              />
+            </div>
+          )}
+
+          {/* TAB 2: OVERVIEW & SCISSORS TRAJECTORY */}
+          {(activeTab === 'overview') && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <RiskHeader trajectory={trajectory} />
+
+              <Card className="rounded-3xl shadow-xs">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Longitudinal Scissors Trajectory</CardTitle>
+                  <CardDescription className="text-xs">
+                    Rising lines are worse on both series — a widening gap between them signals care demand
+                    outstripping caregiver capacity.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScissorsChart trajectory={trajectory} />
+                </CardContent>
+              </Card>
+
+              {latestAssessment && (
+                <Card className="rounded-3xl shadow-xs">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Latest Factor Breakdown</CardTitle>
+                    <CardDescription className="text-xs">
+                      {latestAssessment.tier} · {new Date(latestAssessment.completedAt).toLocaleDateString()}
+                      {latestAssessment.redFlags.length > 0 && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-red-600 font-semibold">
+                          <AlertTriangle className="w-3 h-3" /> {latestAssessment.redFlags.length} red flag
+                          {latestAssessment.redFlags.length === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {(Object.entries(latestAssessment.factors) as [ZbiFactor, typeof latestAssessment.factors[ZbiFactor]][]).map(
+                      ([key, factor]) => (
+                        <div key={key} className="p-3 rounded-xl border border-border/60 bg-card">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                            {FACTOR_LABELS[key]}
+                          </p>
+                          {factor.isMeasured ? (
+                            <p className="text-lg font-extrabold font-mono">{factor.percentage}%</p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic mt-1">Not assessed in {latestAssessment.tier}</p>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: MEDICATIONS */}
+          {(activeTab === 'medications') && (
+            <Card className="rounded-3xl shadow-xs animate-in fade-in duration-200">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Pill className="w-4 h-4 text-primary" /> Active Prescription Regimen
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {medications.length} prescription{medications.length === 1 ? '' : 's'} on file for {displayName}
+                  </CardDescription>
+                </div>
+
+                <Dialog open={isMedModalOpen} onOpenChange={setIsMedModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1 font-semibold">
+                      <Plus className="w-3.5 h-3.5" /> Add Medication
                     </Button>
-                    <Button type="submit" size="sm" disabled={isSavingMed || !medName.trim()} className="text-xs font-bold">
-                      {isSavingMed ? 'Saving…' : 'Save Prescription'}
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-base font-bold">Add Prescription / Medication</DialogTitle>
+                      <DialogDescription className="text-xs">
+                        Prescribed medication for {displayName}. Saved directly to the dyad record.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddMedication} className="space-y-3 py-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Medication Name</Label>
+                        <Input
+                          placeholder="e.g. Amlodipine, Donepezil, Paracetamol"
+                          value={medName}
+                          onChange={(e) => setMedName(e.target.value)}
+                          className="h-9 text-xs"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Dosage</Label>
+                          <Input
+                            placeholder="e.g. 5mg, 500mg"
+                            value={medDosage}
+                            onChange={(e) => setMedDosage(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Slot</Label>
+                          <select
+                            value={medFrequency}
+                            onChange={(e) => setMedFrequency(e.target.value)}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                          >
+                            <option value="Morning">Morning</option>
+                            <option value="Afternoon">Afternoon</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Night">Night</option>
+                          </select>
+                        </div>
+                      </div>
+                      <DialogFooter className="pt-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsMedModalOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={isSavingMed} className="bg-primary font-bold">
+                          {isSavingMed ? 'Saving…' : 'Save Prescription'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {medications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No medications logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {medications.map((m) => (
+                      <div key={m.id} className="p-3 rounded-xl border border-border/60 bg-card flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{m.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {m.dosage} · Slot: {m.timeOfDay.join(', ')}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">Active</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 4: VITALS */}
+          {(activeTab === 'vitals') && (
+            <Card className="rounded-3xl shadow-xs animate-in fade-in duration-200">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4 text-primary" /> Vital Signs & Health Observations
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Blood pressure, pulse, and glucose logs
+                  </CardDescription>
+                </div>
+
+                <Dialog open={isVitalModalOpen} onOpenChange={setIsVitalModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1 font-semibold">
+                      <Plus className="w-3.5 h-3.5" /> Log Vital
                     </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {medications.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No medications recorded for this dyad.</p>
-            ) : (
-              medications.map((med) => (
-                <div key={med.id} className="p-2.5 rounded-xl border border-border/60 flex items-center justify-between gap-2 bg-muted/20">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold truncate text-foreground">{med.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {med.dosage} · {med.timeOfDay.join(', ')}
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-base font-bold">Log Clinical Vital Reading</DialogTitle>
+                      <DialogDescription className="text-xs">
+                        Record BP, pulse, or blood sugar for {displayName}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleLogVital} className="space-y-3 py-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Blood Pressure (mmHg)</Label>
+                          <Input
+                            placeholder="e.g. 130/85"
+                            value={vitalBp}
+                            onChange={(e) => setVitalBp(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Pulse (BPM)</Label>
+                          <Input
+                            placeholder="e.g. 74"
+                            value={vitalPulse}
+                            onChange={(e) => setVitalPulse(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Blood Sugar (mg/dL)</Label>
+                        <Input
+                          placeholder="e.g. 142"
+                          value={vitalSugar}
+                          onChange={(e) => setVitalSugar(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <DialogFooter className="pt-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsVitalModalOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={isSavingVital} className="bg-primary font-bold">
+                          {isSavingVital ? 'Saving…' : 'Record Vital'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {vitals.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No vital records logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {vitals.slice(0, 10).map((v) => (
+                      <div key={v.id} className="p-3 rounded-xl border border-border/60 bg-card flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-foreground font-mono">
+                            {v.bp ? `BP: ${v.bp}` : ''} {v.pulse ? `· Pulse: ${v.pulse} bpm` : ''} {v.bloodSugar ? `· Sugar: ${v.bloodSugar} mg/dL` : ''}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(v.date).toLocaleDateString()} at {new Date(v.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] text-emerald-600">Logged</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 5: MODULES */}
+          {(activeTab === 'modules') && (
+            <div className="animate-in fade-in duration-200">
+              <AssignModulesPanel patientUid={patientUid} />
+            </div>
+          )}
+
+          {/* TAB 6: EMERGENCY READINESS */}
+          {(activeTab === 'emergency') && (
+            <Card className="rounded-3xl border-red-500/20 shadow-xs animate-in fade-in duration-200">
+              <CardHeader className="pb-3 border-b border-border/50 bg-red-500/5">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-red-700 dark:text-red-400">
+                  <Car className="w-5 h-5 text-red-600" /> Emergency Transit & Hospital Accessibility Readiness
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Physical access to 4-wheeler, proximity to emergency triage, and designated transit escorts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Hospital Distance</span>
+                    <p className="text-xl font-mono font-black text-foreground">
+                      {caregiver?.emergencyLogistics?.hospitalDistanceKm ?? 4.5} km
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">~{caregiver?.emergencyLogistics?.travelTimeMinutes ?? 15} mins transit time</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">4-Wheeler (Car) Readiness</span>
+                    <div>
+                      {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
+                        <Badge className="bg-emerald-600 text-white font-bold text-xs py-1">Vehicle at Home</Badge>
+                      ) : (
+                        <Badge className="bg-red-600 text-white font-bold text-xs py-1">No Vehicle (Cab Dependent)</Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      {caregiver?.emergencyLogistics?.vehicleDetails || 'Sedan (Parked at Home)'}
                     </p>
                   </div>
-                  {med.beersWarning && (
-                    <Badge variant="destructive" className="text-[9px] shrink-0">
-                      Beers Flag
-                    </Badge>
-                  )}
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Vitals */}
-        <Card className="rounded-3xl shadow-xs">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-primary" /> Recent Vitals
-              </CardTitle>
-              <CardDescription className="text-xs">Latest readings, newest first</CardDescription>
-            </div>
-
-            <Dialog open={isVitalModalOpen} onOpenChange={setIsVitalModalOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 text-xs gap-1 font-semibold">
-                  <Plus className="w-3.5 h-3.5" /> Log Vitals
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-base font-bold">Log Clinical Vitals</DialogTitle>
-                  <DialogDescription className="text-xs">
-                    Record observation during OPD visit or consultation.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleLogVital} className="space-y-3 py-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">BP (mmHg)</Label>
-                      <Input
-                        placeholder="120/80"
-                        value={vitalBp}
-                        onChange={(e) => setVitalBp(e.target.value)}
-                        className="h-9 text-xs font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Pulse (bpm)</Label>
-                      <Input
-                        type="number"
-                        placeholder="72"
-                        value={vitalPulse}
-                        onChange={(e) => setVitalPulse(e.target.value)}
-                        className="h-9 text-xs font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Sugar (mg/dL)</Label>
-                      <Input
-                        type="number"
-                        placeholder="110"
-                        value={vitalSugar}
-                        onChange={(e) => setVitalSugar(e.target.value)}
-                        className="h-9 text-xs font-mono"
-                      />
-                    </div>
+                  <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Emergency Driver</span>
+                    <p className="text-base font-bold text-foreground">
+                      {caregiver?.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Designated key holder for rapid triage transit</p>
                   </div>
-                  <DialogFooter className="pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsVitalModalOpen(false)} className="text-xs">
-                      Cancel
-                    </Button>
-                    <Button type="submit" size="sm" disabled={isSavingVital} className="text-xs font-bold">
-                      {isSavingVital ? 'Saving…' : 'Record Reading'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {vitals.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No vitals logged for this dyad.</p>
-            ) : (
-              vitals.slice(0, 5).map((v) => (
-                <div key={v.id} className="p-2.5 rounded-xl border border-border/60 flex items-center justify-between gap-2 bg-muted/20">
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    {new Date(v.date).toLocaleDateString()}
-                  </span>
-                  <span className="text-xs font-mono font-bold text-foreground">
-                    {[v.bp && `BP ${v.bp}`, v.pulse && `HR ${v.pulse}`, v.bloodSugar && `BS ${v.bloodSugar}`]
-                      .filter(Boolean)
-                      .join(' · ') || 'Observation recorded'}
-                  </span>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border/70 space-y-2">
+                  <span className="text-xs font-bold block">Hospital & Emergency Helpline:</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <span>Preferred Emergency Center: <strong>{caregiver?.emergencyLogistics?.preferredHospitalName || 'AIIMS Geriatric Center'}</strong></span>
+                    <span className="font-mono text-primary font-bold">Helpline: {caregiver?.emergencyLogistics?.ambulanceContact || '108'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
-
-      {/* Module Assignment Panel */}
-      <AssignModulesPanel patientUid={patientUid} />
-
-      {/* Clinician Quick Jump & Caregiver Portal Bridge */}
-      <Card className="rounded-3xl border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-xs">
-        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-primary" />
-              <span>Next Clinical Actions & Dyad Navigation</span>
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              Return to your patient cohort list or test the caregiver interface for this dyad.
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Link href="/clinic/roster">
-              <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5">
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to Roster
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm" className="h-9 text-xs font-semibold gap-1.5">
-                Doctor Dashboard
-              </Button>
-            </Link>
-            <Link href={`/modules?dyad=${patientUid}`}>
-              <Button size="sm" className="h-9 text-xs font-bold gap-1.5 bg-primary text-primary-foreground">
-                Preview Caregiver Portal
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

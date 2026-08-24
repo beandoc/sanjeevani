@@ -48,7 +48,9 @@ import {
   where,
   collectionGroup,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  onSnapshot,
+  deleteDoc
 } from 'firebase/firestore';
 import { auth, db } from './client';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
@@ -117,10 +119,42 @@ export async function syncZaritAssessment(result: ZaritEvaluationResult): Promis
   const uid = currentUid();
   if (!uid || !db) return { queued: false };
   try {
+    const snap = await getDocs(collection(db, 'users', uid, 'zaritAssessments'));
+    const past = snap.docs
+      .map((d) => d.data() as ZaritEvaluationResult)
+      .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
     await addDoc(collection(db, 'users', uid, 'zaritAssessments'), {
       ...result,
       normalizedPercentage: Number(result.normalizedPercentage)
     });
+
+    const requestDoc = await getDoc(doc(db, 'users', uid, 'reassessmentRequests', 'current'));
+    if (requestDoc.exists()) {
+      const req = requestDoc.data();
+      if (req.status === 'pending') {
+        await setDoc(
+          doc(db, 'users', uid, 'reassessmentRequests', 'current'),
+          { status: 'completed', completedAt: new Date().toISOString() },
+          { merge: true }
+        );
+
+        if (past.length > 0) {
+          const lastAssessment = past[0];
+          if (result.normalizedPercentage > lastAssessment.normalizedPercentage) {
+            const patientName = await getPatientDisplayName(uid);
+            await createReassessmentAlert(req.requestedBy, {
+              patientUid: uid,
+              patientName,
+              previousScore: lastAssessment.normalizedPercentage,
+              newScore: result.normalizedPercentage,
+              completedAt: result.completedAt
+            });
+          }
+        }
+      }
+    }
+
     return { queued: true };
   } catch (err) {
     console.warn('Zarit assessment sync failed:', err);
@@ -530,6 +564,8 @@ export async function createDyadInvite(input: {
   caregiverName?: string | null;
   caregiverPhone?: string | null;
   clinicianLabel?: string | null;
+  weightKg?: number | null;
+  heightCm?: number | null;
 }): Promise<DyadInvite> {
   const uid = currentUid();
   if (!uid || !db) throw new Error('Must be signed in as a clinician to register a patient.');
@@ -574,6 +610,8 @@ export async function createDyadInvite(input: {
         cognitiveBehavioralLoad: 'none',
         fallHistoryLast6Months: 0,
         isBedBound: false,
+        weightKg: input.weightKg ?? null,
+        heightCm: input.heightCm ?? null,
         updatedAt: new Date().toISOString()
       })
     );
@@ -919,5 +957,116 @@ export async function getPatientDisplayName(patientUid: string): Promise<string>
     return (data?.phoneNumber as string) || `Patient ${patientUid.replace('dyad_', '')}`;
   } catch {
     return `Patient ${patientUid.replace('dyad_', '')}`;
+  }
+}
+
+/** Clinician requests a repeat caregiver burden assessment */
+export async function requestReassessment(patientUid: string): Promise<void> {
+  if (!db) return;
+  const clinicianUid = currentUid();
+  if (!clinicianUid) throw new Error('Must be signed in as clinician to request reassessment.');
+  await setDoc(doc(db, 'users', patientUid, 'reassessmentRequests', 'current'), {
+    requestedAt: new Date().toISOString(),
+    requestedBy: clinicianUid,
+    status: 'pending'
+  });
+}
+
+/** Subscribes to pending repeat assessment requests (for caregiver view) */
+export function subscribeToReassessmentRequest(
+  patientUid: string,
+  callback: (req: { requestedAt: string; requestedBy: string; status: string } | null) => void
+) {
+  if (!db) return () => {};
+  return onSnapshot(
+    doc(db, 'users', patientUid, 'reassessmentRequests', 'current'),
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as any);
+      } else {
+        callback(null);
+      }
+    },
+    () => callback(null)
+  );
+}
+
+/** Caregiver marks reassessment request as completed */
+export async function completeReassessmentRequest(patientUid: string): Promise<void> {
+  if (!db) return;
+  await setDoc(
+    doc(db, 'users', patientUid, 'reassessmentRequests', 'current'),
+    {
+      status: 'completed',
+      completedAt: new Date().toISOString()
+    },
+    { merge: true }
+  );
+}
+
+/** Caregiver registers an increased burden alert to the doctor */
+export async function createReassessmentAlert(
+  clinicianUid: string,
+  alert: {
+    patientUid: string;
+    patientName: string;
+    previousScore: number;
+    newScore: number;
+    completedAt: string;
+  }
+): Promise<void> {
+  if (!db) return;
+  const alertId = `${alert.patientUid}_${Date.now()}`;
+  await setDoc(doc(db, 'users', clinicianUid, 'reassessmentAlerts', alertId), {
+    ...alert,
+    id: alertId,
+    read: false,
+    createdAt: new Date().toISOString()
+  });
+}
+
+/** Clinician subscribes to caregiver increased burden alerts */
+export function subscribeToReassessmentAlerts(callback: (alerts: any[]) => void) {
+  const clinicianUid = currentUid();
+  if (!db || !clinicianUid) return () => {};
+  return onSnapshot(
+    collection(db, 'users', clinicianUid, 'reassessmentAlerts'),
+    (snap) => {
+      const alerts = snap.docs.map((d) => d.data());
+      alerts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      callback(alerts);
+    },
+    () => callback([])
+  );
+}
+
+/** Clinician dismisses/clears an increased burden alert */
+export async function dismissReassessmentAlert(alertId: string): Promise<void> {
+  const clinicianUid = currentUid();
+  if (!db || !clinicianUid) return;
+  await deleteDoc(doc(db, 'users', clinicianUid, 'reassessmentAlerts', alertId));
+}
+
+/** Caregiver mirrors a scheduled or updated appointment to Firestore */
+export async function syncAppointment(appointment: any): Promise<SyncResult> {
+  const uid = currentUid();
+  if (!uid || !db) return { queued: false };
+  try {
+    await setDoc(doc(db, 'users', uid, 'appointments', appointment.id), appointment);
+    return { queued: true };
+  } catch (err) {
+    console.warn('Appointment sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/** Clinician gets all appointments recorded by or for a patient */
+export async function getAppointmentsFor(patientUid: string): Promise<any[]> {
+  if (!db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', patientUid, 'appointments'));
+    return snap.docs.map((d) => d.data());
+  } catch {
+    return [];
   }
 }

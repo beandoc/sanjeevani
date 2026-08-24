@@ -127,14 +127,14 @@ describe('zaritAssessments — clinician consent gating', () => {
     await assertFails(getDoc(doc(anon, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1')));
   });
 
-  it('only the owning caregiver can create an assessment — a granted clinician cannot', async () => {
+  it('a clinician with an active grant CAN create an assessment, but a clinician with NO grant is DENIED', async () => {
     const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
-    await assertFails(
+    await assertSucceeds(
       setDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-2'), SAMPLE_ASSESSMENT)
     );
-    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
-    await assertSucceeds(
-      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-2'), SAMPLE_ASSESSMENT)
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-3'), SAMPLE_ASSESSMENT)
     );
   });
 });
@@ -371,6 +371,52 @@ describe('functionScores — immutability (audit trail)', () => {
     const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
     await assertFails(
       deleteDoc(doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'))
+    );
+  });
+});
+
+describe('reassessmentRequests & reassessmentAlerts — workflow rules', () => {
+  it('a granted clinician CAN create a reassessment request for a patient', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(clinician, 'users', CAREGIVER_UID, 'reassessmentRequests', 'current'),
+        { requestedAt: new Date().toISOString(), requestedBy: CLINICIAN_UID, status: 'pending' }
+      )
+    );
+  });
+
+  it('an ungranted clinician CANNOT create a reassessment request', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(stranger, 'users', CAREGIVER_UID, 'reassessmentRequests', 'current'),
+        { requestedAt: new Date().toISOString(), requestedBy: RANDOM_STRANGER_UID, status: 'pending' }
+      )
+    );
+  });
+
+  it('the caregiver CAN read their own reassessment request', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(
+      getDoc(doc(caregiver, 'users', CAREGIVER_UID, 'reassessmentRequests', 'current'))
+    );
+  });
+
+  it('caregiver CAN create a reassessment alert for their granted clinician', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(caregiver, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'alert-1'),
+        { patientUid: CAREGIVER_UID, patientName: 'Alice', previousScore: 40, newScore: 60 }
+      )
+    );
+  });
+
+  it('a stranger CANNOT read the clinician alerts', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(
+      getDoc(doc(stranger, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'alert-1'))
     );
   });
 });

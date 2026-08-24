@@ -115,16 +115,22 @@ export default function LoginPage() {
             const isKnownDemoEmail =
               cleanEmail.toLowerCase() === 'doctor@sanjeevani.com' ||
               cleanEmail.toLowerCase() === 'nurse@sanjeevani.com' ||
-              cleanEmail.toLowerCase() === 'caregiver@sanjeevani.com';
+              cleanEmail.toLowerCase() === 'caregiver@sanjeevani.com' ||
+              cleanEmail.toLowerCase() === 'vidya@sanjeevani.com' ||
+              cleanEmail.toLowerCase() === 'sudhir@sanjeevani.com';
 
             if (isUserNotFound && (isKnownDemoEmail || cleanPassword.length >= 6)) {
               try {
-                const roleName =
-                  selectedRole === 'doctor' || selectedRole === 'professional'
-                    ? 'Dr. Vivek'
-                    : selectedRole === 'nurse'
-                    ? 'Nurse Sister Anjali'
-                    : 'Suresh Kumar';
+                let roleName = 'Suresh Kumar';
+                if (cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')) {
+                  roleName = 'Dr. Vivek';
+                } else if (cleanEmail.toLowerCase().includes('vidya')) {
+                  roleName = 'Nurse Vidya';
+                } else if (cleanEmail.toLowerCase().includes('sudhir')) {
+                  roleName = 'Sudhir Kumar';
+                } else if (cleanEmail.toLowerCase().includes('nurse')) {
+                  roleName = 'Nurse Sister Anjali';
+                }
                 user = await signUpWithEmail(cleanEmail, cleanPassword, selectedRole, roleName);
               } catch {
                 throw signInErr;

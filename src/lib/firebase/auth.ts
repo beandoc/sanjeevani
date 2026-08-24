@@ -42,13 +42,19 @@ async function ensureUserProfile(uid: string, role: Role, extra?: Record<string,
   try {
     const ref = doc(db, 'users', uid);
     const existing = await getDoc(ref);
+    const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : 'caregiver';
+
     if (!existing.exists()) {
-      const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : 'caregiver';
       await setDoc(ref, {
         role: canonicalRole,
         createdAt: serverTimestamp(),
         ...extra
       });
+    } else {
+      const currentRole = existing.data()?.role;
+      if (currentRole !== canonicalRole) {
+        await setDoc(ref, { role: canonicalRole }, { merge: true });
+      }
     }
   } catch (err) {
     console.warn('Could not save profile to Firestore:', err);
@@ -78,8 +84,30 @@ export async function signUpWithEmail(
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
   const cred = await signInWithEmailAndPassword(auth, email, password);
-  const inferredRole: Role = (email.includes('doctor') || email.includes('clinic') || email.includes('nurse')) ? 'professional' : 'caregiver';
-  await ensureUserProfile(cred.user.uid, inferredRole, { email, displayName: cred.user.displayName || (inferredRole === 'professional' ? 'Dr. Vivek' : undefined) });
+  const cleanEmail = email.toLowerCase();
+  const inferredRole: Role = (
+    cleanEmail.includes('doctor') ||
+    cleanEmail.includes('clinic') ||
+    cleanEmail.includes('nurse') ||
+    cleanEmail.includes('vidya')
+  ) ? 'professional' : 'caregiver';
+
+  let displayName = cred.user.displayName;
+  if (!displayName) {
+    if (cleanEmail.includes('doctor') || cleanEmail.includes('clinic')) {
+      displayName = 'Dr. Vivek';
+    } else if (cleanEmail.includes('vidya')) {
+      displayName = 'Nurse Vidya';
+    } else if (cleanEmail.includes('sudhir')) {
+      displayName = 'Sudhir Kumar';
+    } else if (cleanEmail.includes('nurse')) {
+      displayName = 'Nurse Sister Anjali';
+    } else {
+      displayName = 'Suresh Kumar';
+    }
+  }
+
+  await ensureUserProfile(cred.user.uid, inferredRole, { email, displayName });
   return cred.user;
 }
 

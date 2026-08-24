@@ -355,4 +355,255 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.ok(result.netCareGapHours >= 3.0, 'precondition: gap large enough to trigger the rx');
     assert.ok(!result.prescriptions.some((p) => p.id === 'rx_formal_attendant'));
   });
+
+  test('should scale musculoskeletal injury risk based on patient weight/BMI and bed-bound status', () => {
+    const normalResult = CareGapEngine.evaluate(sampleCaregiver, {
+      ...sampleDependentPatient,
+      weightKg: 60,
+      heightCm: 165,
+      isBedBound: false
+    });
+
+    const heavyResult = CareGapEngine.evaluate(sampleCaregiver, {
+      ...sampleDependentPatient,
+      weightKg: 85,
+      heightCm: 165,
+      isBedBound: false
+    });
+
+    assert.ok(heavyResult.caregiverInjuryRiskScore > normalResult.caregiverInjuryRiskScore);
+
+    const bedBoundResult = CareGapEngine.evaluate(sampleCaregiver, {
+      ...sampleDependentPatient,
+      weightKg: 60,
+      heightCm: 165,
+      isBedBound: true
+    });
+
+    assert.ok(bedBoundResult.caregiverInjuryRiskScore > normalResult.caregiverInjuryRiskScore);
+  });
+
+  test('should scale up caregiver burnout risk level under severe out of pocket financial strain', () => {
+    const moderatePatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      katzAdl: {
+        bathing: false,
+        dressing: true,
+        toileting: true,
+        transferring: true,
+        continence: true,
+        feeding: true
+      }
+    };
+
+    const modResultNormalFin = CareGapEngine.evaluate(
+      { ...sampleCaregiver, monthlyOutOfPocketBurden: 'manageable', dailyHoursCommitted: 6 },
+      moderatePatient
+    );
+    const modResultToxicFin = CareGapEngine.evaluate(
+      { ...sampleCaregiver, monthlyOutOfPocketBurden: 'severe_toxicity', dailyHoursCommitted: 6 },
+      moderatePatient
+    );
+
+    assert.ok(
+      modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' || 
+      (modResultToxicFin.caregiverBurnoutRiskLevel === 'high' && modResultNormalFin.caregiverBurnoutRiskLevel === 'moderate') ||
+      (modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' && modResultNormalFin.caregiverBurnoutRiskLevel === 'high')
+    );
+  });
+
+  test('should generate an actionable staffing prescription when care gap hours is positive', () => {
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+
+    assert.ok(result.netCareGapHours > 0);
+    const rx = result.prescriptions.find((p) => p.id === 'rx_staffing_respite_prescription');
+    assert.ok(rx !== undefined);
+    assert.ok(rx.action.includes('Prescribe:'));
+    assert.ok(rx.action.includes('hours/day of paid attendant'));
+  });
+
+  test('should trigger warnings for recurrent infections, frequent aspirations, and bed sores', () => {
+    const sickPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      primaryConditions: ['Recurrent Infections', 'UTI', 'Dysphagia'],
+      isBedBound: true
+    };
+    const result = CareGapEngine.evaluate(sampleCaregiver, sickPatient);
+    assert.ok(result.qualityOfCareWarnings.length >= 3);
+    assert.ok(result.qualityOfCareWarnings.some((w) => w.includes('Recurrent infections')));
+    assert.ok(result.qualityOfCareWarnings.some((w) => w.includes('Frequent aspiration')));
+    assert.ok(result.qualityOfCareWarnings.some((w) => w.includes('Bed sore presence')));
+    assert.strictEqual(result.caregiverBurnoutRiskLevel, 'critical');
+  });
+
+  test('should trigger warning for uncontrolled blood pressure', () => {
+    const bpVitals = [
+      { date: new Date().toISOString(), bp: '170/105', sleep: 'good' as const }
+    ];
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient, new Date(), bpVitals);
+    assert.ok(result.qualityOfCareWarnings.some((w) => w.includes('Uncontrolled hypertension')));
+  });
+
+  test('should trigger warning for missing diabetes glucose logs', () => {
+    const diabeticPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      primaryConditions: ['Diabetes']
+    };
+    const resultNoLogs = CareGapEngine.evaluate(sampleCaregiver, diabeticPatient, new Date(), []);
+    assert.ok(resultNoLogs.qualityOfCareWarnings.some((w) => w.includes('Diabetes care monitoring gap')));
+
+    const oldLogs = [
+      { date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), bloodSugar: '150', sleep: 'good' as const }
+    ];
+    const resultOldLogs = CareGapEngine.evaluate(sampleCaregiver, diabeticPatient, new Date(), oldLogs);
+    assert.ok(resultOldLogs.qualityOfCareWarnings.some((w) => w.includes('logged in the last 10 days')));
+  });
+
+  test('should trigger warning for missed scheduled hospital appointments', () => {
+    const pastAppts = [
+      { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), department: 'Geriatrics', doctor: 'Dr. Vivek', status: 'scheduled' as const }
+    ];
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient, new Date(), [], pastAppts);
+    assert.ok(result.qualityOfCareWarnings.some((w) => w.includes('Missed hospital visits')));
+  });
+
+  test('should redistribute burden across secondary family members and reduce net care gap', () => {
+    const soloResult = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+
+    const multiFamilyCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_son',
+          name: 'Son Rahul',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 3.0,
+          assignedTasks: ['heavy_transfers', 'logistics_errands'],
+          hasPhysicalLimitation: false
+        },
+        {
+          id: 'sec_dil',
+          name: 'Daughter-in-law Priya',
+          relationship: 'daughter_in_law',
+          age: 26,
+          hoursPerDay: 2.0,
+          assignedTasks: ['medications', 'bathing'],
+          hasPhysicalLimitation: false
+        }
+      ]
+    };
+
+    const multiResult = CareGapEngine.evaluate(multiFamilyCaregiver, sampleDependentPatient);
+
+    assert.strictEqual(multiResult.familySupportAbsorbedHours, 5.0);
+    assert.strictEqual(multiResult.teamAllocations.secondaryFamilyHours, 5.0);
+    assert.ok(multiResult.netCareGapHours < soloResult.netCareGapHours);
+    assert.strictEqual(multiResult.taskDelegationStatus.transfersCovered, true);
+    assert.strictEqual(multiResult.taskDelegationStatus.medicationsCovered, true);
+    assert.strictEqual(multiResult.taskDelegationStatus.bathingCovered, true);
+  });
+
+  test('should relieve primary caregiver lumbar transfer strain when younger family member is assigned heavy transfers', () => {
+    const soloCaregiverWithBackPain: CaregiverAttributes = {
+      ...sampleCaregiver,
+      caregiverHealth: {
+        ...sampleCaregiver.caregiverHealth,
+        hasBackPain: true
+      },
+      secondaryMembers: []
+    };
+
+    const supportedCaregiver: CaregiverAttributes = {
+      ...soloCaregiverWithBackPain,
+      secondaryMembers: [
+        {
+          id: 'sec_son',
+          name: 'Son Rahul',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 2.5,
+          assignedTasks: ['heavy_transfers'],
+          hasPhysicalLimitation: false
+        }
+      ]
+    };
+
+    const soloRes = CareGapEngine.evaluate(soloCaregiverWithBackPain, sampleDependentPatient);
+    const supportedRes = CareGapEngine.evaluate(supportedCaregiver, sampleDependentPatient);
+
+    assert.ok(supportedRes.caregiverInjuryRiskScore < soloRes.caregiverInjuryRiskScore);
+    assert.strictEqual(supportedRes.taskDelegationStatus.transfersCovered, true);
+    assert.ok(supportedRes.taskDelegationStatus.transfersCoveredBy.includes('Son Rahul'));
+  });
+
+  test('should accurately model 12h vs 24h nurse shift scaling and night watch protection', () => {
+    const nurse12hCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'trained_nurse_12h',
+        hoursPerDay: 12,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: true
+      }
+    };
+
+    const nurse24hCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'trained_nurse_24h',
+        hoursPerDay: 20,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: true
+      }
+    };
+
+    const res12h = CareGapEngine.evaluate(nurse12hCaregiver, sampleDependentPatient);
+    const res24h = CareGapEngine.evaluate(nurse24hCaregiver, sampleDependentPatient);
+
+    assert.ok(res24h.formalSupportAbsorbedHours >= res12h.formalSupportAbsorbedHours);
+    assert.strictEqual(res24h.taskDelegationStatus.nightCareCovered, true);
+    assert.strictEqual(res12h.taskDelegationStatus.transfersCovered, true);
+    assert.strictEqual(res12h.taskDelegationStatus.medicationsCovered, true);
+  });
+
+  test('should accurately serialize and evaluate emergency logistics and monthly rotation policy', () => {
+    const fullCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_son',
+          name: 'Son Rahul',
+          relationship: 'son',
+          age: 28,
+          occupation: 'IT Professional',
+          workCommitmentSchedule: 'Mon-Fri 9am-6pm',
+          careRestrictions: 'Available Evenings & Weekends Only',
+          functionalStatus: 'independent',
+          hoursPerDay: 2.5,
+          assignedTasks: ['heavy_transfers', 'logistics_errands'],
+          hasPhysicalLimitation: false
+        }
+      ],
+      rotationPolicy: {
+        rotationInterval: 'biweekly',
+        primaryCaregiverRespiteDaysPerMonth: 4,
+        weekendShiftLeader: 'Son Rahul',
+        nightShiftArrangement: 'family_rotation'
+      },
+      emergencyLogistics: {
+        hospitalDistanceKm: 3.5,
+        travelTimeMinutes: 12,
+        fourWheelerAvailableAtHome: true,
+        vehicleDetails: 'Car at home',
+        designatedEmergencyDriver: 'Son Rahul',
+        preferredHospitalName: 'AIIMS Emergency',
+        ambulanceContact: '108'
+      }
+    };
+
+    const res = CareGapEngine.evaluate(fullCaregiver, sampleDependentPatient);
+    assert.strictEqual(res.taskDelegationStatus.transfersCovered, true);
+    assert.ok(res.familySupportAbsorbedHours > 0);
+  });
 });

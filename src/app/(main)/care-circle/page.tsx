@@ -53,7 +53,8 @@ export default function CareCirclePage() {
   const [taskCategory, setTaskCategory] = useState<'meds' | 'physio' | 'hygiene' | 'appointment' | 'general'>('general');
 
   // Invite Form State
-  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberFirstName, setNewMemberFirstName] = useState('');
+  const [newMemberLastName, setNewMemberLastName] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<'Family Member' | 'Home Nurse' | 'Visiting Doctor'>('Family Member');
   const [newMemberPhone, setNewMemberPhone] = useState('');
 
@@ -117,11 +118,12 @@ export default function CareCirclePage() {
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMemberName.trim() || !newMemberPhone.trim()) {
+    const newMemberName = `${newMemberFirstName.trim()} ${newMemberLastName.trim()}`.trim();
+    if (!newMemberFirstName.trim() || !newMemberLastName.trim() || !newMemberPhone.trim()) {
       toast({
         variant: 'destructive',
         title: 'Details missing',
-        description: 'Please enter the name and phone number.',
+        description: 'Please enter first name, last name, and phone number.',
       });
       return;
     }
@@ -129,7 +131,7 @@ export default function CareCirclePage() {
     const colors = ['bg-blue-600', 'bg-purple-600', 'bg-amber-600', 'bg-rose-600', 'bg-indigo-600'];
     const newMember: CareCircleMember = {
       id: `mem_${Date.now()}`,
-      name: newMemberName.trim(),
+      name: newMemberName,
       role: newMemberRole,
       phone: newMemberPhone.trim(),
       isSelf: false,
@@ -140,7 +142,8 @@ export default function CareCirclePage() {
     HealthRepository.saveCareCircleMembers(updated);
     setMembers(updated);
 
-    setNewMemberName('');
+    setNewMemberFirstName('');
+    setNewMemberLastName('');
     setNewMemberPhone('');
     setIsInviteOpen(false);
 
@@ -201,15 +204,27 @@ export default function CareCirclePage() {
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="m-name" className="text-xs font-semibold">Full Name</Label>
-                    <Input
-                      id="m-name"
-                      placeholder="e.g. Ramesh Kumar"
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      className="h-9 text-xs"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="m-fname" className="text-xs font-semibold">First Name</Label>
+                      <Input
+                        id="m-fname"
+                        placeholder="e.g. Ramesh"
+                        value={newMemberFirstName}
+                        onChange={(e) => setNewMemberFirstName(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="m-lname" className="text-xs font-semibold">Last Name</Label>
+                      <Input
+                        id="m-lname"
+                        placeholder="e.g. Kumar"
+                        value={newMemberLastName}
+                        onChange={(e) => setNewMemberLastName(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">

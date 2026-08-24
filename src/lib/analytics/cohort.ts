@@ -14,10 +14,15 @@ import {
   listMyDyadInvites,
   getZaritAssessmentsFor,
   getFunctionScoresFor,
-  getPatientDisplayName
+  getPatientDisplayName,
+  getCaregiverAttributesFor,
+  getPatientProfileFor,
+  getVitalsFor,
+  getAppointmentsFor
 } from '@/lib/firebase/clinical-sync';
 import { computeTrajectory, type RiskBand } from './trajectory';
 import { isReassessmentDue, type ZbiTier } from '@/lib/zarit-scale';
+import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 
 export interface CohortRow {
   patientUid: string;
@@ -29,6 +34,7 @@ export interface CohortRow {
   latestAssessmentAgeDays: number | null;
   latestTier: ZbiTier | null;
   latestCompletedAt: string | null;
+  hasQocWarning?: boolean;
 }
 
 // A dyad that was escalating at last contact and has since gone quiet ranks
@@ -101,13 +107,19 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
     const rows = await Promise.all(
       roster.map(async ({ patientUid }) => {
         try {
-          const [assessments, functionScores, displayName] = await Promise.all([
+          const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments] = await Promise.all([
             getZaritAssessmentsFor(patientUid),
             getFunctionScoresFor(patientUid),
-            getPatientDisplayName(patientUid)
+            getPatientDisplayName(patientUid),
+            getCaregiverAttributesFor(patientUid).catch(() => null),
+            getPatientProfileFor(patientUid).catch(() => null),
+            getVitalsFor(patientUid).catch(() => []),
+            getAppointmentsFor(patientUid).catch(() => [])
           ]);
           const trajectory = computeTrajectory(assessments, functionScores);
           const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
+          const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
+          const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
           return {
             patientUid,
             displayName,
@@ -117,7 +129,8 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
             hasRedFlag: latest?.hasRedFlag ?? false,
             latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
             latestTier: latest?.tier ?? null,
-            latestCompletedAt: latest?.date ?? null
+            latestCompletedAt: latest?.date ?? null,
+            hasQocWarning
           } satisfies CohortRow;
         } catch {
           return {
@@ -129,7 +142,8 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
             hasRedFlag: false,
             latestAssessmentAgeDays: null,
             latestTier: null,
-            latestCompletedAt: null
+            latestCompletedAt: null,
+            hasQocWarning: false
           } satisfies CohortRow;
         }
       })

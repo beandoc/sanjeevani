@@ -15,6 +15,45 @@ export type FormalSupportType =
   | 'medical_assistant'
   | 'multi_family_rotation';
 
+export type CareTask =
+  | 'heavy_transfers'
+  | 'bathing'
+  | 'medications'
+  | 'feeding'
+  | 'night_care'
+  | 'logistics_errands';
+
+export interface SecondaryFamilyMember {
+  id: string;
+  name: string;
+  relationship: 'son' | 'daughter' | 'daughter_in_law' | 'son_in_law' | 'spouse' | 'sibling' | 'grandchild' | 'other';
+  age: number;
+  occupation?: string;
+  workCommitmentSchedule?: string;
+  careRestrictions?: string;
+  functionalStatus?: 'independent' | 'has_limitations';
+  hoursPerDay: number;
+  assignedTasks: CareTask[];
+  hasPhysicalLimitation: boolean;
+}
+
+export interface EmergencyLogistics {
+  hospitalDistanceKm: number;
+  travelTimeMinutes: number;
+  fourWheelerAvailableAtHome: boolean;
+  vehicleDetails?: string;
+  designatedEmergencyDriver?: string;
+  preferredHospitalName?: string;
+  ambulanceContact?: string;
+}
+
+export interface MonthlyRotationPolicy {
+  rotationInterval: 'weekly' | 'biweekly' | 'monthly';
+  primaryCaregiverRespiteDaysPerMonth: number;
+  weekendShiftLeader?: string;
+  nightShiftArrangement: 'formal_24h_staff' | 'family_rotation' | 'primary_solo';
+}
+
 export interface CaregiverAttributes {
   name: string;
   age: number;
@@ -25,6 +64,9 @@ export interface CaregiverAttributes {
   employment: 'full_time' | 'part_time' | 'homemaker' | 'retired' | 'unemployed';
   functionalCapacity?: 'fully_independent' | 'mild_frailty' | 'moderate_limitations' | 'severe_disability';
   otherFamilyMembersCount?: number;
+  secondaryMembers?: SecondaryFamilyMember[];
+  emergencyLogistics?: EmergencyLogistics;
+  rotationPolicy?: MonthlyRotationPolicy;
   financialStatus?: 'manageable' | 'moderate_strain' | 'severe_toxicity';
   caregiverHealth: {
     hasBackPain: boolean;
@@ -70,6 +112,8 @@ export interface PatientDependenceProfile {
   cognitiveBehavioralLoad: 'none' | 'mild_forgetfulness' | 'wandering_agitation' | 'severe_sundowning';
   fallHistoryLast6Months: number;
   isBedBound: boolean;
+  weightKg?: number;
+  heightCm?: number;
 }
 
 export interface CareGapEvaluationResult {
@@ -84,8 +128,27 @@ export interface CareGapEvaluationResult {
   patientCareDemandHours: number;
   caregiverSafeCapacityHours: number;
   formalSupportAbsorbedHours: number;
-  netCareGapHours: number; // Max(0, Demand - (Safe Capacity + Formal Support))
+  familySupportAbsorbedHours: number;
+  netCareGapHours: number; // Max(0, Demand - (Safe Capacity + Formal Support + Family Support))
   
+  teamAllocations: {
+    primaryCaregiverHours: number;
+    formalStaffHours: number;
+    secondaryFamilyHours: number;
+    unmetGapHours: number;
+  };
+
+  taskDelegationStatus: {
+    transfersCovered: boolean;
+    transfersCoveredBy: string[];
+    medicationsCovered: boolean;
+    medicationsCoveredBy: string[];
+    nightCareCovered: boolean;
+    nightCareCoveredBy: string[];
+    bathingCovered: boolean;
+    bathingCoveredBy: string[];
+  };
+
   careGapSeverity: 'sustainable' | 'mild_deficit' | 'high_deficit' | 'critical_overload';
   caregiverInjuryRiskScore: number; // 0 to 100%
   caregiverBurnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
@@ -98,6 +161,7 @@ export interface CareGapEvaluationResult {
     impact: string;
     urgency: 'routine' | 'priority' | 'urgent';
   }>;
+  qualityOfCareWarnings: string[];
   evaluatedAt: string;
 }
 
@@ -148,8 +212,26 @@ export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
   },
   cognitiveBehavioralLoad: 'wandering_agitation',
   fallHistoryLast6Months: 2,
-  isBedBound: false
+  isBedBound: false,
+  weightKg: 62,
+  heightCm: 155
 };
+
+export interface EngineVitalRecord {
+  date: string;
+  weight?: string;
+  pulse?: string;
+  bp?: string;
+  bloodSugar?: string;
+  sleep: 'good' | 'average' | 'poor';
+}
+
+export interface EngineAppointmentRecord {
+  date: string;
+  department: string;
+  doctor: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+}
 
 export class CareGapEngine {
   /**
@@ -159,7 +241,9 @@ export class CareGapEngine {
   static evaluate(
     caregiver: CaregiverAttributes | null | undefined,
     patient: PatientDependenceProfile | null | undefined,
-    now: Date = new Date()
+    now: Date = new Date(),
+    vitals: EngineVitalRecord[] = [],
+    appointments: EngineAppointmentRecord[] = []
   ): CareGapEvaluationResult {
     // Every branch below reads these merged locals rather than the raw params.
     // Reading the params directly (as this engine previously did from step 3
@@ -170,6 +254,78 @@ export class CareGapEngine {
     const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
     const safeIadl = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
     const safeHealth = { ...DEFAULT_CAREGIVER_ATTRIBUTES.caregiverHealth, ...(safeCaregiver.caregiverHealth || {}) };
+
+    const qualityOfCareWarnings: string[] = [];
+    const hasCondition = (cond: string) => {
+      return (safePatient.primaryConditions || []).some((c) =>
+        c.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cond.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      );
+    };
+
+    if (hasCondition('recurrent') || hasCondition('infection') || hasCondition('uti') || hasCondition('pneumonia')) {
+      qualityOfCareWarnings.push(
+        'Recurrent infections detected. Warrants immediate review of hygiene, fluid intake, and catheter/wound care protocols.'
+      );
+    }
+    if (hasCondition('aspiration') || hasCondition('dysphagia') || !safeKatz.feeding) {
+      qualityOfCareWarnings.push(
+        'Frequent aspiration risk or feeding dependency. Warrants speech therapy consultation and strict feeding positioning (90 degrees).'
+      );
+    }
+    if (hasCondition('bed sore') || hasCondition('pressure ulcer') || hasCondition('pressure sore') || safePatient.isBedBound) {
+      qualityOfCareWarnings.push(
+        'Bed sore presence or high pressure ulcer risk. Warrants 2-hourly turning schedule and specialized water/air mattress.'
+      );
+    }
+
+    const bpVitals = (vitals || []).filter((v) => v.bp);
+    if (bpVitals.length > 0) {
+      const sortedBp = [...bpVitals].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const latestBp = sortedBp[0].bp;
+      if (latestBp) {
+        const parts = latestBp.split('/');
+        const systolic = parseInt(parts[0]);
+        const diastolic = parseInt(parts[1]);
+        if (systolic >= 160 || diastolic >= 100) {
+          qualityOfCareWarnings.push(
+            `Uncontrolled hypertension: Latest recorded BP is high (${latestBp}). Review medication compliance and notify physician.`
+          );
+        }
+      }
+    }
+
+    if (hasCondition('diabetes') || hasCondition('diabetic')) {
+      const bsVitals = (vitals || []).filter((v) => v.bloodSugar);
+      if (bsVitals.length === 0) {
+        qualityOfCareWarnings.push(
+          'Diabetes care monitoring gap: No blood glucose readings logged on the portal despite active diagnosis.'
+        );
+      } else {
+        const sortedBs = [...bsVitals].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const lastLogDate = new Date(sortedBs[0].date).getTime();
+        const daysSinceLastLog = (now.getTime() - lastLogDate) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastLog > 7) {
+          qualityOfCareWarnings.push(
+            `Diabetes care monitoring gap: No blood glucose logged in the last ${Math.round(daysSinceLastLog)} days.`
+          );
+        }
+      }
+    }
+
+    const missedAppointments = (appointments || []).filter((appt) => {
+      return (
+        appt.status === 'scheduled' &&
+        new Date(appt.date).getTime() < now.getTime() - (24 * 60 * 60 * 1000)
+      );
+    });
+    if (missedAppointments.length > 0) {
+      const apptList = missedAppointments
+        .map((a) => `${a.department} (${new Date(a.date).toLocaleDateString()})`)
+        .join(', ');
+      qualityOfCareWarnings.push(
+        `Missed hospital visits: Scheduled appointments are overdue and uncompleted: ${apptList}.`
+      );
+    }
 
     // 1. Calculate Katz ADL Score (0-6)
     const adlItems = Object.values(safeKatz);
@@ -232,28 +388,56 @@ export class CareGapEngine {
       })
       .sort((a, b) => b - a);
 
-    // Support members overlap in time — two 24h attendants do not cover 32
-    // hours of a 24-hour day. The largest contributor counts in full; each
-    // subsequent one is discounted, so stacking types has diminishing returns
-    // instead of summing to a physically impossible total.
     let rawAbsorbed = 0;
     for (let i = 0; i < contributions.length; i++) {
       rawAbsorbed += contributions[i] * (i === 0 ? 1 : i === 1 ? 0.5 : 0.25);
     }
 
-    // Formal support absorbs hands-on task hours, not the family caregiver's
-    // supervision, care coordination and emotional labour. Capping absorption
-    // at 100% of demand let a single live-in attendant drive the net gap to
-    // exactly zero regardless of the caregiver's own age, health or job, which
-    // contradicts the burden literature: paid help attenuates caregiver load,
-    // it does not eliminate it. This residual floor keeps a fully staffed dyad
-    // visible rather than reporting it as "sustainable" by construction.
     const MAX_ABSORBABLE_FRACTION = 0.85;
     const formalSupportAbsorbedHours =
       Math.round(Math.min(patientCareDemandHours * MAX_ABSORBABLE_FRACTION, rawAbsorbed) * 10) / 10;
 
-    // Residual Patient Demand after Formal Staff absorption
-    const residualDemand = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
+    // 4b. Secondary Family Members Support Network & Task Absorption
+    const secondaryMembers = safeCaregiver.secondaryMembers || [];
+    let rawFamilyHours = 0;
+    for (const member of secondaryMembers) {
+      rawFamilyHours += Math.max(0, member.hoursPerDay || 0);
+    }
+    // If no explicit secondaryMembers array was configured, fall back to legacy count buffer
+    if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0) {
+      rawFamilyHours = Math.min(2.5, (safeCaregiver.otherFamilyMembersCount ?? 0) * 1.0);
+    }
+
+    const remainingDemandAfterStaff = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
+    const familySupportAbsorbedHours = Math.round(Math.min(remainingDemandAfterStaff, rawFamilyHours) * 10) / 10;
+
+    // Task Delegation Relief Analysis across Staff and Capable Family
+    const transfersCoveredByStaff = selectedTypes.some(performsHeavyTransfers);
+    const transfersCoveredByFamilyMembers = secondaryMembers
+      .filter((m) => !m.hasPhysicalLimitation && m.age < 60 && m.assignedTasks.includes('heavy_transfers'))
+      .map((m) => m.name || m.relationship.replace('_', ' '));
+    const isTransfersRelieved = transfersCoveredByStaff || transfersCoveredByFamilyMembers.length > 0;
+
+    const bathingCoveredByStaff = selectedTypes.some((t) => t === 'paid_attendant_12h' || t === 'paid_attendant_24h' || t === 'trained_nurse_12h' || t === 'trained_nurse_24h');
+    const bathingCoveredByFamilyMembers = secondaryMembers
+      .filter((m) => !m.hasPhysicalLimitation && m.assignedTasks.includes('bathing'))
+      .map((m) => m.name || m.relationship.replace('_', ' '));
+    const isBathingRelieved = bathingCoveredByStaff || bathingCoveredByFamilyMembers.length > 0;
+
+    const nightCareCoveredByStaff = selectedTypes.some((t) => t.includes('24h'));
+    const nightCareCoveredByFamilyMembers = secondaryMembers
+      .filter((m) => m.assignedTasks.includes('night_care'))
+      .map((m) => m.name || m.relationship.replace('_', ' '));
+    const isNightCareRelieved = nightCareCoveredByStaff || nightCareCoveredByFamilyMembers.length > 0;
+
+    const medsCoveredByStaff = (safeCaregiver.formalSupport?.handlesMedicationWoundCare ?? false) || selectedTypes.some((t) => t.includes('nurse'));
+    const medsCoveredByFamilyMembers = secondaryMembers
+      .filter((m) => m.assignedTasks.includes('medications'))
+      .map((m) => m.name || m.relationship.replace('_', ' '));
+    const isMedsRelieved = medsCoveredByStaff || medsCoveredByFamilyMembers.length > 0;
+
+    // Residual Patient Demand after Formal Staff & Family absorption
+    const residualDemandOnPrimary = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours - familySupportAbsorbedHours);
 
     // 5. Compute Primary Caregiver Safe Daily Capacity (Hours/Day)
     let capacityHours = safeCaregiver.dailyHoursCommitted;
@@ -272,42 +456,69 @@ export class CareGapEngine {
     else if (funcCap === 'moderate_limitations') funcDeduction = 2.5;
     else if (funcCap === 'severe_disability') funcDeduction = 4.5;
 
-    // Kinship / Senior Dyad Strain. The >= 65 health deduction below already
-    // captures the caregiver's own ageing, so this adds only the increment
-    // specific to a senior spouse dyad (co-resident, no relief shift).
+    // Kinship / Senior Dyad Strain
     let kinshipDeduction = 0;
     if (safeCaregiver.kinship === 'spouse' && safeCaregiver.age >= 65) {
-      kinshipDeduction = 1.0;
+      kinshipDeduction = (familySupportAbsorbedHours >= 2.0 || formalSupportAbsorbedHours >= 4.0) ? 0.5 : 1.0;
     }
 
-    // Caregiver's Own Health Reductions
+    // Caregiver's Own Health Reductions with task relief credits
     let healthDeduction = 0;
-    if (safeHealth.hasBackPain) healthDeduction += 1.5;
-    if (safeHealth.hasArthritis) healthDeduction += 1.0;
-    if (safeHealth.hasInsomnia) healthDeduction += 1.0;
-    if (safeCaregiver.age >= 65) healthDeduction += 1.5; // Senior caring for senior dyad
+    if (safeHealth.hasBackPain) healthDeduction += isTransfersRelieved ? 0.5 : 1.5;
+    if (safeHealth.hasArthritis) healthDeduction += isBathingRelieved ? 0.3 : 1.0;
+    if (safeHealth.hasInsomnia) healthDeduction += isNightCareRelieved ? 0.3 : 1.0;
+    if (safeCaregiver.age >= 65) healthDeduction += 1.5;
 
-    // Secondary Family Members Support Network Buffer. Secondary relatives take
-    // discrete tasks (a grocery run, an evening medication round) rather than
-    // full shifts, so the buffer is deliberately smaller than a formal support
-    // contribution and is capped well below it.
-    const secondaryFamilyCount = Math.max(0, safeCaregiver.otherFamilyMembersCount ?? 0);
+    // Secondary Family Members Support Network Buffer
+    const secondaryFamilyCount = Math.max(
+      0,
+      safeCaregiver.secondaryMembers?.length ?? safeCaregiver.otherFamilyMembersCount ?? 0
+    );
     const familyNetworkBuffer = Math.min(1.5, secondaryFamilyCount * 0.5);
 
     const caregiverSafeCapacityHours = Math.max(
       1.0,
-      Math.round(
-        (capacityHours + familyNetworkBuffer - funcDeduction - kinshipDeduction - healthDeduction) * 10
-      ) / 10
+      Math.round((capacityHours + familyNetworkBuffer - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
     );
 
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
-    const netCareGapHours = Math.max(0, Math.round((residualDemand - caregiverSafeCapacityHours) * 10) / 10);
+    const netCareGapHours = Math.max(0, Math.round((residualDemandOnPrimary - caregiverSafeCapacityHours) * 10) / 10);
 
-    // 7. Care Gap Severity Classification.
-    // These boundaries are the single source of truth for both the severity
-    // label and the burnout level below; they previously disagreed (4.5 vs 4.0),
-    // so a 4.2h gap rendered "High Deficit" and "Critical Burnout" side by side.
+    // Team Allocations
+    const primaryAbsorbedHours = Math.min(caregiverSafeCapacityHours, residualDemandOnPrimary);
+    const unmetGapHours = netCareGapHours;
+
+    const teamAllocations = {
+      primaryCaregiverHours: Math.round(primaryAbsorbedHours * 10) / 10,
+      formalStaffHours: formalSupportAbsorbedHours,
+      secondaryFamilyHours: familySupportAbsorbedHours,
+      unmetGapHours
+    };
+
+    const taskDelegationStatus = {
+      transfersCovered: isTransfersRelieved,
+      transfersCoveredBy: [
+        ...(transfersCoveredByStaff ? ['Formal Attendant / Nurse'] : []),
+        ...transfersCoveredByFamilyMembers
+      ],
+      medicationsCovered: isMedsRelieved,
+      medicationsCoveredBy: [
+        ...(medsCoveredByStaff ? ['Clinical Nurse'] : []),
+        ...medsCoveredByFamilyMembers
+      ],
+      nightCareCovered: isNightCareRelieved,
+      nightCareCoveredBy: [
+        ...(nightCareCoveredByStaff ? ['24h Night Staff'] : []),
+        ...nightCareCoveredByFamilyMembers
+      ],
+      bathingCovered: isBathingRelieved,
+      bathingCoveredBy: [
+        ...(bathingCoveredByStaff ? ['Attendant / Nurse'] : []),
+        ...bathingCoveredByFamilyMembers
+      ]
+    };
+
+    // 7. Care Gap Severity Classification
     const GAP_CRITICAL_THRESHOLD = 4.0;
     const GAP_HIGH_THRESHOLD = 2.0;
 
@@ -319,37 +530,54 @@ export class CareGapEngine {
     // 8. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
     let injuryScore = 20;
 
-    // Only a dedicated attendant or nurse physically performs the daily
-    // bed-to-chair lifts. A visiting medical assistant / physio aide does not,
-    // and a multi-family rotation means the lifting is still being done by
-    // untrained family members — the exact population that needs the transfer
-    // safety guidance below. Neither may suppress lumbar-risk output.
-    const isTransfersHandledByStaff = selectedTypes.some(performsHeavyTransfers);
+    const bmi = (safePatient.weightKg && safePatient.heightCm) 
+      ? (safePatient.weightKg / Math.pow(safePatient.heightCm / 100, 2)) 
+      : undefined;
+
+    const patientWeight = safePatient.weightKg || 60;
+    const weightMultiplier = patientWeight >= 80 || (bmi && bmi >= 28) 
+      ? 1.4 
+      : patientWeight >= 70 
+      ? 1.2 
+      : 1.0;
+    const bedBoundMultiplier = safePatient.isBedBound ? 1.3 : 1.0;
+    const physicalLoadMultiplier = weightMultiplier * bedBoundMultiplier;
 
     if (safeHealth.hasBackPain && !safeKatz.transferring) {
-      injuryScore += isTransfersHandledByStaff ? 10 : 35;
+      injuryScore += Math.round((isTransfersRelieved ? 8 : 35) * physicalLoadMultiplier);
     }
     if (safeHealth.hasArthritis && !safeKatz.bathing) {
-      injuryScore += isTransfersHandledByStaff ? 5 : 20;
+      injuryScore += Math.round((isBathingRelieved ? 4 : 20) * physicalLoadMultiplier);
     }
-    if (safeCaregiver.age >= 60) injuryScore += 15;
-    if (!safeCaregiver.formalTrainingReceived) injuryScore += 15;
+    if (safeCaregiver.age >= 60) {
+      injuryScore += (isTransfersRelieved && isBathingRelieved) ? 5 : 15;
+    }
+    if (!safeCaregiver.formalTrainingReceived) {
+      injuryScore += isTransfersRelieved ? 5 : 15;
+    }
     if (netCareGapHours > 3.0) injuryScore += 20;
+    if (qualityOfCareWarnings.length > 0) {
+      injuryScore += qualityOfCareWarnings.length * 10;
+    }
 
-    // NOTE: formal support is already discounted inside the per-condition
-    // branches above, which is where it is clinically meaningful (staff perform
-    // the lifts, so the caregiver's own back is spared). An additional blanket
-    // deduction here used to collapse every supported dyad into a 10-30 band,
-    // where a frail 68-year-old with back pain scored identically to a healthy
-    // trained caregiver. One discount only.
     const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
 
+    const financialMultiplier =
+      safeCaregiver.monthlyOutOfPocketBurden === 'severe_toxicity' || safeCaregiver.financialStatus === 'severe_toxicity'
+        ? 1.4
+        : safeCaregiver.monthlyOutOfPocketBurden === 'moderate_strain' || safeCaregiver.financialStatus === 'moderate_strain'
+        ? 1.15
+        : 1.0;
+
+    const effectiveGap = netCareGapHours * financialMultiplier;
+    const effectiveInjury = caregiverInjuryRiskScore * financialMultiplier;
+
     let caregiverBurnoutRiskLevel: CareGapEvaluationResult['caregiverBurnoutRiskLevel'] = 'low';
-    if (netCareGapHours > GAP_CRITICAL_THRESHOLD || caregiverInjuryRiskScore >= 75) {
+    if (effectiveGap > GAP_CRITICAL_THRESHOLD || effectiveInjury >= 75 || qualityOfCareWarnings.length > 0) {
       caregiverBurnoutRiskLevel = 'critical';
-    } else if (netCareGapHours > GAP_HIGH_THRESHOLD || caregiverInjuryRiskScore >= 55) {
+    } else if (effectiveGap > GAP_HIGH_THRESHOLD || effectiveInjury >= 55) {
       caregiverBurnoutRiskLevel = 'high';
-    } else if (netCareGapHours > 0.0) {
+    } else if (netCareGapHours > 0.0 || caregiverInjuryRiskScore > 20) {
       caregiverBurnoutRiskLevel = 'moderate';
     }
 
@@ -379,13 +607,21 @@ export class CareGapEngine {
       clinicalFindings.push(
         `Patient requires ${patientCareDemandHours} hrs/day of direct assistance (Katz ADL: ${katzAdlScore}/6). Net unmet care gap after formal support and caregiver capacity is ${netCareGapHours} hrs/day.`
       );
+      const prescribedHours = Math.ceil(netCareGapHours + 0.5);
+      prescriptions.push({
+        id: 'rx_staffing_respite_prescription',
+        title: 'Actionable Respite & Staffing Prescription',
+        action: `Prescribe: ${prescribedHours} hours/day of paid attendant or certified caregiver support to eliminate the unmet care gap of ${netCareGapHours} hours/day. Focus this shift on high-physical-load care activities (e.g. transfers, sponge bathing, or toilet hygiene).`,
+        impact: 'Compensates the unmet care demand hours, reducing physical/mental load on the primary caregiver to zero.',
+        urgency: netCareGapHours >= 4.0 ? 'urgent' : netCareGapHours >= 2.0 ? 'priority' : 'routine'
+      });
     } else {
       clinicalFindings.push(
         `Combined family capacity and formal care support (${caregiverSafeCapacityHours + formalSupportAbsorbedHours} hrs/day) successfully covers patient care demand (${patientCareDemandHours} hrs/day).`
       );
     }
 
-    if (safeHealth.hasBackPain && !safeKatz.transferring && !isTransfersHandledByStaff) {
+    if (safeHealth.hasBackPain && !safeKatz.transferring && !isTransfersRelieved) {
       clinicalFindings.push(
         'High musculoskeletal injury risk: Caregiver has pre-existing back pain while patient is dependent in bed-to-chair transfers.'
       );
@@ -451,12 +687,16 @@ export class CareGapEngine {
       patientCareDemandHours,
       caregiverSafeCapacityHours,
       formalSupportAbsorbedHours,
+      familySupportAbsorbedHours,
       netCareGapHours,
+      teamAllocations,
+      taskDelegationStatus,
       careGapSeverity,
       caregiverInjuryRiskScore,
       caregiverBurnoutRiskLevel,
       clinicalFindings,
       prescriptions,
+      qualityOfCareWarnings,
       evaluatedAt: now.toISOString()
     };
   }
