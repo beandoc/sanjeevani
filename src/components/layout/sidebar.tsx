@@ -380,44 +380,46 @@ export function AppSidebar() {
             />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-base font-black font-headline tracking-tight text-sidebar-foreground">
-              कुटुम्ब <span className="text-xs font-bold text-muted-foreground font-sans">Kutumbh</span>
+            <span className="text-base font-black font-headline tracking-tight text-white">
+              कुटुम्ब <span className="text-xs font-bold text-slate-300 font-sans">Kutumbh</span>
             </span>
-            <span className="text-[10px] text-primary font-bold -mt-0.5 tracking-tight font-sans">
+            <span className="text-[10px] text-sky-400 font-bold -mt-0.5 tracking-tight font-sans">
               स्नेह, संबल और स्वास्थ्य
             </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-3 gap-4 overflow-y-auto">
+      <SidebarContent className="px-2.5 py-3.5 gap-4 overflow-y-auto">
         {/* Active Portal Indicator & Quick Role Switcher */}
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
-            <div className="px-3 py-2.5 rounded-xl bg-sidebar-accent/60 border border-sidebar-border group-data-[collapsible=icon]:hidden space-y-2">
+            <div className="px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 group-data-[collapsible=icon]:hidden space-y-2.5 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-mono font-bold text-muted-foreground">Active Portal</span>
+                <span className="text-[10px] uppercase font-mono font-extrabold text-slate-300 tracking-wider">Active Portal</span>
                 <Badge
                   variant="outline"
                   className={cn(
-                    'text-[9px] font-bold uppercase tracking-wider',
-                    isDoctor ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' :
-                      isNurse ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10' :
-                        'border-primary/40 text-primary bg-primary/10'
+                    'text-[9px] font-extrabold uppercase tracking-wider',
+                    isDoctor ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/15' :
+                      isNurse ? 'border-amber-500/50 text-amber-400 bg-amber-500/15' :
+                        'border-sky-500/50 text-sky-400 bg-sky-500/15'
                   )}
                 >
                   {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
                 </Badge>
               </div>
-              <div className="flex items-center gap-1 pt-0.5 w-full">
+              <div className="flex items-center gap-1.5 pt-0.5 w-full">
                 {!isUserDoctor && (
                   <>
                     <button
                       type="button"
                       onClick={() => setRole('caregiver')}
                       className={cn(
-                        'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                        role === 'caregiver' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                        'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                        role === 'caregiver'
+                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                          : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
                       )}
                     >
                       Caregiver
@@ -426,8 +428,10 @@ export function AppSidebar() {
                       type="button"
                       onClick={() => setRole('nurse')}
                       className={cn(
-                        'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                        role === 'nurse' ? 'bg-amber-600 text-white shadow-xs' : 'text-muted-foreground hover:bg-sidebar-accent'
+                        'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                        role === 'nurse'
+                          ? 'bg-amber-600 text-white border-amber-500 shadow-xs'
+                          : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
                       )}
                     >
                       Nurse
@@ -439,8 +443,10 @@ export function AppSidebar() {
                     type="button"
                     onClick={() => setRole('doctor')}
                     className={cn(
-                      'text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex-1 text-center',
-                      isDoctor ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground'
+                      'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                      isDoctor
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                        : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
                     )}
                   >
                     Doctor
@@ -458,13 +464,13 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   onClick={() => setIsSearchOpen(true)}
                   tooltip={{ children: 'Quick Search (⌘K)' }}
-                  className="h-9 px-3 rounded-xl bg-primary/5 hover:bg-primary/15 text-primary font-semibold text-xs border border-primary/20 transition-all flex items-center justify-between"
+                  className="h-9 px-3 rounded-xl bg-slate-900/85 hover:bg-slate-800 text-slate-200 hover:text-white font-semibold text-xs border border-slate-700/80 hover:border-slate-600 transition-all flex items-center justify-between shadow-xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Search className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">Quick Search</span>
+                    <Search className="h-4 w-4 shrink-0 text-sky-400" />
+                    <span className="truncate text-slate-200 group-data-[collapsible=icon]:hidden">Quick Search</span>
                   </div>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 group-data-[collapsible=icon]:hidden">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 group-data-[collapsible=icon]:hidden">
                     ⌘K
                   </span>
                 </SidebarMenuButton>
@@ -476,7 +482,7 @@ export function AppSidebar() {
         {navSections.map((section, idx) => (
           <SidebarGroup key={idx} className="p-0">
             {section.title && (
-              <SidebarGroupLabel className="px-3 text-[10px] uppercase font-bold tracking-wider text-muted-foreground/80 mb-1 group-data-[collapsible=icon]:hidden">
+              <SidebarGroupLabel className="px-3 text-[11px] uppercase font-extrabold tracking-wider text-slate-300/90 mb-1 group-data-[collapsible=icon]:hidden">
                 {section.title}
               </SidebarGroupLabel>
             )}
@@ -491,12 +497,12 @@ export function AppSidebar() {
                         isActive={active}
                         tooltip={{ children: link.label }}
                         className={cn(
-                          'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-medium',
+                          'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-semibold',
                           active
-                            ? 'bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20'
+                            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/40 border border-blue-400/30'
                             : link.isHighlighted
-                              ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold'
-                              : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground/85'
+                              ? 'bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 hover:text-white border border-sky-500/30 font-semibold'
+                              : 'text-slate-200 hover:text-white hover:bg-slate-800/90'
                         )}
                       >
                         <Link href={link.href} className="flex items-center justify-between w-full">
@@ -504,7 +510,11 @@ export function AppSidebar() {
                             <link.icon
                               className={cn(
                                 'h-4 w-4 shrink-0 transition-transform duration-200',
-                                active ? 'scale-110 text-primary-foreground' : link.isHighlighted ? 'text-primary' : 'opacity-70'
+                                active
+                                  ? 'scale-110 text-white'
+                                  : link.isHighlighted
+                                    ? 'text-sky-300'
+                                    : 'text-slate-300 group-hover:text-white'
                               )}
                             />
                             <span className="truncate">{link.label}</span>
@@ -513,12 +523,12 @@ export function AppSidebar() {
                           {link.badge && (
                             <span
                               className={cn(
-                                'text-[9px] font-bold px-1.5 py-0.2 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5',
+                                'text-[9px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border',
                                 active
-                                  ? 'bg-white/20 text-white'
+                                  ? 'bg-white/20 text-white border-white/30'
                                   : link.isHighlighted
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted text-muted-foreground'
+                                    ? 'bg-sky-500 text-white border-sky-400'
+                                    : 'bg-slate-800 text-slate-200 border-slate-700/80 shadow-2xs'
                               )}
                             >
                               {link.badge}
