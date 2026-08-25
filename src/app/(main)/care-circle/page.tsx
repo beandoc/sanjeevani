@@ -178,11 +178,11 @@ export default function CareCirclePage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
             <Users className="w-4 h-4" />
-            <span>Family & Clinical Collaboration</span>
+            <span>Kutumbh (कुटुम्ब) & Clinical Collaboration</span>
           </div>
-          <h1 className="text-3xl font-bold font-headline">Care Circle Sharing & Tasks</h1>
-          <p className="text-muted-foreground text-sm">
-            Coordinate tasks with family members, home nurses, and doctors to prevent caregiver overload.
+          <h1 className="text-2xl sm:text-3xl font-bold font-headline">Kutumbh Care Circle & Task Rota</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">
+            Coordinate tasks with Kutumbh family members, home nurses, and doctors to prevent caregiver overload.
           </p>
         </div>
 

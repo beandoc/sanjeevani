@@ -42,7 +42,7 @@ async function ensureUserProfile(uid: string, role: Role, extra?: Record<string,
   try {
     const ref = doc(db, 'users', uid);
     const existing = await getDoc(ref);
-    const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : 'caregiver';
+    const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : role === 'nurse' ? 'nurse' : 'caregiver';
 
     if (!existing.exists()) {
       await setDoc(ref, {
@@ -87,10 +87,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
   const cleanEmail = email.toLowerCase();
   const inferredRole: Role = (
     cleanEmail.includes('doctor') ||
-    cleanEmail.includes('clinic') ||
-    cleanEmail.includes('nurse') ||
-    cleanEmail.includes('vidya')
-  ) ? 'professional' : 'caregiver';
+    cleanEmail.includes('clinic')
+  ) ? 'professional' : cleanEmail.includes('nurse') || cleanEmail.includes('vidya') ? 'nurse' : 'caregiver';
 
   let displayName = cred.user.displayName;
   if (!displayName) {
@@ -99,11 +97,11 @@ export async function signInWithEmail(email: string, password: string): Promise<
     } else if (cleanEmail.includes('vidya')) {
       displayName = 'Nurse Vidya';
     } else if (cleanEmail.includes('sudhir')) {
-      displayName = 'Sudhir Kumar';
+      displayName = 'Sudhir Kumar (Kutumbh)';
     } else if (cleanEmail.includes('nurse')) {
       displayName = 'Nurse Sister Anjali';
     } else {
-      displayName = 'Suresh Kumar';
+      displayName = 'Suresh Kumar (Kutumbh Caregiver)';
     }
   }
 
@@ -112,19 +110,19 @@ export async function signInWithEmail(email: string, password: string): Promise<
 }
 
 /**
- * Demo/local-development convenience: signs into a fixed emulator account
+ * Demo/local-development convenience: signs into a fixed account
  * for the given role, creating it on first use.
  */
-const DEMO_CREDENTIALS: Record<'caregiver' | 'nurse' | 'doctor', { email: string; password: string }> = {
-  caregiver: { email: 'caregiver@sanjeevani.com', password: 'test1234' },
-  nurse: { email: 'nurse@sanjeevani.com', password: 'test1234' },
-  doctor: { email: 'doctor@sanjeevani.com', password: 'test1234' }
+export const DEMO_CREDENTIALS: Record<'caregiver' | 'nurse' | 'doctor', { email: string; password: string }> = {
+  caregiver: { email: 'caregiver@kutumbh.com', password: 'test1234' },
+  nurse: { email: 'nurse@kutumbh.com', password: 'test1234' },
+  doctor: { email: 'doctor@kutumbh.com', password: 'test1234' }
 };
 
 export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
   const credentialKey = role === 'professional' ? 'doctor' : role === 'nurse' ? 'nurse' : role === 'doctor' ? 'doctor' : 'caregiver';
   const { email, password } = DEMO_CREDENTIALS[credentialKey];
-  const roleName = role === 'doctor' || role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar';
+  const roleName = role === 'doctor' || role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar (Kutumbh Caregiver)';
 
   if (!auth) {
     return {
@@ -153,7 +151,10 @@ export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
     await ensureUserProfile(user.uid, role, { displayName: roleName, email });
     return user;
   } catch {
-    return await signUpWithEmail(email, password, role, roleName).catch(() => {
+    try {
+      const user = await signUpWithEmail(email, password, role, roleName);
+      return user;
+    } catch {
       return {
         uid: `demo-${role}-offline-uid`,
         email,
@@ -173,7 +174,7 @@ export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
         photoURL: null,
         providerId: 'demo'
       } as unknown as User;
-    });
+    }
   }
 }
 

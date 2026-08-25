@@ -137,15 +137,29 @@ export function ClinicalSummaryPrint({
       </div>
 
       {/* 3. Care Gap & Biomechanical Deficit Findings */}
-      <div className="p-3 bg-amber-50/60 border border-amber-300 rounded-lg text-xs space-y-1">
-        <span className="text-[10px] uppercase font-bold text-amber-900 block">
-          Geriatric Care Gap & Physical Fatigue Indicator
-        </span>
+      <div className="p-3 bg-amber-50/60 border border-amber-300 rounded-lg text-xs space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase font-bold text-amber-900 block">
+            Geriatric Care Gap & Physical Fatigue Indicator
+          </span>
+          <span className="text-[10px] font-bold text-slate-700">
+            Ergonomic Discount: -{careGapEval.assistiveDeviceStatus?.ergonomicInjuryDiscountPercent || 0}%
+          </span>
+        </div>
         <p className="text-slate-800">
           Patient requires <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance. 
           {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff absorbs ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
           Caregiver safe physical threshold is <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong> (Caregiver Lumbar Injury Risk: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>).
         </p>
+        <div className="flex items-center gap-2 pt-1 border-t border-amber-200 text-[11px] text-slate-700">
+          <span><strong>Assistive Devices:</strong> {[
+            careGapEval.assistiveDeviceStatus?.hasHospitalBed ? `Hospital Bed (${careGapEval.assistiveDeviceStatus.bedType.replace('_', ' ')})` : 'Standard Bed',
+            careGapEval.assistiveDeviceStatus?.hasAirWaterMattress ? 'Alternating Ripple Mattress' : null,
+            careGapEval.assistiveDeviceStatus?.hasWheelchair ? 'Wheelchair' : null,
+            careGapEval.assistiveDeviceStatus?.hasSuctionApparatus ? 'Suction Unit' : null,
+            careGapEval.assistiveDeviceStatus?.hasTransferAids ? 'Transfer Gait Belt' : null
+          ].filter(Boolean).join(' • ')}</span>
+        </div>
       </div>
 
       {/* 4. Standardized Zarit Caregiver Burden Scale (ZBI) Psychometrics */}

@@ -149,10 +149,39 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-indigo-500;
   }
 
-  /* Mobile-first minimum touch target */
+  /* Mobile-first minimum touch target & safe-area insets */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+  }
+
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
+  }
+
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Hide scrollbar for clean horizontal chip bars while preserving swipe */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Prevent auto-zooming on iOS inputs while keeping compact desktop styling */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
   }
 }
 
@@ -172,7 +201,7 @@
     color: #000000 !important;
   }
 
-  header, aside, nav, button, .no-print {
+  header, aside, nav, button, .no-print, .mobile-bottom-nav {
     display: none !important;
   }
 

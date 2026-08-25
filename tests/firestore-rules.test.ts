@@ -96,4 +96,35 @@ describe('Firestore Security Rules Compliance Audit', () => {
     assert.ok(rulesContent.includes("function isCircleMember(circleData)"));
     assert.ok(rulesContent.includes("request.auth.uid in circleData.memberUids"));
   });
+
+  test('should allow doctor, nurse, professional, and caregiver roles without blocking profile creation or updates', () => {
+    assert.ok(
+      rulesContent.includes("request.resource.data.role in ['caregiver', 'professional', 'doctor', 'nurse']")
+    );
+    assert.ok(
+      rulesContent.includes("get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor', 'nurse']")
+    );
+  });
+
+  test('should confirm kutumbh.com demo credentials configuration for doctor, nurse, and caregiver', async () => {
+    const { DEMO_CREDENTIALS, signInOrCreateDemoAccount } = await import('../src/lib/firebase/auth');
+    assert.strictEqual(DEMO_CREDENTIALS.doctor.email, 'doctor@kutumbh.com');
+    assert.strictEqual(DEMO_CREDENTIALS.doctor.password, 'test1234');
+    assert.strictEqual(DEMO_CREDENTIALS.nurse.email, 'nurse@kutumbh.com');
+    assert.strictEqual(DEMO_CREDENTIALS.nurse.password, 'test1234');
+    assert.strictEqual(DEMO_CREDENTIALS.caregiver.email, 'caregiver@kutumbh.com');
+    assert.strictEqual(DEMO_CREDENTIALS.caregiver.password, 'test1234');
+
+    const doctorUser = await signInOrCreateDemoAccount('doctor');
+    assert.ok(doctorUser);
+    assert.strictEqual(doctorUser.email, 'doctor@kutumbh.com');
+
+    const nurseUser = await signInOrCreateDemoAccount('nurse');
+    assert.ok(nurseUser);
+    assert.strictEqual(nurseUser.email, 'nurse@kutumbh.com');
+
+    const caregiverUser = await signInOrCreateDemoAccount('caregiver');
+    assert.ok(caregiverUser);
+    assert.strictEqual(caregiverUser.email, 'caregiver@kutumbh.com');
+  });
 });

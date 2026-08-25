@@ -138,10 +138,19 @@ export interface DivergencePoint {
   divergenceIndex: number;
 }
 
+export interface CareMatrixInterventionMarker {
+  id: string;
+  date: string; // ISO string
+  title: string;
+  type: 'formal_support' | 'family_rotation' | 'assistive_device' | 'respite_plan';
+  description?: string;
+}
+
 export interface TrajectoryResult {
   burdenSeries: BurdenSeriesPoint[];
   functionSeries: FunctionSeriesPoint[];
   tierChanges: TierChangeMarker[];
+  interventions?: CareMatrixInterventionMarker[];
   burdenSlope: SlopeResult;
   functionSlope: SlopeResult; // slope of dependencyPercentage (higher = worse)
   divergence: DivergencePoint[];
@@ -438,7 +447,8 @@ function determineRiskBand(
 export function computeTrajectory(
   assessments: ZaritEvaluationResult[],
   functionScores: FunctionEvaluationResult[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  interventions: CareMatrixInterventionMarker[] = []
 ): TrajectoryResult {
   const { series: burdenSeries, tierChanges } = buildBurdenSeries(assessments);
   const functionSeries = buildFunctionSeries(functionScores);
@@ -471,6 +481,7 @@ export function computeTrajectory(
     burdenSeries,
     functionSeries,
     tierChanges,
+    interventions,
     burdenSlope,
     functionSlope,
     divergence,

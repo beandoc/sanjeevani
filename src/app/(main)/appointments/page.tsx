@@ -120,33 +120,33 @@ export default function AppointmentsPage() {
   );
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
           <CalendarCheck className="w-4 h-4" />
           <span>Care Schedule & Follow-ups</span>
         </div>
-        <h1 className="text-3xl font-bold font-headline">Clinical Appointments & Tele-OPD</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Clinical Appointments & Tele-OPD</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm">
           Coordinate consultations with geriatricians, specialists, and home-care visits.
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-border shadow-sm bg-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Schedule New Consultation</CardTitle>
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border-border shadow-xs bg-card">
+          <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg">Schedule New Consultation</CardTitle>
             <CardDescription className="text-xs">
               Select a date on the calendar, then fill out the doctor and clinic details.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-8 md:grid-cols-2">
-            <div className="flex justify-center">
+          <CardContent className="p-4 sm:p-6 pt-0 grid gap-4 sm:gap-8 md:grid-cols-2">
+            <div className="flex justify-center w-full overflow-x-auto">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={setDate}
-                className="rounded-2xl border bg-background/50 shadow-sm"
+                className="rounded-2xl border bg-background/50 shadow-xs max-w-full"
                 modifiers={{
                   scheduled: appointments.map((app) => new Date(app.date)),
                 }}

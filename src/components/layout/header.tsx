@@ -43,14 +43,14 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-16 sm:h-20 items-center justify-between gap-2 sm:gap-4 bg-background/80 px-4 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
+      <header className="sticky top-0 z-40 flex h-14 sm:h-20 items-center justify-between gap-1.5 sm:gap-4 bg-background/90 px-3 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
         {/* Left: Mobile Trigger & Brand & Search */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="md:hidden">
-            <SidebarTrigger className="h-10 w-10 rounded-xl hover:bg-muted/80" />
+            <SidebarTrigger className="h-9 w-9 rounded-xl hover:bg-muted/80" />
           </div>
-          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 md:hidden">
-            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-primary/20">
+          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-1.5 md:hidden">
+            <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-primary/20 shrink-0">
               <Image
                 src="/logo.png"
                 alt="Sanjeevani Logo"
@@ -58,7 +58,7 @@ export function Header() {
                 className="object-cover"
               />
             </div>
-            <span className="font-headline font-black text-base tracking-tight text-foreground">
+            <span className="font-headline font-black text-sm tracking-tight text-foreground">
               Sanjeevani
             </span>
           </Link>
@@ -77,16 +77,16 @@ export function Header() {
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4">
+        <div className="flex items-center gap-1 sm:gap-2.5 md:gap-3 shrink-0">
           {/* Mobile Search Icon Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsSearchOpen(true)}
-            className="md:hidden h-9 w-9 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground"
+            className="md:hidden h-8 w-8 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground"
             title="Global Search (⌘K)"
           >
-            <Search className="h-4 w-4 text-primary" />
+            <Search className="h-3.5 w-3.5 text-primary" />
           </Button>
 
           {/* Caregiver Bedside Troubleshooting Trigger */}
@@ -105,17 +105,16 @@ export function Header() {
             variant="outline"
             size="sm"
             onClick={() => setIsCrisisOpen(true)}
-            className="rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-xs gap-1.5 shrink-0"
+            className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-xs gap-1.5 shrink-0"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-            <span className="hidden sm:inline">Crisis & Helplines</span>
-            <span className="sm:hidden font-mono">14416 / 112</span>
+            <span>Crisis & Helplines</span>
           </Button>
 
           <HeaderControls />
           <LanguageSwitcher />
 
-          <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
+          <div className="h-5 w-px bg-border/60 mx-0.5 hidden sm:block" />
 
           {/* Profile & Role Dropdown */}
           <DropdownMenu>
@@ -137,8 +136,8 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Caregiver Hub</span>
-                  <Badge variant="outline" className="text-[9px]">Caregiver</Badge>
+                  <span>Kutumbh Hub (Family)</span>
+                  <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Kutumbh</Badge>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">

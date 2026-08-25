@@ -40,6 +40,7 @@ import {
   verifyCaregiverOtp,
   signInOrCreateDemoAccount,
   getUserRole,
+  DEMO_CREDENTIALS,
   type ConfirmationResult
 } from '@/lib/firebase/auth';
 
@@ -65,6 +66,18 @@ export default function LoginPage() {
   const [abhaId, setAbhaId] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
+  const fillDemoCredentials = (roleKey: 'doctor' | 'nurse' | 'caregiver') => {
+    const creds = DEMO_CREDENTIALS[roleKey];
+    setEmail(creds.email);
+    setPassword(creds.password);
+    setSelectedRole(roleKey === 'doctor' ? 'professional' : roleKey);
+    setAuthMethod('email');
+    toast({
+      title: 'Demo Credentials Loaded',
+      description: `Loaded ${creds.email} with password ${creds.password}`
+    });
+  };
+
   /** Routes by the account's actual stored role, not the login toggle — a
    * returning user's role is authoritative in Firestore, so this can't be
    * fooled by whichever tab they happened to leave selected. */
@@ -82,12 +95,23 @@ export default function LoginPage() {
       localStorage.setItem('sanjeevani_user_role', actualRole);
     }
 
+    const roleName =
+      actualRole === 'doctor' || actualRole === 'professional'
+        ? 'Doctor / Clinician Portal'
+        : actualRole === 'nurse'
+        ? 'Nursing Officer Portal'
+        : 'Kutumbh Family Caregiver Hub';
+
     toast({
       title: 'Authentication Successful',
-      description: `Welcome to Sanjeevani. Please complete the Clinical Intake & Dyad Setup Wizard.`
+      description: `Welcome to Sanjeevani (${roleName}).`
     });
 
-    router.push('/onboarding');
+    if (actualRole === 'doctor' || actualRole === 'professional' || actualRole === 'nurse') {
+      router.push('/clinic/roster');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -113,6 +137,9 @@ export default function LoginPage() {
               signInErr?.message?.includes('invalid-credential');
 
             const isKnownDemoEmail =
+              cleanEmail.toLowerCase() === 'doctor@kutumbh.com' ||
+              cleanEmail.toLowerCase() === 'nurse@kutumbh.com' ||
+              cleanEmail.toLowerCase() === 'caregiver@kutumbh.com' ||
               cleanEmail.toLowerCase() === 'doctor@sanjeevani.com' ||
               cleanEmail.toLowerCase() === 'nurse@sanjeevani.com' ||
               cleanEmail.toLowerCase() === 'caregiver@sanjeevani.com' ||
@@ -121,13 +148,13 @@ export default function LoginPage() {
 
             if (isUserNotFound && (isKnownDemoEmail || cleanPassword.length >= 6)) {
               try {
-                let roleName = 'Suresh Kumar';
+                let roleName = 'Suresh Kumar (Kutumbh Caregiver)';
                 if (cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')) {
                   roleName = 'Dr. Vivek';
                 } else if (cleanEmail.toLowerCase().includes('vidya')) {
                   roleName = 'Nurse Vidya';
                 } else if (cleanEmail.toLowerCase().includes('sudhir')) {
-                  roleName = 'Sudhir Kumar';
+                  roleName = 'Sudhir Kumar (Kutumbh)';
                 } else if (cleanEmail.toLowerCase().includes('nurse')) {
                   roleName = 'Nurse Sister Anjali';
                 }
@@ -216,11 +243,16 @@ export default function LoginPage() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('sanjeevani_user_role', demoRole);
       }
+      const roleLabel = demoRole === 'doctor' || demoRole === 'professional' ? 'Doctor Portal (Dr. Vivek)' : demoRole === 'nurse' ? 'Nurse Portal (Sister Anjali)' : 'Kutumbh Family Caregiver Hub';
       toast({
         title: 'Demo Session Activated',
-        description: 'Launching Clinical Intake Wizard for baseline calibration.'
+        description: `Signed in as ${roleLabel}.`
       });
-      router.push('/onboarding');
+      if (demoRole === 'doctor' || demoRole === 'nurse' || demoRole === 'professional') {
+        router.push('/clinic/roster');
+      } else {
+        router.push('/dashboard');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -323,28 +355,31 @@ export default function LoginPage() {
             <LanguageSwitcher />
           </div>
 
-          {/* Role Persona Segmented Switch (Caregiver, Nurse, Doctor) */}
+          {/* Role Persona Segmented Switch (Kutumbh Caregiver, Nurse, Doctor) */}
           <div className="mt-5 space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Select Active Persona / Portal
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Select Active Persona / Portal
+              </Label>
+              <span className="text-[10px] text-primary font-bold">Kutumbh = Family (कुटुम्ब)</span>
+            </div>
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-2xl border border-border/60">
               <button
                 type="button"
                 onClick={() => setSelectedRole('caregiver')}
-                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   selectedRole === 'caregiver'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Users className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="truncate">Caregiver</span>
+                <span className="truncate">Kutumbh (Family)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedRole('nurse')}
-                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   selectedRole === 'nurse'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
@@ -356,7 +391,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('professional')}
-                className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   selectedRole === 'professional' || selectedRole === 'doctor'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
@@ -436,6 +471,38 @@ export default function LoginPage() {
                     {isSignUp ? 'Have an account? Sign in' : 'New here? Create account'}
                   </button>
                 </div>
+                {/* Quick Fill Demo Credentials Bar */}
+                <div className="p-2.5 rounded-2xl bg-muted/60 border border-border/70 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-primary" /> Demo Logins (Password: <code className="font-mono text-primary font-bold">test1234</code>)
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => fillDemoCredentials('doctor')}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-bold hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
+                    >
+                      <Stethoscope className="w-3 h-3" /> doctor@kutumbh.com
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemoCredentials('nurse')}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-mono font-bold hover:bg-amber-500/20 transition-all flex items-center gap-1.5"
+                    >
+                      <Bed className="w-3 h-3" /> nurse@kutumbh.com
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemoCredentials('caregiver')}
+                      className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/30 text-[11px] font-mono font-bold hover:bg-primary/20 transition-all flex items-center gap-1.5"
+                    >
+                      <Users className="w-3 h-3" /> caregiver@kutumbh.com
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-semibold">Institutional / Account Email</Label>
                   <div className="relative">
@@ -443,7 +510,7 @@ export default function LoginPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="doctor@hospital.org or caregiver@sanjeevani.in"
+                      placeholder="doctor@kutumbh.com, nurse@kutumbh.com, or caregiver@kutumbh.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-9 h-10 text-xs font-medium"
@@ -493,6 +560,7 @@ export default function LoginPage() {
                       <Input
                         id="mobile"
                         type="tel"
+                        inputMode="tel"
                         maxLength={10}
                         placeholder="9820012345"
                         value={mobile}
@@ -518,6 +586,9 @@ export default function LoginPage() {
                     <Label htmlFor="otp" className="text-xs font-semibold">Enter 6-Digit OTP</Label>
                     <Input
                       id="otp"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       maxLength={6}
                       placeholder="123456"
                       value={otp}
@@ -588,7 +659,7 @@ export default function LoginPage() {
                 className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
               >
                 <Users className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="truncate">Demo Caregiver</span>
+                <span className="truncate">Kutumbh Family</span>
               </Button>
               <Button
                 type="button"
@@ -598,7 +669,7 @@ export default function LoginPage() {
                 className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
               >
                 <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span className="truncate">Demo Nurse</span>
+                <span className="truncate">Sister Anjali</span>
               </Button>
               <Button
                 type="button"
@@ -608,7 +679,7 @@ export default function LoginPage() {
                 className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
               >
                 <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">Demo Doctor</span>
+                <span className="truncate">Dr. Vivek</span>
               </Button>
             </div>
           </div>

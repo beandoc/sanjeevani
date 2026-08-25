@@ -9,7 +9,15 @@ import { RoleProvider } from '@/context/role-context';
 import { PwaRegister } from '@/components/layout/pwa-register';
 
 export const viewport: Viewport = {
-  themeColor: '#0f766e',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#0f766e' },
+    { media: '(prefers-color-scheme: dark)', color: '#090d16' }
+  ]
 };
 
 export const metadata: Metadata = {
@@ -17,6 +25,14 @@ export const metadata: Metadata = {
   description:
     'Evidence-based geriatric caregiver decision support, Zarit burden assessment, and clinical simulation platform for India.',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Sanjeevani'
+  },
+  formatDetection: {
+    telephone: true
+  }
 };
 
 import { NextIntlClientProvider } from 'next-intl';

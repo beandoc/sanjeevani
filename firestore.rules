@@ -25,14 +25,14 @@ service cloud.firestore {
       return tier == 'ZBI22' ? 88 : (tier == 'ZBI12' ? 48 : 16);
     }
 
-    // Clinician dashboard: a caregiver's account is professional-verified,
+    // Clinician dashboard: a user account is professional/clinical-verified,
     // and has been actively granted access to this specific patient's dyad.
     function isProfessional(uid) {
       return isAuthenticated()
           && exists(/databases/$(database)/documents/users/$(uid))
           && (
             !('role' in get(/databases/$(database)/documents/users/$(uid)).data)
-            || get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor']
+            || get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor', 'nurse']
           );
     }
 
@@ -55,12 +55,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || hasActiveGrant(userId);
       allow create: if (isOwner(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
-                    && request.resource.data.role in ['caregiver', 'professional']
+                    && request.resource.data.role in ['caregiver', 'professional', 'doctor', 'nurse']
                     && request.resource.data.keys().hasAll(['role', 'createdAt'])
                     && request.resource.data.createdAt is timestamp;
       allow update: if isOwner(userId)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'userId']))
-                    && (request.resource.data.role in ['caregiver', 'professional']);
+                    && (request.resource.data.role in ['caregiver', 'professional', 'doctor', 'nurse']);
       allow delete: if isOwner(userId);
 
       // Subcollection: Care Recipients (Elderly profiles under caregiver management)

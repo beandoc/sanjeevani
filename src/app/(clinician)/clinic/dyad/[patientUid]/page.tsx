@@ -49,12 +49,13 @@ import {
   getCaregiverAttributesFor,
   saveCaregiverAttributesFor,
   getPatientProfileFor,
+  savePatientProfileFor,
   getAppointmentsFor
 } from '@/lib/firebase/clinical-sync';
 import type { MedicationItem, VitalRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
-import type { CaregiverAttributes, PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
-import { computeTrajectory, type TrajectoryResult } from '@/lib/analytics/trajectory';
+import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory } from '@/lib/clinical/care-gap-engine';
+import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
 import { ScissorsChart } from '@/components/clinician/scissors-chart';
 import { RiskHeader } from '@/components/clinician/risk-header';
@@ -159,8 +160,19 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         }
       }
 
+      const interventions: CareMatrixInterventionMarker[] = [];
+      if (patientUid.startsWith('demo-') && assessments.length > 0) {
+        interventions.push({
+          id: 'iv_demo_1',
+          date: assessments[0].completedAt,
+          title: 'Care Matrix Deployed (12h Staff + Ripple Mattress)',
+          type: 'formal_support',
+          description: '12h Daytime Attendant deployed & Alternating Ripple Mattress installed.'
+        });
+      }
+
       setDisplayName(name);
-      setTrajectory(computeTrajectory(assessments, functionScores));
+      setTrajectory(computeTrajectory(assessments, functionScores, new Date(), interventions));
       setLatestAssessment(assessments[0] ?? null);
     } catch (err) {
       console.warn('Error loading dyad profile, falling back gracefully:', err);
@@ -194,9 +206,14 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     }
   };
 
-  const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes) => {
+  const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
     await saveCaregiverAttributesFor(patientUid, attrs);
     setCaregiver(attrs);
+    if (devices && patientProfile) {
+      const updatedProfile = { ...patientProfile, assistiveDevices: devices };
+      await savePatientProfileFor(patientUid, updatedProfile);
+      setPatientProfile(updatedProfile);
+    }
   };
 
   const handleFunctionAssessmentSaved = async (result: Parameters<typeof recordFunctionScore>[1]) => {
@@ -344,12 +361,12 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         </Card>
       )}
 
-      {/* TWO-COLUMN LAYOUT: LEFT SIDEBAR MENU + MAIN WORKSPACE */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+      {/* TWO-COLUMN LAYOUT: LEFT SIDEBAR MENU (SWIPEABLE TABS ON MOBILE) + MAIN WORKSPACE */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 items-start">
         {/* LEFT SIDEBAR NAVIGATION MENU */}
         <div className="md:col-span-1 space-y-3">
-          <div className="p-3 rounded-2xl bg-card border border-border/70 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1 block">
+          <div className="p-2 sm:p-3 rounded-2xl bg-card border border-border/70 shadow-xs flex md:flex-col overflow-x-auto no-scrollbar scroll-touch gap-1.5 md:gap-1">
+            <span className="hidden md:block text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">
               Family & Clinical Workspace
             </span>
 
@@ -357,7 +374,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('matrix')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'matrix'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -365,10 +382,10 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <Users2 className="w-4 h-4" />
-                <span>Support Matrix & Rota</span>
+                <span>Support Matrix</span>
               </span>
               <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
-                ⭐ Core
+                Core
               </Badge>
             </button>
 
@@ -376,7 +393,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('overview')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'overview'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -384,7 +401,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
-                <span>Scissors Trajectory</span>
+                <span>Trajectory</span>
               </span>
               <Badge variant="outline" className="text-[9px]">
                 {trajectory.riskBand}
@@ -395,7 +412,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('medications')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'medications'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -403,7 +420,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <Pill className="w-4 h-4" />
-                <span>Active Prescriptions</span>
+                <span>Prescriptions</span>
               </span>
               <Badge variant="outline" className="text-[9px]">
                 {medications.length}
@@ -414,7 +431,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('vitals')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'vitals'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -422,7 +439,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <HeartPulse className="w-4 h-4" />
-                <span>Vitals Stream</span>
+                <span>Vitals</span>
               </span>
               <Badge variant="outline" className="text-[9px]">
                 {vitals.length}
@@ -433,7 +450,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('modules')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'modules'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -441,7 +458,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
-                <span>Education Modules</span>
+                <span>Modules</span>
               </span>
             </button>
 
@@ -449,7 +466,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             <button
               onClick={() => setActiveTab('emergency')}
               className={cn(
-                'w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border',
+                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
                 activeTab === 'emergency'
                   ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                   : 'text-foreground hover:bg-muted border-transparent'
@@ -457,7 +474,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             >
               <span className="flex items-center gap-2">
                 <Car className="w-4 h-4 text-red-600" />
-                <span>Emergency Readiness</span>
+                <span>Emergency</span>
               </span>
               {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -468,7 +485,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
           </div>
 
           {/* Quick Snapshot Card in Sidebar */}
-          <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs space-y-2">
+          <div className="hidden md:block p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs space-y-2">
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
               Dyad Care Balance
             </span>

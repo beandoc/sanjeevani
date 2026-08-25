@@ -23,6 +23,77 @@ export type CareTask =
   | 'night_care'
   | 'logistics_errands';
 
+export type DiurnalTimeBlock = 'morning_rush' | 'afternoon' | 'evening' | 'night_watch';
+
+export interface DiurnalBlockMeta {
+  id: DiurnalTimeBlock;
+  label: string;
+  timeRange: string;
+  icon: string;
+  description: string;
+  typicalTasks: CareTask[];
+}
+
+export const DIURNAL_TIME_BLOCKS: DiurnalBlockMeta[] = [
+  {
+    id: 'morning_rush',
+    label: 'Morning Rush',
+    timeRange: '07:00 - 10:00',
+    icon: '🌅',
+    description: 'High physical intensity: Bed-to-chair transfer, sponge bathing, morning BP/insulin meds & breakfast',
+    typicalTasks: ['heavy_transfers', 'bathing', 'medications', 'feeding']
+  },
+  {
+    id: 'afternoon',
+    label: 'Midday & Logistics',
+    timeRange: '12:00 - 15:00',
+    icon: '☀️',
+    description: 'Moderate load: Lunch feeding, hydration, turning, OPD clinic runs & pharmacy errands',
+    typicalTasks: ['feeding', 'logistics_errands']
+  },
+  {
+    id: 'evening',
+    label: 'Evening Peak',
+    timeRange: '18:00 - 21:00',
+    icon: '🌆',
+    description: 'Dinner assistance, evening meds, vital logging, and bed prep',
+    typicalTasks: ['feeding', 'medications', 'heavy_transfers']
+  },
+  {
+    id: 'night_watch',
+    label: 'Night Watch / Sleep Guard',
+    timeRange: '22:00 - 06:00',
+    icon: '🌙',
+    description: '2-hourly repositioning, incontinence diaper change, sundowning supervision',
+    typicalTasks: ['night_care']
+  }
+];
+
+export interface DiurnalScheduleConflict {
+  memberId: string;
+  memberName: string;
+  conflictingTask: CareTask;
+  taskWindow: DiurnalTimeBlock;
+  workSchedule: string;
+  recommendation: string;
+}
+
+export interface AssistiveDeviceInventory {
+  hospitalBed: 'none' | 'manual_adjustable' | 'motorized_multichannel';
+  airWaterMattress: boolean;
+  wheelchair: boolean;
+  suctionApparatus: boolean;
+  transferAids: boolean; // swivel pivot disc, slide sheet, transfer gait belt
+}
+
+export const DEFAULT_ASSISTIVE_DEVICES: AssistiveDeviceInventory = {
+  hospitalBed: 'none',
+  airWaterMattress: false,
+  wheelchair: false,
+  suctionApparatus: false,
+  transferAids: false
+};
+
 export interface SecondaryFamilyMember {
   id: string;
   name: string;
@@ -35,6 +106,7 @@ export interface SecondaryFamilyMember {
   hoursPerDay: number;
   assignedTasks: CareTask[];
   hasPhysicalLimitation: boolean;
+  availableTimeBlocks?: DiurnalTimeBlock[];
 }
 
 export interface EmergencyLogistics {
@@ -114,6 +186,7 @@ export interface PatientDependenceProfile {
   isBedBound: boolean;
   weightKg?: number;
   heightCm?: number;
+  assistiveDevices?: AssistiveDeviceInventory;
 }
 
 export interface CareGapEvaluationResult {
@@ -147,6 +220,24 @@ export interface CareGapEvaluationResult {
     nightCareCoveredBy: string[];
     bathingCovered: boolean;
     bathingCoveredBy: string[];
+  };
+
+  assistiveDeviceStatus: {
+    hasHospitalBed: boolean;
+    bedType: AssistiveDeviceInventory['hospitalBed'];
+    hasAirWaterMattress: boolean;
+    hasWheelchair: boolean;
+    hasSuctionApparatus: boolean;
+    hasTransferAids: boolean;
+    ergonomicInjuryDiscountPercent: number;
+  };
+
+  diurnalCoverage: {
+    morningCovered: boolean;
+    afternoonCovered: boolean;
+    eveningCovered: boolean;
+    nightCovered: boolean;
+    conflicts: DiurnalScheduleConflict[];
   };
 
   careGapSeverity: 'sustainable' | 'mild_deficit' | 'high_deficit' | 'critical_overload';
@@ -254,8 +345,15 @@ export class CareGapEngine {
     const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
     const safeIadl = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
     const safeHealth = { ...DEFAULT_CAREGIVER_ATTRIBUTES.caregiverHealth, ...(safeCaregiver.caregiverHealth || {}) };
+    const safeDevices: AssistiveDeviceInventory = {
+      ...DEFAULT_ASSISTIVE_DEVICES,
+      ...(safePatient.assistiveDevices || {})
+    };
 
     const qualityOfCareWarnings: string[] = [];
+    const clinicalFindings: string[] = [];
+    const prescriptions: CareGapEvaluationResult['prescriptions'] = [];
+
     const hasCondition = (cond: string) => {
       return (safePatient.primaryConditions || []).some((c) =>
         c.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cond.toLowerCase().replace(/[^a-z0-9]/g, ''))
@@ -267,15 +365,31 @@ export class CareGapEngine {
         'Recurrent infections detected. Warrants immediate review of hygiene, fluid intake, and catheter/wound care protocols.'
       );
     }
-    if (hasCondition('aspiration') || hasCondition('dysphagia') || !safeKatz.feeding) {
-      qualityOfCareWarnings.push(
-        'Frequent aspiration risk or feeding dependency. Warrants speech therapy consultation and strict feeding positioning (90 degrees).'
-      );
+
+    // Aspiration / Dysphagia / Tracheostomy Risk + Suction Apparatus Evaluation
+    if (hasCondition('aspiration') || hasCondition('dysphagia') || hasCondition('tracheostomy') || !safeKatz.feeding) {
+      if (!safeDevices.suctionApparatus) {
+        qualityOfCareWarnings.push(
+          'Frequent aspiration risk or feeding dependency. Warrants speech therapy consultation, strict feeding positioning (90 degrees), and bedside suction equipment.'
+        );
+      } else {
+        clinicalFindings.push(
+          'Airway Clearance Protocol Active: Bedside suction apparatus deployed for secretional and aspiration protection.'
+        );
+      }
     }
+
+    // Bed-bound & Pressure Ulcer Risk + Alternating Mattress Evaluation
     if (hasCondition('bed sore') || hasCondition('pressure ulcer') || hasCondition('pressure sore') || safePatient.isBedBound) {
-      qualityOfCareWarnings.push(
-        'Bed sore presence or high pressure ulcer risk. Warrants 2-hourly turning schedule and specialized water/air mattress.'
-      );
+      if (!safeDevices.airWaterMattress) {
+        qualityOfCareWarnings.push(
+          'Bed sore presence or high pressure ulcer risk. Warrants 2-hourly turning schedule and specialized alternating water/air ripple mattress.'
+        );
+      } else {
+        clinicalFindings.push(
+          'Pressure Injury Protection Active: Alternating air/water ripple mattress in use, significantly reducing tissue ischemia.'
+        );
+      }
     }
 
     const bpVitals = (vitals || []).filter((v) => v.bp);
@@ -361,12 +475,11 @@ export class CareGapEngine {
 
     // Bed-bound 2-hourly turning and incontinence management
     if (safePatient.isBedBound) {
-      demandHours += 2.0;
+      // Motorized bed and ripple mattress slightly reduce the manual turning overhead
+      const bedTurningHours = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress ? 1.2 : 2.0;
+      demandHours += bedTurningHours;
     }
 
-    // Recent fall vulnerability. Repeat fallers carry materially higher
-    // supervision load than a single fall, so the count is graded rather than
-    // collapsed to a boolean (capped so an outlier count cannot dominate).
     const fallCount = Math.max(0, safePatient.fallHistoryLast6Months ?? 0);
     if (fallCount > 0) {
       demandHours += Math.min(2.0, 1.0 + (fallCount - 1) * 0.5);
@@ -377,7 +490,6 @@ export class CareGapEngine {
     // 4. Compute Formal / Ancillary Support Hours Absorbed
     const selectedTypes = resolveSupportTypes(safeCaregiver.formalSupport);
 
-    // Per-type task hours a support member can absorb from the family.
     const contributions = selectedTypes
       .map((t) => {
         if (t === 'paid_attendant_24h' || t === 'trained_nurse_24h') return 16.0;
@@ -403,7 +515,6 @@ export class CareGapEngine {
     for (const member of secondaryMembers) {
       rawFamilyHours += Math.max(0, member.hoursPerDay || 0);
     }
-    // If no explicit secondaryMembers array was configured, fall back to legacy count buffer
     if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0) {
       rawFamilyHours = Math.min(2.5, (safeCaregiver.otherFamilyMembersCount ?? 0) * 1.0);
     }
@@ -436,13 +547,57 @@ export class CareGapEngine {
       .map((m) => m.name || m.relationship.replace('_', ' '));
     const isMedsRelieved = medsCoveredByStaff || medsCoveredByFamilyMembers.length > 0;
 
+    // Diurnal Time-Block Coverage & Schedule Conflict Detection
+    let morningCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
+    let afternoonCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h') || t === 'medical_assistant');
+    let eveningCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
+    let nightCovered = selectedTypes.some((t) => t.includes('24h'));
+
+    const diurnalConflicts: DiurnalScheduleConflict[] = [];
+
+    for (const member of secondaryMembers) {
+      const availableBlocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
+        ? member.availableTimeBlocks
+        : ['morning_rush', 'evening'];
+
+      if (availableBlocks.includes('morning_rush')) morningCovered = true;
+      if (availableBlocks.includes('afternoon')) afternoonCovered = true;
+      if (availableBlocks.includes('evening')) eveningCovered = true;
+      if (availableBlocks.includes('night_watch')) nightCovered = true;
+
+      const scheduleStr = (member.workCommitmentSchedule || member.occupation || '').toLowerCase();
+      const isDaytimeJob = scheduleStr.includes('full') || scheduleStr.includes('9am') || scheduleStr.includes('9-') || scheduleStr.includes('10am') || scheduleStr.includes('10-');
+
+      if (isDaytimeJob) {
+        if (member.assignedTasks.includes('bathing') && !availableBlocks.includes('morning_rush')) {
+          diurnalConflicts.push({
+            memberId: member.id,
+            memberName: member.name || member.relationship,
+            conflictingTask: 'bathing',
+            taskWindow: 'morning_rush',
+            workSchedule: member.workCommitmentSchedule || 'Standard Working Hours',
+            recommendation: 'Morning sponge bath clashes with work schedule. Reassign to paid attendant or early-morning helper.'
+          });
+        }
+        if (member.assignedTasks.includes('heavy_transfers') && !availableBlocks.includes('morning_rush') && !availableBlocks.includes('evening')) {
+          diurnalConflicts.push({
+            memberId: member.id,
+            memberName: member.name || member.relationship,
+            conflictingTask: 'heavy_transfers',
+            taskWindow: 'morning_rush',
+            workSchedule: member.workCommitmentSchedule || 'Standard Working Hours',
+            recommendation: 'Daytime work hours prevent morning transfer assistance. Reassign morning transfer to on-site caregiver.'
+          });
+        }
+      }
+    }
+
     // Residual Patient Demand after Formal Staff & Family absorption
     const residualDemandOnPrimary = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours - familySupportAbsorbedHours);
 
     // 5. Compute Primary Caregiver Safe Daily Capacity (Hours/Day)
     let capacityHours = safeCaregiver.dailyHoursCommitted;
 
-    // Employment deductions (Work fatigue reduces effective high-intensity care capacity)
     if (safeCaregiver.employment === 'full_time') {
       capacityHours = Math.min(capacityHours, 5.0);
     } else if (safeCaregiver.employment === 'part_time') {
@@ -469,7 +624,6 @@ export class CareGapEngine {
     if (safeHealth.hasInsomnia) healthDeduction += isNightCareRelieved ? 0.3 : 1.0;
     if (safeCaregiver.age >= 65) healthDeduction += 1.5;
 
-    // Secondary Family Members Support Network Buffer
     const secondaryFamilyCount = Math.max(
       0,
       safeCaregiver.secondaryMembers?.length ?? safeCaregiver.otherFamilyMembersCount ?? 0
@@ -484,7 +638,6 @@ export class CareGapEngine {
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
     const netCareGapHours = Math.max(0, Math.round((residualDemandOnPrimary - caregiverSafeCapacityHours) * 10) / 10);
 
-    // Team Allocations
     const primaryAbsorbedHours = Math.min(caregiverSafeCapacityHours, residualDemandOnPrimary);
     const unmetGapHours = netCareGapHours;
 
@@ -560,6 +713,28 @@ export class CareGapEngine {
       injuryScore += qualityOfCareWarnings.length * 10;
     }
 
+    // Apply Ergonomic Assistive Device Discounts
+    let ergonomicDiscount = 0;
+    if (safeDevices.hospitalBed === 'motorized_multichannel') {
+      ergonomicDiscount += 25;
+    } else if (safeDevices.hospitalBed === 'manual_adjustable') {
+      ergonomicDiscount += 15;
+    }
+    if (safeDevices.transferAids) {
+      ergonomicDiscount += 15;
+    }
+    if (safeDevices.wheelchair) {
+      ergonomicDiscount += 10;
+    }
+    if (safeDevices.airWaterMattress) {
+      ergonomicDiscount += 10;
+    }
+
+    ergonomicDiscount = Math.min(50, ergonomicDiscount);
+    if (ergonomicDiscount > 0) {
+      injuryScore = Math.max(10, Math.round(injuryScore * (1 - ergonomicDiscount / 100)));
+    }
+
     const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
 
     const financialMultiplier =
@@ -582,9 +757,6 @@ export class CareGapEngine {
     }
 
     // 9. Clinical Findings & Prescriptions
-    const clinicalFindings: string[] = [];
-    const prescriptions: CareGapEvaluationResult['prescriptions'] = [];
-
     if (selectedTypes.length > 0) {
       const typeLabels: { [k in FormalSupportType]: string } = {
         trained_nurse_24h: '24h Certified Nurse',
@@ -621,22 +793,43 @@ export class CareGapEngine {
       );
     }
 
-    if (safeHealth.hasBackPain && !safeKatz.transferring && !isTransfersRelieved) {
-      clinicalFindings.push(
-        'High musculoskeletal injury risk: Caregiver has pre-existing back pain while patient is dependent in bed-to-chair transfers.'
-      );
+    // Assistive Equipment Prescriptions
+    if (safePatient.isBedBound && !safeDevices.airWaterMattress) {
       prescriptions.push({
-        id: 'rx_transfer_biomechanics',
-        title: 'Transfer Assistive Equipment & Biomechanics Protocol',
-        action: 'Acquire a transfer belt or swivel disc, adjust bed height to caregiver waist level, and review ergonomic pivot transfer techniques.',
-        impact: 'Substantially reduces lumbar load during daily bed transfers.',
+        id: 'rx_air_water_mattress',
+        title: 'Alternating Pressure Ripple Mattress Prescription',
+        action: 'Install a motorized alternating air/water pressure ripple mattress to prevent stage 2-4 decubitus ulcers and reduce manual turning frequency.',
+        impact: 'Drastically lowers dermal shear stress and protects vulnerable bony prominences.',
         urgency: 'urgent'
       });
     }
 
-    // Gate on the resolved team, not formal.type — a dyad whose support was
-    // saved as { type: 'none', types: [...] } was previously still told to hire
-    // an attendant it already had.
+    if (safeHealth.hasBackPain && !safeKatz.transferring && !isTransfersRelieved) {
+      clinicalFindings.push(
+        'High musculoskeletal injury risk: Caregiver has pre-existing back pain while patient is dependent in bed-to-chair transfers.'
+      );
+    }
+
+    if (!safeKatz.transferring && (!safeDevices.transferAids || (safeHealth.hasBackPain && !isTransfersRelieved))) {
+      prescriptions.push({
+        id: 'rx_transfer_biomechanics',
+        title: 'Transfer Assistive Equipment & Swivel Disc Protocol',
+        action: 'Acquire a padded transfer gait belt and 360-degree swivel pivot disc for bed-to-chair transfers.',
+        impact: 'Substantially reduces lumbar disc shear load during daily pivot transfers.',
+        urgency: safeHealth.hasBackPain ? 'urgent' : 'priority'
+      });
+    }
+
+    if (safePatient.isBedBound && safeDevices.hospitalBed === 'none') {
+      prescriptions.push({
+        id: 'rx_hospital_bed',
+        title: 'Multi-Function Adjustable Hospital Bed',
+        action: 'Deploy a height-adjustable hospital bed with side rails to enable waist-level care during sponge baths and diaper changes.',
+        impact: 'Prevents acute spine flexion and chronic musculoskeletal strain for the caregiver.',
+        urgency: 'priority'
+      });
+    }
+
     if (netCareGapHours >= 3.0 && selectedTypes.length === 0) {
       prescriptions.push({
         id: 'rx_formal_attendant',
@@ -654,7 +847,7 @@ export class CareGapEngine {
       prescriptions.push({
         id: 'rx_financial_counseling',
         title: 'Geriatric Financial Optimization & Govt Senior Schemes',
-        action: 'Explore Ayushman Bharat PM-JAY Senior Citizen cover (₹5 Lakhs/yr top-up) and state medical subsidies to alleviate 24/7 nursing financial strain.',
+        action: 'Explore Ayushman Bharat PM-JAY Senior Citizen cover (₹5 Lakhs/yr top-up for 70+) and state medical subsidies to alleviate 24/7 nursing financial strain.',
         impact: 'Reduces catastrophic out-of-pocket health expenditure.',
         urgency: 'priority'
       });
@@ -691,6 +884,22 @@ export class CareGapEngine {
       netCareGapHours,
       teamAllocations,
       taskDelegationStatus,
+      assistiveDeviceStatus: {
+        hasHospitalBed: safeDevices.hospitalBed !== 'none',
+        bedType: safeDevices.hospitalBed,
+        hasAirWaterMattress: safeDevices.airWaterMattress,
+        hasWheelchair: safeDevices.wheelchair,
+        hasSuctionApparatus: safeDevices.suctionApparatus,
+        hasTransferAids: safeDevices.transferAids,
+        ergonomicInjuryDiscountPercent: ergonomicDiscount
+      },
+      diurnalCoverage: {
+        morningCovered,
+        afternoonCovered,
+        eveningCovered,
+        nightCovered,
+        conflicts: diurnalConflicts
+      },
       careGapSeverity,
       caregiverInjuryRiskScore,
       caregiverBurnoutRiskLevel,
@@ -701,3 +910,121 @@ export class CareGapEngine {
     };
   }
 }
+
+/**
+ * Generates an instant, highly readable, formatted WhatsApp Care Digest
+ * for sharing with family members and attendants on the Care Circle group.
+ */
+export function generateWhatsAppCareDigest(
+  caregiver: CaregiverAttributes,
+  patient: PatientDependenceProfile,
+  evaluation: CareGapEvaluationResult
+): string {
+  const rotation = caregiver.rotationPolicy || {
+    rotationInterval: 'biweekly',
+    primaryCaregiverRespiteDaysPerMonth: 4,
+    weekendShiftLeader: 'Family Rotation',
+    nightShiftArrangement: 'family_rotation'
+  };
+
+  const emergency = caregiver.emergencyLogistics || {
+    hospitalDistanceKm: 4.5,
+    travelTimeMinutes: 15,
+    fourWheelerAvailableAtHome: true,
+    designatedEmergencyDriver: 'Designated Driver',
+    preferredHospitalName: 'Nearest Geriatric Emergency Hospital',
+    ambulanceContact: '108'
+  };
+
+  const teamMembers = (caregiver.secondaryMembers || []).map((m) =>
+    `• *${m.name || m.relationship}* (${m.relationship}, ${m.hoursPerDay}h/day): ${m.assignedTasks.map((t) => t.replace('_', ' ')).join(', ')}`
+  ).join('\n');
+
+  const devices = [
+    evaluation.assistiveDeviceStatus.hasHospitalBed ? `• Hospital Bed (${evaluation.assistiveDeviceStatus.bedType.replace('_', ' ')})` : null,
+    evaluation.assistiveDeviceStatus.hasAirWaterMattress ? '• Air/Water Alternating Pressure Mattress' : null,
+    evaluation.assistiveDeviceStatus.hasWheelchair ? '• Wheelchair' : null,
+    evaluation.assistiveDeviceStatus.hasSuctionApparatus ? '• Suction Apparatus (Bedside)' : null,
+    evaluation.assistiveDeviceStatus.hasTransferAids ? '• Swivel Transfer Belt / Pivot Disc' : null
+  ].filter(Boolean).join('\n');
+
+  return `🏥 *SANJEEVANI CARE CIRCLE PLAN & ROSTER*
+━━━━━━━━━━━━━━━━━━━━
+👤 *Patient:* ${patient.name} (Age ${patient.age})
+🤝 *Primary Caregiver:* ${caregiver.name} (${caregiver.kinship}, ${caregiver.dailyHoursCommitted}h committed)
+📊 *Care Demand:* ${evaluation.patientCareDemandHours}h/day | *Care Gap:* ${evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h Deficit ⚠️` : '0h (Fully Covered ✅)'}
+🩺 *Burnout Risk:* ${evaluation.caregiverBurnoutRiskLevel.toUpperCase()} | *Spine Strain:* ${evaluation.caregiverInjuryRiskScore}%
+
+🗓️ *MONTHLY ROTATION & RESPITE POLICY*
+• Respite Days for ${caregiver.name}: *${rotation.primaryCaregiverRespiteDaysPerMonth} Days/Month*
+• Rotation Cycle: *${rotation.rotationInterval.toUpperCase()}*
+• Weekend Shift Lead: *${rotation.weekendShiftLeader || 'Assigned Member'}*
+• Night Watch: *${rotation.nightShiftArrangement.replace(/_/g, ' ')}*
+
+👥 *CARE CIRCLE TEAM ASSIGNMENTS*
+${teamMembers || '• Solo primary caregiver (no secondary members)'}
+
+🛠️ *ASSISTIVE DEVICES ACTIVE*
+${devices || '• Standard home setup (no specialized equipment)'}
+
+🚨 *EMERGENCY PROTOCOL*
+• Preferred Hospital: *${emergency.preferredHospitalName || 'AIIMS / Local Emergency'}*
+• Distance / Transit: *${emergency.hospitalDistanceKm} km (${emergency.travelTimeMinutes} mins)*
+• 4-Wheeler at Home: *${emergency.fourWheelerAvailableAtHome ? 'Yes (Parked)' : 'No (Cab / Auto required)'}*
+• Emergency Driver: *${emergency.designatedEmergencyDriver || 'Key Holder'}*
+• Ambulance Helpline: *${emergency.ambulanceContact || '108'}*
+━━━━━━━━━━━━━━━━━━━━
+_Generated via Sanjeevani Geriatric Care Matrix_`;
+}
+
+/**
+ * Generates an RFC 5545 compliant iCalendar (.ics) string
+ * for synchronizing respite days, weekend shifts, and emergency readiness
+ * with Google Calendar / Apple Calendar.
+ */
+export function generateCareRosterIcs(
+  caregiver: CaregiverAttributes,
+  patient: PatientDependenceProfile,
+  evaluation: CareGapEvaluationResult
+): string {
+  const now = new Date();
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const formatIcsDate = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+  const dtstamp = formatIcsDate(now);
+  const rotation = caregiver.rotationPolicy || {
+    primaryCaregiverRespiteDaysPerMonth: 4,
+    weekendShiftLeader: 'Weekend Leader'
+  };
+
+  // Generate 4 recurring respite events for the upcoming month
+  let events = '';
+  for (let i = 1; i <= Math.min(4, rotation.primaryCaregiverRespiteDaysPerMonth); i++) {
+    const respiteStart = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+    respiteStart.setHours(9, 0, 0, 0);
+    const respiteEnd = new Date(respiteStart.getTime() + 10 * 60 * 60 * 1000);
+
+    events += `BEGIN:VEVENT
+UID:sanjeevani-respite-${i}-${respiteStart.getTime()}@sanjeevani.health
+DTSTAMP:${dtstamp}
+DTSTART:${formatIcsDate(respiteStart)}
+DTEND:${formatIcsDate(respiteEnd)}
+SUMMARY:🌿 Respite Day for ${caregiver.name} (Patient: ${patient.name})
+DESCRIPTION:Primary caregiver scheduled respite day. Shift lead is ${rotation.weekendShiftLeader || 'Care Circle Family'}. Ensure all meals and meds are covered.
+LOCATION:Home Care
+STATUS:CONFIRMED
+END:VEVENT
+`;
+  }
+
+  return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Sanjeevani Health//Care Matrix Roster//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Sanjeevani Care Roster - ${patient.name}
+X-WR-TIMEZONE:Asia/Kolkata
+${events}END:VCALENDAR`;
+}
+

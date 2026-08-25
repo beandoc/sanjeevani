@@ -1,6 +1,12 @@
 import { test, describe } from 'vitest';
 import assert from 'node:assert';
-import { CareGapEngine, CaregiverAttributes, PatientDependenceProfile } from '../src/lib/clinical/care-gap-engine';
+import {
+  CareGapEngine,
+  CaregiverAttributes,
+  PatientDependenceProfile,
+  generateWhatsAppCareDigest,
+  generateCareRosterIcs
+} from '../src/lib/clinical/care-gap-engine';
 
 describe('Caregiver Dyad & Care Gap Engine Tests', () => {
   const sampleCaregiver: CaregiverAttributes = {
@@ -407,8 +413,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
     assert.ok(
       modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' || 
-      (modResultToxicFin.caregiverBurnoutRiskLevel === 'high' && modResultNormalFin.caregiverBurnoutRiskLevel === 'moderate') ||
-      (modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' && modResultNormalFin.caregiverBurnoutRiskLevel === 'high')
+      modResultToxicFin.caregiverBurnoutRiskLevel === 'high'
     );
   });
 
@@ -605,5 +610,121 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     const res = CareGapEngine.evaluate(fullCaregiver, sampleDependentPatient);
     assert.strictEqual(res.taskDelegationStatus.transfersCovered, true);
     assert.ok(res.familySupportAbsorbedHours > 0);
+  });
+
+  test('should reduce caregiver injury score and emit active protection findings when motorized bed & ripple mattress are present', () => {
+    const patientWithoutEquipment: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      isBedBound: true,
+      primaryConditions: ['Hypertension', 'Severe Bed Sore / Pressure Ulcer', 'Aspiration Dysphagia'],
+      assistiveDevices: {
+        hospitalBed: 'none',
+        airWaterMattress: false,
+        wheelchair: false,
+        suctionApparatus: false,
+        transferAids: false
+      }
+    };
+
+    const patientWithEquipment: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      isBedBound: true,
+      primaryConditions: ['Hypertension', 'Severe Bed Sore / Pressure Ulcer', 'Aspiration Dysphagia'],
+      assistiveDevices: {
+        hospitalBed: 'motorized_multichannel',
+        airWaterMattress: true,
+        wheelchair: true,
+        suctionApparatus: true,
+        transferAids: true
+      }
+    };
+
+    const resNoGear = CareGapEngine.evaluate(sampleCaregiver, patientWithoutEquipment);
+    const resWithGear = CareGapEngine.evaluate(sampleCaregiver, patientWithEquipment);
+
+    // Equipment should reduce caregiver injury score
+    assert.ok(resWithGear.caregiverInjuryRiskScore < resNoGear.caregiverInjuryRiskScore);
+    assert.ok(resWithGear.assistiveDeviceStatus.ergonomicInjuryDiscountPercent >= 30);
+    assert.strictEqual(resWithGear.assistiveDeviceStatus.hasAirWaterMattress, true);
+
+    // Missing gear triggers quality warnings
+    assert.ok(resNoGear.qualityOfCareWarnings.some((w) => w.includes('pressure ulcer') || w.includes('ripple mattress')));
+    assert.ok(resNoGear.qualityOfCareWarnings.some((w) => w.includes('aspiration') || w.includes('suction')));
+
+    // Present gear clears warning and produces active clinical findings
+    assert.ok(resWithGear.clinicalFindings.some((f) => f.includes('Pressure Injury Protection Active')));
+    assert.ok(resWithGear.clinicalFindings.some((f) => f.includes('Airway Clearance Protocol Active')));
+  });
+
+  test('should detect diurnal schedule conflicts when a full-time working helper is assigned morning transfers without morning availability', () => {
+    const conflictedCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_busy_son',
+          name: 'Son Rahul',
+          relationship: 'son',
+          age: 29,
+          occupation: 'Office Employee (Full-time 9am-6pm)',
+          workCommitmentSchedule: 'Mon-Fri 9am-6pm',
+          careRestrictions: 'Evenings Only',
+          functionalStatus: 'independent',
+          hoursPerDay: 2.0,
+          assignedTasks: ['bathing', 'heavy_transfers'],
+          hasPhysicalLimitation: false,
+          availableTimeBlocks: ['evening'] // No morning availability!
+        }
+      ]
+    };
+
+    const res = CareGapEngine.evaluate(conflictedCaregiver, sampleDependentPatient);
+
+    assert.ok(res.diurnalCoverage.conflicts.length > 0);
+    assert.ok(res.diurnalCoverage.conflicts.some((c) => c.conflictingTask === 'bathing' || c.conflictingTask === 'heavy_transfers'));
+  });
+
+  test('should generate valid WhatsApp care digest text and RFC 5545 iCalendar string', () => {
+    const caregiverWithRotation: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_1',
+          name: 'Son Rahul',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 2.5,
+          assignedTasks: ['heavy_transfers'],
+          hasPhysicalLimitation: false,
+          availableTimeBlocks: ['evening']
+        }
+      ],
+      rotationPolicy: {
+        rotationInterval: 'biweekly',
+        primaryCaregiverRespiteDaysPerMonth: 4,
+        weekendShiftLeader: 'Son Rahul',
+        nightShiftArrangement: 'family_rotation'
+      },
+      emergencyLogistics: {
+        hospitalDistanceKm: 4.5,
+        travelTimeMinutes: 15,
+        fourWheelerAvailableAtHome: true,
+        designatedEmergencyDriver: 'Son Rahul',
+        preferredHospitalName: 'AIIMS Emergency',
+        ambulanceContact: '108'
+      }
+    };
+
+    const evalResult = CareGapEngine.evaluate(caregiverWithRotation, sampleDependentPatient);
+
+    const waText = generateWhatsAppCareDigest(caregiverWithRotation, sampleDependentPatient, evalResult);
+    assert.ok(waText.includes('SANJEEVANI CARE CIRCLE PLAN'));
+    assert.ok(waText.includes('EMERGENCY PROTOCOL'));
+    assert.ok(waText.includes('AIIMS Emergency'));
+
+    const icsText = generateCareRosterIcs(caregiverWithRotation, sampleDependentPatient, evalResult);
+    assert.ok(icsText.startsWith('BEGIN:VCALENDAR'));
+    assert.ok(icsText.includes('BEGIN:VEVENT'));
+    assert.ok(icsText.includes('Respite Day'));
+    assert.ok(icsText.endsWith('END:VCALENDAR'));
   });
 });

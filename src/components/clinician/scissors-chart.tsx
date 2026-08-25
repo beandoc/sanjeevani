@@ -38,7 +38,7 @@ interface ChartRow {
  * series on a shared axis natively via distinct dataKeys with `connectNulls`.
  */
 export function ScissorsChart({ trajectory }: ScissorsChartProps) {
-  const { burdenSeries, functionSeries, tierChanges } = trajectory;
+  const { burdenSeries, functionSeries, tierChanges, interventions = [] } = trajectory;
 
   const rows = new Map<string, ChartRow>();
 
@@ -83,7 +83,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
   return (
     <div className="space-y-2">
       <ResponsiveContainer width="100%" height={340}>
-        <ComposedChart data={sortedRows} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <ComposedChart data={sortedRows} margin={{ top: 15, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis dataKey="dateLabel" tick={{ fontSize: 11 }} />
           <YAxis
@@ -105,11 +105,25 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
           />
           {tierChanges.map((tc) => (
             <ReferenceLine
-              key={tc.date}
+              key={`tier-${tc.date}`}
               x={format(new Date(tc.date), 'dd MMM yy')}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"
-              label={{ value: `Tier: ${tc.toTier}`, fontSize: 9, position: 'top' }}
+              label={{ value: `Tier: ${tc.toTier}`, fontSize: 9, position: 'top', fill: 'hsl(var(--muted-foreground))' }}
+            />
+          ))}
+          {interventions.map((iv) => (
+            <ReferenceLine
+              key={`iv-${iv.id}-${iv.date}`}
+              x={format(new Date(iv.date), 'dd MMM yy')}
+              stroke="hsl(var(--primary))"
+              strokeWidth={1.5}
+              label={{
+                value: `⚡ ${iv.title}`,
+                fontSize: 9,
+                position: 'insideTopLeft',
+                fill: 'hsl(var(--primary))'
+              }}
             />
           ))}
           <Line
@@ -132,12 +146,18 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
           />
         </ComposedChart>
       </ResponsiveContainer>
-      {tierChanges.length > 0 && (
-        <p className="text-[11px] text-muted-foreground px-1">
-          Dashed lines mark a change in Zarit tier (ZBI-22/12/4) — the burden score before and after
-          a tier change is not directly comparable point-to-point; only the normalized % trend is.
-        </p>
-      )}
+      <div className="flex flex-wrap items-center justify-between text-[11px] text-muted-foreground px-1 gap-2">
+        {tierChanges.length > 0 && (
+          <p>
+            Dashed gray lines mark a change in Zarit tier (ZBI-22/12/4).
+          </p>
+        )}
+        {interventions.length > 0 && (
+          <p className="font-semibold text-primary">
+            ⚡ Vertical lines mark active Care Matrix Builder interventions.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

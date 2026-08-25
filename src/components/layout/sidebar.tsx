@@ -254,13 +254,13 @@ export function AppSidebar() {
 
   const caregiverSections: NavSection[] = [
     {
-      title: 'Family Caregiver Portal',
+      title: 'Kutumbh Family Portal (कुटुम्ब)',
       items: [
         {
           href: '/dashboard',
-          label: 'Caregiver Dashboard',
+          label: 'Kutumbh Hub & Dashboard',
           icon: LayoutDashboard,
-          badge: 'Caregiver'
+          badge: 'Kutumbh'
         },
         {
           href: '/domiciliary',
@@ -288,9 +288,9 @@ export function AppSidebar() {
         },
         {
           href: '/care-circle',
-          label: 'Family Care Circle',
+          label: 'Kutumbh Care Circle & Roster',
           icon: Users,
-          badge: null
+          badge: 'Kutumbh'
         }
       ]
     },

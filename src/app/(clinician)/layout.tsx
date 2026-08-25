@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+
 /**
  * Separate workspace shell for the clinician persona — deliberately not
  * reusing the caregiver AppSidebar, whose links (modules, simulations,
@@ -43,21 +45,19 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Thin gradient accent bar, matching the identity color used on the
-          doctor dashboard and the modules page banner elsewhere in the app —
-          this shell previously had zero visual language in common with them. */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16 md:pb-0">
+      {/* Thin gradient accent bar */}
       <div className="h-1 bg-gradient-to-r from-blue-600 via-primary to-blue-600" />
       <header className="border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/clinic/roster" className="flex items-center gap-2.5 font-bold text-sm group">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Stethoscope className="w-4.5 h-4.5 text-blue-600" />
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Link href="/clinic/roster" className="flex items-center gap-2 font-bold text-sm group">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Stethoscope className="w-4 h-4 text-blue-600" />
               </div>
               <div className="leading-tight">
-                <span className="block">Sanjeevani Clinician Workspace</span>
-                <span className="block text-[10px] font-normal text-muted-foreground">Consulting Physician Portal</span>
+                <span className="block text-xs sm:text-sm font-black">Sanjeevani Clinician</span>
+                <span className="block text-[9px] sm:text-[10px] font-normal text-muted-foreground">Consulting Portal</span>
               </div>
             </Link>
 
@@ -83,7 +83,7 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             <Link href="/dashboard" className="hidden sm:inline-flex">
               <Button variant="outline" size="sm" className="h-8 text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/10">
                 Caregiver Portal View
@@ -91,19 +91,20 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
             </Link>
             <button
               onClick={copyCode}
-              className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors border border-border/60"
+              className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/70 transition-colors border border-border/60"
               title="Your Clinic Code — share with caregivers"
             >
               <Copy className="w-3 h-3" />
               <span>{clinicCode}</span>
             </button>
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8" onClick={handleSignOut}>
-              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8 px-2 sm:px-3" onClick={handleSignOut}>
+              <LogOut className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6">{children}</main>
+      <MobileBottomNav />
     </div>
   );
 }
