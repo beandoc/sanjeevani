@@ -104,14 +104,10 @@ export default function LoginPage() {
 
     toast({
       title: 'Authentication Successful',
-      description: `Welcome to Sanjeevani (${roleName}).`
+      description: `Welcome to Kutumbh (${roleName}).`
     });
 
-    if (actualRole === 'doctor' || actualRole === 'professional' || actualRole === 'nurse') {
-      router.push('/clinic/roster');
-    } else {
-      router.push('/dashboard');
-    }
+    router.push('/dashboard');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -264,11 +260,7 @@ export default function LoginPage() {
         title: 'Demo Session Activated',
         description: `Signed in as ${roleLabel}.`
       });
-      if (demoRole === 'doctor' || demoRole === 'nurse' || demoRole === 'professional') {
-        router.push('/clinic/roster');
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/dashboard');
     } finally {
       setIsLoading(false);
     }

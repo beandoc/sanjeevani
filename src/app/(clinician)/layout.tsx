@@ -56,23 +56,23 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
                 <Stethoscope className="w-4 h-4 text-blue-600" />
               </div>
               <div className="leading-tight">
-                <span className="block text-xs sm:text-sm font-black">Sanjeevani Clinician</span>
-                <span className="block text-[9px] sm:text-[10px] font-normal text-muted-foreground">Consulting Portal</span>
+                <span className="block text-xs sm:text-sm font-black">Kutumbh Clinician</span>
+                <span className="block text-[9px] sm:text-[10px] font-normal text-muted-foreground">Consulting Portal (कुटुम्ब)</span>
               </div>
             </Link>
 
             <nav className="hidden md:flex items-center gap-1">
               <Link
-                href="/clinic/roster"
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-foreground"
-              >
-                Patient Roster
-              </Link>
-              <Link
                 href="/dashboard"
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
               >
                 Doctor Dashboard
+              </Link>
+              <Link
+                href="/clinic/roster"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors text-foreground"
+              >
+                Patient Roster
               </Link>
               <Link
                 href="/modules"
@@ -86,7 +86,7 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-1.5 sm:gap-2.5">
             <Link href="/dashboard" className="hidden sm:inline-flex">
               <Button variant="outline" size="sm" className="h-8 text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/10">
-                Caregiver Portal View
+                Kutumbh Family View
               </Button>
             </Link>
             <button
