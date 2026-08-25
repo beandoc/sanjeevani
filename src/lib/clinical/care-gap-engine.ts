@@ -139,6 +139,7 @@ export interface CaregiverAttributes {
   secondaryMembers?: SecondaryFamilyMember[];
   emergencyLogistics?: EmergencyLogistics;
   rotationPolicy?: MonthlyRotationPolicy;
+  assistiveDevices?: AssistiveDeviceInventory;
   financialStatus?: 'manageable' | 'moderate_strain' | 'severe_toxicity';
   caregiverHealth: {
     hasBackPain: boolean;
