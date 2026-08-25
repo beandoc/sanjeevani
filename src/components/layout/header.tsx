@@ -60,9 +60,9 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 sm:h-20 items-center justify-between gap-1.5 sm:gap-4 bg-background/90 px-3 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-1.5 sm:gap-4 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-xl border-b border-border/50 transition-all">
         {/* Left: Trigger & Brand & Search */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <SidebarTrigger
             className="h-9 w-9 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground shrink-0"
             title="Toggle Sidebar (⌘B)"
@@ -89,7 +89,7 @@ export function Header() {
           {/* Desktop Global Search Input Trigger */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="hidden md:flex items-center gap-3 h-10 px-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-muted-foreground transition-all w-64 lg:w-80 text-xs text-left"
+            className="hidden md:flex items-center gap-2.5 h-9 px-3 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-muted-foreground transition-all w-60 lg:w-72 text-xs text-left"
           >
             <Search className="h-4 w-4 text-primary shrink-0" />
             <span className="truncate flex-1">
