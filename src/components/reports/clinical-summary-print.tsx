@@ -94,7 +94,7 @@ export function ClinicalSummaryPrint({
       <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 font-headline uppercase">
-            Sanjeevani Clinical Care Brief
+            Kutumbh Clinical Care Brief
           </h1>
           <p className="text-xs font-semibold text-slate-600">
             Geriatric Caregiver Dyad Assessment & Health Trajectory Report

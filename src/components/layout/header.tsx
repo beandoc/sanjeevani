@@ -53,13 +53,13 @@ export function Header() {
             <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-primary/20 shrink-0">
               <Image
                 src="/logo.png"
-                alt="Sanjeevani Logo"
+                alt="Kutumbh Logo"
                 fill
                 className="object-cover"
               />
             </div>
             <span className="font-headline font-black text-sm tracking-tight text-foreground">
-              Sanjeevani
+              Kutumbh
             </span>
           </Link>
 

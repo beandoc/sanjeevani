@@ -82,7 +82,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `sanjeevani_health_export_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `kutumbh_health_export_${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -123,7 +123,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground">Health Data Consent (DPDP Act 2023)</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Sanjeevani stores your vitals and assessments securely on your device. We require your explicit permission to log health parameters.
+              Kutumbh stores your vitals and assessments securely on your device. We require your explicit permission to log health parameters.
             </p>
           </div>
         </div>

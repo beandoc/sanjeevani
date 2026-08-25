@@ -11,7 +11,7 @@ export default function RootLoading() {
           </div>
         </div>
         <p className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-          Loading Sanjeevani...
+          Loading Kutumbh...
         </p>
       </div>
     </div>

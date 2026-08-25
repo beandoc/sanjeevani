@@ -948,7 +948,7 @@ export function generateWhatsAppCareDigest(
     evaluation.assistiveDeviceStatus.hasTransferAids ? '• Swivel Transfer Belt / Pivot Disc' : null
   ].filter(Boolean).join('\n');
 
-  return `🏥 *SANJEEVANI CARE CIRCLE PLAN & ROSTER*
+  return `🏥 *KUTUMBH CARE CIRCLE PLAN & ROSTER*
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Patient:* ${patient.name} (Age ${patient.age})
 🤝 *Primary Caregiver:* ${caregiver.name} (${caregiver.kinship}, ${caregiver.dailyHoursCommitted}h committed)
@@ -974,7 +974,7 @@ ${devices || '• Standard home setup (no specialized equipment)'}
 • Emergency Driver: *${emergency.designatedEmergencyDriver || 'Key Holder'}*
 • Ambulance Helpline: *${emergency.ambulanceContact || '108'}*
 ━━━━━━━━━━━━━━━━━━━━
-_Generated via Sanjeevani Geriatric Care Matrix_`;
+_Generated via Kutumbh Geriatric Care Matrix_`;
 }
 
 /**
@@ -1006,7 +1006,7 @@ export function generateCareRosterIcs(
     const respiteEnd = new Date(respiteStart.getTime() + 10 * 60 * 60 * 1000);
 
     events += `BEGIN:VEVENT
-UID:sanjeevani-respite-${i}-${respiteStart.getTime()}@sanjeevani.health
+UID:kutumbh-respite-${i}-${respiteStart.getTime()}@kutumbh.health
 DTSTAMP:${dtstamp}
 DTSTART:${formatIcsDate(respiteStart)}
 DTEND:${formatIcsDate(respiteEnd)}
@@ -1020,10 +1020,10 @@ END:VEVENT
 
   return `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Sanjeevani Health//Care Matrix Roster//EN
+PRODID:-//Kutumbh Health//Care Matrix Roster//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:Sanjeevani Care Roster - ${patient.name}
+X-WR-CALNAME:Kutumbh Care Roster - ${patient.name}
 X-WR-TIMEZONE:Asia/Kolkata
 ${events}END:VCALENDAR`;
 }

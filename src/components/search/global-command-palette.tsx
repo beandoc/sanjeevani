@@ -410,7 +410,7 @@ export function GlobalCommandPalette({ isOpen, onClose }: GlobalCommandPalettePr
                 Select
               </span>
             </div>
-            <span className="font-medium text-primary">Sanjeevani Global Omnibar</span>
+            <span className="font-medium text-primary">Kutumbh Global Omnibar</span>
           </div>
         </DialogContent>
       </Dialog>

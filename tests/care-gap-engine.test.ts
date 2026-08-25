@@ -717,7 +717,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     const evalResult = CareGapEngine.evaluate(caregiverWithRotation, sampleDependentPatient);
 
     const waText = generateWhatsAppCareDigest(caregiverWithRotation, sampleDependentPatient, evalResult);
-    assert.ok(waText.includes('SANJEEVANI CARE CIRCLE PLAN'));
+    assert.ok(waText.includes('KUTUMBH CARE CIRCLE PLAN'));
     assert.ok(waText.includes('EMERGENCY PROTOCOL'));
     assert.ok(waText.includes('AIIMS Emergency'));
 

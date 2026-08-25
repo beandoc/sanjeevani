@@ -70,12 +70,12 @@ export function CrisisEscalationModal({
       ? `\nMy Current GPS Location: https://www.google.com/maps?q=${coords.lat},${coords.lng}`
       : '';
 
-    const message = `🚨 *URGENT CARE CRISIS ALERT via Sanjeevani App* 🚨\n\nI am currently experiencing severe caregiver distress and need immediate support for our patient.\n\nPlease contact me or step in as soon as possible.${locationText}\n\nSent via Sanjeevani Caregiver Decision Support.`;
+    const message = `🚨 *URGENT CARE CRISIS ALERT via Kutumbh App* 🚨\n\nI am currently experiencing severe caregiver distress and need immediate support for our patient.\n\nPlease contact me or step in as soon as possible.${locationText}\n\nSent via Kutumbh Caregiver Decision Support.`;
 
     if (navigator.share) {
       navigator
         .share({
-          title: 'Sanjeevani Caregiver Crisis Alert',
+          title: 'Kutumbh Caregiver Crisis Alert',
           text: message,
         })
         .catch(() => {});

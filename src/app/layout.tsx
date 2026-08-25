@@ -21,14 +21,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Sanjeevani — Geriatric Decision Support & Caregiver Training',
+  title: 'Kutumbh — Geriatric Decision Support & Family Caregiver Training',
   description:
     'Evidence-based geriatric caregiver decision support, Zarit burden assessment, and clinical simulation platform for India.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Sanjeevani'
+    title: 'Kutumbh'
   },
   formatDetection: {
     telephone: true

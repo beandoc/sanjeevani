@@ -289,7 +289,7 @@ export default function LoginPage() {
             <div className="h-12 w-12 rounded-2xl border border-primary/30 shadow-md bg-white/10 p-2 backdrop-blur-md flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
-                alt="Sanjeevani Logo"
+                alt="Kutumbh Logo"
                 width={40}
                 height={40}
                 className="object-contain max-h-full max-w-full"
@@ -297,20 +297,20 @@ export default function LoginPage() {
             </div>
             <div>
               <span className="font-headline font-black text-2xl tracking-tight text-white block">
-                Sanjeevani
+                Kutumbh
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest text-primary font-mono block">
-                Enterprise Geriatric OS
+                Geriatric OS & Care Network (कुटुम्ब)
               </span>
             </div>
           </div>
 
           <div className="space-y-2.5 pt-2">
             <h1 className="font-headline text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
-              Evidence-Based Decision Support for Elderly Care.
+              Evidence-Based Decision Support for Family & Elderly Care.
             </h1>
             <p className="text-xs text-slate-300 leading-relaxed font-normal">
-              Empowering healthcare institutions, clinical teams, and family caregivers with Zarit burden tracking, AGS Beers 2023 drug safety, and ABDM integration.
+              Empowering healthcare institutions, clinical teams, and Kutumbh family caregivers with Zarit burden tracking, AGS Beers 2023 drug safety, and ABDM integration.
             </p>
           </div>
 
@@ -330,7 +330,7 @@ export default function LoginPage() {
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-200">
               <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Govt Telemedicine Gateway (eSanjeevani & SeHAT)</span>
+              <span>National Telemedicine Gateway (eSanjeevani & SeHAT ABDM)</span>
             </div>
           </div>
         </div>

@@ -20,7 +20,7 @@ export function MedicalDisclaimer({ variant = 'banner', className = '' }: Medica
               Medical Disclaimer & Clinical Decision Support Notice
             </p>
             <p className="leading-relaxed">
-              Sanjeevani is designed exclusively as an educational, informational, and caregiver decision-support platform. Content and psychometric assessment scales (such as the Zarit Caregiver Burden Scale) do not constitute medical diagnosis, formal prognosis, or clinical prescriptions. Always seek the advice of a qualified physician, geriatrician, or healthcare provider for medical conditions. In acute emergencies, dial <strong>112</strong> or Elder Line <strong>14567</strong>.
+              Kutumbh is designed exclusively as an educational, informational, and caregiver decision-support platform. Content and psychometric assessment scales (such as the Zarit Caregiver Burden Scale) do not constitute medical diagnosis, formal prognosis, or clinical prescriptions. Always seek the advice of a qualified physician, geriatrician, or healthcare provider for medical conditions. In acute emergencies, dial <strong>112</strong> or Elder Line <strong>14567</strong>.
             </p>
           </div>
 

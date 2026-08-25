@@ -365,17 +365,17 @@ export function AppSidebar() {
           <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-primary/20 shadow-sm shrink-0">
             <Image
               src="/logo.png"
-              alt="Sanjeevani Logo"
+              alt="Kutumbh Logo"
               fill
               className="object-cover"
             />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-base font-black font-headline tracking-tight text-sidebar-foreground">
-              Sanjeevani
+              Kutumbh
             </span>
             <span className="text-[10px] text-muted-foreground font-semibold -mt-0.5 tracking-wider uppercase">
-              Geriatric Care
+              Geriatric Care (कुटुम्ब)
             </span>
           </div>
         </Link>
