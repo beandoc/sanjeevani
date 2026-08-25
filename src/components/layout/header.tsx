@@ -61,11 +61,12 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 flex h-14 sm:h-20 items-center justify-between gap-1.5 sm:gap-4 bg-background/90 px-3 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
-        {/* Left: Mobile Trigger & Brand & Search */}
+        {/* Left: Trigger & Brand & Search */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="md:hidden">
-            <SidebarTrigger className="h-9 w-9 rounded-xl hover:bg-muted/80" />
-          </div>
+          <SidebarTrigger
+            className="h-9 w-9 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground shrink-0"
+            title="Toggle Sidebar (⌘B)"
+          />
           <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 md:hidden">
             <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border/80 bg-white p-0.5 shrink-0">
               <Image
