@@ -14,6 +14,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
@@ -58,8 +59,16 @@ export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('Sidebar');
   const { role, setRole } = useProfile();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
+
+  // Auto-close mobile sidebar sheet on route change
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
 
   useEffect(() => {
     if (!auth) return;
@@ -120,9 +129,9 @@ export function AppSidebar() {
       items: [
         {
           href: '/medications',
-          label: 'AGS Beers 2023 Drug Safety',
+          label: 'Medications & Reminders',
           icon: ClipboardList,
-          badge: 'BEERS'
+          badge: 'Meds'
         },
         {
           href: '/stress-calculator',
@@ -270,7 +279,7 @@ export function AppSidebar() {
         },
         {
           href: '/medications',
-          label: 'Medication Schedule & Alarms',
+          label: 'Medications & Reminders',
           icon: ClipboardList,
           badge: 'Schedule'
         },

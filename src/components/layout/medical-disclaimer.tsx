@@ -12,29 +12,26 @@ interface MedicalDisclaimerProps {
 export function MedicalDisclaimer({ variant = 'banner', className = '' }: MedicalDisclaimerProps) {
   if (variant === 'footer') {
     return (
-      <footer className={`mt-16 border-t border-border/60 bg-muted/20 py-8 px-4 sm:px-6 lg:px-8 text-xs text-muted-foreground ${className}`}>
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-1 text-center md:text-left max-w-3xl">
-            <p className="font-semibold text-foreground/90 flex items-center justify-center md:justify-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              Medical Disclaimer & Clinical Decision Support Notice
-            </p>
-            <p className="leading-relaxed">
-              Kutumbh is designed exclusively as an educational, informational, and caregiver decision-support platform. Content and psychometric assessment scales (such as the Zarit Caregiver Burden Scale) do not constitute medical diagnosis, formal prognosis, or clinical prescriptions. Always seek the advice of a qualified physician, geriatrician, or healthcare provider for medical conditions. In acute emergencies, dial <strong>112</strong> or Elder Line <strong>14567</strong>.
-            </p>
-          </div>
+      <footer className={`mt-10 border-t border-border/50 bg-muted/15 py-3.5 px-4 sm:px-6 lg:px-8 text-[11px] text-muted-foreground ${className}`}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <p className="flex items-center justify-center sm:justify-start gap-1.5 leading-normal">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>
+              <strong>Clinical Note:</strong> Educational and decision-support only; not a substitute for clinical prescription. In emergencies, dial <strong>112</strong> or Elder Line <strong>14567</strong>.
+            </span>
+          </p>
 
-          <div className="flex items-center gap-4 shrink-0 font-medium">
-            <Link href="/privacy" className="hover:text-primary underline underline-offset-4">
-              Privacy Policy
+          <div className="flex items-center gap-3 shrink-0 text-xs font-medium">
+            <Link href="/privacy" className="hover:text-primary transition-colors">
+              Privacy
             </Link>
-            <span>•</span>
-            <Link href="/assessment-guide" className="hover:text-primary underline underline-offset-4">
-              Clinical Guidelines
+            <span className="text-border">•</span>
+            <Link href="/assessment-guide" className="hover:text-primary transition-colors">
+              Guidelines
             </Link>
-            <span>•</span>
-            <Link href="/resources" className="hover:text-primary underline underline-offset-4">
-              National Helplines
+            <span className="text-border">•</span>
+            <Link href="/resources" className="hover:text-primary transition-colors">
+              Helplines
             </Link>
           </div>
         </div>

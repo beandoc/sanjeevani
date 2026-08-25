@@ -370,14 +370,6 @@ export default function CareCirclePage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          {/* Direct Support Matrix Editor Button */}
-          <CaregiverSupportMatrix
-            patientUid={user?.uid || 'local-caregiver'}
-            caregiver={caregiverAttrs}
-            patient={patientProfile}
-            onSave={handleSaveMatrix}
-          />
         </div>
       </div>
 
@@ -455,6 +447,14 @@ export default function CareCirclePage() {
 
         {/* TAB 1: Family Support Matrix & Assistive Infrastructure Overview */}
         <TabsContent value="matrix" className="space-y-6">
+          {/* Monthly Care Support Matrix & Roster Plan Widget */}
+          <CaregiverSupportMatrix
+            patientUid={user?.uid || 'local-caregiver'}
+            caregiver={caregiverAttrs}
+            patient={patientProfile}
+            onSave={handleSaveMatrix}
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left 2 Cols: Active Family Members Breakdown */}
             <div className="lg:col-span-2 space-y-4">
@@ -469,12 +469,6 @@ export default function CareCirclePage() {
                       Family members contributing to the care circle and their work-availability windows.
                     </CardDescription>
                   </div>
-                  <CaregiverSupportMatrix
-                    patientUid={user?.uid || 'local-caregiver'}
-                    caregiver={caregiverAttrs}
-                    patient={patientProfile}
-                    onSave={handleSaveMatrix}
-                  />
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {caregiverAttrs.secondaryMembers && caregiverAttrs.secondaryMembers.length > 0 ? (

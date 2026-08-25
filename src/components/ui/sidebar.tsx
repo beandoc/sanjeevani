@@ -112,6 +112,31 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
+    // Responsive auto-collapse for medium/compact screens (< 1200px) to prevent layout break
+    React.useEffect(() => {
+      if (typeof window === "undefined") return
+
+      const handleResize = () => {
+        const width = window.innerWidth
+        if (width >= 768 && width < 1200) {
+          _setOpen(false)
+        } else if (width >= 1200) {
+          const hasCollapsedCookie = document.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`)
+          if (!hasCollapsedCookie) {
+            _setOpen(true)
+          }
+        }
+      }
+
+      // Check on mount
+      if (window.innerWidth >= 768 && window.innerWidth < 1200) {
+        _setOpen(false)
+      }
+
+      window.addEventListener("resize", handleResize)
+      return () => window.removeEventListener("resize", handleResize)
+    }, [])
+
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
