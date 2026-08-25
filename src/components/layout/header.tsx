@@ -50,17 +50,22 @@ export function Header() {
             <SidebarTrigger className="h-9 w-9 rounded-xl hover:bg-muted/80" />
           </div>
           <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-1.5 md:hidden">
-            <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-primary/20 shrink-0">
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-border/80 bg-white p-0.5 shrink-0">
               <Image
                 src="/logo.png"
-                alt="Kutumbh Logo"
+                alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
                 fill
-                className="object-cover"
+                className="object-contain"
               />
             </div>
-            <span className="font-headline font-black text-sm tracking-tight text-foreground">
-              Kutumbh
-            </span>
+            <div className="leading-none">
+              <span className="font-headline font-black text-xs tracking-tight text-foreground block">
+                कुटुम्ब <span className="font-sans text-[10px] font-bold text-muted-foreground">Kutumbh</span>
+              </span>
+              <span className="text-[8px] text-primary font-bold block font-sans">
+                स्नेह, संबल और स्वास्थ्य
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Global Search Input Trigger */}

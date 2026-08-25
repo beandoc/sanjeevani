@@ -66,7 +66,7 @@ export function AppSidebar() {
     const unsub = auth.onAuthStateChanged((user) => {
       const email = user?.email || '';
       setUserEmail(email);
-      
+
       // Auto-correct active role if it's doctor/professional but the user is not a doctor
       if (email) {
         const isEmailDoctor = email.toLowerCase().includes('doctor') || email.toLowerCase().includes('clinic');
@@ -362,20 +362,20 @@ export function AppSidebar() {
           title="Navigate to Main Login & Account Selection"
           className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-primary/20 shadow-sm shrink-0">
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-1 shrink-0">
             <Image
               src="/logo.png"
-              alt="Kutumbh Logo"
+              alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
               fill
-              className="object-cover"
+              className="object-contain p-0.5"
             />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-base font-black font-headline tracking-tight text-sidebar-foreground">
-              Kutumbh
+              कुटुम्ब <span className="text-xs font-bold text-muted-foreground font-sans">Kutumbh</span>
             </span>
-            <span className="text-[10px] text-muted-foreground font-semibold -mt-0.5 tracking-wider uppercase">
-              Geriatric Care (कुटुम्ब)
+            <span className="text-[10px] text-primary font-bold -mt-0.5 tracking-tight font-sans">
+              स्नेह, संबल और स्वास्थ्य
             </span>
           </div>
         </Link>
@@ -393,8 +393,8 @@ export function AppSidebar() {
                   className={cn(
                     'text-[9px] font-bold uppercase tracking-wider',
                     isDoctor ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' :
-                    isNurse ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10' :
-                    'border-primary/40 text-primary bg-primary/10'
+                      isNurse ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10' :
+                        'border-primary/40 text-primary bg-primary/10'
                   )}
                 >
                   {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
@@ -486,8 +486,8 @@ export function AppSidebar() {
                           active
                             ? 'bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20'
                             : link.isHighlighted
-                            ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold'
-                            : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground/85'
+                              ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold'
+                              : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground/85'
                         )}
                       >
                         <Link href={link.href} className="flex items-center justify-between w-full">
@@ -508,8 +508,8 @@ export function AppSidebar() {
                                 active
                                   ? 'bg-white/20 text-white'
                                   : link.isHighlighted
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground'
                               )}
                             >
                               {link.badge}

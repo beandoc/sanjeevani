@@ -99,8 +99,8 @@ export default function LoginPage() {
       actualRole === 'doctor' || actualRole === 'professional'
         ? 'Doctor / Clinician Portal'
         : actualRole === 'nurse'
-        ? 'Nursing Officer Portal'
-        : 'Kutumbh Family Caregiver Hub';
+          ? 'Nursing Officer Portal'
+          : 'Kutumbh Family Caregiver Hub';
 
     toast({
       title: 'Authentication Successful',
@@ -164,8 +164,8 @@ export default function LoginPage() {
               cleanEmail.toLowerCase().includes('doctor') || selectedRole === 'doctor' || selectedRole === 'professional'
                 ? 'doctor'
                 : cleanEmail.toLowerCase().includes('nurse') || selectedRole === 'nurse'
-                ? 'nurse'
-                : 'caregiver';
+                  ? 'nurse'
+                  : 'caregiver';
             user = await signInOrCreateDemoAccount(roleKey);
           } else {
             throw authErr;
@@ -176,8 +176,8 @@ export default function LoginPage() {
           cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
             ? 'professional'
             : cleanEmail.toLowerCase().includes('nurse') || cleanEmail.toLowerCase().includes('vidya')
-            ? 'nurse'
-            : selectedRole;
+              ? 'nurse'
+              : selectedRole;
 
         await completeSignIn(user.uid, effectiveRole);
       } else if (authMethod === 'mobile') {
@@ -204,10 +204,10 @@ export default function LoginPage() {
         err?.code === 'auth/user-not-found'
           ? 'No account found with this email. Click "New here? Create account" or use the Instant Demo buttons below.'
           : err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential'
-          ? 'Incorrect email or password. Please verify your credentials.'
-          : err instanceof Error
-          ? err.message
-          : 'Please check your credentials and try again.';
+            ? 'Incorrect email or password. Please verify your credentials.'
+            : err instanceof Error
+              ? err.message
+              : 'Please check your credentials and try again.';
 
       toast({
         variant: 'destructive',
@@ -278,21 +278,22 @@ export default function LoginPage() {
         {/* Top Brand Emblem */}
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl border border-primary/30 shadow-md bg-white/10 p-2 backdrop-blur-md flex items-center justify-center shrink-0">
+            <div className="h-14 w-14 rounded-2xl border border-white/20 shadow-lg bg-white p-1.5 flex items-center justify-center shrink-0">
               <Image
                 src="/logo.png"
-                alt="Kutumbh Logo"
-                width={40}
-                height={40}
+                alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
+                width={50}
+                height={50}
                 className="object-contain max-h-full max-w-full"
+                priority
               />
             </div>
             <div>
               <span className="font-headline font-black text-2xl tracking-tight text-white block">
-                Kutumbh
+                कुटुम्ब <span className="text-lg font-bold text-slate-300 font-sans">KUTUMBH</span>
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-primary font-mono block">
-                Geriatric OS & Care Network (कुटुम्ब)
+              <span className="text-xs font-bold tracking-wider text-rose-300 block font-sans">
+                स्नेह, संबल और स्वास्थ्य
               </span>
             </div>
           </div>
@@ -375,11 +376,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('caregiver')}
-                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  selectedRole === 'caregiver'
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'caregiver'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 <Users className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="truncate">Kutumbh (Family)</span>
@@ -387,11 +387,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('nurse')}
-                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  selectedRole === 'nurse'
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'nurse'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span className="truncate">Nurse</span>
@@ -399,11 +398,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('professional')}
-                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  selectedRole === 'professional' || selectedRole === 'doctor'
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'professional' || selectedRole === 'doctor'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="truncate">Doctor</span>
@@ -416,11 +414,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('email')}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${
-                authMethod === 'email'
+              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'email'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               <Mail className="w-3.5 h-3.5" />
               <span>Email & Password</span>
@@ -432,11 +429,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('mobile')}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${
-                authMethod === 'mobile'
+              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'mobile'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
               <span>Mobile OTP</span>
@@ -448,11 +444,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('abha')}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${
-                authMethod === 'abha'
+              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'abha'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               <Fingerprint className="w-3.5 h-3.5" />
               <span>ABDM / ABHA</span>

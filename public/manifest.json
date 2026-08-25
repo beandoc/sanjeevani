@@ -1,7 +1,7 @@
 {
-  "name": "Sanjeevani — Geriatric Decision Support",
-  "short_name": "Sanjeevani",
-  "description": "Evidence-based geriatric caregiver decision support and burden triage platform for India.",
+  "name": "Kutumbh — स्नेह, संबल और स्वास्थ्य",
+  "short_name": "Kutumbh",
+  "description": "Evidence-based geriatric caregiver decision support and family care network for India.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#09090b",
@@ -9,9 +9,9 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/logo.png",
+      "sizes": "512x512 192x192 64x64",
+      "type": "image/png"
     }
   ],
   "shortcuts": [
