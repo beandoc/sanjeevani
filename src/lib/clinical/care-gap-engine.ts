@@ -314,6 +314,9 @@ export interface EngineVitalRecord {
   weight?: string;
   pulse?: string;
   bp?: string;
+  systolic?: string;
+  diastolic?: string;
+  spo2?: string;
   bloodSugar?: string;
   sleep: 'good' | 'average' | 'poor';
 }
@@ -393,17 +396,24 @@ export class CareGapEngine {
       }
     }
 
-    const bpVitals = (vitals || []).filter((v) => v.bp);
+    const bpVitals = (vitals || []).filter((v) => v.bp || (v.systolic && v.diastolic));
     if (bpVitals.length > 0) {
       const sortedBp = [...bpVitals].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const latestBp = sortedBp[0].bp;
-      if (latestBp) {
-        const parts = latestBp.split('/');
-        const systolic = parseInt(parts[0]);
-        const diastolic = parseInt(parts[1]);
+      const latest = sortedBp[0];
+      let systolic = latest.systolic ? parseInt(latest.systolic) : NaN;
+      let diastolic = latest.diastolic ? parseInt(latest.diastolic) : NaN;
+      const bpStr = latest.bp || (latest.systolic && latest.diastolic ? `${latest.systolic}/${latest.diastolic}` : '');
+
+      if ((isNaN(systolic) || isNaN(diastolic)) && latest.bp) {
+        const parts = latest.bp.split('/');
+        systolic = parseInt(parts[0]);
+        diastolic = parseInt(parts[1]);
+      }
+
+      if (!isNaN(systolic) && !isNaN(diastolic)) {
         if (systolic >= 160 || diastolic >= 100) {
           qualityOfCareWarnings.push(
-            `Uncontrolled hypertension: Latest recorded BP is high (${latestBp}). Review medication compliance and notify physician.`
+            `Uncontrolled hypertension: Latest recorded BP is high (${bpStr || `${systolic}/${diastolic}`}). Review medication compliance and notify physician.`
           );
         }
       }

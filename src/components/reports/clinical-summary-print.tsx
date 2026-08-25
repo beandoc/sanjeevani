@@ -49,10 +49,16 @@ export function ClinicalSummaryPrint({
   const recentVitals = vitals.slice(0, 10);
 
   const systolicValues = recentVitals
-    .map((v) => parseInt(v.bp?.split('/')[0] || ''))
+    .map((v) => {
+      if (v.systolic) return Number(v.systolic);
+      return parseInt(v.bp?.split('/')[0] || '');
+    })
     .filter((n) => !isNaN(n) && n > 0);
   const diastolicValues = recentVitals
-    .map((v) => parseInt(v.bp?.split('/')[1] || ''))
+    .map((v) => {
+      if (v.diastolic) return Number(v.diastolic);
+      return parseInt(v.bp?.split('/')[1] || '');
+    })
     .filter((n) => !isNaN(n) && n > 0);
   const meanSystolic =
     systolicValues.length > 0
@@ -69,6 +75,14 @@ export function ClinicalSummaryPrint({
   const meanPulse =
     pulseValues.length > 0
       ? Math.round(pulseValues.reduce((a, b) => a + b, 0) / pulseValues.length)
+      : null;
+
+  const spo2Values = recentVitals
+    .map((v) => Number(v.spo2))
+    .filter((s) => !isNaN(s) && s > 0);
+  const meanSpo2 =
+    spo2Values.length > 0
+      ? Math.round(spo2Values.reduce((a, b) => a + b, 0) / spo2Values.length)
       : null;
 
   const sugarValues = recentVitals
@@ -226,13 +240,14 @@ export function ClinicalSummaryPrint({
           <h3 className="text-sm font-bold text-slate-900 uppercase">
             2. Recent Clinical Vitals & Parameters ({recentVitals.length} Logs Analyzed)
           </h3>
-          <div className="flex items-center gap-3 text-[11px] text-slate-700">
+          <div className="flex items-center gap-3 text-[11px] text-slate-700 flex-wrap">
             {meanSystolic && meanDiastolic && (
               <span className="font-semibold">
                 Mean BP: <strong>{meanSystolic}/{meanDiastolic} mmHg</strong> ({bpClassification})
               </span>
             )}
             {meanPulse && <span>Mean Pulse: <strong>{meanPulse} bpm</strong></span>}
+            {meanSpo2 && <span>Mean SpO2: <strong>{meanSpo2}%</strong></span>}
             {meanSugar && <span>Mean Sugar: <strong>{meanSugar} mg/dL</strong></span>}
           </div>
         </div>
@@ -242,8 +257,9 @@ export function ClinicalSummaryPrint({
             <thead>
               <tr className="border-b border-slate-300 font-bold bg-slate-50">
                 <th className="py-1 px-2">Date</th>
-                <th className="py-1 px-2">Blood Pressure</th>
+                <th className="py-1 px-2">BP (mmHg)</th>
                 <th className="py-1 px-2">Pulse</th>
+                <th className="py-1 px-2">SpO2</th>
                 <th className="py-1 px-2">Sugar</th>
                 <th className="py-1 px-2">Weight</th>
                 <th className="py-1 px-2">Sleep</th>
@@ -254,8 +270,9 @@ export function ClinicalSummaryPrint({
               {recentVitals.map((v) => (
                 <tr key={v.id} className="border-b border-slate-200">
                   <td className="py-1 px-2 font-medium">{format(new Date(v.date), 'dd MMM yyyy')}</td>
-                  <td className="py-1 px-2 font-mono">{v.bp || '—'}</td>
+                  <td className="py-1 px-2 font-mono">{v.systolic && v.diastolic ? `${v.systolic}/${v.diastolic}` : v.bp || '—'}</td>
                   <td className="py-1 px-2 font-mono">{v.pulse ? `${v.pulse} bpm` : '—'}</td>
+                  <td className="py-1 px-2 font-mono">{v.spo2 ? `${v.spo2}%` : '—'}</td>
                   <td className="py-1 px-2 font-mono">{v.bloodSugar ? `${v.bloodSugar} mg/dL` : '—'}</td>
                   <td className="py-1 px-2 font-mono">{v.weight ? `${v.weight} kg` : '—'}</td>
                   <td className="py-1 px-2 capitalize">{v.sleep}</td>

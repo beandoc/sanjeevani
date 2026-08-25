@@ -52,10 +52,12 @@ const vitalLogSchema = z.object({
   date: z.date({
     required_error: "A date is required.",
   }),
-  weight: z.string().optional(),
+  systolic: z.string().optional(),
+  diastolic: z.string().optional(),
   pulse: z.string().optional(),
-  bp: z.string().optional(),
+  spo2: z.string().optional(),
   bloodSugar: z.string().optional(),
+  weight: z.string().optional(),
   sleep: z.enum(['good', 'average', 'poor']),
   notes: z.string().optional(),
 });
@@ -74,10 +76,12 @@ export default function VitalLogsPage() {
     resolver: zodResolver(vitalLogSchema),
     defaultValues: {
       date: new Date(),
-      weight: '',
+      systolic: '',
+      diastolic: '',
       pulse: '',
-      bp: '',
+      spo2: '',
       bloodSugar: '',
+      weight: '',
       sleep: 'average',
       notes: '',
     },
@@ -89,12 +93,19 @@ export default function VitalLogsPage() {
       HealthRepository.saveConsent({ hasConsented: true, vitalsTrackingConsent: true });
     }
 
+    const bpString = data.systolic && data.diastolic
+      ? `${data.systolic}/${data.diastolic}`
+      : data.systolic || undefined;
+
     const saved = HealthRepository.addVital({
       date: data.date.toISOString(),
-      weight: data.weight,
+      systolic: data.systolic,
+      diastolic: data.diastolic,
+      bp: bpString,
       pulse: data.pulse,
-      bp: data.bp,
+      spo2: data.spo2,
       bloodSugar: data.bloodSugar,
+      weight: data.weight,
       sleep: data.sleep,
       notes: data.notes,
     });
@@ -103,10 +114,12 @@ export default function VitalLogsPage() {
     setLogs(HealthRepository.getVitals());
     form.reset({
       date: new Date(),
-      weight: '',
+      systolic: '',
+      diastolic: '',
       pulse: '',
-      bp: '',
+      spo2: '',
       bloodSugar: '',
+      weight: '',
       sleep: 'average',
       notes: '',
     });
@@ -138,7 +151,7 @@ export default function VitalLogsPage() {
         </div>
         <h1 className="text-3xl font-bold font-headline">Vital Signs & Parameters Log</h1>
         <p className="text-muted-foreground text-sm">
-          Track blood pressure, pulse, glucose, and subjective sleep markers to share with your treating physician.
+          Track blood pressure, pulse, SpO2, glucose, and subjective sleep markers to share with your treating physician.
         </p>
       </div>
 
@@ -195,21 +208,42 @@ export default function VitalLogsPage() {
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="bp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs font-semibold">BP (mmHg)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 120/80" className="h-9 text-xs font-mono" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {/* Blood Pressure: Separate Systolic & Diastolic */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold block text-foreground">Blood Pressure (mmHg)</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="systolic"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[11px] font-medium text-muted-foreground">Systolic (mmHg)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. 120" type="number" className="h-9 text-xs font-mono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
+                    <FormField
+                      control={form.control}
+                      name="diastolic"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[11px] font-medium text-muted-foreground">Diastolic (mmHg)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. 80" type="number" className="h-9 text-xs font-mono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Pulse & Optional SpO2 */}
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="pulse"
@@ -217,7 +251,24 @@ export default function VitalLogsPage() {
                       <FormItem>
                         <FormLabel className="text-xs font-semibold">Pulse (bpm)</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. 72" className="h-9 text-xs font-mono" {...field} />
+                          <Input placeholder="e.g. 72" type="number" className="h-9 text-xs font-mono" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="spo2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold flex items-center justify-between">
+                          <span>SpO2 (%)</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">Optional</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 98" type="number" min="50" max="100" className="h-9 text-xs font-mono" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -225,6 +276,7 @@ export default function VitalLogsPage() {
                   />
                 </div>
 
+                {/* Blood Sugar & Weight */}
                 <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
@@ -233,7 +285,7 @@ export default function VitalLogsPage() {
                       <FormItem>
                         <FormLabel className="text-xs font-semibold">Sugar (mg/dL)</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. 110" className="h-9 text-xs font-mono" {...field} />
+                          <Input placeholder="e.g. 110" type="number" className="h-9 text-xs font-mono" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -247,7 +299,7 @@ export default function VitalLogsPage() {
                       <FormItem>
                         <FormLabel className="text-xs font-semibold">Weight (kg)</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. 64.5" className="h-9 text-xs font-mono" {...field} />
+                          <Input placeholder="e.g. 64.5" type="number" step="0.1" className="h-9 text-xs font-mono" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -322,8 +374,9 @@ export default function VitalLogsPage() {
                   <TableHeader>
                     <TableRow className="bg-muted/40 text-xs">
                       <TableHead>Date</TableHead>
-                      <TableHead>BP</TableHead>
+                      <TableHead>BP (mmHg)</TableHead>
                       <TableHead>Pulse</TableHead>
+                      <TableHead>SpO2</TableHead>
                       <TableHead>Sugar</TableHead>
                       <TableHead>Weight</TableHead>
                       <TableHead>Sleep</TableHead>
@@ -335,8 +388,9 @@ export default function VitalLogsPage() {
                     {logs.map((log) => (
                       <TableRow key={log.id} className="text-xs">
                         <TableCell className="font-semibold">{format(new Date(log.date), 'dd MMM yyyy')}</TableCell>
-                        <TableCell className="font-mono">{log.bp || '—'}</TableCell>
+                        <TableCell className="font-mono">{log.systolic && log.diastolic ? `${log.systolic}/${log.diastolic}` : log.bp || '—'}</TableCell>
                         <TableCell className="font-mono">{log.pulse ? `${log.pulse} bpm` : '—'}</TableCell>
+                        <TableCell className="font-mono">{log.spo2 ? `${log.spo2}%` : '—'}</TableCell>
                         <TableCell className="font-mono">{log.bloodSugar ? `${log.bloodSugar} mg/dL` : '—'}</TableCell>
                         <TableCell className="font-mono">{log.weight ? `${log.weight} kg` : '—'}</TableCell>
                         <TableCell className="capitalize">{log.sleep}</TableCell>

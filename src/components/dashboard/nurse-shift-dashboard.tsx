@@ -61,11 +61,14 @@ export function NurseShiftDashboard() {
 
     const saved = HealthRepository.addVital({
       date: new Date().toISOString(),
+      systolic: systolic || undefined,
+      diastolic: diastolic || undefined,
       bp: systolic && diastolic ? `${systolic}/${diastolic}` : systolic || undefined,
       pulse: pulse || undefined,
+      spo2: spO2 || undefined,
       bloodSugar: bloodSugar || undefined,
       sleep: 'average',
-      notes: `Logged by Shift Nurse (${shiftType.replace('_', ' ')})${spO2 ? ` • SpO2: ${spO2}%` : ''}`
+      notes: `Logged by Shift Nurse (${shiftType.replace('_', ' ')})`
     });
     const { queued } = await syncVitals(saved);
 

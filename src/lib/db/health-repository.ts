@@ -22,6 +22,9 @@ export interface VitalRecord {
   weight?: string;
   pulse?: string;
   bp?: string;
+  systolic?: string;
+  diastolic?: string;
+  spo2?: string;
   bloodSugar?: string;
   sleep: 'good' | 'average' | 'poor';
   notes?: string;
@@ -284,9 +287,16 @@ export class HealthRepository {
   }
 
   static addVital(vital: Omit<VitalRecord, 'id' | 'createdAt'>): VitalRecord {
+    const computedBp =
+      vital.bp ||
+      (vital.systolic && vital.diastolic
+        ? `${vital.systolic}/${vital.diastolic}`
+        : vital.systolic || undefined);
+
     const newRecord: VitalRecord = {
       ...vital,
-      id: `vital_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      bp: computedBp,
+      id: `vital_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       createdAt: new Date().toISOString()
     };
     const current = this.getVitals();
