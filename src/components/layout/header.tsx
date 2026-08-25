@@ -5,7 +5,20 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Bell, User, LifeBuoy, ShieldAlert, PhoneCall, Sparkles, Search, HeartPulse } from 'lucide-react';
+import {
+  Bell,
+  User,
+  LifeBuoy,
+  ShieldAlert,
+  PhoneCall,
+  Sparkles,
+  Search,
+  HeartPulse,
+  Stethoscope,
+  Computer,
+  Bed,
+  Activity,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +41,10 @@ export function Header() {
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
+
+  const isDoctor = role === 'doctor' || role === 'professional';
+  const isNurse = role === 'nurse';
+  const isCaregiver = !isDoctor && !isNurse;
 
   // Global Cmd+K / Ctrl+K keyboard shortcut listener
   useEffect(() => {
@@ -74,7 +91,9 @@ export function Header() {
             className="hidden md:flex items-center gap-3 h-10 px-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-muted-foreground transition-all w-64 lg:w-80 text-xs text-left"
           >
             <Search className="h-4 w-4 text-primary shrink-0" />
-            <span className="truncate flex-1">Search tools, drugs, triage...</span>
+            <span className="truncate flex-1">
+              {isDoctor ? 'Search patients, ICD-10, drugs...' : isNurse ? 'Search bedside tasks, eMAR, vitals...' : 'Search tools, drugs, triage...'}
+            </span>
             <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium">
               ⌘K
             </kbd>
@@ -82,7 +101,7 @@ export function Header() {
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-1 sm:gap-2.5 md:gap-3 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
           {/* Mobile Search Icon Button */}
           <Button
             variant="ghost"
@@ -94,27 +113,98 @@ export function Header() {
             <Search className="h-3.5 w-3.5 text-primary" />
           </Button>
 
-          {/* Caregiver Bedside Troubleshooting Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsTroubleshootingOpen(true)}
-            className="hidden lg:flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-xs gap-1.5 shrink-0"
-          >
-            <HeartPulse className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Bedside Triage</span>
-          </Button>
+          {/* ─── DOCTOR PORTAL ADDONS ─── */}
+          {isDoctor && (
+            <>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <Link href="/clinic/roster">
+                  <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Patient Roster</span>
+                </Link>
+              </Button>
 
-          {/* Quick 1-Click Crisis Escalation Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsCrisisOpen(true)}
-            className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/60 shadow-xs gap-1.5 shrink-0"
-          >
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-            <span>Crisis & Helplines</span>
-          </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <Link href="/sehat-opd">
+                  <Computer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>SeHAT OPD</span>
+                </Link>
+              </Button>
+            </>
+          )}
+
+          {/* ─── NURSE PORTAL ADDONS ─── */}
+          {isNurse && (
+            <>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <Link href="/domiciliary">
+                  <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Turn Clock</span>
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <Link href="/vital-logs">
+                  <Activity className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  <span>Vitals Log</span>
+                </Link>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCrisisOpen(true)}
+                className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                <span>Emergency</span>
+              </Button>
+            </>
+          )}
+
+          {/* ─── CAREGIVER PORTAL ADDONS ─── */}
+          {isCaregiver && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsTroubleshootingOpen(true)}
+                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <HeartPulse className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Bedside Triage</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCrisisOpen(true)}
+                className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                <span>Crisis & Helplines</span>
+              </Button>
+            </>
+          )}
 
           <HeaderControls />
           <LanguageSwitcher />
