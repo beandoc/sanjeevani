@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Stethoscope, LogOut, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthUser } from '@/hooks/use-auth-user';
@@ -51,13 +52,18 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
       <header className="border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-6">
-            <Link href="/clinic/roster" className="flex items-center gap-2 font-bold text-sm group">
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-br from-blue-600/20 to-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Stethoscope className="w-4 h-4 text-blue-600" />
+            <Link href="/clinic/roster" className="flex items-center gap-2.5 font-bold text-sm group">
+              <div className="relative h-9 w-9 sm:h-10 sm:w-10 overflow-hidden rounded-xl border border-blue-500/30 bg-white p-1 shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                <Image
+                  src="/kutumbh-emblem.png"
+                  alt="Kutumbh Clinician"
+                  fill
+                  className="object-contain"
+                />
               </div>
               <div className="leading-tight">
-                <span className="block text-xs sm:text-sm font-black">Kutumbh Clinician</span>
-                <span className="block text-[9px] sm:text-[10px] font-normal text-muted-foreground">Consulting Portal (कुटुम्ब)</span>
+                <span className="block text-xs sm:text-sm font-black">कुटुम्ब Clinician</span>
+                <span className="block text-[9px] sm:text-[10px] font-bold text-rose-500">स्नेह, संबल और स्वास्थ्य</span>
               </div>
             </Link>
 

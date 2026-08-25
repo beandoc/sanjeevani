@@ -278,22 +278,25 @@ export default function LoginPage() {
         {/* Top Brand Emblem */}
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="h-14 w-14 rounded-2xl border border-white/20 shadow-lg bg-white p-1.5 flex items-center justify-center shrink-0">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-white/30 shadow-xl bg-white p-2 flex items-center justify-center shrink-0">
               <Image
-                src="/logo.png"
+                src="/kutumbh-emblem.png"
                 alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
-                width={50}
-                height={50}
+                width={75}
+                height={75}
                 className="object-contain max-h-full max-w-full"
                 priority
               />
             </div>
             <div>
-              <span className="font-headline font-black text-2xl tracking-tight text-white block">
-                कुटुम्ब <span className="text-lg font-bold text-slate-300 font-sans">KUTUMBH</span>
+              <span className="font-headline font-black text-2xl sm:text-3xl tracking-tight text-white block">
+                कुटुम्ब <span className="text-lg sm:text-xl font-bold text-slate-300 font-sans">KUTUMBH</span>
               </span>
-              <span className="text-xs font-bold tracking-wider text-rose-300 block font-sans">
+              <span className="text-xs sm:text-sm font-bold tracking-wider text-rose-300 block font-sans">
                 स्नेह, संबल और स्वास्थ्य
+              </span>
+              <span className="text-[9px] uppercase font-mono tracking-widest text-slate-400 block mt-0.5">
+                Family Geriatric OS & Care Network
               </span>
             </div>
           </div>

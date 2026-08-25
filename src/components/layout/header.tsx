@@ -49,10 +49,10 @@ export function Header() {
           <div className="md:hidden">
             <SidebarTrigger className="h-9 w-9 rounded-xl hover:bg-muted/80" />
           </div>
-          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-1.5 md:hidden">
-            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-border/80 bg-white p-0.5 shrink-0">
+          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 md:hidden">
+            <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border/80 bg-white p-0.5 shrink-0">
               <Image
-                src="/logo.png"
+                src="/kutumbh-emblem.png"
                 alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
                 fill
                 className="object-contain"

@@ -362,12 +362,12 @@ export function AppSidebar() {
           title="Navigate to Main Login & Account Selection"
           className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-1 shrink-0">
+          <div className="relative h-11 w-11 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-1 shrink-0">
             <Image
-              src="/logo.png"
+              src="/kutumbh-emblem.png"
               alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
               fill
-              className="object-contain p-0.5"
+              className="object-contain"
             />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
