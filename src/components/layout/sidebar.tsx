@@ -368,13 +368,13 @@ export function AppSidebar() {
       variant="sidebar"
       className="border-r border-sidebar-border bg-sidebar-background shadow-xl"
     >
-      <SidebarHeader className="h-16 flex items-center px-4 border-b border-sidebar-border/50">
+      <SidebarHeader className="h-16 flex items-center px-3.5 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:justify-center border-b border-sidebar-border/50">
         <Link
           href="/dashboard"
           title="Kutumbh Healthcare Dashboard"
           className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <div className="relative h-11 w-11 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-1 shrink-0">
+          <div className="relative h-10 w-10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-0.5 shrink-0">
             <Image
               src="/kutumbh-emblem.png"
               alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"

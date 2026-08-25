@@ -60,7 +60,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 sm:h-20 items-center justify-between gap-1.5 sm:gap-4 bg-background/90 px-3 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
+      <header className="sticky top-0 z-30 flex h-14 sm:h-20 items-center justify-between gap-1.5 sm:gap-4 bg-background/90 px-3 sm:px-6 md:px-10 backdrop-blur-xl border-b border-border/50 transition-all">
         {/* Left: Trigger & Brand & Search */}
         <div className="flex items-center gap-2 sm:gap-3">
           <SidebarTrigger
