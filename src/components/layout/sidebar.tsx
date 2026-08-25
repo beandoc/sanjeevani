@@ -59,16 +59,18 @@ export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('Sidebar');
   const { role, setRole } = useProfile();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpen, setOpenMobile } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
 
-  // Auto-close mobile sidebar sheet on route change
+  // Auto-close / auto-collapse sidebar on route change
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
+    } else {
+      setOpen(false);
     }
-  }, [pathname, isMobile, setOpenMobile]);
+  }, [pathname, isMobile, setOpen, setOpenMobile]);
 
   useEffect(() => {
     if (!auth) return;
