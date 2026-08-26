@@ -154,6 +154,20 @@ export interface MonthlyRotationPolicy {
   nightShiftArrangement: 'formal_24h_staff' | 'formal_night_nurse' | 'family_rotation' | 'primary_solo';
 }
 
+export interface ClinicalCareBlueprint {
+  id: string;
+  prescribedByDoctor: string;
+  prescribedAt: string; // ISO date
+  clinicalSummary: string;
+  recommendedSupportType: FormalSupportType | 'family_redistribution';
+  recommendedShiftWindow: 'targeted_morning' | 'targeted_evening' | 'day_12h' | 'night_12h' | 'live_in_24h' | 'respite_coverage' | 'family_schedule';
+  recommendedHoursPerDay: number;
+  clinicalPrecautions: string[];
+  recommendedAssistiveDevices: AssistiveDeviceInventory;
+  recommendedRespiteDaysPerMonth: number;
+  status: 'draft_prescribed' | 'adopted_by_family' | 'modified_by_family';
+}
+
 export interface CaregiverAttributes {
   name: string;
   age: number;
@@ -186,6 +200,7 @@ export interface CaregiverAttributes {
     handlesHeavyTransfers: boolean;
     handlesMedicationWoundCare: boolean;
   };
+  careBlueprint?: ClinicalCareBlueprint;
   notes?: string;
 }
 

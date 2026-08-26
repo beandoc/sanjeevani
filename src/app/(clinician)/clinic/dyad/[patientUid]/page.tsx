@@ -61,8 +61,10 @@ import { ScissorsChart } from '@/components/clinician/scissors-chart';
 import { RiskHeader } from '@/components/clinician/risk-header';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
 import { AssistedZaritAssessmentForm } from '@/components/clinical/assisted-zarit-assessment-form';
+import { DoctorCareBlueprintDialog } from '@/components/clinician/doctor-care-blueprint-dialog';
 import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
 import { AssignModulesPanel } from '@/components/clinician/assign-modules-panel';
+import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -216,6 +218,49 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     }
   };
 
+  const handleBlueprintIssued = async (blueprint: ClinicalCareBlueprint) => {
+    const updatedCaregiver: CaregiverAttributes = {
+      ...(caregiver || {
+        name: 'Primary Caregiver',
+        age: 50,
+        gender: 'female',
+        kinship: 'daughter',
+        coResidence: 'lives_together',
+        education: 'graduate',
+        employment: 'full_time',
+        dailyHoursCommitted: 5,
+        monthlyOutOfPocketBurden: 'moderate_strain',
+        formalTrainingReceived: false,
+        caregiverHealth: {
+          hasBackPain: false,
+          hasHypertension: false,
+          hasArthritis: false,
+          hasDiabetes: false,
+          hasInsomnia: false
+        }
+      }),
+      careBlueprint: blueprint,
+      assistiveDevices: blueprint.recommendedAssistiveDevices,
+      rotationPolicy: {
+        ...(caregiver?.rotationPolicy || {
+          rotationInterval: 'biweekly',
+          primaryCaregiverRespiteDaysPerMonth: 4,
+          nightShiftArrangement: 'primary_solo'
+        }),
+        primaryCaregiverRespiteDaysPerMonth: blueprint.recommendedRespiteDaysPerMonth
+      }
+    };
+
+    await saveCaregiverAttributesFor(patientUid, updatedCaregiver);
+    setCaregiver(updatedCaregiver);
+    if (patientProfile) {
+      const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
+      await savePatientProfileFor(patientUid, updatedProfile);
+      setPatientProfile(updatedProfile);
+    }
+    await load();
+  };
+
   const handleFunctionAssessmentSaved = async (result: Parameters<typeof recordFunctionScore>[1]) => {
     try {
       await recordFunctionScore(patientUid, result);
@@ -333,6 +378,13 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
           <Button variant="outline" size="sm" onClick={() => void load()} className="h-9 text-xs gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </Button>
+          <DoctorCareBlueprintDialog
+            patientUid={patientUid}
+            patientName={displayName}
+            caregiver={caregiver}
+            patientProfile={patientProfile}
+            onBlueprintIssued={handleBlueprintIssued}
+          />
           <AssistedZaritAssessmentForm
             patientName={displayName}
             onComplete={handleZaritAssessmentSaved}

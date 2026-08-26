@@ -51,6 +51,7 @@ import {
   CareGapEngine,
   AssistiveDeviceInventory,
   DEFAULT_ASSISTIVE_DEVICES,
+  FormalSupportType,
   generateWhatsAppCareDigest,
   generateCareRosterIcs
 } from '@/lib/clinical/care-gap-engine';
@@ -60,6 +61,9 @@ import {
   getPatientProfileFor
 } from '@/lib/firebase/clinical-sync';
 import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
+import { buildFormalSupport } from '@/lib/clinical/formal-support';
+import { Stethoscope, FileSignature, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function CareCirclePage() {
   const { user } = useAuthUser();
@@ -290,11 +294,50 @@ export default function CareCirclePage() {
     }
   };
 
+  const handleApplyDoctorBlueprint = async () => {
+    const bp = caregiverAttrs.careBlueprint;
+    if (!bp) return;
+
+    const formalTypes: FormalSupportType[] =
+      bp.recommendedSupportType !== 'none' && bp.recommendedSupportType !== 'family_redistribution'
+        ? [bp.recommendedSupportType as FormalSupportType]
+        : [];
+    const updatedAttrs: CaregiverAttributes = {
+      ...caregiverAttrs,
+      formalSupport: buildFormalSupport(formalTypes),
+      assistiveDevices: bp.recommendedAssistiveDevices,
+      rotationPolicy: {
+        ...(caregiverAttrs.rotationPolicy || {
+          rotationInterval: 'biweekly',
+          primaryCaregiverRespiteDaysPerMonth: 4,
+          nightShiftArrangement: 'primary_solo'
+        }),
+        primaryCaregiverRespiteDaysPerMonth: bp.recommendedRespiteDaysPerMonth
+      },
+      careBlueprint: {
+        ...bp,
+        status: 'adopted_by_family'
+      }
+    };
+
+    HealthRepository.saveCaregiverAttributes(updatedAttrs);
+    setCaregiverAttrs(updatedAttrs);
+    if (user?.uid) {
+      await saveCaregiverAttributesFor(user.uid, updatedAttrs);
+    }
+    toast({
+      title: "Doctor's Blueprint Applied",
+      description: `${bp.prescribedByDoctor}'s staffing tier, safety directives, and assistive devices are now active in your Care Matrix.`
+    });
+  };
+
   const waDigestText = generateWhatsAppCareDigest(caregiverAttrs, patientProfile, currentEval);
 
   const activeDevicesCount = Object.values(caregiverAttrs.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES).filter(
     (v) => v === true || (typeof v === 'string' && v !== 'none')
   ).length;
+
+  const blueprint = caregiverAttrs.careBlueprint;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto p-3.5 sm:p-6">
@@ -420,13 +463,13 @@ export default function CareCirclePage() {
         <Card className="border-border bg-card/70 shadow-xs">
           <CardContent className="p-3.5 space-y-1">
             <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
-              <Activity className="w-3 h-3 text-rose-500" /> Care Balance
+              <Activity className="w-3 h-3 text-rose-500" /> Tasks Delegated
             </span>
             <p className="text-lg font-black text-foreground">
-              {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours}h Deficit` : '0h Covered'}
+              {tasks.length - completedCount} Pending
             </p>
-            <p className="text-[11px] text-muted-foreground">
-              Burnout: <span className="font-bold uppercase text-foreground">{currentEval.caregiverBurnoutRiskLevel}</span>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+              {completedCount} Completed
             </p>
           </CardContent>
         </Card>
@@ -447,6 +490,99 @@ export default function CareCirclePage() {
 
         {/* TAB 1: Family Support Matrix & Assistive Infrastructure Overview */}
         <TabsContent value="matrix" className="space-y-6">
+          {/* Doctor's Clinical Home Care Blueprint Card (if issued) */}
+          {blueprint && (
+            <Card className="border-blue-500/40 bg-gradient-to-r from-blue-500/10 via-background to-blue-500/5 shadow-xs overflow-hidden">
+              <CardHeader className="pb-3 border-b border-blue-500/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-blue-600 text-white">
+                      <Stethoscope className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-bold font-headline">
+                          Doctor&apos;s Clinical Home Care Blueprint
+                        </CardTitle>
+                        <Badge
+                          variant={blueprint.status === 'adopted_by_family' ? 'default' : 'outline'}
+                          className={cn(
+                            'text-[10px] font-mono',
+                            blueprint.status === 'adopted_by_family'
+                              ? 'bg-emerald-600 text-white'
+                              : 'border-blue-500/40 text-blue-700 dark:text-blue-300'
+                          )}
+                        >
+                          {blueprint.status === 'adopted_by_family' ? '✓ Adopted by Family' : 'Pending Family Adoption'}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-xs">
+                        Issued by <strong>{blueprint.prescribedByDoctor}</strong> on{' '}
+                        {new Date(blueprint.prescribedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  {blueprint.status !== 'adopted_by_family' && (
+                    <Button
+                      size="sm"
+                      onClick={handleApplyDoctorBlueprint}
+                      className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shrink-0"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Apply Doctor&apos;s Prescription</span>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3 text-xs">
+                <p className="text-foreground leading-relaxed">
+                  <strong>Clinical Rationale:</strong> {blueprint.clinicalSummary}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1">
+                    <span className="font-bold text-primary block text-[11px] uppercase tracking-wider">
+                      Prescribed Staffing & Shift Window
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {blueprint.recommendedSupportType.replace(/_/g, ' ').toUpperCase()} ({blueprint.recommendedHoursPerDay}h/day)
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Shift: {blueprint.recommendedShiftWindow.replace('_', ' ')}</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1">
+                    <span className="font-bold text-primary block text-[11px] uppercase tracking-wider">
+                      Prescribed Devices & Respite
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {blueprint.recommendedRespiteDaysPerMonth} Respite Days / Mo
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {blueprint.recommendedAssistiveDevices.hospitalBed === 'motorized_multichannel' ? 'Motorized Bed' : 'Standard Bed'}
+                      {blueprint.recommendedAssistiveDevices.airWaterMattress ? ' + Ripple Air Mattress' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {blueprint.clinicalPrecautions.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <span className="font-bold text-foreground text-[11px] uppercase tracking-wider block">
+                      Doctor&apos;s Safety Directives for Family:
+                    </span>
+                    <div className="space-y-1">
+                      {blueprint.clinicalPrecautions.map((prec, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-muted-foreground leading-relaxed">
+                          <span className="text-blue-600 font-bold">•</span>
+                          <span>{prec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Monthly Care Support Matrix & Roster Plan Widget */}
           <CaregiverSupportMatrix
             patientUid={user?.uid || 'local-caregiver'}
