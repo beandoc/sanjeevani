@@ -166,6 +166,12 @@ export function AppSidebar() {
           badge: '21 Sims'
         },
         {
+          href: '/resources',
+          label: 'Patient Education & Literature',
+          icon: BookMarked,
+          badge: 'Evidence'
+        },
+        {
           href: '/onboarding',
           label: 'Patient Intake Wizard',
           icon: Sparkles,
@@ -248,6 +254,12 @@ export function AppSidebar() {
           label: 'Interactive Patient Simulations',
           icon: Bot,
           badge: '21 Sims'
+        },
+        {
+          href: '/resources',
+          label: 'Patient Education & Leaflets',
+          icon: BookMarked,
+          badge: 'Guides'
         }
       ]
     },
@@ -327,6 +339,13 @@ export function AppSidebar() {
     {
       title: 'Education & VR Simulations',
       items: [
+        {
+          href: '/resources',
+          label: 'Patient Education & Handouts',
+          icon: BookMarked,
+          badge: 'Guides',
+          isHighlighted: true
+        },
         {
           href: '/modules',
           label: 'Learning Modules',
