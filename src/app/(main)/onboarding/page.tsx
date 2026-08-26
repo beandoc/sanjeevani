@@ -772,7 +772,7 @@ export default function OnboardingIntakePage() {
               </div>
 
               {/* Cognitive & Mobility Load */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Cognitive & Behavioral Status</Label>
                   <Select
@@ -801,6 +801,66 @@ export default function OnboardingIntakePage() {
                       <SelectItem value="yes" className="text-xs">Strictly Bed-Bound (Requires Q2H Turns)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Falls in Last 6 Months</Label>
+                  <Select
+                    value={String(patient.fallHistoryLast6Months || 0)}
+                    onValueChange={(v) => setPatient({ ...patient, fallHistoryLast6Months: parseInt(v) || 0 })}
+                  >
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0" className="text-xs">0 Falls (No Recent Fall)</SelectItem>
+                      <SelectItem value="1" className="text-xs">1 Fall (Mild Fall Risk)</SelectItem>
+                      <SelectItem value="2" className="text-xs">2+ Falls (High Risk Repeat Faller)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Primary Clinical Diagnoses / Multimorbidity */}
+              <div className="space-y-2 pt-1">
+                <Label className="text-xs font-bold text-primary uppercase tracking-wider">
+                  Primary Geriatric Diagnoses & Chronic Conditions
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Hypertension',
+                    'Type 2 Diabetes',
+                    'Post-Stroke Hemiparesis',
+                    "Parkinson's Disease",
+                    "Alzheimer's / Dementia",
+                    'Chronic Kidney Disease',
+                    'Coronary Artery Disease',
+                    'Osteoarthritis / Knee Pain',
+                    'COPD / Asthma'
+                  ].map((cond) => {
+                    const isSelected = (patient.primaryConditions || []).some(
+                      (c) => c.toLowerCase() === cond.toLowerCase()
+                    );
+                    return (
+                      <button
+                        key={cond}
+                        type="button"
+                        onClick={() => {
+                          const current = patient.primaryConditions || [];
+                          const updated = isSelected
+                            ? current.filter((c) => c.toLowerCase() !== cond.toLowerCase())
+                            : [...current, cond];
+                          setPatient({ ...patient, primaryConditions: updated });
+                        }}
+                        className={cn(
+                          'px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all',
+                          isSelected
+                            ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                            : 'bg-card text-muted-foreground border-border hover:border-primary/40'
+                        )}
+                      >
+                        {isSelected ? `✓ ${cond}` : `+ ${cond}`}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
                 </>
@@ -1124,36 +1184,82 @@ export default function OnboardingIntakePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* 4 KPIs */}
+              {/* 4 Reconciled KPIs */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl border border-border bg-card text-center">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Care Demand</span>
+                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Patient Demand</span>
                   <span className="text-2xl font-black font-mono text-foreground">{evaluation.patientCareDemandHours}h</span>
-                  <span className="text-[10px] text-muted-foreground block">per day</span>
+                  <span className="text-[10px] text-muted-foreground block">daily care load</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-border bg-card text-center">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Staff Absorbed</span>
-                  <span className="text-2xl font-black font-mono text-emerald-600">{evaluation.formalSupportAbsorbedHours}h</span>
-                  <span className="text-[10px] text-muted-foreground block">formal support</span>
+                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Available Capacity</span>
+                  <span className="text-2xl font-black font-mono text-emerald-600">{evaluation.totalAvailableCapacityHours}h</span>
+                  <span className="text-[10px] text-muted-foreground block">
+                    {evaluation.caregiverSafeCapacityHours}h primary + {evaluation.formalSupportAbsorbedHours + evaluation.familySupportAbsorbedHours}h team
+                  </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-border bg-card text-center">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Net Care Gap</span>
+                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Net Care Gap</span>
                   <span className={cn('text-2xl font-black font-mono', evaluation.netCareGapHours > 2 ? 'text-rose-600' : 'text-emerald-600')}>
                     {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours}h` : '0h'}
                   </span>
-                  <span className="text-[10px] text-muted-foreground block">{evaluation.careGapSeverity.replace('_', ' ')}</span>
+                  <Badge variant="outline" className="text-[9px] uppercase font-mono mt-0.5">
+                    {evaluation.careGapSeverity.replace('_', ' ')}
+                  </Badge>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-border bg-card text-center">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block">Lumbar Risk</span>
-                  <span className={cn('text-2xl font-black font-mono', evaluation.caregiverInjuryRiskScore >= 60 ? 'text-rose-600' : 'text-primary')}>
-                    {evaluation.caregiverInjuryRiskScore}%
+                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Lifting Strain (NIOSH)</span>
+                  <span className={cn('text-2xl font-black font-mono', evaluation.liftingIndex > 2.0 ? 'text-rose-600' : evaluation.liftingIndex > 1.0 ? 'text-amber-600' : 'text-emerald-600')}>
+                    {evaluation.liftingIndex.toFixed(1)} LI
                   </span>
-                  <span className="text-[10px] text-muted-foreground block">injury score</span>
+                  <span className="text-[10px] text-muted-foreground block">{evaluation.caregiverInjuryRiskScore}% injury risk</span>
                 </div>
               </div>
+
+              {/* Diurnal Schedule Preview */}
+              {evaluation.blockGaps && (
+                <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-2">
+                  <Label className="text-[11px] font-bold text-primary uppercase tracking-wider block">
+                    Diurnal Block Baseline Schedule (Demand vs Capacity)
+                  </Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { key: 'morning_rush', label: 'Morning Rush', time: '07:00-10:00', icon: '🌅' },
+                      { key: 'afternoon', label: 'Midday', time: '12:00-15:00', icon: '☀️' },
+                      { key: 'evening', label: 'Evening Peak', time: '18:00-21:00', icon: '🌆' },
+                      { key: 'night_watch', label: 'Night Watch', time: '22:00-06:00', icon: '🌙' }
+                    ].map((b) => {
+                      const bg = evaluation.blockGaps[b.key as keyof typeof evaluation.blockGaps];
+                      const hasGap = bg && bg.gapHours > 0;
+                      return (
+                        <div
+                          key={b.key}
+                          className={cn(
+                            'p-2.5 rounded-xl border text-center text-xs space-y-0.5',
+                            hasGap
+                              ? 'bg-rose-500/5 border-rose-500/30'
+                              : 'bg-emerald-500/5 border-emerald-500/30'
+                          )}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-semibold">
+                            <span>{b.icon} {b.label}</span>
+                            <span className="font-mono text-[10px]">{b.time}</span>
+                          </div>
+                          <div className="flex items-center justify-between font-mono text-[11px] pt-1">
+                            <span className="text-muted-foreground">Dem: {bg ? bg.demandHours.toFixed(1) : 0}h</span>
+                            <span className={cn('font-bold', hasGap ? 'text-rose-600' : 'text-emerald-600')}>
+                              {hasGap ? `Gap +${bg.gapHours.toFixed(1)}h` : 'Covered'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Role Confirmation Banner */}
               <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 flex items-center justify-between gap-4">
