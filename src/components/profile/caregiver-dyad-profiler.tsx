@@ -38,6 +38,7 @@ import {
   CareGapEvaluationResult
 } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
+import { StaffingRecommender } from '@/lib/clinical/staffing-recommender';
 import {
   FORMAL_SUPPORT_OPTIONS,
   buildFormalSupport,
@@ -89,6 +90,11 @@ export function CaregiverDyadProfiler() {
   const evaluation: CareGapEvaluationResult | null = useMemo(
     () => (caregiver && patient ? CareGapEngine.evaluate(caregiver, patient) : null),
     [caregiver, patient]
+  );
+
+  const staffingReport = useMemo(
+    () => (caregiver && patient && evaluation ? StaffingRecommender.recommend(caregiver, patient, evaluation) : null),
+    [caregiver, patient, evaluation]
   );
 
   if (!caregiver || !patient || !evaluation) return null;
@@ -146,7 +152,7 @@ export function CaregiverDyadProfiler() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-wider">
-                  Clinical Dyad Model
+                  Clinical Dyad Model v{evaluation.engineVersion || '2.2.0'}
                 </Badge>
                 <Badge variant={evaluation.netCareGapHours > 2 ? 'destructive' : 'secondary'} className="text-[10px] font-mono">
                   Care Gap: {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours} hrs deficit` : 'Sustainable'}
@@ -156,7 +162,7 @@ export function CaregiverDyadProfiler() {
                 Caregiver Dyad Profiler & Care Gap Engine
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Quantifies patient care demands (Katz ADL / IADL) vs caregiver safe physical capacity (Age, Health, Employment).
+                Quantifies patient care demands (Katz ADL / Lawton-Brody 8-Item IADL) vs caregiver safe physical capacity (Age, Health, Employment).
               </CardDescription>
             </div>
 
@@ -198,10 +204,10 @@ export function CaregiverDyadProfiler() {
         </CardHeader>
       </Card>
 
-      {/* TAB 1: Care Gap & Deficit Analysis */}
+      {/* TAB 1: Care Gap Overview & Staffing Prescription */}
       {activeTab === 'gap' && (
         <div className="space-y-6">
-          {/* Main KPI Gauges */}
+          {/* Summary Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
@@ -210,7 +216,7 @@ export function CaregiverDyadProfiler() {
                   <span className="text-3xl font-black text-foreground">{evaluation.patientCareDemandHours}</span>
                   <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Based on {6 - evaluation.katzAdlScore} ADL & {5 - evaluation.lawtonIadlScore} IADL deficits</p>
+                <p className="text-[11px] text-muted-foreground">Based on {6 - evaluation.katzAdlScore}/6 ADL & {8 - evaluation.lawtonIadlScore}/8 IADL deficits</p>
               </CardContent>
             </Card>
 
@@ -218,20 +224,29 @@ export function CaregiverDyadProfiler() {
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Available Capacity</span>
-                  {evaluation.formalSupportAbsorbedHours > 0 && (
-                    <Badge variant="secondary" className="text-[9px] font-mono">
-                      +{evaluation.formalSupportAbsorbedHours}h Formal
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {evaluation.familySupportAbsorbedHours > 0 && (
+                      <Badge variant="secondary" className="text-[9px] font-mono">
+                        +{evaluation.familySupportAbsorbedHours}h Family
+                      </Badge>
+                    )}
+                    {evaluation.formalSupportAbsorbedHours > 0 && (
+                      <Badge variant="secondary" className="text-[9px] font-mono">
+                        +{evaluation.formalSupportAbsorbedHours}h Formal
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-black text-foreground">
-                    {evaluation.caregiverSafeCapacityHours + evaluation.formalSupportAbsorbedHours}
+                    {evaluation.totalAvailableCapacityHours}
                   </span>
                   <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Family ({evaluation.caregiverSafeCapacityHours}h) + Formal ({evaluation.formalSupportAbsorbedHours}h)
+                  Primary ({evaluation.caregiverSafeCapacityHours}h)
+                  {evaluation.familySupportAbsorbedHours > 0 ? ` + Family (${evaluation.familySupportAbsorbedHours}h)` : ''}
+                  {evaluation.formalSupportAbsorbedHours > 0 ? ` + Formal (${evaluation.formalSupportAbsorbedHours}h)` : ''}
                 </p>
               </CardContent>
             </Card>
@@ -253,19 +268,112 @@ export function CaregiverDyadProfiler() {
 
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Caregiver Injury Risk</span>
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-black ${evaluation.caregiverInjuryRiskScore >= 60 ? 'text-rose-600' : 'text-primary'}`}>
-                    {evaluation.caregiverInjuryRiskScore}%
-                  </span>
-                  <span className="text-xs text-muted-foreground font-semibold">Lumbar Strain</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">NIOSH Lifting Index</span>
+                  <Badge
+                    variant={evaluation.liftingIndex >= 2.0 ? 'destructive' : evaluation.liftingIndex >= 1.0 ? 'secondary' : 'outline'}
+                    className="text-[9px] font-mono capitalize"
+                  >
+                    {evaluation.caregiverInjuryRiskCategory || 'low'} hazard
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-mono capitalize">
-                  {evaluation.caregiverBurnoutRiskLevel} Risk Level
-                </Badge>
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-3xl font-black ${evaluation.liftingIndex >= 2.0 ? 'text-rose-600' : evaluation.liftingIndex >= 1.0 ? 'text-amber-600' : 'text-primary'}`}>
+                    {typeof evaluation.liftingIndex === 'number' ? evaluation.liftingIndex.toFixed(1) : (evaluation.caregiverInjuryRiskScore / 40).toFixed(1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">LI (Limit: 1.0)</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  L5/S1 Compression: {evaluation.spinalCompressionKN ?? 2.4} kN • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
+                </p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Diurnal Care Gap Index & Time-Block Matrix */}
+          {evaluation.blockGaps && (
+            <Card className="border-border bg-card shadow-sm overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b border-border/40">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-sm font-bold">
+                      Diurnal Care Gap Index — Non-Linear Schedule Matrix
+                    </CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground font-semibold">Diurnal Severity Index:</span>
+                    <Badge
+                      variant={evaluation.careGapIndex >= 70 ? 'destructive' : evaluation.careGapIndex >= 40 ? 'secondary' : 'outline'}
+                      className="font-mono text-xs font-bold"
+                    >
+                      {evaluation.careGapIndex} / 100
+                    </Badge>
+                  </div>
+                </div>
+                <CardDescription className="text-xs text-muted-foreground mt-1">
+                  Non-linearly weights time-critical deficits (Night Watch & Morning Rush penalized higher than elective midday hours).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { id: 'morning_rush', label: 'Morning Rush', time: '07:00 - 10:00', icon: '🌅', crit: '1.3x Weight' },
+                    { id: 'afternoon', label: 'Midday / Errands', time: '12:00 - 15:00', icon: '☀️', crit: '0.8x Weight' },
+                    { id: 'evening', label: 'Evening Peak', time: '18:00 - 21:00', icon: '🌆', crit: '1.1x Weight' },
+                    { id: 'night_watch', label: 'Night Watch', time: '22:00 - 06:00', icon: '🌙', crit: '1.6x Weight' }
+                  ].map((block) => {
+                    const bg = evaluation.blockGaps[block.id as keyof typeof evaluation.blockGaps];
+                    if (!bg) return null;
+                    const hasGap = bg.gapHours > 0;
+                    return (
+                      <div
+                        key={block.id}
+                        className={`p-3 rounded-xl border flex flex-col justify-between gap-2 transition-all ${
+                          hasGap
+                            ? 'border-rose-500/30 bg-rose-500/5'
+                            : 'border-border bg-muted/20'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold flex items-center gap-1.5">
+                              <span>{block.icon}</span> {block.label}
+                            </span>
+                            <Badge variant={hasGap ? 'destructive' : 'outline'} className="text-[9px] font-mono">
+                              {hasGap ? `+${bg.gapHours}h Deficit` : 'Covered'}
+                            </Badge>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">{block.time} • {block.crit}</span>
+                        </div>
+
+                        <div className="space-y-1 pt-2 border-t border-border/40 text-[11px]">
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Demand:</span>
+                            <span className="font-semibold text-foreground">{bg.demandHours}h</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Supply:</span>
+                            <span className="font-semibold text-foreground">{bg.supplyHours}h</span>
+                          </div>
+                        </div>
+
+                        {bg.contributors.length > 0 && (
+                          <div className="pt-1 text-[10px] text-muted-foreground flex flex-wrap gap-1">
+                            {bg.contributors.map((c, idx) => (
+                              <span key={idx} className="bg-background/80 px-1.5 py-0.5 rounded border border-border/40">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Clinical Findings Box */}
           <Card className="border-border bg-card shadow-sm">
@@ -284,6 +392,84 @@ export function CaregiverDyadProfiler() {
               ))}
             </CardContent>
           </Card>
+
+          {/* Multi-Tier Staffing Recommender Ladder */}
+          {staffingReport && (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <div>
+                  <h3 className="text-sm font-bold font-headline uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    Staffing Prescription Ladder (Enumerate → Simulate → Rank)
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Acuity-driven skill tier ({staffingReport.acuityAssessment.dominantSkillTier.replace('_', ' ')}) • Diurnal shift matching ({staffingReport.diurnalPattern.primaryDeficitWindow})
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-mono capitalize self-start sm:self-auto">
+                  {staffingReport.acuityAssessment.dominantSkillTier} Tier
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {staffingReport.ladder.map((option, idx) => (
+                  <Card
+                    key={idx}
+                    className={`border transition-all flex flex-col justify-between ${
+                      option.rung === 'recommended'
+                        ? 'border-primary shadow-sm bg-primary/5 ring-1 ring-primary/20'
+                        : 'border-border bg-card shadow-xs'
+                    }`}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <Badge
+                          variant={option.rung === 'recommended' ? 'default' : option.rung === 'optimal' ? 'secondary' : 'outline'}
+                          className="text-[9px] uppercase font-bold tracking-wider"
+                        >
+                          {option.rung.replace('_', ' ')}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground font-mono font-semibold">
+                          {option.affordabilityFit}
+                        </span>
+                      </div>
+                      <CardTitle className="text-xs font-bold leading-snug">{option.title}</CardTitle>
+                      <CardDescription className="text-[11px] text-muted-foreground mt-1">
+                        {option.clinicalJustification}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs pt-0">
+                      <div className="p-2 rounded-lg bg-background/80 border border-border/40 space-y-1 text-[11px]">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Residual Gap:</span>
+                          <span className="font-bold text-foreground">
+                            {option.simulatedResult.netCareGapHours > 0 ? `+${option.simulatedResult.netCareGapHours}h/day` : '0.0h (Fully Covered)'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Caregiver Lifting Index:</span>
+                          <span className="font-semibold text-foreground">
+                            {option.simulatedResult.liftingIndex.toFixed(1)} LI
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Burnout Tier:</span>
+                          <Badge variant="outline" className="text-[9px] capitalize py-0">
+                            {option.simulatedResult.caregiverBurnoutRiskLevel}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="pt-1 text-[10px] text-muted-foreground">
+                        <span className="font-semibold text-foreground">Resolves: </span>
+                        {option.resolvedTasks.slice(0, 2).join(', ')}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Targeted Care Gap Prescriptions */}
           <div className="space-y-3">
@@ -609,34 +795,42 @@ export function CaregiverDyadProfiler() {
               </div>
             </div>
 
-            {/* Lawton IADL 5-item Grid */}
+            {/* Lawton-Brody IADL 8-item Standard Grid */}
             <div className="space-y-2 pt-2 border-t border-border/60">
-              <Label className="text-xs font-semibold text-primary uppercase tracking-wider">
-                2. Lawton Instrumental ADLs (IADLs) — Home Maintenance
-              </Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-primary uppercase tracking-wider">
+                  2. Lawton-Brody Instrumental ADLs (IADLs) — 8-Item Standard
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {evaluation.lawtonIadlScore}/8 Independent
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {[
-                  { key: 'medicationManagement', label: 'Medication Administration' },
-                  { key: 'finances', label: 'Managing Bank / Money' },
-                  { key: 'mealPreparation', label: 'Cooking & Meal Preparation' },
-                  { key: 'housekeeping', label: 'House Cleaning & Laundry' },
-                  { key: 'transportation', label: 'Clinic Transport / Travel' },
+                  { key: 'telephone', label: 'Telephone & Phone Use' },
+                  { key: 'shopping', label: 'Provisions & Shopping' },
+                  { key: 'mealPreparation', label: 'Cooking & Meals' },
+                  { key: 'housekeeping', label: 'Housekeeping' },
+                  { key: 'laundry', label: 'Personal Laundry' },
+                  { key: 'transportation', label: 'Travel & Transport' },
+                  { key: 'medicationManagement', label: 'Medication Admin' },
+                  { key: 'finances', label: 'Finances & Money' },
                 ].map((iadl) => {
-                  const isIndep = patient.lawtonIadl[iadl.key as keyof typeof patient.lawtonIadl];
+                  const isIndep = !!patient.lawtonIadl[iadl.key as keyof typeof patient.lawtonIadl];
                   return (
                     <button
                       key={iadl.key}
                       type="button"
                       onClick={() => toggleLawtonIadl(iadl.key as any)}
-                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                      className={`p-2.5 rounded-xl border text-left flex flex-col justify-between gap-1.5 transition-all ${
                         isIndep
                           ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-900 dark:text-emerald-300 font-bold'
                           : 'border-border bg-muted/30 text-muted-foreground'
                       }`}
                     >
-                      <span className="text-xs">{iadl.label}</span>
-                      <Badge variant={isIndep ? 'outline' : 'secondary'} className="text-[9px]">
-                        {isIndep ? 'Self' : 'Caregiver Needed'}
+                      <span className="text-xs leading-snug">{iadl.label}</span>
+                      <Badge variant={isIndep ? 'outline' : 'secondary'} className="text-[9px] self-start">
+                        {isIndep ? 'Independent' : 'Needs Help'}
                       </Badge>
                     </button>
                   );

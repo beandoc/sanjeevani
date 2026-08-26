@@ -112,25 +112,15 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
-    // Responsive auto-collapse for medium/compact screens (< 1200px) to prevent layout break
+    // Auto-sync sidebar state on resize
     React.useEffect(() => {
       if (typeof window === "undefined") return
 
       const handleResize = () => {
         const width = window.innerWidth
-        if (width >= 768 && width < 1200) {
+        if (width < 768) {
           _setOpen(false)
-        } else if (width >= 1200) {
-          const hasCollapsedCookie = document.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`)
-          if (!hasCollapsedCookie) {
-            _setOpen(true)
-          }
         }
-      }
-
-      // Check on mount
-      if (window.innerWidth >= 768 && window.innerWidth < 1200) {
-        _setOpen(false)
       }
 
       window.addEventListener("resize", handleResize)
@@ -200,7 +190,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, open, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, open, setOpen, openMobile, setOpenMobile } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -243,11 +233,19 @@ const Sidebar = React.forwardRef<
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
+        className={cn(
+          "group peer hidden md:block text-sidebar-foreground",
+          state === "collapsed" && "cursor-pointer"
+        )}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        onClick={(e) => {
+          if (!isMobile && state === "collapsed") {
+            setOpen(true)
+          }
+        }}
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div

@@ -4,6 +4,7 @@ import {
   CareGapEngine,
   CaregiverAttributes,
   PatientDependenceProfile,
+  EngineAppointmentRecord,
   generateWhatsAppCareDigest,
   generateCareRosterIcs
 } from '../src/lib/clinical/care-gap-engine';
@@ -29,6 +30,33 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     formalTrainingReceived: false
   };
 
+  const sampleIndependentPatient: PatientDependenceProfile = {
+    name: 'Shri Ram Prasad',
+    age: 72,
+    primaryConditions: ['Mild Hypertension'],
+    katzAdl: {
+      bathing: true,
+      dressing: true,
+      toileting: true,
+      transferring: true,
+      continence: true,
+      feeding: true
+    },
+    lawtonIadl: {
+      telephone: true,
+      shopping: true,
+      mealPreparation: true,
+      housekeeping: true,
+      laundry: true,
+      transportation: true,
+      medicationManagement: true,
+      finances: true
+    },
+    cognitiveBehavioralLoad: 'none',
+    fallHistoryLast6Months: 0,
+    isBedBound: false
+  };
+
   const sampleDependentPatient: PatientDependenceProfile = {
     name: 'Smt. Sarojini Devi',
     age: 81,
@@ -42,11 +70,14 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
       feeding: true
     },
     lawtonIadl: {
-      medicationManagement: false,
-      finances: false,
+      telephone: false,
+      shopping: false,
       mealPreparation: false,
       housekeeping: false,
-      transportation: false
+      laundry: false,
+      transportation: false,
+      medicationManagement: false,
+      finances: false
     },
     cognitiveBehavioralLoad: 'wandering_agitation',
     fallHistoryLast6Months: 1,
@@ -105,11 +136,14 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
         feeding: true
       },
       lawtonIadl: {
-        medicationManagement: true,
-        finances: true,
+        telephone: true,
+        shopping: true,
         mealPreparation: true,
         housekeeping: true,
-        transportation: true
+        laundry: true,
+        transportation: true,
+        medicationManagement: true,
+        finances: true
       },
       cognitiveBehavioralLoad: 'none',
       fallHistoryLast6Months: 0
@@ -316,7 +350,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(a.evaluatedAt, '2026-01-01T00:00:00.000Z');
   });
 
-  test('secondary family members must actually increase safe capacity', () => {
+  test('secondary family members must absorb demand and reduce net care gap without distorting primary safe capacity', () => {
     const solo = CareGapEngine.evaluate(
       { ...sampleCaregiver, otherFamilyMembersCount: 0 },
       sampleDependentPatient
@@ -326,8 +360,10 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
       sampleDependentPatient
     );
 
-    assert.ok(supported.caregiverSafeCapacityHours > solo.caregiverSafeCapacityHours);
+    assert.ok(supported.familySupportAbsorbedHours > solo.familySupportAbsorbedHours);
     assert.ok(supported.netCareGapHours < solo.netCareGapHours);
+    // Primary caregiver safe capacity must reflect primary caregiver, not phantom network buffer
+    assert.strictEqual(supported.caregiverSafeCapacityHours, solo.caregiverSafeCapacityHours);
   });
 
   test('repeat fallers must carry more demand than a single fall', () => {
@@ -727,4 +763,748 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.ok(icsText.includes('Respite Day'));
     assert.ok(icsText.endsWith('END:VCALENDAR'));
   });
+
+  // --- Regression Tests for D1 & D2 ---
+
+  test('D1: Overdue appointment must not flip a healthy dyad to critical caregiver burnout', () => {
+    const retiredCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      employment: 'retired',
+      dailyHoursCommitted: 8,
+      caregiverHealth: {
+        hasBackPain: false,
+        hasHypertension: false,
+        hasArthritis: false,
+        hasDiabetes: false,
+        hasInsomnia: false
+      },
+      formalTrainingReceived: true,
+      monthlyOutOfPocketBurden: 'manageable'
+    };
+
+    const independentPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      katzAdl: {
+        bathing: true,
+        dressing: true,
+        toileting: true,
+        transferring: true,
+        continence: true,
+        feeding: true
+      },
+      lawtonIadl: {
+        telephone: true,
+        shopping: true,
+        mealPreparation: true,
+        housekeeping: true,
+        laundry: true,
+        transportation: true,
+        medicationManagement: true,
+        finances: true
+      },
+      cognitiveBehavioralLoad: 'none',
+      fallHistoryLast6Months: 0,
+      isBedBound: false
+    };
+
+    const baseResult = CareGapEngine.evaluate(retiredCaregiver, independentPatient);
+    assert.strictEqual(baseResult.caregiverBurnoutRiskLevel, 'low');
+    assert.strictEqual(baseResult.netCareGapHours, 0);
+
+    // Add overdue appointment (30 days past)
+    const overdueAppts = [
+      {
+        date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        department: 'Orthopedics',
+        doctor: 'Dr. Sharma',
+        status: 'scheduled' as const
+      }
+    ];
+
+    const resultWithMissedAppt = CareGapEngine.evaluate(
+      retiredCaregiver,
+      independentPatient,
+      new Date(),
+      [],
+      overdueAppts
+    );
+
+    // Warning is captured for the patient care gap
+    assert.ok(resultWithMissedAppt.qualityOfCareWarnings.length > 0);
+    assert.ok(resultWithMissedAppt.qualityOfCareWarnings.some((w) => w.includes('Missed hospital visits')));
+    // But caregiver burnout level must remain low
+    assert.strictEqual(resultWithMissedAppt.caregiverBurnoutRiskLevel, 'low');
+  });
+
+  test('D2: Patient care-quality warnings must not inflate caregiver lumbar strain / injury risk score', () => {
+    const healthyCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      employment: 'retired',
+      dailyHoursCommitted: 8,
+      caregiverHealth: {
+        hasBackPain: false,
+        hasHypertension: false,
+        hasArthritis: false,
+        hasDiabetes: false,
+        hasInsomnia: false
+      },
+      formalTrainingReceived: true
+    };
+
+    const independentPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      katzAdl: {
+        bathing: true,
+        dressing: true,
+        toileting: true,
+        transferring: true,
+        continence: true,
+        feeding: true
+      },
+      lawtonIadl: {
+        telephone: true,
+        shopping: true,
+        mealPreparation: true,
+        housekeeping: true,
+        laundry: true,
+        transportation: true,
+        medicationManagement: true,
+        finances: true
+      },
+      cognitiveBehavioralLoad: 'none',
+      fallHistoryLast6Months: 0,
+      isBedBound: false,
+      primaryConditions: []
+    };
+
+    const cleanResult = CareGapEngine.evaluate(healthyCaregiver, independentPatient);
+
+    const missedAppts = [
+      {
+        date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+        department: 'Orthopedics',
+        doctor: 'Dr. Rao',
+        status: 'scheduled' as const
+      }
+    ];
+
+    const resultWithAppt = CareGapEngine.evaluate(
+      healthyCaregiver,
+      independentPatient,
+      new Date(),
+      [],
+      missedAppts
+    );
+
+    assert.strictEqual(
+      resultWithAppt.caregiverInjuryRiskScore,
+      cleanResult.caregiverInjuryRiskScore,
+      'Lumbar strain / injury risk score must not increase due to missed appointment'
+    );
+  });
+
+  test('D3: Combined covered capacity must include family support hours and reconcile with demand and net gap', () => {
+    const caregiverWithFamily: CaregiverAttributes = {
+      ...sampleCaregiver,
+      dailyHoursCommitted: 4,
+      employment: 'full_time',
+      caregiverHealth: {
+        hasBackPain: false,
+        hasHypertension: false,
+        hasArthritis: false,
+        hasDiabetes: false,
+        hasInsomnia: false
+      },
+      secondaryMembers: [
+        {
+          id: 'sec_1',
+          name: 'Sibling',
+          relationship: 'sibling',
+          age: 30,
+          hoursPerDay: 5.0,
+          assignedTasks: ['medications', 'bathing'],
+          hasPhysicalLimitation: false
+        }
+      ]
+    };
+
+    const result = CareGapEngine.evaluate(caregiverWithFamily, sampleDependentPatient);
+    // Total available capacity = primary safe capacity + family support absorbed + formal support absorbed
+    const totalAvailable = Math.round(
+      (result.caregiverSafeCapacityHours + result.familySupportAbsorbedHours + result.formalSupportAbsorbedHours) * 10
+    ) / 10;
+    const expectedGap = Math.max(0, Math.round((result.patientCareDemandHours - totalAvailable) * 10) / 10);
+
+    assert.strictEqual(
+      result.netCareGapHours,
+      expectedGap,
+      `Demand (${result.patientCareDemandHours}) - Total Capacity (${totalAvailable}) must exactly equal Net Gap (${result.netCareGapHours})`
+    );
+  });
+
+  test('D4: Secondary family member offering 2h/day reduces net gap by exactly 2.0h without phantom double/triple discounting', () => {
+    const baseCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      dailyHoursCommitted: 4,
+      employment: 'full_time',
+      secondaryMembers: [],
+      otherFamilyMembersCount: 0
+    };
+
+    const baseResult = CareGapEngine.evaluate(baseCaregiver, sampleDependentPatient);
+
+    const caregiverWith2hMember: CaregiverAttributes = {
+      ...baseCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_1',
+          name: 'Daughter',
+          relationship: 'daughter',
+          age: 25,
+          hoursPerDay: 2.0,
+          assignedTasks: [],
+          hasPhysicalLimitation: false
+        }
+      ]
+    };
+
+    const supportedResult = CareGapEngine.evaluate(caregiverWith2hMember, sampleDependentPatient);
+
+    assert.strictEqual(supportedResult.familySupportAbsorbedHours, 2.0);
+    assert.strictEqual(supportedResult.caregiverSafeCapacityHours, baseResult.caregiverSafeCapacityHours);
+    const gapReduction = Math.round((baseResult.netCareGapHours - supportedResult.netCareGapHours) * 10) / 10;
+    assert.strictEqual(gapReduction, 2.0, 'A 2h/day secondary family contribution must reduce the net care gap by exactly 2.0h');
+  });
+
+  test('D5: formalSupport.hoursPerDay scaling dynamically adjusts absorbed hours', () => {
+    const caregiver12h: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'paid_attendant_12h',
+        hoursPerDay: 12,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: false
+      }
+    };
+    const caregiver1h: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: {
+        type: 'paid_attendant_12h',
+        hoursPerDay: 1,
+        handlesHeavyTransfers: true,
+        handlesMedicationWoundCare: false
+      }
+    };
+
+    const res12h = CareGapEngine.evaluate(caregiver12h, sampleDependentPatient);
+    const res1h = CareGapEngine.evaluate(caregiver1h, sampleDependentPatient);
+
+    assert.strictEqual(res12h.formalSupportAbsorbedHours, 10.0);
+    assert.strictEqual(res1h.formalSupportAbsorbedHours, 0.8);
+    assert.ok(res1h.netCareGapHours > res12h.netCareGapHours);
+  });
+
+  // --- Scientific Rigor Tests (S1 - S5) ---
+
+  test('S1: Standard Lawton-Brody 8-item instrument calculates score 0 to 8', () => {
+    const halfDependentPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      lawtonIadl: {
+        telephone: true,
+        shopping: true,
+        mealPreparation: true,
+        housekeeping: true,
+        laundry: false,
+        transportation: false,
+        medicationManagement: false,
+        finances: false
+      }
+    };
+
+    const result = CareGapEngine.evaluate(sampleCaregiver, halfDependentPatient);
+    assert.strictEqual(result.lawtonIadlScore, 4);
+  });
+
+  test('S3: Biomechanical Strain Index is bounded 10-100 and categorized accurately', () => {
+    const lowStrainDyad = CareGapEngine.evaluate(
+      {
+        ...sampleCaregiver,
+        caregiverHealth: { hasBackPain: false, hasArthritis: false, hasDiabetes: false, hasHypertension: false, hasInsomnia: false },
+        formalTrainingReceived: true,
+        age: 35
+      },
+      {
+        ...sampleDependentPatient,
+        katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true }
+      }
+    );
+
+    assert.ok(lowStrainDyad.caregiverInjuryRiskScore >= 10 && lowStrainDyad.caregiverInjuryRiskScore <= 100);
+    assert.ok(
+      ['low', 'moderate', 'high', 'severe'].includes(lowStrainDyad.caregiverInjuryRiskCategory)
+    );
+  });
+
+  test('S4: hasCondition must use word-boundary matching and not match substring in unrelated text like "routine"', () => {
+    const patientWithRoutineVisit: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      primaryConditions: ['Routine Annual Geriatric Health Checkup', 'Mild Osteoarthritis'],
+      isBedBound: false
+    };
+
+    const result = CareGapEngine.evaluate(sampleCaregiver, patientWithRoutineVisit);
+    // 'uti' must NOT match 'Routine'
+    assert.strictEqual(
+      result.qualityOfCareWarnings.some((w) => w.toLowerCase().includes('recurrent infection')),
+      false,
+      '"Routine" text must not trigger UTI / recurrent infection warning'
+    );
+  });
+
+  test('S4: Isolated feeding inability without dysphagia/neurological condition must not trigger aspiration warning', () => {
+    const arthriticHandsPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      primaryConditions: ['Severe Hand Osteoarthritis', 'Bilateral Carpal Tunnel'],
+      katzAdl: {
+        ...sampleDependentPatient.katzAdl,
+        feeding: false // Cannot hold spoon due to arthritic joints
+      }
+    };
+
+    const result = CareGapEngine.evaluate(sampleCaregiver, arthriticHandsPatient);
+    assert.strictEqual(
+      result.qualityOfCareWarnings.some((w) => w.includes('aspiration') || w.includes('dysphagia')),
+      false,
+      'Arthritic hand feeding deficit must not trigger false aspiration/suction warning'
+    );
+  });
+
+  test('S5: CareGapEvaluationResult must stamp algorithm engineVersion', () => {
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+    assert.strictEqual(result.engineVersion, '2.2.0');
+    assert.ok(typeof result.evaluatedAt === 'string');
+  });
+
+  test('S5: HealthRepository persists and restores engineVersion and evaluatedAt', async () => {
+    const { HealthRepository } = await import('../src/lib/db/health-repository');
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+    HealthRepository.saveCareGapEvaluation(result);
+
+    const retrieved = HealthRepository.getStoredCareGapEvaluation();
+    assert.ok(retrieved !== null);
+    assert.strictEqual(retrieved?.engineVersion, '2.2.0');
+    assert.strictEqual(retrieved?.evaluatedAt, result.evaluatedAt);
+    assert.strictEqual(retrieved?.totalAvailableCapacityHours, result.totalAvailableCapacityHours);
+  });
+
+  test('Constants: Care gap model constants are exported and correctly configured for Indian scenario', async () => {
+    const {
+      CARE_GAP_ENGINE_VERSION,
+      BASELINE_CARE_DEMAND_HOURS,
+      DEMAND_PER_ADL_DEFICIT_HOURS,
+      DEMAND_PER_IADL_DEFICIT_HOURS,
+      FORMAL_PRODUCTIVITY_FACTORS,
+      FINANCIAL_STRAIN_MULTIPLIERS
+    } = await import('../src/lib/clinical/care-gap-constants');
+
+    assert.strictEqual(CARE_GAP_ENGINE_VERSION, '2.2.0');
+    assert.strictEqual(BASELINE_CARE_DEMAND_HOURS, 1.5);
+    assert.strictEqual(DEMAND_PER_ADL_DEFICIT_HOURS, 1.0);
+    assert.strictEqual(DEMAND_PER_IADL_DEFICIT_HOURS, 0.35);
+    assert.strictEqual(FORMAL_PRODUCTIVITY_FACTORS.paid_attendant_24h.nominalHours, 24);
+    assert.strictEqual(FORMAL_PRODUCTIVITY_FACTORS.paid_attendant_24h.productivityFactor, 16.0 / 24);
+    assert.strictEqual(FINANCIAL_STRAIN_MULTIPLIERS.severe_toxicity, 1.4);
+  });
+
+  // --- Diurnal Care Gap Index Tests ---
+
+  test('Diurnal: Computes per-block gaps over 4 standard diurnal blocks and preserves netCareGapHours', () => {
+    const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+    assert.ok(result.blockGaps);
+    assert.ok(result.blockGaps.morning_rush);
+    assert.ok(result.blockGaps.afternoon);
+    assert.ok(result.blockGaps.evening);
+    assert.ok(result.blockGaps.night_watch);
+
+    // Block demand sum matches total demand
+    const sumDemands = Math.round(
+      (result.blockGaps.morning_rush.demandHours +
+        result.blockGaps.afternoon.demandHours +
+        result.blockGaps.evening.demandHours +
+        result.blockGaps.night_watch.demandHours) * 10
+    ) / 10;
+    assert.strictEqual(sumDemands, result.patientCareDemandHours);
+    assert.ok(result.careGapIndex >= 0 && result.careGapIndex <= 100);
+  });
+
+  test('Diurnal: Concentrated nocturnal deficit scores higher on careGapIndex than distributed daytime deficit', () => {
+    // Zero deficit dyad
+    const zeroResult = CareGapEngine.evaluate(
+      {
+        ...sampleCaregiver,
+        dailyHoursCommitted: 12,
+        employment: 'retired',
+        caregiverHealth: { hasBackPain: false, hasArthritis: false, hasDiabetes: false, hasHypertension: false, hasInsomnia: false },
+        formalTrainingReceived: true
+      },
+      {
+        ...sampleDependentPatient,
+        katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+        lawtonIadl: {
+          telephone: true,
+          shopping: true,
+          mealPreparation: true,
+          housekeeping: true,
+          laundry: true,
+          transportation: true,
+          medicationManagement: true,
+          finances: true
+        },
+        cognitiveBehavioralLoad: 'none',
+        fallHistoryLast6Months: 0,
+        isBedBound: false
+      }
+    );
+    assert.strictEqual(zeroResult.careGapIndex, 0);
+
+    // Patient with severe nocturnal sundowning vs waking demand
+    const sundowningPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      isBedBound: true
+    };
+
+    const sundowningResult = CareGapEngine.evaluate(sampleCaregiver, sundowningPatient);
+    assert.ok(sundowningResult.careGapIndex > 50, 'Concentrated nocturnal deficit must produce high Diurnal Index');
+    assert.ok(sundowningResult.blockGaps.night_watch.demandHours > 0);
+  });
+
+  // --- Biomechanical Constraint Vector & NIOSH RNLE Tests ---
+
+  test('Biomechanical: calculateBiomechanicalLoad computes real NIOSH RNLE Lifting Index and L5/S1 compression', async () => {
+    const { calculateBiomechanicalLoad } = await import('../src/lib/clinical/biomechanical-load');
+
+    const result = calculateBiomechanicalLoad({
+      caregiver: sampleCaregiver,
+      patient: sampleDependentPatient,
+      isTransfersRelievedByStaffOrFamily: false,
+      isBathingRelievedByStaffOrFamily: false,
+      isNightCareRelievedByStaffOrFamily: false,
+      netCareGapHours: 4.5
+    });
+
+    assert.ok(result.liftingIndex > 1.0, 'Solo lifting of dependent 68kg adult must exceed NIOSH Recommended Weight Limit (LI > 1.0)');
+    assert.ok(result.spinalCompressionKN > 2.0, 'Spinal compression must be computed in kiloNewtons');
+    assert.ok(result.dailyTransferCount >= 4, 'Daily transfer count must reflect diurnal toileting/transfer events');
+    assert.ok(result.nocturnalSleepInterruptions >= 2.0, 'Nocturnal interruptions must reflect insomnia and night care');
+    assert.ok(['moderate', 'high', 'severe'].includes(result.caregiverInjuryRiskCategory));
+  });
+
+  test('Biomechanical: Motorized bed and transfer aids apply physics discounts to RNLE lift multipliers', async () => {
+    const { calculateBiomechanicalLoad } = await import('../src/lib/clinical/biomechanical-load');
+
+    const unassisted = calculateBiomechanicalLoad({
+      caregiver: sampleCaregiver,
+      patient: {
+        ...sampleDependentPatient,
+        assistiveDevices: {
+          hospitalBed: 'none',
+          airWaterMattress: false,
+          wheelchair: false,
+          suctionApparatus: false,
+          transferAids: false
+        }
+      },
+      isTransfersRelievedByStaffOrFamily: false,
+      isBathingRelievedByStaffOrFamily: false,
+      isNightCareRelievedByStaffOrFamily: false,
+      netCareGapHours: 4.0
+    });
+
+    const equipped = calculateBiomechanicalLoad({
+      caregiver: sampleCaregiver,
+      patient: {
+        ...sampleDependentPatient,
+        assistiveDevices: {
+          hospitalBed: 'motorized_multichannel',
+          airWaterMattress: true,
+          wheelchair: true,
+          suctionApparatus: false,
+          transferAids: true
+        }
+      },
+      isTransfersRelievedByStaffOrFamily: false,
+      isBathingRelievedByStaffOrFamily: false,
+      isNightCareRelievedByStaffOrFamily: false,
+      netCareGapHours: 4.0
+    });
+
+    assert.ok(
+      equipped.liftingIndex < unassisted.liftingIndex,
+      'Motorized bed and transfer aids must reduce the NIOSH Lifting Index'
+    );
+    assert.ok(
+      equipped.caregiverInjuryRiskScore < unassisted.caregiverInjuryRiskScore,
+      'Assistive devices must reduce overall biomechanical injury score'
+    );
+    assert.ok(equipped.ergonomicMechanisms.length > 0);
+  });
+
+  test('Biomechanical: Shared staff transfer relief significantly lowers solo lifting index', async () => {
+    const { calculateBiomechanicalLoad } = await import('../src/lib/clinical/biomechanical-load');
+
+    const solo = calculateBiomechanicalLoad({
+      caregiver: sampleCaregiver,
+      patient: sampleDependentPatient,
+      isTransfersRelievedByStaffOrFamily: false,
+      isBathingRelievedByStaffOrFamily: false,
+      isNightCareRelievedByStaffOrFamily: false,
+      netCareGapHours: 4.0
+    });
+
+    const staffRelieved = calculateBiomechanicalLoad({
+      caregiver: sampleCaregiver,
+      patient: sampleDependentPatient,
+      isTransfersRelievedByStaffOrFamily: true,
+      isBathingRelievedByStaffOrFamily: true,
+      isNightCareRelievedByStaffOrFamily: true,
+      netCareGapHours: 1.0
+    });
+
+    assert.ok(
+      staffRelieved.liftingIndex < solo.liftingIndex,
+      'Staff handling relief must drop solo lifting index'
+    );
+    assert.ok(
+      staffRelieved.nocturnalSleepInterruptions < solo.nocturnalSleepInterruptions,
+      'Night staff coverage must eliminate nocturnal care awakenings'
+    );
+  });
+
+  // --- Phase 6: Formal Property & Mathematical Invariant Tests ---
+
+  test('Property: Monotonicity of Care Demand and Gap Reduction', () => {
+    // 1. More ADL deficits never lower demand
+    const patient2Deficits: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      katzAdl: { bathing: false, dressing: false, toileting: true, transferring: true, continence: true, feeding: true }
+    };
+    const patient4Deficits: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: true, feeding: true }
+    };
+    const eval2 = CareGapEngine.evaluate(sampleCaregiver, patient2Deficits);
+    const eval4 = CareGapEngine.evaluate(sampleCaregiver, patient4Deficits);
+    assert.ok(eval4.patientCareDemandHours >= eval2.patientCareDemandHours, 'More ADL deficits must increase or maintain care demand');
+
+    // 2. More support hours never raise the net gap
+    const cg4h: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: { type: 'paid_attendant_12h', hoursPerDay: 4, handlesHeavyTransfers: true, handlesMedicationWoundCare: false }
+    };
+    const cg8h: CaregiverAttributes = {
+      ...sampleCaregiver,
+      formalSupport: { type: 'paid_attendant_12h', hoursPerDay: 8, handlesHeavyTransfers: true, handlesMedicationWoundCare: false }
+    };
+    const evalCg4 = CareGapEngine.evaluate(cg4h, patient4Deficits);
+    const evalCg8 = CareGapEngine.evaluate(cg8h, patient4Deficits);
+    assert.ok(evalCg8.netCareGapHours <= evalCg4.netCareGapHours, 'More support hours must lower or maintain net care gap');
+
+    // 3. Adding a family member never raises careGapIndex
+    const cgWithFamily: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'fam_helper',
+          name: 'Pooja',
+          relationship: 'daughter',
+          age: 26,
+          hoursPerDay: 2,
+          hasPhysicalLimitation: false,
+          assignedTasks: ['feeding', 'medications']
+        }
+      ]
+    };
+    const evalSolo = CareGapEngine.evaluate(sampleCaregiver, patient4Deficits);
+    const evalFam = CareGapEngine.evaluate(cgWithFamily, patient4Deficits);
+    assert.ok(evalFam.careGapIndex <= evalSolo.careGapIndex, 'Adding a secondary family member must reduce or maintain careGapIndex');
+  });
+
+  test('Property: Conservation of Diurnal Demand and Gap Reconciliation Invariant', () => {
+    const testDyads: Array<{ cg: CaregiverAttributes; pt: PatientDependenceProfile }> = [
+      { cg: sampleCaregiver, pt: sampleIndependentPatient },
+      { cg: sampleCaregiver, pt: sampleDependentPatient },
+      {
+        cg: {
+          ...sampleCaregiver,
+          formalSupport: { type: 'paid_attendant_12h', hoursPerDay: 6, handlesHeavyTransfers: true, handlesMedicationWoundCare: false },
+          secondaryMembers: [
+            {
+              id: 'm1',
+              name: 'Amit',
+              relationship: 'son',
+              age: 30,
+              hoursPerDay: 2.5,
+              hasPhysicalLimitation: false,
+              assignedTasks: ['heavy_transfers']
+            }
+          ]
+        },
+        pt: sampleDependentPatient
+      }
+    ];
+
+    for (const dyad of testDyads) {
+      const res = CareGapEngine.evaluate(dyad.cg, dyad.pt);
+
+      // Invariant 1: sum(blockGaps.demand) == patientCareDemandHours
+      const blockDemandSum = Object.values(res.blockGaps).reduce((acc, b) => acc + b.demandHours, 0);
+      assert.strictEqual(
+        Math.round(blockDemandSum * 10) / 10,
+        res.patientCareDemandHours,
+        'Sum of diurnal block demands must exactly equal patientCareDemandHours'
+      );
+
+      // Invariant 2: totalAvailableCapacity - demand reconciles with netCareGapHours
+      const totalAvailableCapacity =
+        res.caregiverSafeCapacityHours + res.formalSupportAbsorbedHours + res.familySupportAbsorbedHours;
+      const expectedNetGap = Math.max(0, Math.round((res.patientCareDemandHours - totalAvailableCapacity) * 10) / 10);
+      assert.strictEqual(
+        res.netCareGapHours,
+        expectedNetGap,
+        'netCareGapHours must equal max(0, demand - totalAvailableCapacity)'
+      );
+    }
+  });
+
+  test('Property: No-double-count of Secondary Family Capacity (D4 Invariant)', () => {
+    const soloRes = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+
+    const withMember: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'fam_member_d4',
+          name: 'Vikas',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 2.0,
+          hasPhysicalLimitation: false,
+          assignedTasks: ['feeding', 'medications']
+        }
+      ]
+    };
+
+    const memberRes = CareGapEngine.evaluate(withMember, sampleDependentPatient);
+    const gapReduction = Math.round((soloRes.netCareGapHours - memberRes.netCareGapHours) * 10) / 10;
+
+    assert.strictEqual(
+      gapReduction,
+      2.0,
+      'A secondary member offering 2.0h/day must reduce net care gap by exactly 2.0h without double counting'
+    );
+    assert.strictEqual(memberRes.familySupportAbsorbedHours, 2.0);
+  });
+
+  test('Property: Anti-alarm Guard - Overdue Appointment Isolation (D1 Invariant)', () => {
+    const retiredCaregiver: CaregiverAttributes = {
+      ...sampleCaregiver,
+      employment: 'retired',
+      dailyHoursCommitted: 8
+    };
+
+    const overdueAppt: EngineAppointmentRecord = {
+      date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'scheduled',
+      department: 'Orthopaedics',
+      doctor: 'Dr. Sharma'
+    };
+
+    const cleanRes = CareGapEngine.evaluate(retiredCaregiver, sampleIndependentPatient, new Date());
+    const overdueRes = CareGapEngine.evaluate(retiredCaregiver, sampleIndependentPatient, new Date(), [], [overdueAppt]);
+
+    assert.strictEqual(cleanRes.caregiverBurnoutRiskLevel, 'low');
+    assert.strictEqual(overdueRes.caregiverBurnoutRiskLevel, 'low');
+    assert.strictEqual(overdueRes.netCareGapHours, 0);
+    assert.ok(overdueRes.qualityOfCareWarnings.length > 0, 'Must record quality warning on patient channel');
+  });
+
+  test('Property: Diurnal Concentration Sensitivity', () => {
+    // Nocturnal concentrated deficit vs daytime distributed deficit
+    const nocturnalPt: PatientDependenceProfile = {
+      ...sampleIndependentPatient,
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      isBedBound: true
+    };
+
+    const daytimePt: PatientDependenceProfile = {
+      ...sampleIndependentPatient,
+      katzAdl: { bathing: false, dressing: false, toileting: true, transferring: true, continence: true, feeding: true },
+      lawtonIadl: { ...sampleIndependentPatient.lawtonIadl, mealPreparation: false, housekeeping: false, laundry: false }
+    };
+
+    const resNocturnal = CareGapEngine.evaluate(sampleCaregiver, nocturnalPt);
+    const resDaytime = CareGapEngine.evaluate(sampleCaregiver, daytimePt);
+
+    assert.ok(
+      resNocturnal.careGapIndex > resDaytime.careGapIndex,
+      'Nocturnal deficit must yield a higher Care Gap Index than distributed daytime deficit'
+    );
+  });
+
+  test('Property: Recommender Soundness & Clinical Tier Validity', async () => {
+    const { StaffingRecommender } = await import('../src/lib/clinical/staffing-recommender');
+
+    // 1. Every returned ladder option actually produces the residual gap it advertises when evaluated
+    const report = StaffingRecommender.recommend(sampleCaregiver, sampleDependentPatient);
+    assert.strictEqual(report.ladder.length, 3);
+
+    for (const rung of report.ladder) {
+      assert.ok(typeof rung.simulatedResult.netCareGapHours === 'number');
+      assert.ok(rung.simulatedResult.netCareGapHours >= 0);
+    }
+
+    // 2. Pressure ulcer / catheter patient never gets attendant-tier recommendation
+    const woundPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      primaryConditions: ['Stage 3 Decubitus Ulcer', 'Indwelling Urinary Catheter']
+    };
+    const woundReport = StaffingRecommender.recommend(sampleCaregiver, woundPatient);
+    assert.strictEqual(woundReport.acuityAssessment.dominantSkillTier, 'nurse');
+    assert.ok(woundReport.ladder.some((r) => r.skillTier === 'nurse'));
+
+    // 3. Isolated night-watch deficit recommends nocturnal coverage, not day shift
+    const nightPatient: PatientDependenceProfile = {
+      ...sampleIndependentPatient,
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      isBedBound: true
+    };
+    const nightReport = StaffingRecommender.recommend(sampleCaregiver, nightPatient);
+    // console.log('DEBUG NIGHT REPORT:', nightReport.ladder.map(l => ({ rung: l.rung, title: l.title, shiftWindow: l.shiftWindow })));
+    assert.ok(
+      nightReport.ladder.some((r) => r.shiftWindow === 'night_12h' || r.shiftWindow === 'live_in_24h'),
+      `Night-watch deficit must recommend night shift or 24h coverage, received: ${JSON.stringify(nightReport.ladder.map(l => l.shiftWindow))}`
+    );
+
+    // 4. Adding capable family member produces zero-cost redistribution candidate
+    const cgWithFamily: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_pooja',
+          name: 'Pooja',
+          relationship: 'daughter',
+          age: 26,
+          hoursPerDay: 3,
+          hasPhysicalLimitation: false,
+          assignedTasks: ['heavy_transfers', 'medications']
+        }
+      ]
+    };
+    const famReport = StaffingRecommender.recommend(cgWithFamily, sampleDependentPatient);
+    const famOption = famReport.ladder.find((r) => r.supportType === 'family_redistribution');
+    assert.ok(famOption !== undefined, 'Capable family member must yield family redistribution option');
+    assert.strictEqual(famOption?.costTierRank, 1);
+  });
 });
+

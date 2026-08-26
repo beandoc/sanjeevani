@@ -257,7 +257,16 @@ export function CaregiverSupportMatrix({
     age: 81,
     primaryConditions: ['Hypertension', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
     katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: true, feeding: true },
-    lawtonIadl: { medicationManagement: false, finances: false, mealPreparation: false, housekeeping: false, transportation: false },
+    lawtonIadl: {
+      telephone: false,
+      shopping: false,
+      mealPreparation: false,
+      housekeeping: false,
+      laundry: false,
+      transportation: false,
+      medicationManagement: false,
+      finances: false
+    },
     cognitiveBehavioralLoad: 'wandering_agitation',
     fallHistoryLast6Months: 1,
     isBedBound: false,

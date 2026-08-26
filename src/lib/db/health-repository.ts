@@ -8,13 +8,14 @@ import { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import {
   CaregiverAttributes,
   PatientDependenceProfile,
+  LawtonIadlProfile,
   CareGapEvaluationResult,
   CareGapEngine,
   DEFAULT_CAREGIVER_ATTRIBUTES,
   DEFAULT_PATIENT_PROFILE
 } from '@/lib/clinical/care-gap-engine';
 
-export type { CaregiverAttributes, PatientDependenceProfile, CareGapEvaluationResult };
+export type { CaregiverAttributes, PatientDependenceProfile, LawtonIadlProfile, CareGapEvaluationResult };
 
 export interface VitalRecord {
   id: string;
@@ -111,7 +112,8 @@ const STORAGE_KEYS = {
   CARE_CIRCLE_MEMBERS: 'sanjeevani_circle_members',
   CARE_CIRCLE_TASKS: 'sanjeevani_circle_tasks',
   CAREGIVER_ATTRIBUTES: 'sanjeevani_caregiver_attributes',
-  PATIENT_PROFILE: 'sanjeevani_patient_dependence_profile'
+  PATIENT_PROFILE: 'sanjeevani_patient_dependence_profile',
+  CARE_GAP_EVALUATION: 'sanjeevani_care_gap_evaluation'
 };
 
 const DEFAULT_CONSENT: UserConsentPreferences = {
@@ -698,11 +700,22 @@ export class HealthRepository {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
+          const rawIadl = parsed.lawtonIadl || {};
+          const migratedIadl: LawtonIadlProfile = {
+            telephone: typeof rawIadl.telephone === 'boolean' ? rawIadl.telephone : true,
+            shopping: typeof rawIadl.shopping === 'boolean' ? rawIadl.shopping : true,
+            mealPreparation: typeof rawIadl.mealPreparation === 'boolean' ? rawIadl.mealPreparation : true,
+            housekeeping: typeof rawIadl.housekeeping === 'boolean' ? rawIadl.housekeeping : true,
+            laundry: typeof rawIadl.laundry === 'boolean' ? rawIadl.laundry : true,
+            transportation: typeof rawIadl.transportation === 'boolean' ? rawIadl.transportation : true,
+            medicationManagement: typeof rawIadl.medicationManagement === 'boolean' ? rawIadl.medicationManagement : true,
+            finances: typeof rawIadl.finances === 'boolean' ? rawIadl.finances : true
+          };
           return {
             ...DEFAULT_PATIENT_PROFILE,
             ...parsed,
             katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(parsed.katzAdl || {}) },
-            lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(parsed.lawtonIadl || {}) }
+            lawtonIadl: migratedIadl
           };
         }
       }
@@ -724,7 +737,34 @@ export class HealthRepository {
   static getCareGapEvaluation(): CareGapEvaluationResult {
     const caregiver = this.getCaregiverAttributes();
     const patient = this.getPatientProfile();
-    return CareGapEngine.evaluate(caregiver, patient);
+    const result = CareGapEngine.evaluate(caregiver, patient);
+    this.saveCareGapEvaluation(result);
+    return result;
+  }
+
+  private static memoryEvaluationStore: CareGapEvaluationResult | null = null;
+
+  static saveCareGapEvaluation(evaluation: CareGapEvaluationResult): void {
+    this.memoryEvaluationStore = evaluation;
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.CARE_GAP_EVALUATION, JSON.stringify(evaluation));
+    } catch (e) {
+      console.error('Error saving care gap evaluation snapshot:', e);
+    }
+  }
+
+  static getStoredCareGapEvaluation(): CareGapEvaluationResult | null {
+    if (typeof window === 'undefined') return this.memoryEvaluationStore;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CARE_GAP_EVALUATION);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch (e) {
+      console.error('Error reading stored care gap evaluation:', e);
+    }
+    return this.memoryEvaluationStore;
   }
 
   // --- 10. Data Portability & Right to Erasure (DPDP Act 2023) ---

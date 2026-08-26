@@ -244,7 +244,16 @@ export async function getPatientProfileFor(
           age: inv.patientAge,
           primaryConditions: inv.primaryConditions || [],
           katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
-          lawtonIadl: { medicationManagement: true, finances: true, mealPreparation: true, housekeeping: true, transportation: true },
+          lawtonIadl: {
+            telephone: true,
+            shopping: true,
+            mealPreparation: true,
+            housekeeping: true,
+            laundry: true,
+            transportation: true,
+            medicationManagement: true,
+            finances: true
+          },
           cognitiveBehavioralLoad: 'none',
           fallHistoryLast6Months: 0,
           isBedBound: false,
@@ -606,7 +615,16 @@ export async function createDyadInvite(input: {
         age: input.patientAge,
         primaryConditions: input.primaryConditions || [],
         katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
-        lawtonIadl: { medicationManagement: true, finances: true, mealPreparation: true, housekeeping: true, transportation: true },
+        lawtonIadl: {
+          telephone: true,
+          shopping: true,
+          mealPreparation: true,
+          housekeeping: true,
+          laundry: true,
+          transportation: true,
+          medicationManagement: true,
+          finances: true
+        },
         cognitiveBehavioralLoad: 'none',
         fallHistoryLast6Months: 0,
         isBedBound: false,
@@ -710,7 +728,16 @@ async function applyInviteClaim(
     age: invite.patientAge,
     primaryConditions: invite.primaryConditions || [],
     katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
-    lawtonIadl: { medicationManagement: true, finances: true, mealPreparation: true, housekeeping: true, transportation: true },
+    lawtonIadl: {
+      telephone: true,
+      shopping: true,
+      mealPreparation: true,
+      housekeeping: true,
+      laundry: true,
+      transportation: true,
+      medicationManagement: true,
+      finances: true
+    },
     cognitiveBehavioralLoad: 'none',
     fallHistoryLast6Months: 0
   };

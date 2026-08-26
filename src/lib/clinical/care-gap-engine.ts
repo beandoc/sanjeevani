@@ -5,15 +5,43 @@
  */
 
 import { performsHeavyTransfers, resolveSupportTypes } from './formal-support';
+import { calculateBiomechanicalLoad } from './biomechanical-load';
+import { MedicationChecker } from './medication-checker';
+import {
+  FormalSupportType,
+  CARE_GAP_ENGINE_VERSION,
+  BASELINE_CARE_DEMAND_HOURS,
+  DEMAND_PER_ADL_DEFICIT_HOURS,
+  DEMAND_PER_IADL_DEFICIT_HOURS,
+  COGNITIVE_OVERHEAD_HOURS,
+  BED_BOUND_OVERHEAD_HOURS,
+  FALL_RISK_HOURS_BASE,
+  FALL_RISK_HOURS_PER_REPEAT,
+  FALL_RISK_HOURS_MAX,
+  MAX_FORMAL_ABSORBABLE_FRACTION,
+  FORMAL_PRODUCTIVITY_FACTORS,
+  MULTI_STAFF_DIMINISHING_WEIGHTS,
+  EMPLOYMENT_CAPACITY_CAPS,
+  CAREGIVER_MINIMUM_SAFE_CAPACITY_HOURS,
+  CAREGIVER_FUNCTIONAL_DEDUCTIONS,
+  SENIOR_SPOUSE_KINSHIP_DEDUCTION,
+  SENIOR_SPOUSE_KINSHIP_DEDUCTION_RELIEVED,
+  CAREGIVER_HEALTH_DEDUCTIONS,
+  INJURY_INDEX_BASELINE,
+  BIOMECHANICAL_LOAD_MULTIPLIERS,
+  ERGONOMIC_DEVICE_DISCOUNTS,
+  FINANCIAL_STRAIN_MULTIPLIERS,
+  GAP_CRITICAL_THRESHOLD,
+  GAP_HIGH_THRESHOLD,
+  INJURY_CRITICAL_THRESHOLD,
+  INJURY_HIGH_THRESHOLD,
+  INJURY_MODERATE_THRESHOLD,
+  DIURNAL_BLOCK_CRITICALITY,
+  DIURNAL_CONCENTRATION_EXPONENT,
+  DIURNAL_INDEX_SATURATION_SCALE
+} from './care-gap-constants';
 
-export type FormalSupportType =
-  | 'none'
-  | 'paid_attendant_12h'
-  | 'paid_attendant_24h'
-  | 'trained_nurse_12h'
-  | 'trained_nurse_24h'
-  | 'medical_assistant'
-  | 'multi_family_rotation';
+export * from './care-gap-constants';
 
 export type CareTask =
   | 'heavy_transfers'
@@ -123,7 +151,7 @@ export interface MonthlyRotationPolicy {
   rotationInterval: 'weekly' | 'biweekly' | 'monthly';
   primaryCaregiverRespiteDaysPerMonth: number;
   weekendShiftLeader?: string;
-  nightShiftArrangement: 'formal_24h_staff' | 'family_rotation' | 'primary_solo';
+  nightShiftArrangement: 'formal_24h_staff' | 'formal_night_nurse' | 'family_rotation' | 'primary_solo';
 }
 
 export interface CaregiverAttributes {
@@ -161,6 +189,28 @@ export interface CaregiverAttributes {
   notes?: string;
 }
 
+export const CARE_GAP_MODEL_PARAMS = {
+  baselineCareDemandHours: BASELINE_CARE_DEMAND_HOURS,
+  demandPerAdlDeficitHours: DEMAND_PER_ADL_DEFICIT_HOURS,
+  demandPerIadlDeficitHours: DEMAND_PER_IADL_DEFICIT_HOURS,
+  cognitiveOverheadHours: COGNITIVE_OVERHEAD_HOURS,
+  bedBoundOverheadHours: BED_BOUND_OVERHEAD_HOURS,
+  maxFormalAbsorbableFraction: MAX_FORMAL_ABSORBABLE_FRACTION,
+  injuryIndexBaseline: INJURY_INDEX_BASELINE,
+  formalProductivityFactors: FORMAL_PRODUCTIVITY_FACTORS
+} as const;
+
+export interface LawtonIadlProfile {
+  telephone: boolean;
+  shopping: boolean;
+  mealPreparation: boolean;
+  housekeeping: boolean;
+  laundry: boolean;
+  transportation: boolean;
+  medicationManagement: boolean;
+  finances: boolean;
+}
+
 export interface PatientDependenceProfile {
   name: string;
   age: number;
@@ -174,28 +224,26 @@ export interface PatientDependenceProfile {
     continence: boolean;
     feeding: boolean;
   };
-  // Lawton IADL: 5 Core Home Items
-  lawtonIadl: {
-    medicationManagement: boolean;
-    finances: boolean;
-    mealPreparation: boolean;
-    housekeeping: boolean;
-    transportation: boolean;
-  };
+  // Lawton-Brody IADL: 8 Standard Items (Lawton & Brody 1969)
+  lawtonIadl: LawtonIadlProfile;
   cognitiveBehavioralLoad: 'none' | 'mild_forgetfulness' | 'wandering_agitation' | 'severe_sundowning';
   fallHistoryLast6Months: number;
   isBedBound: boolean;
   weightKg?: number;
   heightCm?: number;
   assistiveDevices?: AssistiveDeviceInventory;
+  currentMedications?: Array<{ name: string; genericName?: string }>;
 }
 
 export interface CareGapEvaluationResult {
+  // Algorithm Engine Version for clinical auditability and longitudinal comparison
+  engineVersion: string;
+
   // Katz ADL Score (0-6, where 6 is fully independent, 0 is total dependence)
   katzAdlScore: number;
   katzDependenceLevel: 'independent' | 'moderate_impairment' | 'severe_dependence';
   
-  // Lawton IADL Score (0-5)
+  // Lawton-Brody IADL Score (0-8)
   lawtonIadlScore: number;
 
   // Demand vs Capacity in Hours/Day
@@ -203,7 +251,8 @@ export interface CareGapEvaluationResult {
   caregiverSafeCapacityHours: number;
   formalSupportAbsorbedHours: number;
   familySupportAbsorbedHours: number;
-  netCareGapHours: number; // Max(0, Demand - (Safe Capacity + Formal Support + Family Support))
+  totalAvailableCapacityHours: number; // Derived: caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours
+  netCareGapHours: number; // Max(0, Demand - totalAvailableCapacityHours)
   
   teamAllocations: {
     primaryCaregiverHours: number;
@@ -242,7 +291,33 @@ export interface CareGapEvaluationResult {
   };
 
   careGapSeverity: 'sustainable' | 'mild_deficit' | 'high_deficit' | 'critical_overload';
-  caregiverInjuryRiskScore: number; // 0 to 100%
+  
+  // The Diurnal Care Gap Index (0-100 continuous, non-linear saturating score)
+  careGapIndex: number;
+
+  // Per-Block Diurnal Demand, Supply, and Gap Breakdown
+  blockGaps: Record<
+    DiurnalTimeBlock,
+    {
+      demandHours: number;
+      supplyHours: number;
+      gapHours: number;
+      contributors: string[];
+    }
+  >;
+
+  // NIOSH RNLE Lifting Index (real ergonomic metric: Actual Load / Recommended Weight Limit)
+  liftingIndex: number;
+  // Estimated L5/S1 spinal compression force in kN (NIOSH Action Limit: 3.4 kN)
+  spinalCompressionKN: number;
+  // Estimated daily transfer & manual repositioning events
+  dailyTransferCount: number;
+  // Estimated nocturnal micro-sleep interruptions per night
+  nocturnalSleepInterruptions: number;
+
+  // Standardized Biomechanical Lumbar Strain Index (0–100 score, based on NIOSH lifting criteria)
+  caregiverInjuryRiskScore: number;
+  caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
   caregiverBurnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
 
   clinicalFindings: string[];
@@ -296,11 +371,14 @@ export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
     feeding: true
   },
   lawtonIadl: {
-    medicationManagement: false,
-    finances: false,
+    telephone: false,
+    shopping: false,
     mealPreparation: false,
     housekeeping: false,
-    transportation: false
+    laundry: false,
+    transportation: false,
+    medicationManagement: false,
+    finances: false
   },
   cognitiveBehavioralLoad: 'wandering_agitation',
   fallHistoryLast6Months: 2,
@@ -338,7 +416,8 @@ export class CareGapEngine {
     patient: PatientDependenceProfile | null | undefined,
     now: Date = new Date(),
     vitals: EngineVitalRecord[] = [],
-    appointments: EngineAppointmentRecord[] = []
+    appointments: EngineAppointmentRecord[] = [],
+    medications: Array<{ name: string; genericName?: string }> = []
   ): CareGapEvaluationResult {
     // Every branch below reads these merged locals rather than the raw params.
     // Reading the params directly (as this engine previously did from step 3
@@ -347,7 +426,7 @@ export class CareGapEngine {
     const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
 
     const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
-    const safeIadl = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
+    const safeIadl: LawtonIadlProfile = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
     const safeHealth = { ...DEFAULT_CAREGIVER_ATTRIBUTES.caregiverHealth, ...(safeCaregiver.caregiverHealth || {}) };
     const safeDevices: AssistiveDeviceInventory = {
       ...DEFAULT_ASSISTIVE_DEVICES,
@@ -358,23 +437,49 @@ export class CareGapEngine {
     const clinicalFindings: string[] = [];
     const prescriptions: CareGapEvaluationResult['prescriptions'] = [];
 
-    const hasCondition = (cond: string) => {
-      return (safePatient.primaryConditions || []).some((c) =>
-        c.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cond.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    // Pharmacotherapy & Medication Acuity Evaluation (MedicationChecker)
+    const activeMeds = (safePatient.currentMedications && safePatient.currentMedications.length > 0)
+      ? safePatient.currentMedications
+      : medications;
+
+    if (activeMeds.length > 0) {
+      const regEval = MedicationChecker.evaluateRegimen(activeMeds);
+      regEval.warnings.forEach((w) => qualityOfCareWarnings.push(w));
+      if (regEval.totalAcbScore >= 3 || regEval.stoppTriggers.length > 0 || regEval.warnings.length > 0) {
+        clinicalFindings.push(
+          `High-Risk Pharmacotherapy Complexity Detected: Cumulative ACB score (${regEval.totalAcbScore}) / STOPP criteria triggered. Warrants medication reconciliation and professional nursing oversight for drug titration.`
+        );
+      }
+    }
+
+    const conditionContainsToken = (conditionStr: string, token: string): boolean => {
+      const normalized = conditionStr.trim();
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      return regex.test(normalized);
+    };
+
+    const hasCondition = (...tokens: string[]) => {
+      return (safePatient.primaryConditions || []).some((condition) =>
+        tokens.some((token) => conditionContainsToken(condition, token))
       );
     };
 
-    if (hasCondition('recurrent') || hasCondition('infection') || hasCondition('uti') || hasCondition('pneumonia')) {
+    if (hasCondition('recurrent', 'infection', 'uti', 'pneumonia', 'urinary tract infection')) {
       qualityOfCareWarnings.push(
         'Recurrent infections detected. Warrants immediate review of hygiene, fluid intake, and catheter/wound care protocols.'
       );
     }
 
     // Aspiration / Dysphagia / Tracheostomy Risk + Suction Apparatus Evaluation
-    if (hasCondition('aspiration') || hasCondition('dysphagia') || hasCondition('tracheostomy') || !safeKatz.feeding) {
+    // Avoid false positive on isolated arthritic feeding difficulty unless accompanied by swallowing impairment or neurological conditions
+    const hasSwallowingRisk = hasCondition('aspiration', 'dysphagia', 'tracheostomy', 'choking', 'swallowing');
+    const hasNeuroFeedingDeficit = !safeKatz.feeding && hasCondition('stroke', 'cva', 'parkinson', 'als', 'dementia', 'bulbar', 'neuropathy');
+
+    if (hasSwallowingRisk || hasNeuroFeedingDeficit) {
       if (!safeDevices.suctionApparatus) {
         qualityOfCareWarnings.push(
-          'Frequent aspiration risk or feeding dependency. Warrants speech therapy consultation, strict feeding positioning (90 degrees), and bedside suction equipment.'
+          'Frequent aspiration risk or dysphagia detected. Warrants speech therapy consultation, strict feeding positioning (90 degrees), and bedside suction equipment.'
         );
       } else {
         clinicalFindings.push(
@@ -384,7 +489,7 @@ export class CareGapEngine {
     }
 
     // Bed-bound & Pressure Ulcer Risk + Alternating Mattress Evaluation
-    if (hasCondition('bed sore') || hasCondition('pressure ulcer') || hasCondition('pressure sore') || safePatient.isBedBound) {
+    if (hasCondition('bed sore', 'pressure ulcer', 'pressure sore', 'decubitus') || safePatient.isBedBound) {
       if (!safeDevices.airWaterMattress) {
         qualityOfCareWarnings.push(
           'Bed sore presence or high pressure ulcer risk. Warrants 2-hourly turning schedule and specialized alternating water/air ripple mattress.'
@@ -419,7 +524,7 @@ export class CareGapEngine {
       }
     }
 
-    if (hasCondition('diabetes') || hasCondition('diabetic')) {
+    if (hasCondition('diabetes', 'diabetic', 'type 2 diabetes', 'dm')) {
       const bsVitals = (vitals || []).filter((v) => v.bloodSugar);
       if (bsVitals.length === 0) {
         qualityOfCareWarnings.push(
@@ -461,62 +566,73 @@ export class CareGapEngine {
     if (katzAdlScore <= 2) katzDependenceLevel = 'severe_dependence';
     else if (katzAdlScore <= 4) katzDependenceLevel = 'moderate_impairment';
 
-    // 2. Calculate Lawton IADL Score (0-5)
-    const iadlItems = Object.values(safeIadl);
-    const lawtonIadlScore = iadlItems.filter(Boolean).length;
-    const iadlDeficits = 5 - lawtonIadlScore;
+    // 2. Calculate Lawton-Brody 8-Item IADL Score (0-8)
+    const lawtonKeys: (keyof LawtonIadlProfile)[] = [
+      'telephone',
+      'shopping',
+      'mealPreparation',
+      'housekeeping',
+      'laundry',
+      'transportation',
+      'medicationManagement',
+      'finances'
+    ];
+    const lawtonIadlScore = lawtonKeys.filter((k) => safeIadl[k] === true).length;
+    const iadlDeficits = 8 - lawtonIadlScore;
 
     // 3. Compute Patient Daily Care Demand (Hours/Day)
-    let demandHours = 1.5; // Baseline supervision & monitoring
+    let demandHours = CARE_GAP_MODEL_PARAMS.baselineCareDemandHours; // 1.5h baseline
 
-    // Each ADL deficit demands ~1.25 direct physical care hours (bathing, toileting, transferring, feeding)
-    demandHours += adlDeficits * 1.25;
+    // Each ADL deficit demands ~1.0 direct physical care hours (bathing, toileting, transferring, feeding)
+    demandHours += adlDeficits * CARE_GAP_MODEL_PARAMS.demandPerAdlDeficitHours;
 
-    // Each IADL deficit adds ~0.5 hours (cooking, meds, cleaning)
-    demandHours += iadlDeficits * 0.5;
+    // Each Lawton-Brody IADL deficit adds ~0.35 hours (cooking, meds, laundry, cleaning, shopping, finances)
+    demandHours += iadlDeficits * CARE_GAP_MODEL_PARAMS.demandPerIadlDeficitHours;
 
     // Behavioral & Cognitive Load Adds Vigilance Hours
-    if (safePatient.cognitiveBehavioralLoad === 'wandering_agitation') {
-      demandHours += 2.5;
-    } else if (safePatient.cognitiveBehavioralLoad === 'severe_sundowning') {
-      demandHours += 4.0;
-    } else if (safePatient.cognitiveBehavioralLoad === 'mild_forgetfulness') {
-      demandHours += 1.0;
-    }
+    demandHours += CARE_GAP_MODEL_PARAMS.cognitiveOverheadHours[safePatient.cognitiveBehavioralLoad || 'none'] ?? 0;
 
     // Bed-bound 2-hourly turning and incontinence management
     if (safePatient.isBedBound) {
       // Motorized bed and ripple mattress slightly reduce the manual turning overhead
-      const bedTurningHours = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress ? 1.2 : 2.0;
+      const bedTurningHours = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress
+        ? BED_BOUND_OVERHEAD_HOURS.withMotorizedBedAndRipple
+        : BED_BOUND_OVERHEAD_HOURS.standard;
       demandHours += bedTurningHours;
     }
 
     const fallCount = Math.max(0, safePatient.fallHistoryLast6Months ?? 0);
     if (fallCount > 0) {
-      demandHours += Math.min(2.0, 1.0 + (fallCount - 1) * 0.5);
+      demandHours += Math.min(
+        FALL_RISK_HOURS_MAX,
+        FALL_RISK_HOURS_BASE + (fallCount - 1) * FALL_RISK_HOURS_PER_REPEAT
+      );
     }
 
     const patientCareDemandHours = Math.round(demandHours * 10) / 10;
 
     // 4. Compute Formal / Ancillary Support Hours Absorbed
     const selectedTypes = resolveSupportTypes(safeCaregiver.formalSupport);
-
-    const contributions = selectedTypes
-      .map((t) => {
-        if (t === 'paid_attendant_24h' || t === 'trained_nurse_24h') return 16.0;
-        if (t === 'paid_attendant_12h' || t === 'trained_nurse_12h') return 10.0;
-        if (t === 'medical_assistant') return 6.0;
-        if (t === 'multi_family_rotation') return 6.0;
-        return 0;
-      })
-      .sort((a, b) => b - a);
-
     let rawAbsorbed = 0;
-    for (let i = 0; i < contributions.length; i++) {
-      rawAbsorbed += contributions[i] * (i === 0 ? 1 : i === 1 ? 0.5 : 0.25);
+
+    if (selectedTypes.length > 0) {
+      const configuredHours = safeCaregiver.formalSupport?.hoursPerDay;
+      const hasConfiguredHours = typeof configuredHours === 'number' && !isNaN(configuredHours);
+
+      const contributions = selectedTypes.map((t) => {
+        const spec = CARE_GAP_MODEL_PARAMS.formalProductivityFactors[t] || { nominalHours: 12, productivityFactor: 10.0 / 12 };
+        const shiftHours = hasConfiguredHours
+          ? Math.min(spec.nominalHours, Math.max(0, configuredHours))
+          : spec.nominalHours;
+        return shiftHours * spec.productivityFactor;
+      }).sort((a, b) => b - a);
+
+      for (let i = 0; i < contributions.length; i++) {
+        rawAbsorbed += contributions[i] * (i === 0 ? 1.0 : i === 1 ? 0.5 : 0.25);
+      }
     }
 
-    const MAX_ABSORBABLE_FRACTION = 0.85;
+    const MAX_ABSORBABLE_FRACTION = CARE_GAP_MODEL_PARAMS.maxFormalAbsorbableFraction;
     const formalSupportAbsorbedHours =
       Math.round(Math.min(patientCareDemandHours * MAX_ABSORBABLE_FRACTION, rawAbsorbed) * 10) / 10;
 
@@ -625,6 +741,7 @@ export class CareGapEngine {
     // Kinship / Senior Dyad Strain
     let kinshipDeduction = 0;
     if (safeCaregiver.kinship === 'spouse' && safeCaregiver.age >= 65) {
+      // Kinship relief driven strictly off explicit familySupportAbsorbedHours (or formal support)
       kinshipDeduction = (familySupportAbsorbedHours >= 2.0 || formalSupportAbsorbedHours >= 4.0) ? 0.5 : 1.0;
     }
 
@@ -635,19 +752,251 @@ export class CareGapEngine {
     if (safeHealth.hasInsomnia) healthDeduction += isNightCareRelieved ? 0.3 : 1.0;
     if (safeCaregiver.age >= 65) healthDeduction += 1.5;
 
-    const secondaryFamilyCount = Math.max(
-      0,
-      safeCaregiver.secondaryMembers?.length ?? safeCaregiver.otherFamilyMembersCount ?? 0
-    );
-    const familyNetworkBuffer = Math.min(1.5, secondaryFamilyCount * 0.5);
-
     const caregiverSafeCapacityHours = Math.max(
       1.0,
-      Math.round((capacityHours + familyNetworkBuffer - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
+      Math.round((capacityHours - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
     );
 
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
-    const netCareGapHours = Math.max(0, Math.round((residualDemandOnPrimary - caregiverSafeCapacityHours) * 10) / 10);
+    const totalAvailableCapacityHours = Math.round(
+      (caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours) * 10
+    ) / 10;
+    const netCareGapHours = Math.max(0, Math.round((patientCareDemandHours - totalAvailableCapacityHours) * 10) / 10);
+
+    // 6b. Diurnal Per-Block Demand & Supply Distribution
+    const blockDemands: Record<DiurnalTimeBlock, number> = {
+      morning_rush: 0.5, // Baseline supervision split
+      afternoon: 0.5,
+      evening: 0.5,
+      night_watch: 0
+    };
+
+    // ADLs
+    if (!safeKatz.bathing) blockDemands.morning_rush += 1.0;
+    if (!safeKatz.transferring) {
+      blockDemands.morning_rush += 0.5;
+      blockDemands.afternoon += 0.2;
+      blockDemands.evening += 0.3;
+    }
+    if (!safeKatz.dressing) {
+      blockDemands.morning_rush += 0.5;
+      blockDemands.evening += 0.2;
+    }
+    if (!safeKatz.toileting) {
+      blockDemands.morning_rush += 0.3;
+      blockDemands.afternoon += 0.2;
+      blockDemands.evening += 0.2;
+      blockDemands.night_watch += 0.3;
+    }
+    if (!safeKatz.continence) {
+      blockDemands.morning_rush += 0.2;
+      blockDemands.afternoon += 0.2;
+      blockDemands.evening += 0.2;
+      blockDemands.night_watch += 0.2;
+    }
+    if (!safeKatz.feeding) {
+      blockDemands.morning_rush += 0.4;
+      blockDemands.afternoon += 0.4;
+      blockDemands.evening += 0.4;
+    }
+
+    // IADLs (8 items)
+    if (!safeIadl.mealPreparation) {
+      blockDemands.morning_rush += 0.15;
+      blockDemands.afternoon += 0.1;
+      blockDemands.evening += 0.1;
+    }
+    if (!safeIadl.medicationManagement) {
+      blockDemands.morning_rush += 0.15;
+      blockDemands.afternoon += 0.05;
+      blockDemands.evening += 0.15;
+    }
+    if (!safeIadl.housekeeping) {
+      blockDemands.morning_rush += 0.15;
+      blockDemands.afternoon += 0.2;
+    }
+    if (!safeIadl.laundry) {
+      blockDemands.morning_rush += 0.15;
+      blockDemands.afternoon += 0.2;
+    }
+    if (!safeIadl.shopping) blockDemands.afternoon += 0.35;
+    if (!safeIadl.transportation) blockDemands.afternoon += 0.35;
+    if (!safeIadl.finances) blockDemands.afternoon += 0.35;
+    if (!safeIadl.telephone) {
+      blockDemands.morning_rush += 0.1;
+      blockDemands.afternoon += 0.15;
+      blockDemands.evening += 0.1;
+    }
+
+    // Cognitive / Behavioral Load
+    if (safePatient.cognitiveBehavioralLoad === 'mild_forgetfulness') {
+      blockDemands.morning_rush += 0.35;
+      blockDemands.afternoon += 0.35;
+      blockDemands.evening += 0.3;
+    } else if (safePatient.cognitiveBehavioralLoad === 'wandering_agitation') {
+      blockDemands.morning_rush += 0.7;
+      blockDemands.afternoon += 0.8;
+      blockDemands.evening += 0.7;
+      blockDemands.night_watch += 0.3;
+    } else if (safePatient.cognitiveBehavioralLoad === 'severe_sundowning') {
+      blockDemands.afternoon += 0.5;
+      blockDemands.evening += 1.0;
+      blockDemands.night_watch += 2.5;
+    }
+
+    // Bed-bound repositioning
+    if (safePatient.isBedBound) {
+      const turning = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress
+        ? BED_BOUND_OVERHEAD_HOURS.withMotorizedBedAndRipple
+        : BED_BOUND_OVERHEAD_HOURS.standard;
+      const ratio = turning / 2.0;
+      blockDemands.morning_rush += 0.4 * ratio;
+      blockDemands.afternoon += 0.3 * ratio;
+      blockDemands.evening += 0.3 * ratio;
+      blockDemands.night_watch += 1.0 * ratio;
+    }
+
+    // Fall risk
+    if (fallCount > 0) {
+      const fHours = Math.min(FALL_RISK_HOURS_MAX, FALL_RISK_HOURS_BASE + (fallCount - 1) * FALL_RISK_HOURS_PER_REPEAT);
+      blockDemands.morning_rush += fHours * 0.4;
+      blockDemands.afternoon += fHours * 0.3;
+      blockDemands.evening += fHours * 0.3;
+    }
+
+    // Normalize block demands to align exactly with patientCareDemandHours
+    const rawTotalDemand = blockDemands.morning_rush + blockDemands.afternoon + blockDemands.evening + blockDemands.night_watch;
+    if (rawTotalDemand > 0) {
+      const normRatio = patientCareDemandHours / rawTotalDemand;
+      blockDemands.morning_rush = Math.round(blockDemands.morning_rush * normRatio * 10) / 10;
+      blockDemands.afternoon = Math.round(blockDemands.afternoon * normRatio * 10) / 10;
+      blockDemands.evening = Math.round(blockDemands.evening * normRatio * 10) / 10;
+      blockDemands.night_watch = Math.round(
+        (patientCareDemandHours - blockDemands.morning_rush - blockDemands.afternoon - blockDemands.evening) * 10
+      ) / 10;
+    }
+
+    // Distribute Supply across Blocks
+    const blockSupplies: Record<DiurnalTimeBlock, { hours: number; contributors: string[] }> = {
+      morning_rush: { hours: 0, contributors: [] },
+      afternoon: { hours: 0, contributors: [] },
+      evening: { hours: 0, contributors: [] },
+      night_watch: { hours: 0, contributors: [] }
+    };
+
+    // Formal Staff Supply
+    if (formalSupportAbsorbedHours > 0) {
+      if (safeCaregiver.rotationPolicy?.nightShiftArrangement === 'formal_night_nurse') {
+        const nightPortion = Math.min(blockDemands.night_watch, formalSupportAbsorbedHours * 0.75);
+        const remaining = formalSupportAbsorbedHours - nightPortion;
+        blockSupplies.night_watch.hours += nightPortion;
+        blockSupplies.night_watch.contributors.push('Formal Night Staff');
+        blockSupplies.evening.hours += remaining;
+        blockSupplies.evening.contributors.push('Formal Night Staff');
+      } else if (selectedTypes.some((t) => t.includes('24h'))) {
+        const perBlock = formalSupportAbsorbedHours / 4;
+        (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]).forEach((b) => {
+          blockSupplies[b].hours += perBlock;
+          blockSupplies[b].contributors.push('Formal 24h Staff');
+        });
+      } else if (selectedTypes.some((t) => t.includes('12h') || t === 'multi_family_rotation')) {
+        const perBlock = formalSupportAbsorbedHours / 3;
+        (['morning_rush', 'afternoon', 'evening'] as DiurnalTimeBlock[]).forEach((b) => {
+          blockSupplies[b].hours += perBlock;
+          blockSupplies[b].contributors.push('Formal Day Staff');
+        });
+      } else if (selectedTypes.some((t) => t === 'medical_assistant')) {
+        const perBlock = formalSupportAbsorbedHours / 2;
+        (['morning_rush', 'afternoon'] as DiurnalTimeBlock[]).forEach((b) => {
+          blockSupplies[b].hours += perBlock;
+          blockSupplies[b].contributors.push('Medical Assistant');
+        });
+      }
+    }
+
+    // Secondary Family Supply
+    for (const member of secondaryMembers) {
+      const mHours = Math.max(0, member.hoursPerDay || 0);
+      if (mHours > 0) {
+        const blocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
+          ? member.availableTimeBlocks
+          : (['morning_rush', 'evening'] as DiurnalTimeBlock[]);
+        const perBlock = Math.min(mHours, familySupportAbsorbedHours) / blocks.length;
+        blocks.forEach((b) => {
+          blockSupplies[b].hours += perBlock;
+          blockSupplies[b].contributors.push(`${member.name || member.relationship} (${mHours}h)`);
+        });
+      }
+    }
+    if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0 && familySupportAbsorbedHours > 0) {
+      const perBlock = familySupportAbsorbedHours / 2;
+      blockSupplies.morning_rush.hours += perBlock;
+      blockSupplies.morning_rush.contributors.push('Family Network');
+      blockSupplies.evening.hours += perBlock;
+      blockSupplies.evening.contributors.push('Family Network');
+    }
+
+    // Primary Caregiver Safe Capacity Supply
+    if (caregiverSafeCapacityHours > 0) {
+      let primaryBlocks: DiurnalTimeBlock[] = ['morning_rush', 'afternoon', 'evening', 'night_watch'];
+      if (safeCaregiver.employment === 'full_time') {
+        primaryBlocks = ['morning_rush', 'evening', 'night_watch'];
+      }
+      const primaryPerBlock = caregiverSafeCapacityHours / primaryBlocks.length;
+      primaryBlocks.forEach((b) => {
+        blockSupplies[b].hours += primaryPerBlock;
+        blockSupplies[b].contributors.push('Primary Caregiver');
+      });
+    }
+
+    // Calculate Per-Block Gaps: gap_b = max(0, demand_b - supply_b)
+    const blockGaps: Record<
+      DiurnalTimeBlock,
+      { demandHours: number; supplyHours: number; gapHours: number; contributors: string[] }
+    > = {
+      morning_rush: {
+        demandHours: Math.round(blockDemands.morning_rush * 10) / 10,
+        supplyHours: Math.round(blockSupplies.morning_rush.hours * 10) / 10,
+        gapHours: Math.max(0, Math.round((blockDemands.morning_rush - blockSupplies.morning_rush.hours) * 10) / 10),
+        contributors: blockSupplies.morning_rush.contributors
+      },
+      afternoon: {
+        demandHours: Math.round(blockDemands.afternoon * 10) / 10,
+        supplyHours: Math.round(blockSupplies.afternoon.hours * 10) / 10,
+        gapHours: Math.max(0, Math.round((blockDemands.afternoon - blockSupplies.afternoon.hours) * 10) / 10),
+        contributors: blockSupplies.afternoon.contributors
+      },
+      evening: {
+        demandHours: Math.round(blockDemands.evening * 10) / 10,
+        supplyHours: Math.round(blockSupplies.evening.hours * 10) / 10,
+        gapHours: Math.max(0, Math.round((blockDemands.evening - blockSupplies.evening.hours) * 10) / 10),
+        contributors: blockSupplies.evening.contributors
+      },
+      night_watch: {
+        demandHours: Math.round(blockDemands.night_watch * 10) / 10,
+        supplyHours: Math.round(blockSupplies.night_watch.hours * 10) / 10,
+        gapHours: Math.max(0, Math.round((blockDemands.night_watch - blockSupplies.night_watch.hours) * 10) / 10),
+        contributors: blockSupplies.night_watch.contributors
+      }
+    };
+
+    // Calculate The Diurnal Care Gap Index (0-100 non-linear saturating score)
+    let weightedDeficit = 0;
+    (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]).forEach((b) => {
+      const g = blockGaps[b].gapHours;
+      if (g > 0) {
+        const crit = DIURNAL_BLOCK_CRITICALITY[b] ?? 1.0;
+        weightedDeficit += crit * Math.pow(g, DIURNAL_CONCENTRATION_EXPONENT);
+      }
+    });
+
+    const careGapIndex = Math.min(
+      100,
+      Math.max(
+        0,
+        Math.round(100 * (1 - Math.exp(-weightedDeficit / DIURNAL_INDEX_SATURATION_SCALE)))
+      )
+    );
 
     const primaryAbsorbedHours = Math.min(caregiverSafeCapacityHours, residualDemandOnPrimary);
     const unmetGapHours = netCareGapHours;
@@ -683,87 +1032,60 @@ export class CareGapEngine {
     };
 
     // 7. Care Gap Severity Classification
-    const GAP_CRITICAL_THRESHOLD = 4.0;
-    const GAP_HIGH_THRESHOLD = 2.0;
-
     let careGapSeverity: CareGapEvaluationResult['careGapSeverity'] = 'sustainable';
     if (netCareGapHours > GAP_CRITICAL_THRESHOLD) careGapSeverity = 'critical_overload';
     else if (netCareGapHours > GAP_HIGH_THRESHOLD) careGapSeverity = 'high_deficit';
     else if (netCareGapHours > 0.0) careGapSeverity = 'mild_deficit';
 
-    // 8. Caregiver Musculoskeletal & Burnout Risk Score (0 - 100%)
-    let injuryScore = 20;
+    // 8. Event-Based Biomechanical Load & Ergonomic Constraint Modeling (NIOSH RNLE / MAPO)
+    const biomechanicalAssessment = calculateBiomechanicalLoad({
+      caregiver: safeCaregiver,
+      patient: safePatient,
+      isTransfersRelievedByStaffOrFamily: isTransfersRelieved,
+      isBathingRelievedByStaffOrFamily: isBathingRelieved,
+      isNightCareRelievedByStaffOrFamily: isNightCareRelieved,
+      netCareGapHours,
+      blockDemands
+    });
 
-    const bmi = (safePatient.weightKg && safePatient.heightCm) 
-      ? (safePatient.weightKg / Math.pow(safePatient.heightCm / 100, 2)) 
-      : undefined;
+    const {
+      liftingIndex,
+      spinalCompressionKN,
+      dailyTransferCount,
+      nocturnalSleepInterruptions,
+      caregiverInjuryRiskScore,
+      caregiverInjuryRiskCategory,
+      ergonomicMechanisms
+    } = biomechanicalAssessment;
 
-    const patientWeight = safePatient.weightKg || 60;
-    const weightMultiplier = patientWeight >= 80 || (bmi && bmi >= 28) 
-      ? 1.4 
-      : patientWeight >= 70 
-      ? 1.2 
-      : 1.0;
-    const bedBoundMultiplier = safePatient.isBedBound ? 1.3 : 1.0;
-    const physicalLoadMultiplier = weightMultiplier * bedBoundMultiplier;
-
-    if (safeHealth.hasBackPain && !safeKatz.transferring) {
-      injuryScore += Math.round((isTransfersRelieved ? 8 : 35) * physicalLoadMultiplier);
-    }
-    if (safeHealth.hasArthritis && !safeKatz.bathing) {
-      injuryScore += Math.round((isBathingRelieved ? 4 : 20) * physicalLoadMultiplier);
-    }
-    if (safeCaregiver.age >= 60) {
-      injuryScore += (isTransfersRelieved && isBathingRelieved) ? 5 : 15;
-    }
-    if (!safeCaregiver.formalTrainingReceived) {
-      injuryScore += isTransfersRelieved ? 5 : 15;
-    }
-    if (netCareGapHours > 3.0) injuryScore += 20;
-    if (qualityOfCareWarnings.length > 0) {
-      injuryScore += qualityOfCareWarnings.length * 10;
-    }
-
-    // Apply Ergonomic Assistive Device Discounts
     let ergonomicDiscount = 0;
-    if (safeDevices.hospitalBed === 'motorized_multichannel') {
-      ergonomicDiscount += 25;
-    } else if (safeDevices.hospitalBed === 'manual_adjustable') {
-      ergonomicDiscount += 15;
-    }
-    if (safeDevices.transferAids) {
-      ergonomicDiscount += 15;
-    }
-    if (safeDevices.wheelchair) {
-      ergonomicDiscount += 10;
-    }
-    if (safeDevices.airWaterMattress) {
-      ergonomicDiscount += 10;
-    }
+    if (safeDevices.hospitalBed === 'motorized_multichannel') ergonomicDiscount += ERGONOMIC_DEVICE_DISCOUNTS.motorizedHospitalBed;
+    else if (safeDevices.hospitalBed === 'manual_adjustable') ergonomicDiscount += ERGONOMIC_DEVICE_DISCOUNTS.manualAdjustableBed;
+    if (safeDevices.transferAids) ergonomicDiscount += ERGONOMIC_DEVICE_DISCOUNTS.transferAidsGaitBeltDisc;
+    if (safeDevices.wheelchair) ergonomicDiscount += ERGONOMIC_DEVICE_DISCOUNTS.wheelchair;
+    if (safeDevices.airWaterMattress) ergonomicDiscount += ERGONOMIC_DEVICE_DISCOUNTS.airWaterMattress;
+    ergonomicDiscount = Math.min(ERGONOMIC_DEVICE_DISCOUNTS.maxDiscountPercent, ergonomicDiscount);
 
-    ergonomicDiscount = Math.min(50, ergonomicDiscount);
-    if (ergonomicDiscount > 0) {
-      injuryScore = Math.max(10, Math.round(injuryScore * (1 - ergonomicDiscount / 100)));
+    if (ergonomicMechanisms.length > 0) {
+      clinicalFindings.push(`Ergonomic Mechanism Active: ${ergonomicMechanisms.join(' ')}`);
     }
-
-    const caregiverInjuryRiskScore = Math.min(100, Math.max(10, injuryScore));
 
     const financialMultiplier =
       safeCaregiver.monthlyOutOfPocketBurden === 'severe_toxicity' || safeCaregiver.financialStatus === 'severe_toxicity'
-        ? 1.4
+        ? FINANCIAL_STRAIN_MULTIPLIERS.severe_toxicity
         : safeCaregiver.monthlyOutOfPocketBurden === 'moderate_strain' || safeCaregiver.financialStatus === 'moderate_strain'
-        ? 1.15
-        : 1.0;
+        ? FINANCIAL_STRAIN_MULTIPLIERS.moderate_strain
+        : FINANCIAL_STRAIN_MULTIPLIERS.manageable;
 
     const effectiveGap = netCareGapHours * financialMultiplier;
     const effectiveInjury = caregiverInjuryRiskScore * financialMultiplier;
 
     let caregiverBurnoutRiskLevel: CareGapEvaluationResult['caregiverBurnoutRiskLevel'] = 'low';
-    if (effectiveGap > GAP_CRITICAL_THRESHOLD || effectiveInjury >= 75 || qualityOfCareWarnings.length > 0) {
+    if (effectiveGap > GAP_CRITICAL_THRESHOLD || effectiveInjury >= INJURY_CRITICAL_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'critical';
-    } else if (effectiveGap > GAP_HIGH_THRESHOLD || effectiveInjury >= 55) {
+    } else if (effectiveGap > GAP_HIGH_THRESHOLD || effectiveInjury >= INJURY_HIGH_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'high';
-    } else if (netCareGapHours > 0.0 || caregiverInjuryRiskScore > 20) {
+    } else if (netCareGapHours > 0.0 || caregiverInjuryRiskScore > INJURY_MODERATE_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'moderate';
     }
 
@@ -799,8 +1121,11 @@ export class CareGapEngine {
         urgency: netCareGapHours >= 4.0 ? 'urgent' : netCareGapHours >= 2.0 ? 'priority' : 'routine'
       });
     } else {
+      const totalCoveredCapacity = Math.round(
+        (caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours) * 10
+      ) / 10;
       clinicalFindings.push(
-        `Combined family capacity and formal care support (${caregiverSafeCapacityHours + formalSupportAbsorbedHours} hrs/day) successfully covers patient care demand (${patientCareDemandHours} hrs/day).`
+        `Combined family capacity and formal care support (${totalCoveredCapacity} hrs/day) successfully covers patient care demand (${patientCareDemandHours} hrs/day).`
       );
     }
 
@@ -885,6 +1210,7 @@ export class CareGapEngine {
     }
 
     return {
+      engineVersion: CARE_GAP_ENGINE_VERSION,
       katzAdlScore,
       katzDependenceLevel,
       lawtonIadlScore,
@@ -892,6 +1218,7 @@ export class CareGapEngine {
       caregiverSafeCapacityHours,
       formalSupportAbsorbedHours,
       familySupportAbsorbedHours,
+      totalAvailableCapacityHours,
       netCareGapHours,
       teamAllocations,
       taskDelegationStatus,
@@ -912,7 +1239,14 @@ export class CareGapEngine {
         conflicts: diurnalConflicts
       },
       careGapSeverity,
+      careGapIndex,
+      blockGaps,
+      liftingIndex,
+      spinalCompressionKN,
+      dailyTransferCount,
+      nocturnalSleepInterruptions,
       caregiverInjuryRiskScore,
+      caregiverInjuryRiskCategory,
       caregiverBurnoutRiskLevel,
       clinicalFindings,
       prescriptions,
@@ -921,6 +1255,10 @@ export class CareGapEngine {
     };
   }
 }
+
+import { ShiftAllocator } from './shift-allocator';
+
+export * from './shift-allocator';
 
 /**
  * Generates an instant, highly readable, formatted WhatsApp Care Digest
@@ -931,61 +1269,7 @@ export function generateWhatsAppCareDigest(
   patient: PatientDependenceProfile,
   evaluation: CareGapEvaluationResult
 ): string {
-  const rotation = caregiver.rotationPolicy || {
-    rotationInterval: 'biweekly',
-    primaryCaregiverRespiteDaysPerMonth: 4,
-    weekendShiftLeader: 'Family Rotation',
-    nightShiftArrangement: 'family_rotation'
-  };
-
-  const emergency = caregiver.emergencyLogistics || {
-    hospitalDistanceKm: 4.5,
-    travelTimeMinutes: 15,
-    fourWheelerAvailableAtHome: true,
-    designatedEmergencyDriver: 'Designated Driver',
-    preferredHospitalName: 'Nearest Geriatric Emergency Hospital',
-    ambulanceContact: '108'
-  };
-
-  const teamMembers = (caregiver.secondaryMembers || []).map((m) =>
-    `• *${m.name || m.relationship}* (${m.relationship}, ${m.hoursPerDay}h/day): ${m.assignedTasks.map((t) => t.replace('_', ' ')).join(', ')}`
-  ).join('\n');
-
-  const devices = [
-    evaluation.assistiveDeviceStatus.hasHospitalBed ? `• Hospital Bed (${evaluation.assistiveDeviceStatus.bedType.replace('_', ' ')})` : null,
-    evaluation.assistiveDeviceStatus.hasAirWaterMattress ? '• Air/Water Alternating Pressure Mattress' : null,
-    evaluation.assistiveDeviceStatus.hasWheelchair ? '• Wheelchair' : null,
-    evaluation.assistiveDeviceStatus.hasSuctionApparatus ? '• Suction Apparatus (Bedside)' : null,
-    evaluation.assistiveDeviceStatus.hasTransferAids ? '• Swivel Transfer Belt / Pivot Disc' : null
-  ].filter(Boolean).join('\n');
-
-  return `🏥 *KUTUMBH CARE CIRCLE PLAN & ROSTER*
-━━━━━━━━━━━━━━━━━━━━
-👤 *Patient:* ${patient.name} (Age ${patient.age})
-🤝 *Primary Caregiver:* ${caregiver.name} (${caregiver.kinship}, ${caregiver.dailyHoursCommitted}h committed)
-📊 *Care Demand:* ${evaluation.patientCareDemandHours}h/day | *Care Gap:* ${evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h Deficit ⚠️` : '0h (Fully Covered ✅)'}
-🩺 *Burnout Risk:* ${evaluation.caregiverBurnoutRiskLevel.toUpperCase()} | *Spine Strain:* ${evaluation.caregiverInjuryRiskScore}%
-
-🗓️ *MONTHLY ROTATION & RESPITE POLICY*
-• Respite Days for ${caregiver.name}: *${rotation.primaryCaregiverRespiteDaysPerMonth} Days/Month*
-• Rotation Cycle: *${rotation.rotationInterval.toUpperCase()}*
-• Weekend Shift Lead: *${rotation.weekendShiftLeader || 'Assigned Member'}*
-• Night Watch: *${rotation.nightShiftArrangement.replace(/_/g, ' ')}*
-
-👥 *CARE CIRCLE TEAM ASSIGNMENTS*
-${teamMembers || '• Solo primary caregiver (no secondary members)'}
-
-🛠️ *ASSISTIVE DEVICES ACTIVE*
-${devices || '• Standard home setup (no specialized equipment)'}
-
-🚨 *EMERGENCY PROTOCOL*
-• Preferred Hospital: *${emergency.preferredHospitalName || 'AIIMS / Local Emergency'}*
-• Distance / Transit: *${emergency.hospitalDistanceKm} km (${emergency.travelTimeMinutes} mins)*
-• 4-Wheeler at Home: *${emergency.fourWheelerAvailableAtHome ? 'Yes (Parked)' : 'No (Cab / Auto required)'}*
-• Emergency Driver: *${emergency.designatedEmergencyDriver || 'Key Holder'}*
-• Ambulance Helpline: *${emergency.ambulanceContact || '108'}*
-━━━━━━━━━━━━━━━━━━━━
-_Generated via Kutumbh Geriatric Care Matrix_`;
+  return ShiftAllocator.generateWhatsAppCareDigest(caregiver, patient, evaluation);
 }
 
 /**
@@ -998,44 +1282,6 @@ export function generateCareRosterIcs(
   patient: PatientDependenceProfile,
   evaluation: CareGapEvaluationResult
 ): string {
-  const now = new Date();
-  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-  const formatIcsDate = (d: Date) =>
-    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
-
-  const dtstamp = formatIcsDate(now);
-  const rotation = caregiver.rotationPolicy || {
-    primaryCaregiverRespiteDaysPerMonth: 4,
-    weekendShiftLeader: 'Weekend Leader'
-  };
-
-  // Generate 4 recurring respite events for the upcoming month
-  let events = '';
-  for (let i = 1; i <= Math.min(4, rotation.primaryCaregiverRespiteDaysPerMonth); i++) {
-    const respiteStart = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000);
-    respiteStart.setHours(9, 0, 0, 0);
-    const respiteEnd = new Date(respiteStart.getTime() + 10 * 60 * 60 * 1000);
-
-    events += `BEGIN:VEVENT
-UID:kutumbh-respite-${i}-${respiteStart.getTime()}@kutumbh.health
-DTSTAMP:${dtstamp}
-DTSTART:${formatIcsDate(respiteStart)}
-DTEND:${formatIcsDate(respiteEnd)}
-SUMMARY:🌿 Respite Day for ${caregiver.name} (Patient: ${patient.name})
-DESCRIPTION:Primary caregiver scheduled respite day. Shift lead is ${rotation.weekendShiftLeader || 'Care Circle Family'}. Ensure all meals and meds are covered.
-LOCATION:Home Care
-STATUS:CONFIRMED
-END:VEVENT
-`;
-  }
-
-  return `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Kutumbh Health//Care Matrix Roster//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:Kutumbh Care Roster - ${patient.name}
-X-WR-TIMEZONE:Asia/Kolkata
-${events}END:VCALENDAR`;
+  return ShiftAllocator.generateCareRosterIcs(caregiver, patient, evaluation);
 }
 

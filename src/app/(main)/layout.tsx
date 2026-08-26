@@ -8,13 +8,11 @@ import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { ReactNode } from 'react';
 
 function MainContentWrapper({ children }: { children: ReactNode }) {
-  const { setOpen, setOpenMobile, isMobile, state } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar();
 
   const handleContentClick = () => {
     if (isMobile) {
       setOpenMobile(false);
-    } else if (state === 'expanded') {
-      setOpen(false);
     }
   };
 

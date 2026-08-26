@@ -60,18 +60,16 @@ export function AppSidebar() {
   const pathname = usePathname();
   const t = useTranslations('Sidebar');
   const { role, setRole } = useProfile();
-  const { isMobile, setOpen, setOpenMobile } = useSidebar();
+  const { isMobile, open, setOpen, setOpenMobile, state } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
 
-  // Auto-close / auto-collapse sidebar on route change
+  // Close mobile drawer on route change (keep desktop state intact)
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
-    } else {
-      setOpen(false);
     }
-  }, [pathname, isMobile, setOpen, setOpenMobile]);
+  }, [pathname, isMobile, setOpenMobile]);
 
   useEffect(() => {
     if (!auth) return;
