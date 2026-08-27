@@ -35,6 +35,17 @@ export interface CohortRow {
   latestTier: ZbiTier | null;
   latestCompletedAt: string | null;
   hasQocWarning?: boolean;
+  conditions?: string[];
+  caregiverName?: string | null;
+  caregiverKinship?: string | null;
+  caregiverPhone?: string | null;
+  formalSupportHours?: number;
+  formalSupportType?: string;
+  isBedBound?: boolean;
+  fallHistory?: number;
+  lastVitalBp?: string | null;
+  lastVitalSpo2?: string | null;
+  latestAlertSnippet?: string | null;
 }
 
 // A dyad that was escalating at last contact and has since gone quiet ranks
@@ -66,7 +77,19 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     hasRedFlag: true,
     latestAssessmentAgeDays: 2,
     latestTier: 'ZBI22',
-    latestCompletedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    latestCompletedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    hasQocWarning: true,
+    conditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
+    caregiverName: 'Suresh Kumar',
+    caregiverKinship: 'Spouse (Solo 78y)',
+    caregiverPhone: '+919820012345',
+    formalSupportHours: 0,
+    formalSupportType: 'None (100% Family)',
+    isBedBound: true,
+    fallHistory: 2,
+    lastVitalBp: '168/102',
+    lastVitalSpo2: '94%',
+    latestAlertSnippet: 'Solo elderly spouse handling heavy nocturnal bed-turns. BP spike 168/102.'
   },
   {
     patientUid: 'demo-ramesh',
@@ -77,7 +100,19 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     hasRedFlag: false,
     latestAssessmentAgeDays: 5,
     latestTier: 'ZBI22',
-    latestCompletedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    latestCompletedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    hasQocWarning: false,
+    conditions: ['Parkinson’s Disease', 'Diabetes T2', 'Gait Freezing'],
+    caregiverName: 'Anjali Sharma',
+    caregiverKinship: 'Daughter (Working)',
+    caregiverPhone: '+919819098765',
+    formalSupportHours: 4,
+    formalSupportType: 'Part-time Attendant',
+    isBedBound: false,
+    fallHistory: 1,
+    lastVitalBp: '134/86',
+    lastVitalSpo2: '97%',
+    latestAlertSnippet: 'Transfer assistance fatigue rising; evening sundowning reported.'
   },
   {
     patientUid: 'demo-kamla',
@@ -88,7 +123,19 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     hasRedFlag: false,
     latestAssessmentAgeDays: 12,
     latestTier: 'ZBI12',
-    latestCompletedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString()
+    latestCompletedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    hasQocWarning: false,
+    conditions: ['Mild Cognitive Impairment', 'Hypertension'],
+    caregiverName: 'Rajesh Gupta',
+    caregiverKinship: 'Son',
+    caregiverPhone: '+919876543210',
+    formalSupportHours: 8,
+    formalSupportType: 'Day Attendant',
+    isBedBound: false,
+    fallHistory: 0,
+    lastVitalBp: '122/78',
+    lastVitalSpo2: '98%',
+    latestAlertSnippet: 'Cognitive stimulation & medication schedule fully compliant.'
   }
 ];
 
@@ -120,6 +167,7 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
           const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
           const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
           const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
+          const latestVital = vitals?.[0];
           return {
             patientUid,
             displayName,
@@ -130,7 +178,18 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
             latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
             latestTier: latest?.tier ?? null,
             latestCompletedAt: latest?.date ?? null,
-            hasQocWarning
+            hasQocWarning,
+            conditions: patientProfile?.primaryConditions || [],
+            caregiverName: caregiver?.name || null,
+            caregiverKinship: caregiver?.kinship || null,
+            caregiverPhone: null,
+            formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
+            formalSupportType: caregiver?.formalSupport?.type || 'None',
+            isBedBound: patientProfile?.isBedBound || false,
+            fallHistory: patientProfile?.fallHistoryLast6Months || 0,
+            lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
+            lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
+            latestAlertSnippet: hasQocWarning ? careGap.qualityOfCareWarnings[0] : null
           } satisfies CohortRow;
         } catch {
           return {
