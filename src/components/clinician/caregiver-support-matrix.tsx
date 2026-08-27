@@ -1144,33 +1144,40 @@ export function CaregiverSupportMatrix({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-5 space-y-4">
-        {/* ROW 1: FOUR KEY METRIC CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <CardContent className="p-5 sm:p-6 space-y-6">
+        {/* ROW 1: FOUR GENEROUSLY-SPACED KEY METRIC CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Primary Caregiver */}
-          <div className="p-3.5 rounded-2xl border border-border/60 bg-card space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-              <UserCheck className="w-3.5 h-3.5 text-primary" /> Primary Caregiver
-            </span>
-            <p className="text-sm font-bold text-foreground">
-              {currentCaregiver.name} ({currentCaregiver.age} yrs)
-            </p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {currentCaregiver.kinship.replace('_', ' ')} • {currentCaregiver.coResidence.replace('_', ' ')}
-            </p>
-            <div className="flex flex-wrap gap-1 pt-1">
+          <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-primary" /> Primary Caregiver
+              </span>
+              <Badge variant="outline" className="text-[10px] font-mono capitalize">
+                {currentCaregiver.kinship.replace('_', ' ')}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground">
+                {currentCaregiver.name}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {currentCaregiver.age} yrs • {currentCaregiver.coResidence.replace('_', ' ')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
               {currentCaregiver.caregiverHealth.hasBackPain && (
-                <Badge variant="outline" className="text-[9px] text-amber-700 dark:text-amber-300 border-amber-500/30">
+                <Badge variant="outline" className="text-[10px] font-bold text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10">
                   Lumbar Strain
                 </Badge>
               )}
               {currentCaregiver.caregiverHealth.hasInsomnia && (
-                <Badge variant="outline" className="text-[9px] text-purple-700 dark:text-purple-300 border-purple-500/30">
+                <Badge variant="outline" className="text-[10px] font-bold text-purple-700 dark:text-purple-300 border-purple-500/30 bg-purple-500/10">
                   Sleep Strain
                 </Badge>
               )}
               {currentCaregiver.employment === 'full_time' && (
-                <Badge variant="outline" className="text-[9px] text-blue-700 dark:text-blue-300 border-blue-500/30">
+                <Badge variant="outline" className="text-[10px] font-bold text-blue-700 dark:text-blue-300 border-blue-500/30 bg-blue-500/10">
                   Full-Time Job
                 </Badge>
               )}
@@ -1178,66 +1185,68 @@ export function CaregiverSupportMatrix({
           </div>
 
           {/* Card 2: Secondary Family Network */}
-          <div className="p-3.5 rounded-2xl border border-border/60 bg-card space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-              <HeartHandshake className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Family Support Network
-            </span>
-            <p className="text-sm font-bold text-foreground">
-              {(currentCaregiver.secondaryMembers?.length ?? 0) > 0
-                ? `${currentCaregiver.secondaryMembers?.length} Helpers Pooled`
-                : currentCaregiver.otherFamilyMembersCount
-                ? `${currentCaregiver.otherFamilyMembersCount} Helpers`
-                : 'Solo Caregiver (0 Helpers)'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Absorbs <strong>{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong> of care
-            </p>
-            <div className="flex flex-wrap gap-1 pt-1">
-              {currentCaregiver.secondaryMembers?.map((m) => (
-                <Badge key={m.id} variant="secondary" className="text-[9px] font-semibold">
-                  {m.name || m.relationship}: {m.hoursPerDay}h
-                </Badge>
-              ))}
+          <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
+                <HeartHandshake className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Family Support Network
+              </span>
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground">
+                {(currentCaregiver.secondaryMembers?.length ?? 0) > 0
+                  ? `${currentCaregiver.secondaryMembers?.length} Helpers Pooled`
+                  : currentCaregiver.otherFamilyMembersCount
+                  ? `${currentCaregiver.otherFamilyMembersCount} Helpers`
+                  : 'Solo Caregiver (0 Helpers)'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Absorbs <strong className="text-foreground">{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong> of care
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
+              {currentCaregiver.secondaryMembers && currentCaregiver.secondaryMembers.length > 0 ? (
+                currentCaregiver.secondaryMembers.map((m) => (
+                  <Badge key={m.id} variant="secondary" className="text-[10px] font-semibold">
+                    {m.name || m.relationship}: {m.hoursPerDay}h
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-[11px] text-amber-600 font-semibold">No helpers pooled</span>
+              )}
             </div>
           </div>
 
           {/* Card 3: Assistive Bed & Equipment */}
-          <div className="p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 space-y-1.5">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 text-indigo-700 dark:text-indigo-300">
-              <Bed className="w-3.5 h-3.5 text-indigo-600" /> Assistive Equipment
-            </span>
-            <p className="text-sm font-bold text-foreground capitalize">
-              {currentEval.assistiveDeviceStatus.hasHospitalBed
-                ? currentEval.assistiveDeviceStatus.bedType.replace('_', ' ')
-                : 'Standard Bed'}
-            </p>
-            <div className="flex flex-wrap gap-1 pt-0.5">
-              {currentEval.assistiveDeviceStatus.hasAirWaterMattress && (
-                <Badge className="bg-indigo-600 text-white text-[9px] font-bold">Ripple Mattress</Badge>
-              )}
-              {currentEval.assistiveDeviceStatus.hasWheelchair && (
-                <Badge variant="outline" className="text-[9px] border-indigo-400 text-indigo-700 dark:text-indigo-300">Wheelchair</Badge>
-              )}
-              {currentEval.assistiveDeviceStatus.hasSuctionApparatus && (
-                <Badge variant="outline" className="text-[9px] border-indigo-400 text-indigo-700 dark:text-indigo-300">Suction</Badge>
-              )}
-              {currentEval.assistiveDeviceStatus.hasTransferAids && (
-                <Badge variant="outline" className="text-[9px] border-indigo-400 text-indigo-700 dark:text-indigo-300">Transfer Belt</Badge>
+          <div className="p-4 sm:p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase font-bold tracking-wider flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300">
+                <Bed className="w-4 h-4 text-indigo-600" /> Assistive Equipment
+              </span>
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground capitalize">
+                {currentEval.assistiveDeviceStatus.hasHospitalBed
+                  ? currentEval.assistiveDeviceStatus.bedType.replace('_', ' ')
+                  : 'Standard Bed'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ergonomic Relief: <strong className="text-indigo-600 dark:text-indigo-400">-{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}% strain</strong>
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-indigo-500/20">
+              {currentEval.assistiveDeviceStatus.hasAirWaterMattress ? (
+                <Badge className="bg-indigo-600 text-white text-[10px] font-bold">Ripple Mattress</Badge>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Standard mattress</span>
               )}
             </div>
-            <span className="text-[10px] text-muted-foreground block pt-0.5">
-              Ergonomic Discount: -{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}% strain
-            </span>
           </div>
 
-          {/* Card 4: Care Equilibrium & Burnout Risk Engine */}
-          <div className="p-3.5 rounded-2xl border border-border/60 bg-card space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-primary" /> Calculated Care Gap
-            </span>
+          {/* Card 4: Care Equilibrium & Burnout Risk */}
+          <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-foreground">
-                {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'Sustainable (0h Gap)'}
+              <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-primary" /> Calculated Care Gap
               </span>
               <Badge
                 className={cn(
@@ -1254,64 +1263,69 @@ export function CaregiverSupportMatrix({
                 {currentEval.caregiverBurnoutRiskLevel} Risk
               </Badge>
             </div>
-            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden mt-1">
+            <div>
+              <p className={cn('text-base font-black font-mono', currentEval.netCareGapHours > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'Sustainable (0h Gap)'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Spine strain: <strong className="text-foreground font-mono">{currentEval.caregiverInjuryRiskScore}%</strong>
+              </p>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden mt-1">
               <div
                 className={cn(
-                  'h-full transition-all',
+                  'h-full transition-all rounded-full',
                   currentEval.caregiverInjuryRiskScore > 50 ? 'bg-red-500' : 'bg-emerald-500'
                 )}
                 style={{ width: `${Math.min(100, currentEval.caregiverInjuryRiskScore)}%` }}
               />
             </div>
-            <span className="text-[10px] text-muted-foreground block">
-              Caregiver Spine / Injury Strain: {currentEval.caregiverInjuryRiskScore}%
-            </span>
           </div>
         </div>
 
         {/* ROW 2: VISUAL STACKED ALLOCATION BAR */}
-        <div className="p-4 rounded-2xl bg-muted/30 border border-border/70 space-y-2.5">
+        <div className="p-5 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-            <span className="text-xs font-bold text-foreground flex items-center gap-2">
+            <span className="text-sm font-bold text-foreground flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
               Patient Care Demand Hours Distribution ({currentEval.patientCareDemandHours} hrs/day Total)
             </span>
-            <span className="text-[11px] text-muted-foreground">
-              Capacity: Primary ({currentEval.teamAllocations.primaryCaregiverHours}h) + Formal Staff ({currentEval.teamAllocations.formalStaffHours}h) + Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
+            <span className="text-xs text-muted-foreground font-mono">
+              Capacity: Primary ({currentEval.teamAllocations.primaryCaregiverHours}h) + Formal ({currentEval.teamAllocations.formalStaffHours}h) + Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
             </span>
           </div>
 
-          <div className="w-full h-4 rounded-xl bg-muted overflow-hidden flex shadow-inner">
+          <div className="w-full h-5 rounded-full bg-muted overflow-hidden flex shadow-inner">
             {primaryPct > 0 && (
               <div
-                className="bg-purple-500 hover:bg-purple-600 transition-all flex items-center justify-center text-[9px] font-bold text-white"
+                className="bg-purple-500 hover:bg-purple-600 transition-all flex items-center justify-center text-[10px] font-bold text-white"
                 style={{ width: `${primaryPct}%` }}
                 title={`Primary Caregiver: ${currentEval.teamAllocations.primaryCaregiverHours}h`}
               >
-                {primaryPct > 10 ? `${primaryPct}%` : ''}
+                {primaryPct > 10 ? `${primaryPct}% Primary` : ''}
               </div>
             )}
             {formalPct > 0 && (
               <div
-                className="bg-emerald-500 hover:bg-emerald-600 transition-all flex items-center justify-center text-[9px] font-bold text-white"
+                className="bg-emerald-500 hover:bg-emerald-600 transition-all flex items-center justify-center text-[10px] font-bold text-white"
                 style={{ width: `${formalPct}%` }}
                 title={`Formal Staff: ${currentEval.teamAllocations.formalStaffHours}h`}
               >
-                {formalPct > 10 ? `${formalPct}%` : ''}
+                {formalPct > 10 ? `${formalPct}% Staff` : ''}
               </div>
             )}
             {familyPct > 0 && (
               <div
-                className="bg-blue-500 hover:bg-blue-600 transition-all flex items-center justify-center text-[9px] font-bold text-white"
+                className="bg-blue-500 hover:bg-blue-600 transition-all flex items-center justify-center text-[10px] font-bold text-white"
                 style={{ width: `${familyPct}%` }}
                 title={`Secondary Family: ${currentEval.teamAllocations.secondaryFamilyHours}h`}
               >
-                {familyPct > 10 ? `${familyPct}%` : ''}
+                {familyPct > 10 ? `${familyPct}% Family` : ''}
               </div>
             )}
             {unmetPct > 0 && (
               <div
-                className="bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center text-[9px] font-bold text-white"
+                className="bg-red-500 hover:bg-red-600 transition-all flex items-center justify-center text-[10px] font-bold text-white"
                 style={{ width: `${unmetPct}%` }}
                 title={`Unmet Care Gap: ${currentEval.teamAllocations.unmetGapHours}h`}
               >
@@ -1320,22 +1334,22 @@ export function CaregiverSupportMatrix({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-[11px] pt-0.5">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+          <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+            <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+              <span className="w-3 h-3 rounded-full bg-purple-500" />
               Primary Caregiver ({currentEval.teamAllocations.primaryCaregiverHours}h)
             </span>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              Formal Attendant / Nurse ({currentEval.teamAllocations.formalStaffHours}h)
+            <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              Formal Attendant ({currentEval.teamAllocations.formalStaffHours}h)
             </span>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
               Secondary Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
             </span>
             {currentEval.teamAllocations.unmetGapHours > 0 && (
               <span className="flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <span className="w-3 h-3 rounded-full bg-red-500" />
                 Unmet Gap ({currentEval.teamAllocations.unmetGapHours}h Deficit)
               </span>
             )}
@@ -1343,27 +1357,27 @@ export function CaregiverSupportMatrix({
         </div>
 
         {/* ROW 3: TASK DELEGATION MATRIX GRID & EMERGENCY READINESS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Col 1 & 2: Task Delegation Grid */}
-          <div className="lg:col-span-2 space-y-2">
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <Stethoscope className="w-3.5 h-3.5 text-primary" /> Task Delegation & Diurnal Shift Coverage
+          <div className="lg:col-span-2 space-y-3">
+            <p className="text-sm font-bold font-headline text-foreground flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-primary" /> Task Delegation & Diurnal Shift Coverage
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Task 1: Bed-to-Chair Transfers */}
-              <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1">
+              <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
                     <span>💪</span> Bed-to-Chair Transfers
                   </span>
                   {currentEval.taskDelegationStatus.transfersCovered ? (
-                    <Badge className="bg-emerald-600 text-white text-[9px] font-bold">Relieved</Badge>
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Relieved</Badge>
                   ) : (
-                    <Badge className="bg-red-600 text-white text-[9px] font-bold">Spine Risk</Badge>
+                    <Badge className="bg-red-600 text-white text-[10px] font-bold">Spine Risk</Badge>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.transfersCovered
                     ? `Covered by: ${currentEval.taskDelegationStatus.transfersCoveredBy.join(', ')}`
                     : 'Performed solo by primary caregiver (Causes acute lumbar strain)'}
@@ -1371,18 +1385,18 @@ export function CaregiverSupportMatrix({
               </div>
 
               {/* Task 2: Sponge Bathing & Hygiene */}
-              <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1">
+              <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
                     <span>🛁</span> Bathing & Diapering
                   </span>
                   {currentEval.taskDelegationStatus.bathingCovered ? (
-                    <Badge className="bg-emerald-600 text-white text-[9px] font-bold">Shared</Badge>
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Shared</Badge>
                   ) : (
-                    <Badge variant="outline" className="text-amber-600 text-[9px]">Solo</Badge>
+                    <Badge variant="outline" className="text-amber-600 text-[10px]">Solo</Badge>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.bathingCovered
                     ? `Covered by: ${currentEval.taskDelegationStatus.bathingCoveredBy.join(', ')}`
                     : 'Solely managed by primary caregiver'}
@@ -1390,18 +1404,18 @@ export function CaregiverSupportMatrix({
               </div>
 
               {/* Task 3: Medications & Vitals */}
-              <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1">
+              <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
                     <span>💊</span> Medications & Clinical Logs
                   </span>
                   {currentEval.taskDelegationStatus.medicationsCovered ? (
-                    <Badge className="bg-emerald-600 text-white text-[9px] font-bold">Covered</Badge>
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Covered</Badge>
                   ) : (
-                    <Badge variant="outline" className="text-muted-foreground text-[9px]">Primary Caregiver</Badge>
+                    <Badge variant="outline" className="text-muted-foreground text-[10px]">Primary Caregiver</Badge>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.medicationsCovered
                     ? `Covered by: ${currentEval.taskDelegationStatus.medicationsCoveredBy.join(', ')}`
                     : 'Administered by primary caregiver'}
@@ -1409,57 +1423,53 @@ export function CaregiverSupportMatrix({
               </div>
 
               {/* Task 4: Night Watch & Sleep Protection */}
-              <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1">
+              <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
                     <span>🌙</span> Night Watch / 24h Care
                   </span>
                   {currentEval.taskDelegationStatus.nightCareCovered ? (
-                    <Badge className="bg-emerald-600 text-white text-[9px] font-bold">Protected</Badge>
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Protected</Badge>
                   ) : (
-                    <Badge className="bg-purple-600 text-white text-[9px] font-bold">Sleep Disrupted</Badge>
+                    <Badge className="bg-purple-600 text-white text-[10px] font-bold">Sleep Disrupted</Badge>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.nightCareCovered
-                    ? `Night shift covered by: ${currentEval.taskDelegationStatus.nightCareCoveredBy.join(', ')}`
-                    : 'Primary caregiver sleep disrupted by nighttime repositioning'}
+                    ? `Covered by: ${currentEval.taskDelegationStatus.nightCareCoveredBy.join(', ')}`
+                    : 'No nocturnal attendant; primary caregiver woken 3+ times'}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Col 3: Emergency & Logistics Readiness */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <Car className="w-3.5 h-3.5 text-red-600" /> Emergency Transit Readiness
+          {/* Col 3: Emergency Transit Readiness */}
+          <div className="space-y-3">
+            <p className="text-sm font-bold font-headline text-foreground flex items-center gap-2">
+              <Car className="w-4 h-4 text-red-600" /> Emergency Transit Readiness
             </p>
 
-            <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2 text-xs">
+            <div className="p-4 sm:p-5 rounded-2xl border border-red-500/30 bg-red-500/5 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Nearest Hospital:</span>
-                <span className="font-bold text-foreground">
+                <span className="text-xs font-bold text-muted-foreground">Nearest Hospital:</span>
+                <span className="text-sm font-bold font-mono text-foreground">
                   {currentCaregiver.emergencyLogistics?.hospitalDistanceKm ?? 4.5} km ({currentCaregiver.emergencyLogistics?.travelTimeMinutes ?? 15} mins)
                 </span>
               </div>
+
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">4-Wheeler at Home:</span>
+                <span className="text-xs font-bold text-muted-foreground">4-Wheeler at Home:</span>
                 {currentCaregiver.emergencyLogistics?.fourWheelerAvailableAtHome ? (
-                  <Badge className="bg-emerald-600 text-white text-[9px] font-bold">Vehicle Parked</Badge>
+                  <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Vehicle Parked</Badge>
                 ) : (
-                  <Badge className="bg-red-600 text-white text-[9px] font-bold">No Car (Cab Dependent)</Badge>
+                  <Badge className="bg-red-600 text-white text-[10px] font-bold">No Car (Cab Dependent)</Badge>
                 )}
               </div>
+
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Emergency Driver:</span>
-                <span className="font-semibold text-foreground">
+                <span className="text-xs font-bold text-muted-foreground">Emergency Driver:</span>
+                <span className="text-xs font-bold text-foreground">
                   {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[11px]">
-                <span className="text-muted-foreground">Hospital & Ambulance:</span>
-                <span className="font-mono text-primary font-bold">
-                  {currentCaregiver.emergencyLogistics?.ambulanceContact || '108'}
                 </span>
               </div>
             </div>

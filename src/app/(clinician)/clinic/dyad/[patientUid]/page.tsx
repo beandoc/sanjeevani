@@ -413,166 +413,125 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         </Card>
       )}
 
-      {/* TWO-COLUMN LAYOUT: LEFT SIDEBAR MENU (SWIPEABLE TABS ON MOBILE) + MAIN WORKSPACE */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 items-start">
-        {/* LEFT SIDEBAR NAVIGATION MENU */}
-        <div className="md:col-span-1 space-y-3">
-          <div className="p-2 sm:p-3 rounded-2xl bg-card border border-border/70 shadow-xs flex md:flex-col overflow-x-auto no-scrollbar scroll-touch gap-1.5 md:gap-1">
-            <span className="hidden md:block text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">
-              Family & Clinical Workspace
-            </span>
-
-            {/* Menu Item 1: Care Support Matrix (Highlighted) */}
-            <button
-              onClick={() => setActiveTab('matrix')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'matrix'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Users2 className="w-4 h-4" />
-                <span>Support Matrix</span>
-              </span>
-              <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
-                Core
-              </Badge>
-            </button>
-
-            {/* Menu Item 2: Trajectory & Overview */}
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'overview'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                <span>Trajectory</span>
-              </span>
-              <Badge variant="outline" className="text-[9px]">
-                {trajectory.riskBand}
-              </Badge>
-            </button>
-
-            {/* Menu Item 3: Active Medications */}
-            <button
-              onClick={() => setActiveTab('medications')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'medications'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Pill className="w-4 h-4" />
-                <span>Prescriptions</span>
-              </span>
-              <Badge variant="outline" className="text-[9px]">
-                {medications.length}
-              </Badge>
-            </button>
-
-            {/* Menu Item 4: Vitals & Observations */}
-            <button
-              onClick={() => setActiveTab('vitals')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'vitals'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <HeartPulse className="w-4 h-4" />
-                <span>Vitals</span>
-              </span>
-              <Badge variant="outline" className="text-[9px]">
-                {vitals.length}
-              </Badge>
-            </button>
-
-            {/* Menu Item 5: Assigned Modules */}
-            <button
-              onClick={() => setActiveTab('modules')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'modules'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                <span>Modules</span>
-              </span>
-            </button>
-
-            {/* Menu Item 6: Emergency Readiness */}
-            <button
-              onClick={() => setActiveTab('emergency')}
-              className={cn(
-                'whitespace-nowrap shrink-0 md:w-full text-left px-3 py-2 sm:py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between gap-2 border min-h-[44px]',
-                activeTab === 'emergency'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                  : 'text-foreground hover:bg-muted border-transparent'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Car className="w-4 h-4 text-red-600" />
-                <span>Emergency</span>
-              </span>
-              {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-              )}
-            </button>
-          </div>
-
-          {/* Quick Snapshot Card in Sidebar */}
-          <div className="hidden md:block p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs space-y-2">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-              Dyad Care Balance
-            </span>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Net Care Gap:</span>
-              <span className="font-bold text-foreground font-mono">
-                {careGapResult.netCareGapHours > 0 ? `${careGapResult.netCareGapHours}h / day` : '0h (Balanced)'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Burnout Tier:</span>
-              <Badge className={cn('text-[9px] uppercase font-bold', careGapResult.caregiverBurnoutRiskLevel === 'critical' ? 'bg-red-600' : 'bg-emerald-600')}>
-                {careGapResult.caregiverBurnoutRiskLevel}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Spine Risk:</span>
-              <span className="font-bold text-foreground font-mono">{careGapResult.caregiverInjuryRiskScore}%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* MAIN WORKSPACE CONTENT AREA */}
-        <div className="md:col-span-3 space-y-6">
-          {/* TAB 1: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
-          {(activeTab === 'matrix') && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <CaregiverSupportMatrix
-                patientUid={patientUid}
-                caregiver={caregiver}
-                patient={patientProfile}
-                onSave={handleSaveCaregiverMatrix}
-              />
-            </div>
+      {/* HORIZONTAL WORKSPACE NAVIGATION TABS */}
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-touch border-b border-border/60">
+        {/* Tab 1: Care Support Matrix */}
+        <button
+          onClick={() => setActiveTab('matrix')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'matrix'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
           )}
+        >
+          <Users2 className="w-4 h-4" />
+          <span>Monthly Support Matrix</span>
+          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
+            Core
+          </Badge>
+        </button>
+
+        {/* Tab 2: Trajectory & Overview */}
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'overview'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>Trajectory & Scissors Chart</span>
+          <Badge variant="outline" className="text-[9px] ml-1">
+            {trajectory.riskBand}
+          </Badge>
+        </button>
+
+        {/* Tab 3: Active Medications */}
+        <button
+          onClick={() => setActiveTab('medications')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'medications'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <Pill className="w-4 h-4" />
+          <span>Prescriptions & Regimen</span>
+          <Badge variant="outline" className="text-[9px] ml-1">
+            {medications.length}
+          </Badge>
+        </button>
+
+        {/* Tab 4: Vitals & Observations */}
+        <button
+          onClick={() => setActiveTab('vitals')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'vitals'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <HeartPulse className="w-4 h-4" />
+          <span>Vital Signs</span>
+          <Badge variant="outline" className="text-[9px] ml-1">
+            {vitals.length}
+          </Badge>
+        </button>
+
+        {/* Tab 5: Assigned Modules */}
+        <button
+          onClick={() => setActiveTab('modules')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'modules'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Education & Guides</span>
+        </button>
+
+        {/* Tab 6: Emergency Readiness */}
+        <button
+          onClick={() => setActiveTab('emergency')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'emergency'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <Car className="w-4 h-4 text-red-600" />
+          <span>Emergency Logistics</span>
+          {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1" />
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping ml-1" />
+          )}
+        </button>
+      </div>
+
+      {/* FULL WIDTH MAIN WORKSPACE AREA */}
+      <div className="w-full space-y-6">
+      {/* FULL WIDTH MAIN WORKSPACE AREA */}
+      <div className="w-full space-y-6">
+        {/* TAB 1: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
+        {activeTab === 'matrix' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <CaregiverSupportMatrix
+              patientUid={patientUid}
+              caregiver={caregiver}
+              patient={patientProfile}
+              onSave={handleSaveCaregiverMatrix}
+            />
+          </div>
+        )}
 
           {/* TAB 2: OVERVIEW & SCISSORS TRAJECTORY */}
           {(activeTab === 'overview') && (
