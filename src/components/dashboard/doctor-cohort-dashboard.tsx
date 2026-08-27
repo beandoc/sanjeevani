@@ -207,50 +207,51 @@ export function DoctorCohortDashboard() {
   return (
     <div className="space-y-6">
       {/* 1. CLINICAL COCKPIT BANNER */}
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-blue-950 via-slate-900 to-indigo-950 p-5 sm:p-7 text-white shadow-xl border border-blue-800/40">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5">
-                <Stethoscope className="w-3.5 h-3.5 mr-1" />
-                Geriatric OPD Clinical Cockpit
-              </Badge>
-              <span className="text-xs text-blue-200/70 font-mono flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Real-time Dyad Surveillance
-              </span>
+      <Card className="border border-blue-500/30 bg-blue-50/70 dark:bg-slate-900/90 shadow-sm">
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="space-y-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-blue-600/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5">
+                  <Stethoscope className="w-3.5 h-3.5 mr-1" />
+                  Geriatric OPD Clinical Cockpit
+                </Badge>
+                <span className="text-xs text-muted-foreground font-mono flex items-center gap-1 font-semibold">
+                  <Clock className="w-3.5 h-3.5 text-primary" /> Real-time Dyad Surveillance
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black font-headline tracking-tight text-foreground">
+                Cohort Clinical Overview • {summary.totalPatients} Active Dyad{summary.totalPatients === 1 ? '' : 's'}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
+                Bi-directional surveillance mapping patient functional trajectory (Barthel ADL) against caregiver psychometric strain (Zarit ZBI) and home safety support.
+              </p>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black font-headline tracking-tight text-white">
-              Cohort Clinical Overview • {summary.totalPatients} Active Dyad{summary.totalPatients === 1 ? '' : 's'}
-            </h2>
-            <p className="text-xs sm:text-sm text-blue-100/70 max-w-2xl leading-relaxed">
-              Bi-directional surveillance mapping patient functional trajectory (Barthel ADL) against caregiver psychometric strain (Zarit ZBI) and home safety support.
-            </p>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs"
-              onClick={() => void load()}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh Live Data
-            </Button>
-            <Link href="/clinic/roster">
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs"
+                className="gap-1.5 text-xs font-bold bg-background hover:bg-muted text-foreground border-border shadow-xs"
+                onClick={() => void load()}
+                disabled={isRefreshing}
               >
-                <Users className="w-3.5 h-3.5" /> Full Roster Matrix
+                <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh Live Data
               </Button>
-            </Link>
-            <RegisterPatientDialog onRegistered={() => void load()} />
+              <Link href="/clinic/roster">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs font-bold bg-background hover:bg-muted text-blue-700 dark:text-blue-300 border-blue-500/30 shadow-xs"
+                >
+                  <Users className="w-3.5 h-3.5" /> Full Roster Matrix
+                </Button>
+              </Link>
+              <RegisterPatientDialog onRegistered={() => void load()} />
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* 2. 4-PILLAR GERIATRIC SURVEILLANCE RADAR */}
       {cohortMetrics && (
