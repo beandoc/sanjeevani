@@ -93,6 +93,34 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(result.lawtonIadlScore, 0);
   });
 
+  test('marks staffing output incomplete when required assessment inputs are missing', () => {
+    const incompletePatient = {
+      ...sampleDependentPatient,
+      fallHistoryLast6Months: Number.NaN
+    } as PatientDependenceProfile;
+
+    const result = CareGapEngine.evaluate(sampleCaregiver, incompletePatient, new Date('2026-08-28T12:00:00Z'));
+
+    assert.strictEqual(result.dataQuality.status, 'requires_data_completion');
+    assert.ok(result.dataQuality.missingFields.includes('Fall history'));
+    assert.ok(result.qualityOfCareWarnings.some((warning) => warning.includes('Decision-support output is incomplete')));
+  });
+
+  test('surfaces stale and caregiver-reported assessments for clinician review', () => {
+    const assessedPatient: PatientDependenceProfile = {
+      ...sampleDependentPatient,
+      assessmentMetadata: { assessedAt: '2026-06-01', source: 'caregiver_reported' },
+      currentMedications: []
+    };
+
+    const result = CareGapEngine.evaluate(sampleCaregiver, assessedPatient, new Date('2026-08-28T12:00:00Z'));
+
+    assert.strictEqual(result.dataQuality.status, 'requires_clinician_review');
+    assert.strictEqual(result.dataQuality.completeness, 'partial');
+    assert.ok(result.dataQuality.limitations.some((limitation) => limitation.includes('Assessment is')));
+    assert.ok(result.dataQuality.limitations.some((limitation) => limitation.includes('caregiver-reported')));
+  });
+
   test('should calculate patient care demand hours factoring in ADLs, cognition, and falls', () => {
     const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
 
@@ -1082,7 +1110,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
   test('S5: CareGapEvaluationResult must stamp algorithm engineVersion', () => {
     const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
-    assert.strictEqual(result.engineVersion, '2.2.0');
+    assert.strictEqual(result.engineVersion, '2.3.0');
     assert.ok(typeof result.evaluatedAt === 'string');
   });
 
@@ -1093,7 +1121,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
     const retrieved = HealthRepository.getStoredCareGapEvaluation();
     assert.ok(retrieved !== null);
-    assert.strictEqual(retrieved?.engineVersion, '2.2.0');
+    assert.strictEqual(retrieved?.engineVersion, '2.3.0');
     assert.strictEqual(retrieved?.evaluatedAt, result.evaluatedAt);
     assert.strictEqual(retrieved?.totalAvailableCapacityHours, result.totalAvailableCapacityHours);
   });
@@ -1108,7 +1136,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
       FINANCIAL_STRAIN_MULTIPLIERS
     } = await import('../src/lib/clinical/care-gap-constants');
 
-    assert.strictEqual(CARE_GAP_ENGINE_VERSION, '2.2.0');
+    assert.strictEqual(CARE_GAP_ENGINE_VERSION, '2.3.0');
     assert.strictEqual(BASELINE_CARE_DEMAND_HOURS, 1.5);
     assert.strictEqual(DEMAND_PER_ADL_DEFICIT_HOURS, 1.0);
     assert.strictEqual(DEMAND_PER_IADL_DEFICIT_HOURS, 0.35);

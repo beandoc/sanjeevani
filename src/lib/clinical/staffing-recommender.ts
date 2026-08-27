@@ -24,6 +24,8 @@ import {
 } from './care-gap-engine';
 import { MedicationChecker } from './medication-checker';
 import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
+import { CLINICAL_POLICY } from './clinical-policy';
+import { ClinicalDecisionSupportStatus } from './assessment-quality';
 
 export type StaffingSkillTier = 'nurse' | 'physio_assistant' | 'attendant' | 'family';
 
@@ -64,6 +66,9 @@ export interface SimulatedStaffingOption {
 
 export interface StaffingRecommendationReport {
   provenance: ClinicalProvenance;
+  policyVersion: string;
+  decisionSupportStatus: ClinicalDecisionSupportStatus;
+  dataQuality: CareGapEvaluationResult['dataQuality'];
   acuityAssessment: {
     dominantSkillTier: StaffingSkillTier;
     clinicalReasons: string[];
@@ -91,7 +96,7 @@ export class StaffingRecommender {
   /**
    * Evaluates dyad clinical acuity and diurnal gap distribution, enumerates candidate
    * staffing models, simulates each through CareGapEngine.evaluate(), and generates
-   * a ranked 3-rung staffing prescription ladder.
+   * a ranked three-rung set of staffing options for clinician review.
    */
   static recommend(
     caregiver: CaregiverAttributes,
@@ -108,6 +113,12 @@ export class StaffingRecommender {
     // -------------------------------------------------------------------------
     const clinicalReasons: string[] = [];
     const highAcuityProcedures: string[] = [];
+
+    if (baseEval.dataQuality.status === 'requires_data_completion') {
+      clinicalReasons.push(
+        `Complete the documented input gaps before adopting a staffing option: ${baseEval.dataQuality.missingFields.join(', ')}.`
+      );
+    }
 
     const conditionsLower = (safePatient.primaryConditions || []).map((c) => c.toLowerCase());
     const hasCondition = (...tokens: string[]) =>
@@ -391,13 +402,13 @@ export class StaffingRecommender {
 
       // Multi-Criterion Optimization Function:
       // Minimize: (1) Unresolved safety blocks -> (2) Residual gap -> (3) Lifting Index -> (4) Cost Rank
-      const unresolvedNightGap = sim.blockGaps.night_watch.gapHours > 0 ? 120 : 0;
-      const unresolvedMorningGap = sim.blockGaps.morning_rush.gapHours > 0 ? 60 : 0;
+      const unresolvedNightGap = sim.blockGaps.night_watch.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedNightGap : 0;
+      const unresolvedMorningGap = sim.blockGaps.morning_rush.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedMorningGap : 0;
       const safetyPenalty = unresolvedNightGap + unresolvedMorningGap;
 
-      const gapPenalty = sim.netCareGapHours * 15;
-      const ergonomicPenalty = sim.liftingIndex * 25;
-      const costPenalty = cand.costTierRank * 8;
+      const gapPenalty = sim.netCareGapHours * CLINICAL_POLICY.staffingRanking.residualGapPerHour;
+      const ergonomicPenalty = sim.liftingIndex * CLINICAL_POLICY.staffingRanking.liftingIndex;
+      const costPenalty = cand.costTierRank * CLINICAL_POLICY.staffingRanking.costTier;
 
       const rankScore = Math.round(safetyPenalty + gapPenalty + ergonomicPenalty + costPenalty);
 
@@ -473,6 +484,9 @@ export class StaffingRecommender {
 
     return {
       provenance: CLINICAL_PROVENANCE.staffingHeuristic,
+      policyVersion: CLINICAL_POLICY.version,
+      decisionSupportStatus: baseEval.dataQuality.status,
+      dataQuality: baseEval.dataQuality,
       acuityAssessment: {
         dominantSkillTier,
         clinicalReasons,

@@ -9,6 +9,12 @@ import { calculateBiomechanicalLoad } from './biomechanical-load';
 import { MedicationChecker } from './medication-checker';
 import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
 import {
+  assessClinicalDataQuality,
+  ClinicalAssessmentMetadata,
+  ClinicalDataQuality
+} from './assessment-quality';
+import { CLINICAL_POLICY } from './clinical-policy';
+import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
   BASELINE_CARE_DEMAND_HOURS,
@@ -167,6 +173,13 @@ export interface ClinicalCareBlueprint {
   recommendedAssistiveDevices: AssistiveDeviceInventory;
   recommendedRespiteDaysPerMonth: number;
   status: 'draft_prescribed' | 'adopted_by_family' | 'modified_by_family';
+  clinicalReview?: {
+    decision: 'issued_by_clinician' | 'family_modified_pending_review' | 'clinician_revised';
+    reviewedAt: string;
+    reviewedBy: string;
+    policyVersion: string;
+    decisionSupportStatus: 'requires_data_completion' | 'requires_clinician_review' | 'ready_for_clinician_review';
+  };
 }
 
 export interface CaregiverAttributes {
@@ -202,6 +215,7 @@ export interface CaregiverAttributes {
     handlesMedicationWoundCare: boolean;
   };
   careBlueprint?: ClinicalCareBlueprint;
+  assessmentMetadata?: ClinicalAssessmentMetadata;
   notes?: string;
 }
 
@@ -249,11 +263,14 @@ export interface PatientDependenceProfile {
   heightCm?: number;
   assistiveDevices?: AssistiveDeviceInventory;
   currentMedications?: Array<{ name: string; genericName?: string }>;
+  assessmentMetadata?: ClinicalAssessmentMetadata;
 }
 
 export interface CareGapEvaluationResult {
   // Algorithm Engine Version for clinical auditability and longitudinal comparison
   engineVersion: string;
+  policyVersion: string;
+  dataQuality: ClinicalDataQuality;
 
   // Katz ADL Score (0-6, where 6 is fully independent, 0 is total dependence)
   katzAdlScore: number;
@@ -444,6 +461,7 @@ export class CareGapEngine {
     // onward) made the guards inert — evaluate(null, null) still threw.
     const safePatient = patient || DEFAULT_PATIENT_PROFILE;
     const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
+    const dataQuality = assessClinicalDataQuality(safeCaregiver, safePatient, now);
 
     const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
     const safeIadl: LawtonIadlProfile = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };
@@ -1229,8 +1247,17 @@ export class CareGapEngine {
       });
     }
 
+    if (dataQuality.status === 'requires_data_completion') {
+      qualityOfCareWarnings.push(
+        `Decision-support output is incomplete until these inputs are documented: ${dataQuality.missingFields.join(', ')}.`
+      );
+    }
+    dataQuality.limitations.forEach((limitation) => qualityOfCareWarnings.push(`Decision-support limitation: ${limitation}`));
+
     return {
       engineVersion: CARE_GAP_ENGINE_VERSION,
+      policyVersion: CLINICAL_POLICY.version,
+      dataQuality,
       katzAdlScore,
       katzDependenceLevel,
       lawtonIadlScore,

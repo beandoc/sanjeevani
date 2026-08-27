@@ -158,6 +158,15 @@ export function DoctorCareBlueprintDialog({
   };
 
   const handleIssueBlueprint = async () => {
+    if (report.decisionSupportStatus === 'requires_data_completion') {
+      toast({
+        variant: 'destructive',
+        title: 'Assessment Data Incomplete',
+        description: report.dataQuality.missingFields.join(', ')
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const blueprint: ClinicalCareBlueprint = {
@@ -171,13 +180,20 @@ export function DoctorCareBlueprintDialog({
         clinicalPrecautions: precautions,
         recommendedAssistiveDevices: devices,
         recommendedRespiteDaysPerMonth: respiteDays,
-        status: 'draft_prescribed'
+        status: 'draft_prescribed',
+        clinicalReview: {
+          decision: 'issued_by_clinician',
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: doctorName.trim() || 'Dr. Vivek',
+          policyVersion: report.policyVersion,
+          decisionSupportStatus: report.decisionSupportStatus
+        }
       };
 
       await onBlueprintIssued(blueprint);
       toast({
         title: 'Clinical Care Blueprint Issued',
-        description: `Prescription saved for ${patientName}. The family can now review and adopt it in their Care Circle.`
+        description: `Reviewed plan saved for ${patientName}. The family can now review and adopt it in their Care Circle.`
       });
       setOpen(false);
     } catch (err) {
@@ -197,7 +213,7 @@ export function DoctorCareBlueprintDialog({
         {trigger || (
           <Button size="sm" className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
             <Stethoscope className="w-4 h-4" />
-            <span>Prescribe Home Care Blueprint</span>
+            <span>Review Home Care Blueprint</span>
           </Button>
         )}
       </DialogTrigger>
@@ -205,17 +221,29 @@ export function DoctorCareBlueprintDialog({
         <DialogHeader className="pb-3 border-b border-border/60">
           <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">
             <FileSignature className="w-4 h-4" />
-            <span>Clinical Decision Support & Home Care Prescription</span>
+            <span>Clinical Decision Support & Home Care Planning</span>
           </div>
           <DialogTitle className="text-lg sm:text-xl font-bold font-headline">
             Issue Home Care Blueprint for {patientName}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Draft a clinical care blueprint outlining the recommended staffing tier, diurnal shift coverage, safety directives, and assistive devices. The family will receive this blueprint in their Kutumbh Care Circle to fine-tune and adopt.
+            Review documented inputs and draft a home-care plan. The family receives the clinician-issued plan in their Kutumbh Care Circle to fine-tune and adopt.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
+          {report.decisionSupportStatus !== 'ready_for_clinician_review' && (
+            <div className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/5 text-xs">
+              <p className="font-bold text-amber-900 dark:text-amber-200">
+                {report.decisionSupportStatus === 'requires_data_completion'
+                  ? 'Complete missing assessment data before issuing this plan.'
+                  : 'Confirm the following limitations before issuing this plan.'}
+              </p>
+              <p className="text-muted-foreground mt-1">
+                {[...report.dataQuality.missingFields, ...report.dataQuality.limitations].join(' ')}
+              </p>
+            </div>
+          )}
           {/* Clinical Acuity & Hazard Summary */}
           <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 space-y-2">
             <div className="flex items-center justify-between">
@@ -240,10 +268,10 @@ export function DoctorCareBlueprintDialog({
             )}
           </div>
 
-          {/* 3-Rung Staffing Prescription Ladder */}
+          {/* Three-rung staffing options for clinician review */}
           <div className="space-y-3">
             <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Select Staffing & Shift Window Prescription
+              <Clock className="w-3.5 h-3.5" /> Select Staffing & Shift Window Option
             </Label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {report.ladder.map((opt) => {
@@ -289,7 +317,7 @@ export function DoctorCareBlueprintDialog({
           {/* Clinical Safety Directives & Precautions */}
           <div className="space-y-3">
             <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" /> Clinical Safety Directives & Precautions for Family
+              <ShieldCheck className="w-3.5 h-3.5" /> Clinical Safety Notes & Precautions for Family
             </Label>
             <div className="space-y-2">
               {precautions.map((item, idx) => (
@@ -313,7 +341,7 @@ export function DoctorCareBlueprintDialog({
               <Input
                 value={newPrecautionText}
                 onChange={(e) => setNewPrecautionText(e.target.value)}
-                placeholder="Add custom clinical precaution or directive for the family…"
+                placeholder="Add custom clinical precaution for the family…"
                 className="h-9 text-xs"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -396,7 +424,7 @@ export function DoctorCareBlueprintDialog({
           {/* Doctor Signature & Respite Days */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Prescribing Physician Signature / Name</Label>
+              <Label className="text-xs font-semibold">Reviewing Clinician Name</Label>
               <Input
                 value={doctorName}
                 onChange={(e) => setDoctorName(e.target.value)}
@@ -425,12 +453,12 @@ export function DoctorCareBlueprintDialog({
           </Button>
           <Button
             onClick={handleIssueBlueprint}
-            disabled={isSubmitting}
+            disabled={isSubmitting || report.decisionSupportStatus === 'requires_data_completion'}
             size="sm"
             className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>{isSubmitting ? 'Issuing…' : 'Issue & Transmit Care Blueprint'}</span>
+            <span>{isSubmitting ? 'Issuing…' : 'Issue Reviewed Care Blueprint'}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

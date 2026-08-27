@@ -23,7 +23,7 @@ export type FormalSupportType =
 /**
  * Semantic Engine Version (semver) stamped on all evaluations for clinical auditability.
  */
-export const CARE_GAP_ENGINE_VERSION = '2.2.0';
+export const CARE_GAP_ENGINE_VERSION = '2.3.0';
 
 /* ------------------------------------------------------------------ *
  * 1. PATIENT CARE DEMAND CONSTANTS

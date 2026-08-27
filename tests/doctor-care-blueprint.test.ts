@@ -98,10 +98,19 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
         transferAids: true
       },
       recommendedRespiteDaysPerMonth: 4,
-      status: 'draft_prescribed'
+      status: 'draft_prescribed',
+      clinicalReview: {
+        decision: 'issued_by_clinician',
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: 'Dr. Vivek, MD (Geriatrician)',
+        policyVersion: report.policyVersion,
+        decisionSupportStatus: report.decisionSupportStatus
+      }
     };
 
     assert.strictEqual(blueprint.status, 'draft_prescribed');
+    assert.strictEqual(blueprint.clinicalReview?.decision, 'issued_by_clinician');
+    assert.strictEqual(blueprint.clinicalReview?.policyVersion, report.policyVersion);
     assert.strictEqual(blueprint.clinicalPrecautions.length, 3);
     assert.strictEqual(blueprint.recommendedAssistiveDevices.hospitalBed, 'motorized_multichannel');
   });

@@ -2,6 +2,7 @@ import { test, describe } from 'vitest';
 import assert from 'node:assert';
 import { StaffingRecommender } from '../src/lib/clinical/staffing-recommender';
 import { CaregiverAttributes, PatientDependenceProfile } from '../src/lib/clinical/care-gap-engine';
+import { CLINICAL_POLICY } from '../src/lib/clinical/clinical-policy';
 
 describe('Multi-Tier Staffing Recommender Engine Tests', () => {
   const baseCaregiver: CaregiverAttributes = {
@@ -154,6 +155,8 @@ describe('Multi-Tier Staffing Recommender Engine Tests', () => {
     assert.strictEqual(minViable.rung, 'minimum_viable');
     assert.strictEqual(rec.rung, 'recommended');
     assert.strictEqual(opt.rung, 'optimal');
+    assert.strictEqual(report.policyVersion, CLINICAL_POLICY.version);
+    assert.strictEqual(report.decisionSupportStatus, 'requires_clinician_review');
 
     // Verify all simulated metrics are populated numbers
     for (const rung of report.ladder) {

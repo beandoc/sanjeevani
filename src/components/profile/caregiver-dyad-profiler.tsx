@@ -183,7 +183,7 @@ export function CaregiverDyadProfiler() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-wider">
-                  Clinical Dyad Model v{evaluation.engineVersion || '2.2.0'}
+                  Clinical Dyad Model v{evaluation.engineVersion || '2.3.0'}
                 </Badge>
                 <Badge variant={evaluation.netCareGapHours > 2 ? 'destructive' : 'secondary'} className="text-[10px] font-mono">
                   Care Gap: {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours} hrs deficit` : 'Sustainable'}
@@ -193,7 +193,7 @@ export function CaregiverDyadProfiler() {
                 Caregiver Dyad Profiler & Care Gap Engine
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Quantifies patient care demands (Katz ADL / Lawton-Brody 8-Item IADL) vs caregiver safe physical capacity (Age, Health, Employment).
+                A clinician-reviewed planning model using documented function, caregiver capacity, and available support. It does not replace assessment or clinical judgment.
               </CardDescription>
             </div>
 
@@ -238,6 +238,23 @@ export function CaregiverDyadProfiler() {
       {/* TAB 1: Care Gap Overview & Staffing Prescription */}
       {activeTab === 'gap' && (
         <div className="space-y-6">
+          {evaluation.dataQuality.completeness !== 'complete' && (
+            <Card className="border-amber-500/40 bg-amber-500/5 shadow-xs">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-amber-950 dark:text-amber-200">
+                    {evaluation.dataQuality.status === 'requires_data_completion'
+                      ? 'Complete the missing assessment fields before using staffing options.'
+                      : 'Staffing options require clinician review.'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {[...evaluation.dataQuality.missingFields, ...evaluation.dataQuality.limitations].join(' ')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border bg-card shadow-xs">
@@ -431,10 +448,10 @@ export function CaregiverDyadProfiler() {
                 <div>
                   <h3 className="text-sm font-bold font-headline uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" />
-                    Staffing Prescription Ladder (Enumerate → Simulate → Rank)
+                    Staffing Options for Clinician Review
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    Acuity-driven skill tier ({staffingReport.acuityAssessment.dominantSkillTier.replace('_', ' ')}) • Diurnal shift matching ({staffingReport.diurnalPattern.primaryDeficitWindow})
+                    Policy {staffingReport.policyVersion} • Acuity-driven skill tier ({staffingReport.acuityAssessment.dominantSkillTier.replace('_', ' ')}) • Diurnal shift matching ({staffingReport.diurnalPattern.primaryDeficitWindow})
                   </p>
                 </div>
                 <Badge variant="outline" className="text-[10px] font-mono capitalize self-start sm:self-auto">
@@ -543,6 +560,38 @@ export function CaregiverDyadProfiler() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Functional Assessment Date</Label>
+                <Input
+                  type="date"
+                  value={patient.assessmentMetadata?.assessedAt?.slice(0, 10) || ''}
+                  onChange={(e) => setPatient({
+                    ...patient,
+                    assessmentMetadata: { ...patient.assessmentMetadata, assessedAt: e.target.value || undefined }
+                  })}
+                  className="h-9 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Assessment Source</Label>
+                <Select
+                  value={patient.assessmentMetadata?.source || 'unknown'}
+                  onValueChange={(value) => setPatient({
+                    ...patient,
+                    assessmentMetadata: { ...patient.assessmentMetadata, source: value as NonNullable<PatientDependenceProfile['assessmentMetadata']>['source'] }
+                  })}
+                >
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="clinician_assisted" className="text-xs">Clinician-assisted</SelectItem>
+                    <SelectItem value="caregiver_reported" className="text-xs">Caregiver-reported</SelectItem>
+                    <SelectItem value="record_review" className="text-xs">Record review</SelectItem>
+                    <SelectItem value="unknown" className="text-xs">Not recorded</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid grid-cols-2 gap-2 col-span-1">
                 <div className="space-y-1.5">
