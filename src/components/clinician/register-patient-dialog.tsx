@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import {
   UserPlus,
   Copy,
@@ -27,7 +28,9 @@ import {
   Check,
   Send,
   Info,
-  Users2
+  Users2,
+  Stethoscope,
+  ArrowRight
 } from 'lucide-react';
 import { createDyadInvite, saveCaregiverAttributesFor, type DyadInvite } from '@/lib/firebase/clinical-sync';
 import { CaregiverAttributes, DEFAULT_CAREGIVER_ATTRIBUTES, FormalSupportType } from '@/lib/clinical/care-gap-engine';
@@ -57,8 +60,8 @@ const COMMON_COMORBIDITIES = [
 
 /**
  * Doctor-initiated patient registration dialog.
- * Allows clinicians to pre-register a patient and caregiver, issue an 8-character
- * invite code, and share direct onboarding links via WhatsApp or SMS.
+ * Pre-registers a patient and caregiver directly into the clinician's active roster,
+ * saves their Care Matrix & clinical baseline, and generates a claimable invite code.
  */
 export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatientDialogProps) {
   const { toast } = useToast();
@@ -190,8 +193,8 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
       setIssuedInvite(invite);
       onRegistered?.(invite);
       toast({
-        title: '✅ Patient & Support Matrix Registered',
-        description: `Invite code ${invite.inviteCode} generated for ${invite.patientName}.`
+        title: '✅ Patient & Caregiver Registered',
+        description: `${invite.patientName} is now saved to your active clinical roster.`
       });
     } catch (err) {
       toast({
@@ -246,7 +249,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         {issuedInvite ? (
-          /* SUCCESS STATE: Display Invite Code & Sharing Options */
+          /* SUCCESS STATE: Display Confirmation & Caregiver Sharing */
           <div className="space-y-5 py-1">
             <DialogHeader>
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
@@ -254,51 +257,66 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-lg font-bold">Patient Registered Successfully</DialogTitle>
+                  <DialogTitle className="text-lg font-bold">Patient Saved to Active Roster</DialogTitle>
                   <DialogDescription className="text-xs mt-0.5">
-                    {issuedInvite.patientName} ({issuedInvite.patientAge > 0 ? `${issuedInvite.patientAge} yrs` : 'Senior'}) is pre-linked to your roster.
+                    {issuedInvite.patientName} ({issuedInvite.patientAge > 0 ? `${issuedInvite.patientAge} yrs` : 'Senior'}) and caregiver profile are active in your clinical cohort.
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
 
-            {/* Invite Code Display Box */}
-            <div className="p-5 rounded-2xl bg-muted/50 border border-border flex flex-col items-center justify-center text-center space-y-2">
+            {/* Quick Action to open Patient Workspace */}
+            <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs">
+                <p className="font-bold text-foreground">Geriatric Care Dyad Ready</p>
+                <p className="text-muted-foreground text-[11px]">Begin cognitive, Zarit burden, and ADL assessments.</p>
+              </div>
+              <Button asChild size="sm" className="text-xs font-bold gap-1.5 bg-primary text-primary-foreground shrink-0 w-full sm:w-auto">
+                <Link href={`/clinic/dyad/${issuedInvite.dyadUid || 'dyad_' + issuedInvite.inviteCode}`} onClick={() => setIsOpen(false)}>
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  <span>Open Workspace</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </Button>
+            </div>
+
+            {/* Caregiver Invite Code Display Box */}
+            <div className="p-4 rounded-2xl bg-muted/50 border border-border flex flex-col items-center justify-center text-center space-y-2">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Caregiver Access Invite Code
+                Caregiver Access & Auto-Link Code
               </span>
               <button
                 onClick={copyCode}
-                className="group relative flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-card border-2 border-primary/40 hover:border-primary shadow-xs transition-all w-full max-w-xs"
+                className="group relative flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl bg-card border-2 border-primary/40 hover:border-primary shadow-xs transition-all w-full max-w-xs"
                 title="Click to copy code"
               >
-                <span className="text-2xl sm:text-3xl font-mono font-black tracking-widest text-primary">
+                <span className="text-2xl font-mono font-black tracking-widest text-primary">
                   {issuedInvite.inviteCode}
                 </span>
                 <span className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </span>
               </button>
-              <p className="text-[11px] text-muted-foreground pt-1">
+              <p className="text-[11px] text-muted-foreground pt-0.5">
                 {issuedInvite.caregiverPhone ? (
                   <>
-                    Auto-links automatically when signing in with <strong className="font-mono text-foreground">{issuedInvite.caregiverPhone}</strong>
+                    Auto-links automatically when caregiver logs in with <strong className="font-mono text-foreground">{issuedInvite.caregiverPhone}</strong>
                   </>
                 ) : (
-                  'Caregiver enters this code during their first sign-in'
+                  'Caregiver enters this code on their login page'
                 )}
               </p>
             </div>
 
             {/* Direct Sharing Actions */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-foreground block">Instant Share with Caregiver:</span>
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-foreground block">Share Portal Access with Family:</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={shareViaWhatsApp}
-                  className="gap-2 text-xs font-semibold h-10 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                  className="gap-2 text-xs font-semibold h-9 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Send via WhatsApp</span>
@@ -307,7 +325,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   type="button"
                   variant="outline"
                   onClick={copyFullMessage}
-                  className="gap-2 text-xs font-semibold h-10 hover:bg-muted"
+                  className="gap-2 text-xs font-semibold h-9 hover:bg-muted"
                 >
                   {copiedMsg ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-primary" />}
                   <span>{copiedMsg ? 'Message Copied' : 'Copy Invitation Text'}</span>
@@ -333,9 +351,9 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-lg font-bold font-headline">Register New Patient</DialogTitle>
+                  <DialogTitle className="text-lg font-bold font-headline">Register New Patient & Care Dyad</DialogTitle>
                   <DialogDescription className="text-xs mt-0.5">
-                    Pre-register a senior patient and issue a claimable invite code for their caregiver.
+                    Pre-register a senior patient and primary caregiver directly into your active clinical cohort.
                   </DialogDescription>
                 </div>
               </div>
@@ -610,14 +628,14 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 size="sm"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !patientFirstName.trim() || !patientLastName.trim()}
-                className="text-xs font-bold gap-1.5 shadow-sm"
+                className="text-xs font-bold gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isSubmitting ? (
-                  <span>Registering…</span>
+                  <span>Saving to Roster…</span>
                 ) : (
                   <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Generate Invite Code</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save & Register Patient</span>
                   </>
                 )}
               </Button>

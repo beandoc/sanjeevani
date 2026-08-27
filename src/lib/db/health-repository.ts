@@ -113,8 +113,25 @@ const STORAGE_KEYS = {
   CARE_CIRCLE_TASKS: 'sanjeevani_circle_tasks',
   CAREGIVER_ATTRIBUTES: 'sanjeevani_caregiver_attributes',
   PATIENT_PROFILE: 'sanjeevani_patient_dependence_profile',
-  CARE_GAP_EVALUATION: 'sanjeevani_care_gap_evaluation'
+  CARE_GAP_EVALUATION: 'sanjeevani_care_gap_evaluation',
+  CLINICIAN_PATIENTS: 'sanjeevani_clinician_patients',
+  DYAD_INVITES: 'sanjeevani_dyad_invites'
 };
+
+export interface RegisteredPatientRecord {
+  patientUid: string;
+  inviteCode: string;
+  patientName: string;
+  patientAge: number;
+  primaryConditions: string[];
+  caregiverName?: string | null;
+  caregiverPhone?: string | null;
+  weightKg?: number | null;
+  heightCm?: number | null;
+  patientProfile?: PatientDependenceProfile;
+  caregiverAttributes?: CaregiverAttributes;
+  createdAt: string;
+}
 
 const DEFAULT_CONSENT: UserConsentPreferences = {
   hasConsented: false,
@@ -809,12 +826,160 @@ export class HealthRepository {
     };
   }
 
+  // --- 10. Clinician Registered Patients & Dyad Invites ---
+
+  static getRegisteredPatients(): RegisteredPatientRecord[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CLINICIAN_PATIENTS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Error reading clinician patients:', e);
+    }
+    return [];
+  }
+
+  static saveRegisteredPatient(patient: RegisteredPatientRecord): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const existing = this.getRegisteredPatients();
+      const filtered = existing.filter((p) => p.patientUid !== patient.patientUid && p.inviteCode !== patient.inviteCode);
+      const updated = [patient, ...filtered];
+      localStorage.setItem(STORAGE_KEYS.CLINICIAN_PATIENTS, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving clinician patient:', e);
+    }
+  }
+
+  static getRegisteredPatient(patientUid: string): RegisteredPatientRecord | null {
+    const list = this.getRegisteredPatients();
+    return list.find((p) => p.patientUid === patientUid || p.inviteCode === patientUid.replace('dyad_', '')) || null;
+  }
+
+  static savePatientProfileFor(patientUid: string, profile: PatientDependenceProfile): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${patientUid}`, JSON.stringify(profile));
+      // Also update in registered patients list if found
+      const patient = this.getRegisteredPatient(patientUid);
+      if (patient) {
+        this.saveRegisteredPatient({ ...patient, patientProfile: profile });
+      }
+    } catch (e) {
+      console.error(`Error saving patient profile for ${patientUid}:`, e);
+    }
+  }
+
+  static getPatientProfileFor(patientUid: string): PatientDependenceProfile | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${patientUid}`);
+      if (raw) return JSON.parse(raw);
+      const patient = this.getRegisteredPatient(patientUid);
+      if (patient?.patientProfile) return patient.patientProfile;
+    } catch (e) {
+      console.error(`Error reading patient profile for ${patientUid}:`, e);
+    }
+    return null;
+  }
+
+  static saveCaregiverAttributesFor(patientUid: string, attrs: CaregiverAttributes): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.CAREGIVER_ATTRIBUTES}_${patientUid}`, JSON.stringify(attrs));
+      const patient = this.getRegisteredPatient(patientUid);
+      if (patient) {
+        this.saveRegisteredPatient({ ...patient, caregiverAttributes: attrs });
+      }
+    } catch (e) {
+      console.error(`Error saving caregiver attributes for ${patientUid}:`, e);
+    }
+  }
+
+  static getCaregiverAttributesFor(patientUid: string): CaregiverAttributes | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.CAREGIVER_ATTRIBUTES}_${patientUid}`);
+      if (raw) return JSON.parse(raw);
+      const patient = this.getRegisteredPatient(patientUid);
+      if (patient?.caregiverAttributes) return patient.caregiverAttributes;
+    } catch (e) {
+      console.error(`Error reading caregiver attributes for ${patientUid}:`, e);
+    }
+    return null;
+  }
+
+  static getDyadInvites(): Array<{
+    inviteCode: string;
+    dyadUid?: string;
+    clinicianUid: string;
+    patientName: string;
+    patientAge: number;
+    primaryConditions: string[];
+    caregiverName?: string | null;
+    caregiverPhone?: string | null;
+    createdAt: string;
+    claimedAt: string | null;
+    claimedByUid: string | null;
+  }> {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DYAD_INVITES);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Error reading dyad invites:', e);
+    }
+    return [];
+  }
+
+  static saveDyadInvite(invite: {
+    inviteCode: string;
+    dyadUid?: string;
+    clinicianUid: string;
+    patientName: string;
+    patientAge: number;
+    primaryConditions: string[];
+    caregiverName?: string | null;
+    caregiverPhone?: string | null;
+    createdAt: string;
+    claimedAt: string | null;
+    claimedByUid: string | null;
+  }): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const existing = this.getDyadInvites();
+      const filtered = existing.filter((i) => i.inviteCode !== invite.inviteCode);
+      const updated = [invite, ...filtered];
+      localStorage.setItem(STORAGE_KEYS.DYAD_INVITES, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving dyad invite:', e);
+    }
+  }
+
+  static getDyadInvite(inviteCode: string) {
+    const list = this.getDyadInvites();
+    return list.find((i) => i.inviteCode.toUpperCase() === inviteCode.trim().toUpperCase()) || null;
+  }
+
   static deleteAllUserData(): void {
     if (typeof window === 'undefined') return;
     try {
       Object.values(STORAGE_KEYS).forEach((key) => {
         localStorage.removeItem(key);
       });
+      // Also remove dynamic per-patient keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEYS.PATIENT_PROFILE) || k.startsWith(STORAGE_KEYS.CAREGIVER_ATTRIBUTES))) {
+          localStorage.removeItem(k);
+        }
+      }
     } catch (e) {
       console.error('Error purging user health data:', e);
     }

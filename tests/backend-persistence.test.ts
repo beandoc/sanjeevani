@@ -5,6 +5,7 @@ import { calculateZaritScore } from '../src/lib/zarit-scale';
 import { calculateFunctionScore } from '../src/lib/clinical/function-scale';
 import { computeTrajectory } from '../src/lib/analytics/trajectory';
 import {
+  createDyadInvite,
   syncPatientProfile,
   syncCaregiverAttributes,
   syncZaritAssessment,
@@ -84,6 +85,36 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
       const result = await syncPatientProfile(DEFAULT_PATIENT_PROFILE);
       expect(result).toHaveProperty('queued');
       expect(typeof result.queued).toBe('boolean');
+    });
+
+    it('should register a new patient with caregiver details and immediately persist to clinician roster', async () => {
+      const invite = await createDyadInvite({
+        patientName: 'Ramesh Gupta',
+        patientAge: 76,
+        primaryConditions: ['Hypertension', 'Mild Cognitive Impairment'],
+        caregiverName: 'Vidya Gupta',
+        caregiverPhone: '+919876543210',
+        weightKg: 70,
+        heightCm: 168
+      });
+
+      expect(invite.inviteCode).toBeDefined();
+      expect(invite.patientName).toBe('Ramesh Gupta');
+      expect(invite.caregiverName).toBe('Vidya Gupta');
+
+      // Verify that the patient profile was persisted locally
+      const savedProfile = HealthRepository.getPatientProfileFor(`dyad_${invite.inviteCode}`);
+      expect(savedProfile?.name).toBe('Ramesh Gupta');
+      expect(savedProfile?.age).toBe(76);
+      expect(savedProfile?.primaryConditions).toContain('Mild Cognitive Impairment');
+
+      // Verify that caregiver attributes were persisted
+      const savedCaregiver = HealthRepository.getCaregiverAttributesFor(`dyad_${invite.inviteCode}`);
+      expect(savedCaregiver?.name).toBe('Vidya Gupta');
+
+      // Verify that the patient appears in registered patients list
+      const allRegistered = HealthRepository.getRegisteredPatients();
+      expect(allRegistered.some((p) => p.patientName === 'Ramesh Gupta')).toBe(true);
     });
   });
 

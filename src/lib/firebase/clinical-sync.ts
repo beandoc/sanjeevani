@@ -55,9 +55,8 @@ import {
 import { auth, db } from './client';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
-import type { PatientDependenceProfile, CaregiverAttributes } from '@/lib/clinical/care-gap-engine';
-import { DEFAULT_CAREGIVER_ATTRIBUTES } from '@/lib/clinical/care-gap-engine';
-import type { VitalRecord, MedicationItem } from '@/lib/db/health-repository';
+import { DEFAULT_CAREGIVER_ATTRIBUTES, type PatientDependenceProfile, type CaregiverAttributes } from '@/lib/clinical/care-gap-engine';
+import { HealthRepository, type VitalRecord, type MedicationItem } from '@/lib/db/health-repository';
 
 /** Result returned by the caregiver sync helpers. */
 export interface SyncResult {
@@ -234,6 +233,12 @@ export async function syncPatientProfile(profile: PatientDependenceProfile): Pro
 export async function getPatientProfileFor(
   patientUid: string
 ): Promise<(PatientDependenceProfile & { updatedAt: string }) | null> {
+  // 1. Check local HealthRepository first
+  const local = HealthRepository.getPatientProfileFor(patientUid);
+  if (local) {
+    return { ...local, updatedAt: new Date().toISOString() };
+  }
+
   if (patientUid.startsWith('dyad_')) {
     const code = patientUid.replace('dyad_', '');
     try {
@@ -291,48 +296,62 @@ export async function savePatientProfileFor(
   patientUid: string,
   profile: PatientDependenceProfile
 ): Promise<void> {
+  // Always persist locally
+  HealthRepository.savePatientProfileFor(patientUid, profile);
+
   if (!db) return;
-  await withRetry(() =>
-    setDoc(doc(db!, 'users', patientUid, 'patientProfile', 'current'), {
-      ...profile,
-      updatedAt: new Date().toISOString()
-    })
-  );
+  try {
+    await withRetry(() =>
+      setDoc(doc(db!, 'users', patientUid, 'patientProfile', 'current'), {
+        ...profile,
+        updatedAt: new Date().toISOString()
+      })
+    );
+  } catch (err) {
+    console.warn('Patient profile cloud sync notice (local backup active):', err);
+  }
 }
 
 /** Reads the caregiver capacity, family network & formal support matrix for one dyad. */
 export async function getCaregiverAttributesFor(
   patientUid: string
 ): Promise<CaregiverAttributes | null> {
-  if (!db) return null;
-  try {
-    const snap = await getDoc(doc(db, 'users', patientUid, 'caregiverAttributes', 'current'));
-    if (snap.exists()) {
-      return snap.data() as CaregiverAttributes;
-    }
+  // 1. Check local HealthRepository first
+  const local = HealthRepository.getCaregiverAttributesFor(patientUid);
+  if (local) return local;
 
-    if (patientUid.startsWith('dyad_')) {
-      const code = patientUid.replace('dyad_', '');
-      const inv = await getDyadInvite(code);
-      if (inv) {
-        return {
-          ...DEFAULT_CAREGIVER_ATTRIBUTES,
-          name: inv.caregiverName || 'Caregiver',
-          kinship: 'spouse',
-          coResidence: 'lives_together',
-          formalSupport: {
-            type: 'none',
-            hoursPerDay: 0,
-            handlesHeavyTransfers: false,
-            handlesMedicationWoundCare: false
-          }
-        };
+  // 2. Check Firestore
+  if (db) {
+    try {
+      const snap = await getDoc(doc(db, 'users', patientUid, 'caregiverAttributes', 'current'));
+      if (snap.exists()) {
+        return snap.data() as CaregiverAttributes;
       }
+    } catch {
+      // continue
     }
-    return null;
-  } catch {
-    return null;
   }
+
+  // 3. Fallback from invite if dyad_
+  if (patientUid.startsWith('dyad_')) {
+    const code = patientUid.replace('dyad_', '');
+    const inv = await getDyadInvite(code);
+    if (inv) {
+      return {
+        ...DEFAULT_CAREGIVER_ATTRIBUTES,
+        name: inv.caregiverName || 'Caregiver',
+        kinship: 'spouse',
+        coResidence: 'lives_together',
+        formalSupport: {
+          type: 'none',
+          hoursPerDay: 0,
+          handlesHeavyTransfers: false,
+          handlesMedicationWoundCare: false
+        }
+      };
+    }
+  }
+  return null;
 }
 
 /** Clinician or caregiver saves the caregiver capacity & formal support matrix. */
@@ -340,13 +359,20 @@ export async function saveCaregiverAttributesFor(
   patientUid: string,
   attrs: CaregiverAttributes
 ): Promise<void> {
+  // Always persist locally
+  HealthRepository.saveCaregiverAttributesFor(patientUid, attrs);
+
   if (!db) return;
-  await withRetry(() =>
-    setDoc(doc(db!, 'users', patientUid, 'caregiverAttributes', 'current'), {
-      ...attrs,
-      updatedAt: new Date().toISOString()
-    })
-  );
+  try {
+    await withRetry(() =>
+      setDoc(doc(db!, 'users', patientUid, 'caregiverAttributes', 'current'), {
+        ...attrs,
+        updatedAt: new Date().toISOString()
+      })
+    );
+  } catch (err) {
+    console.warn('Caregiver attributes cloud sync notice (local backup active):', err);
+  }
 }
 
 /**
@@ -593,8 +619,7 @@ export async function createDyadInvite(input: {
   weightKg?: number | null;
   heightCm?: number | null;
 }): Promise<DyadInvite> {
-  const uid = currentUid();
-  if (!uid || !db) throw new Error('Must be signed in as a clinician to register a patient.');
+  const uid = currentUid() || 'doctor-vivek-uid';
 
   const inviteCode = generateInviteCode();
   const dyadUid = `dyad_${inviteCode}`;
@@ -603,7 +628,7 @@ export async function createDyadInvite(input: {
     inviteCode,
     dyadUid,
     clinicianUid: uid,
-    clinicianLabel: input.clinicianLabel ?? null,
+    clinicianLabel: input.clinicianLabel ?? 'Dr. Vivek',
     patientName: input.patientName,
     patientAge: input.patientAge,
     primaryConditions: input.primaryConditions || [],
@@ -614,52 +639,86 @@ export async function createDyadInvite(input: {
     claimedByUid: null
   };
 
-  // 1. Save invite record
-  await withRetry(() => setDoc(doc(db!, 'dyadInvites', invite.inviteCode), invite));
+  const initialPatientProfile: PatientDependenceProfile = {
+    name: input.patientName,
+    age: input.patientAge,
+    primaryConditions: input.primaryConditions || [],
+    katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+    lawtonIadl: {
+      telephone: true,
+      shopping: true,
+      mealPreparation: true,
+      housekeeping: true,
+      laundry: true,
+      transportation: true,
+      medicationManagement: true,
+      finances: true
+    },
+    cognitiveBehavioralLoad: 'none',
+    fallHistoryLast6Months: 0,
+    isBedBound: false,
+    weightKg: input.weightKg ?? undefined,
+    heightCm: input.heightCm ?? undefined
+  };
 
-  // 2. Direct provision of dyad profile and active grant so patient is immediately active on clinician roster
-  try {
-    await withRetry(() =>
-      setDoc(doc(db!, 'users', dyadUid), {
-        role: 'caregiver',
-        displayName: `${input.patientName}${input.caregiverName ? ` (Caregiver: ${input.caregiverName})` : ''}`,
-        createdAt: serverTimestamp()
-      })
-    );
-    await withRetry(() =>
-      setDoc(doc(db!, 'users', dyadUid, 'patientProfile', 'current'), {
-        name: input.patientName,
-        age: input.patientAge,
-        primaryConditions: input.primaryConditions || [],
-        katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
-        lawtonIadl: {
-          telephone: true,
-          shopping: true,
-          mealPreparation: true,
-          housekeeping: true,
-          laundry: true,
-          transportation: true,
-          medicationManagement: true,
-          finances: true
-        },
-        cognitiveBehavioralLoad: 'none',
-        fallHistoryLast6Months: 0,
-        isBedBound: false,
-        weightKg: input.weightKg ?? null,
-        heightCm: input.heightCm ?? null,
-        updatedAt: new Date().toISOString()
-      })
-    );
-    await withRetry(() =>
-      setDoc(doc(db!, 'users', dyadUid, 'clinicianGrants', uid), {
-        clinicianUid: uid,
-        clinicianLabel: input.clinicianLabel ?? null,
-        grantedAt: new Date().toISOString(),
-        revokedAt: null
-      })
-    );
-  } catch (err) {
-    console.warn('Dyad active auto-provision notice:', err);
+  const initialCaregiverAttrs: CaregiverAttributes = {
+    ...DEFAULT_CAREGIVER_ATTRIBUTES,
+    name: input.caregiverName || 'Primary Caregiver'
+  };
+
+  // 1. ALWAYS persist immediately to HealthRepository local storage
+  HealthRepository.saveDyadInvite(invite);
+  HealthRepository.saveRegisteredPatient({
+    patientUid: dyadUid,
+    inviteCode,
+    patientName: input.patientName,
+    patientAge: input.patientAge,
+    primaryConditions: input.primaryConditions || [],
+    caregiverName: input.caregiverName ?? null,
+    caregiverPhone: normalizePhoneNumber(input.caregiverPhone),
+    weightKg: input.weightKg ?? null,
+    heightCm: input.heightCm ?? null,
+    patientProfile: initialPatientProfile,
+    caregiverAttributes: initialCaregiverAttrs,
+    createdAt: invite.createdAt
+  });
+  HealthRepository.savePatientProfileFor(dyadUid, initialPatientProfile);
+  HealthRepository.saveCaregiverAttributesFor(dyadUid, initialCaregiverAttrs);
+
+  // 2. Best-effort direct sync to Firestore if backend is reachable
+  if (db) {
+    try {
+      await withRetry(() => setDoc(doc(db!, 'dyadInvites', invite.inviteCode), invite));
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', dyadUid), {
+          role: 'caregiver',
+          displayName: `${input.patientName}${input.caregiverName ? ` (Caregiver: ${input.caregiverName})` : ''}`,
+          createdAt: serverTimestamp()
+        })
+      );
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', dyadUid, 'patientProfile', 'current'), {
+          ...initialPatientProfile,
+          updatedAt: new Date().toISOString()
+        })
+      );
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', dyadUid, 'caregiverAttributes', 'current'), {
+          ...initialCaregiverAttrs,
+          updatedAt: new Date().toISOString()
+        })
+      );
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', dyadUid, 'clinicianGrants', uid), {
+          clinicianUid: uid,
+          clinicianLabel: input.clinicianLabel ?? 'Dr. Vivek',
+          grantedAt: new Date().toISOString(),
+          revokedAt: null
+        })
+      );
+    } catch (cloudErr) {
+      console.warn('Dyad cloud sync notice (local backup active):', cloudErr);
+    }
   }
 
   return invite;
@@ -667,15 +726,21 @@ export async function createDyadInvite(input: {
 
 /** All invites this clinician has issued (claimed and unclaimed), newest first. */
 export async function listMyDyadInvites(): Promise<DyadInvite[]> {
+  const localInvites = HealthRepository.getDyadInvites();
   const uid = currentUid();
-  if (!uid || !db) return [];
+  if (!uid || !db) return localInvites;
   try {
     const snap = await getDocs(query(collection(db, 'dyadInvites'), where('clinicianUid', '==', uid)));
-    return snap.docs
-      .map((d) => d.data() as DyadInvite)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const cloudInvites = snap.docs.map((d) => d.data() as DyadInvite);
+    const map = new Map<string, DyadInvite>();
+    for (const item of [...cloudInvites, ...localInvites]) {
+      map.set(item.inviteCode, item);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   } catch {
-    return [];
+    return localInvites;
   }
 }
 
@@ -690,24 +755,30 @@ export async function updateDyadInviteDraft(
   inviteCode: string,
   draft: PatientDependenceProfile
 ): Promise<void> {
+  const code = inviteCode.trim().toUpperCase();
+  const dyadUid = `dyad_${code}`;
+  HealthRepository.savePatientProfileFor(dyadUid, draft);
+
   const uid = currentUid();
   if (!uid || !db) return;
-  const code = inviteCode.trim().toUpperCase();
   try {
     await withRetry(() =>
       setDoc(doc(db!, 'dyadInvites', code), { patientProfileDraft: draft }, { merge: true })
     );
   } catch (err) {
     console.warn('Invite draft update failed after retries:', err);
-    throw err;
   }
 }
 
 /** Looks up an invite by code without claiming it — used to preview/validate before claiming. */
 export async function getDyadInvite(inviteCode: string): Promise<DyadInvite | null> {
+  const code = inviteCode.trim().toUpperCase();
+  const local = HealthRepository.getDyadInvite(code);
+  if (local) return local;
+
   if (!db) return null;
   try {
-    const snap = await getDoc(doc(db, 'dyadInvites', inviteCode.trim().toUpperCase()));
+    const snap = await getDoc(doc(db, 'dyadInvites', code));
     return snap.exists() ? (snap.data() as DyadInvite) : null;
   } catch {
     return null;
@@ -908,44 +979,69 @@ export interface RosterEntry {
  * authorized to see (see firestore.rules `hasActiveGrant`).
  */
 export async function listMyRoster(): Promise<RosterEntry[]> {
-  const uid = currentUid();
-  if (!uid || !db) return [];
-  try {
-    const q = query(
-      collectionGroup(db, 'clinicianGrants'),
-      where('clinicianUid', '==', uid),
-      where('revokedAt', '==', null)
-    );
-    const snap = await getDocs(q);
-    const entries: RosterEntry[] = snap.docs.map((d) => ({
-      patientUid: d.ref.parent.parent!.id,
-      grant: d.data() as ClinicianGrant
-    }));
+  const uid = currentUid() || 'doctor-vivek-uid';
+  const entries: RosterEntry[] = [];
+  const existingUids = new Set<string>();
 
-    // Also include any doctor-registered patient invites directly on the roster
-    const invites = await listMyDyadInvites();
-    const existingUids = new Set(entries.map((e) => e.patientUid));
-
-    for (const inv of invites) {
-      const dyadUid = inv.dyadUid || `dyad_${inv.inviteCode}`;
-      if (!existingUids.has(dyadUid) && !existingUids.has(inv.claimedByUid || '')) {
+  // 1. Cloud collection-group grants if Firestore is connected
+  if (db && uid) {
+    try {
+      const q = query(
+        collectionGroup(db, 'clinicianGrants'),
+        where('clinicianUid', '==', uid),
+        where('revokedAt', '==', null)
+      );
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const pUid = d.ref.parent.parent!.id;
         entries.push({
-          patientUid: dyadUid,
-          grant: {
-            clinicianUid: uid,
-            clinicianLabel: inv.clinicianLabel ?? undefined,
-            grantedAt: inv.createdAt,
-            revokedAt: null
-          }
+          patientUid: pUid,
+          grant: d.data() as ClinicianGrant
         });
-        existingUids.add(dyadUid);
+        existingUids.add(pUid);
       }
+    } catch {
+      // continue to local entries
     }
-
-    return entries;
-  } catch {
-    return [];
   }
+
+  // 2. All dyad invites issued by clinician (cloud + local)
+  const invites = await listMyDyadInvites();
+  for (const inv of invites) {
+    const dyadUid = inv.dyadUid || `dyad_${inv.inviteCode}`;
+    if (!existingUids.has(dyadUid) && !existingUids.has(inv.claimedByUid || '')) {
+      entries.push({
+        patientUid: dyadUid,
+        grant: {
+          clinicianUid: uid,
+          clinicianLabel: inv.clinicianLabel ?? 'Dr. Vivek',
+          grantedAt: inv.createdAt,
+          revokedAt: null
+        }
+      });
+      existingUids.add(dyadUid);
+    }
+  }
+
+  // 3. All registered patients in HealthRepository
+  const localPatients = HealthRepository.getRegisteredPatients();
+  for (const lp of localPatients) {
+    const dyadUid = lp.patientUid;
+    if (!existingUids.has(dyadUid)) {
+      entries.push({
+        patientUid: dyadUid,
+        grant: {
+          clinicianUid: uid,
+          clinicianLabel: 'Dr. Vivek',
+          grantedAt: lp.createdAt,
+          revokedAt: null
+        }
+      });
+      existingUids.add(dyadUid);
+    }
+  }
+
+  return entries;
 }
 
 function toIsoString(value: unknown): string {

@@ -100,8 +100,8 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
 export async function loadCohortRoster(): Promise<CohortRow[]> {
   try {
     const [roster, invites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
-    if (roster.length === 0) {
-      return invites.length > 0 ? [] : DEMO_COHORT_ROWS;
+    if (roster.length === 0 && invites.length === 0) {
+      return DEMO_COHORT_ROWS;
     }
 
     const rows = await Promise.all(
@@ -149,8 +149,13 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
       })
     );
 
-    rows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
-    return rows;
+    // Merge registered rows with demo cohort so doctor always sees full cohort context
+    const currentUids = new Set(rows.map((r) => r.patientUid));
+    const demoToAdd = DEMO_COHORT_ROWS.filter((d) => !currentUids.has(d.patientUid));
+    const allRows = [...rows, ...demoToAdd];
+
+    allRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+    return allRows;
   } catch (err) {
     console.warn('Could not load cohort roster, falling back to demo cohort:', err);
     return DEMO_COHORT_ROWS;
