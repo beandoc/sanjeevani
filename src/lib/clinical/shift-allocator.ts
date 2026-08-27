@@ -289,7 +289,7 @@ export class ShiftAllocator {
             task,
             unmetHours: remainingBlockHours,
             clinicalReason: `Unmet demand in ${DIURNAL_BLOCK_META[block].label} (${DIURNAL_BLOCK_META[block].timeRange}) exceeds current family/staff capacity.`,
-            recommendedStaffingOrder: `Prescribe: ${DIURNAL_BLOCK_META[block].timeRange} (${Math.round(remainingBlockHours * 10) / 10}h) ${staffReport.acuityAssessment.dominantSkillTier.replace('_', ' ')} coverage for ${task.replace('_', ' ')}.`
+            recommendedStaffingOrder: `Suggested for review: ${DIURNAL_BLOCK_META[block].timeRange} (${Math.round(remainingBlockHours * 10) / 10}h) ${staffReport.acuityAssessment.dominantSkillTier.replace('_', ' ')} coverage for ${task.replace('_', ' ')}.`
           });
         });
       }

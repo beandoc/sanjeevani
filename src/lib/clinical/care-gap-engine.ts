@@ -7,6 +7,7 @@
 import { performsHeavyTransfers, resolveSupportTypes } from './formal-support';
 import { calculateBiomechanicalLoad } from './biomechanical-load';
 import { MedicationChecker } from './medication-checker';
+import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
 import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
@@ -336,6 +337,10 @@ export interface CareGapEvaluationResult {
   caregiverBurnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
 
   clinicalFindings: string[];
+  provenance: {
+    careGapModel: ClinicalProvenance;
+    medicationScreen: ClinicalProvenance;
+  };
   prescriptions: Array<{
     id: string;
     title: string;
@@ -1130,9 +1135,9 @@ export class CareGapEngine {
       const prescribedHours = Math.ceil(netCareGapHours + 0.5);
       prescriptions.push({
         id: 'rx_staffing_respite_prescription',
-        title: 'Actionable Respite & Staffing Prescription',
-        action: `Prescribe: ${prescribedHours} hours/day of paid attendant or certified caregiver support to eliminate the unmet care gap of ${netCareGapHours} hours/day. Focus this shift on high-physical-load care activities (e.g. transfers, sponge bathing, or toilet hygiene).`,
-        impact: 'Compensates the unmet care demand hours, reducing physical/mental load on the primary caregiver to zero.',
+        title: 'Draft Respite & Staffing Option for Clinician Review',
+        action: `Consider ${prescribedHours} hours/day of trained attendant or caregiver support to address the estimated unmet care gap of ${netCareGapHours} hours/day. Focus this shift on high-physical-load care activities such as transfers, sponge bathing, or toilet hygiene.`,
+        impact: 'May reduce unmet care demand and caregiver strain; final staffing should be individualized by the clinical team and family.',
         urgency: netCareGapHours >= 4.0 ? 'urgent' : netCareGapHours >= 2.0 ? 'priority' : 'routine'
       });
     } else {
@@ -1148,9 +1153,9 @@ export class CareGapEngine {
     if (safePatient.isBedBound && !safeDevices.airWaterMattress) {
       prescriptions.push({
         id: 'rx_air_water_mattress',
-        title: 'Alternating Pressure Ripple Mattress Prescription',
-        action: 'Install a motorized alternating air/water pressure ripple mattress to prevent stage 2-4 decubitus ulcers and reduce manual turning frequency.',
-        impact: 'Drastically lowers dermal shear stress and protects vulnerable bony prominences.',
+        title: 'Pressure-Redistribution Surface Review',
+        action: 'Discuss a pressure-redistributing mattress or overlay with the clinician or wound-care nurse, alongside an individualized repositioning schedule.',
+        impact: 'May reduce pressure-injury risk when combined with skin checks, moisture control, nutrition, and appropriate repositioning.',
         urgency: 'urgent'
       });
     }
@@ -1164,9 +1169,9 @@ export class CareGapEngine {
     if (!safeKatz.transferring && (!safeDevices.transferAids || (safeHealth.hasBackPain && !isTransfersRelieved))) {
       prescriptions.push({
         id: 'rx_transfer_biomechanics',
-        title: 'Transfer Assistive Equipment & Swivel Disc Protocol',
-        action: 'Acquire a padded transfer gait belt and 360-degree swivel pivot disc for bed-to-chair transfers.',
-        impact: 'Substantially reduces lumbar disc shear load during daily pivot transfers.',
+        title: 'Transfer Assistive Equipment Review',
+        action: 'Review transfer technique with a physiotherapist or trained nurse and consider a gait belt, slide sheet, or pivot aid if appropriate.',
+        impact: 'May reduce manual-handling load when the device is matched to patient ability and caregiver training.',
         urgency: safeHealth.hasBackPain ? 'urgent' : 'priority'
       });
     }
@@ -1174,9 +1179,9 @@ export class CareGapEngine {
     if (safePatient.isBedBound && safeDevices.hospitalBed === 'none') {
       prescriptions.push({
         id: 'rx_hospital_bed',
-        title: 'Multi-Function Adjustable Hospital Bed',
-        action: 'Deploy a height-adjustable hospital bed with side rails to enable waist-level care during sponge baths and diaper changes.',
-        impact: 'Prevents acute spine flexion and chronic musculoskeletal strain for the caregiver.',
+        title: 'Adjustable Bed / Bed-Height Review',
+        action: 'Consider a height-adjustable bed or safe bed-height modification after reviewing fall risk, entrapment risk, and caregiver handling needs.',
+        impact: 'Can reduce stooping during bedside care when used safely and matched to the home environment.',
         urgency: 'priority'
       });
     }
@@ -1184,8 +1189,8 @@ export class CareGapEngine {
     if (netCareGapHours >= 3.0 && selectedTypes.length === 0) {
       prescriptions.push({
         id: 'rx_formal_attendant',
-        title: 'Formal Respite / Semi-Skilled Attendant (4-6 Hours/Day)',
-        action: 'Hire a certified daytime attendant for morning sponge bath, toileting, and transfer assistance, or register with local senior daycare.',
+        title: 'Formal Respite / Trained Attendant Option',
+        action: 'Consider a trained daytime attendant for morning sponge bath, toileting, and transfer assistance, or explore local senior daycare/respite services.',
         impact: 'Directly absorbs the daily care deficit, reducing the risk of acute caregiver physical collapse.',
         urgency: 'urgent'
       });
@@ -1219,7 +1224,7 @@ export class CareGapEngine {
         id: 'rx_practical_nursing_training',
         title: 'Geriatric Home Nursing & Safe Positioning Modules',
         action: 'Complete Sanjeevani practical nursing modules on fall prevention, bed-bound care, and pressure sore staging.',
-        impact: 'Improves care efficiency and prevents avoidable hospital readmissions.',
+        impact: 'May improve care consistency and earlier recognition of avoidable complications.',
         urgency: 'routine'
       });
     }
@@ -1264,6 +1269,10 @@ export class CareGapEngine {
       caregiverInjuryRiskCategory,
       caregiverBurnoutRiskLevel,
       clinicalFindings,
+      provenance: {
+        careGapModel: CLINICAL_PROVENANCE.careGapHeuristic,
+        medicationScreen: CLINICAL_PROVENANCE.beersStoppScreen
+      },
       prescriptions,
       qualityOfCareWarnings,
       evaluatedAt: now.toISOString()
@@ -1299,4 +1308,3 @@ export function generateCareRosterIcs(
 ): string {
   return ShiftAllocator.generateCareRosterIcs(caregiver, patient, evaluation);
 }
-

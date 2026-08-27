@@ -23,6 +23,7 @@ import {
   CareGapEngine
 } from './care-gap-engine';
 import { MedicationChecker } from './medication-checker';
+import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
 
 export type StaffingSkillTier = 'nurse' | 'physio_assistant' | 'attendant' | 'family';
 
@@ -62,6 +63,7 @@ export interface SimulatedStaffingOption {
 }
 
 export interface StaffingRecommendationReport {
+  provenance: ClinicalProvenance;
   acuityAssessment: {
     dominantSkillTier: StaffingSkillTier;
     clinicalReasons: string[];
@@ -118,15 +120,15 @@ export class StaffingRecommender {
 
     if (hasWoundOrBedSores) {
       highAcuityProcedures.push('Stage 2+ Pressure Ulcer & Sterile Wound Dressing Protocol');
-      clinicalReasons.push('Active pressure sores/wounds require aseptic technique and nurse staging.');
+      clinicalReasons.push('Active pressure sores/wounds should be staged and reviewed by a clinician or wound-care nurse.');
     }
     if (hasCatheterOrStoma) {
       highAcuityProcedures.push('Urinary Catheter / Stoma Care & Infection Surveillance');
-      clinicalReasons.push('Invasive catheter/stoma maintenance requires licensed nursing oversight.');
+      clinicalReasons.push('Invasive catheter/stoma maintenance usually requires trained nursing oversight and infection surveillance.');
     }
     if (hasSuction) {
       highAcuityProcedures.push('Bedside Airway Suctioning & Secretion Management');
-      clinicalReasons.push('High aspiration risk necessitates immediate airway clearance capability.');
+      clinicalReasons.push('High aspiration risk warrants clinician-led swallowing/airway plan and caregiver training.');
     }
 
     // 2. Pharmacotherapy & Medication Management Acuity
@@ -139,7 +141,7 @@ export class StaffingRecommender {
 
     if (hasHighRiskMeds) {
       clinicalReasons.push(
-        `High-risk pharmacotherapy (ACB Score: ${regEval.totalAcbScore}, STOPP triggers: ${regEval.stoppTriggers.length}) requires nurse medication reconciliation.`
+        `High-risk pharmacotherapy screen (ACB Score: ${regEval.totalAcbScore}, STOPP/Beers triggers: ${regEval.stoppTriggers.length}) warrants medication reconciliation.`
       );
     }
     if (!safePatient.lawtonIadl.medicationManagement && activeMeds.length >= 5) {
@@ -234,7 +236,7 @@ export class StaffingRecommender {
         hoursPerDay: 2.5,
         affordabilityFit: 'Zero Cost / Family Network Optimization',
         costTierRank: 1,
-        clinicalJustification: 'Delegates morning transfer and evening medication dispensing across capable adult family members without external hiring.',
+        clinicalJustification: 'Draft option: delegate morning transfer support and evening medication reminders across capable adult family members, with clinician/pharmacist review for medication administration tasks.',
         resolvedBlocks: ['morning_rush', 'evening'],
         resolvedTasks: ['Morning Bed-to-Chair Transfer', 'Evening Medication Dispensing', 'Dietary Prep'],
         modifiedCaregiver: {
@@ -257,7 +259,7 @@ export class StaffingRecommender {
         hoursPerDay: targetedHours,
         affordabilityFit: 'Affordable Entry / ₹8,000 - ₹12,000/mo',
         costTierRank: 2,
-        clinicalJustification: 'Targets peak transfer, bathing, and morning medication rush without incurring full 12h or 24h staffing expense.',
+        clinicalJustification: 'Draft option: targets peak transfer, bathing, and morning medication routine without incurring full 12h or 24h staffing expense.',
         resolvedBlocks: ['morning_rush'],
         resolvedTasks: ['Sponge Bathing', 'Bed-to-Chair Transfer', 'Morning Vitals & Medication Dispensing'],
         modifiedCaregiver: {
@@ -283,7 +285,7 @@ export class StaffingRecommender {
         hoursPerDay: 12,
         affordabilityFit: 'Moderate / ₹16,000 - ₹24,000/mo',
         costTierRank: 3,
-        clinicalJustification: 'Full daytime coverage absorbing morning rush, lunch feeding, afternoon mobility, and evening dinner prep, allowing primary caregiver to maintain employment.',
+        clinicalJustification: 'Draft option: daytime coverage for morning rush, lunch feeding, afternoon mobility, and evening dinner prep, supporting primary caregiver employment.',
         resolvedBlocks: ['morning_rush', 'afternoon', 'evening'],
         resolvedTasks: ['Full ADL Assistance', 'Transfer Support', 'Meal Assistance', 'Wound Dressing & Vitals'],
         modifiedCaregiver: {
@@ -308,7 +310,7 @@ export class StaffingRecommender {
         hoursPerDay: 6,
         affordabilityFit: 'Targeted Clinical / ₹14,000 - ₹18,000/mo',
         costTierRank: 2,
-        clinicalJustification: 'Supervised gait training, fall prevention exercises, vital sign monitoring, and therapeutic repositioning.',
+        clinicalJustification: 'Draft option: supervised gait training, fall-prevention exercise practice, vital sign logging, and therapeutic repositioning.',
         resolvedBlocks: ['morning_rush', 'afternoon'],
         resolvedTasks: ['Gait Training', 'Fall Prevention Exercises', 'Vital Monitoring'],
         modifiedCaregiver: {
@@ -334,7 +336,7 @@ export class StaffingRecommender {
         hoursPerDay: 12,
         affordabilityFit: 'Focused Night Security / ₹18,000 - ₹25,000/mo',
         costTierRank: 4,
-        clinicalJustification: 'Protects caregiver nocturnal sleep integrity; handles 2-hourly pressure turning, nocturnal diaper changes, and sundowning wandering supervision.',
+        clinicalJustification: 'Draft option: protects caregiver sleep by covering individualized repositioning, nocturnal continence care, and sundowning/wandering supervision.',
         resolvedBlocks: ['night_watch', 'morning_rush'],
         resolvedTasks: ['2-Hourly Pressure Sore Repositioning', 'Nocturnal Diaper Changes', 'Sundowning Agitation Containment'],
         modifiedCaregiver: {
@@ -367,7 +369,7 @@ export class StaffingRecommender {
       hoursPerDay: 24,
       affordabilityFit: 'Comprehensive Live-in / ₹32,000 - ₹45,000/mo',
       costTierRank: 5,
-      clinicalJustification: 'Complete diurnal and nocturnal absorption of high-acuity dependencies (bed-bound, severe dementia, suction, total ADL assistance).',
+      clinicalJustification: 'Draft option: broad day-and-night support for high-dependency care needs such as bed-bound care, severe cognitive-behavioral symptoms, airway plan support, and total ADL assistance.',
       resolvedBlocks: ['morning_rush', 'afternoon', 'evening', 'night_watch'],
       resolvedTasks: ['Continuous Patient Handling', 'Airway / Wound Protocol', '24h Vigilance', 'Total ADL Relief'],
       modifiedCaregiver: {
@@ -470,6 +472,7 @@ export class StaffingRecommender {
     }
 
     return {
+      provenance: CLINICAL_PROVENANCE.staffingHeuristic,
       acuityAssessment: {
         dominantSkillTier,
         clinicalReasons,

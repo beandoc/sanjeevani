@@ -459,8 +459,9 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.ok(result.netCareGapHours > 0);
     const rx = result.prescriptions.find((p) => p.id === 'rx_staffing_respite_prescription');
     assert.ok(rx !== undefined);
-    assert.ok(rx.action.includes('Prescribe:'));
-    assert.ok(rx.action.includes('hours/day of paid attendant'));
+    assert.ok(rx.title.includes('Clinician Review'));
+    assert.ok(rx.action.includes('Consider'));
+    assert.ok(rx.action.includes('hours/day of trained attendant'));
   });
 
   test('should trigger warnings for recurrent infections, frequent aspirations, and bed sores', () => {
@@ -1507,4 +1508,3 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(famOption?.costTierRank, 1);
   });
 });
-

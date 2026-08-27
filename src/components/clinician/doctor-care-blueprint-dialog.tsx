@@ -121,13 +121,13 @@ export function DoctorCareBlueprintDialog({
       ? ['Primary caregiver must NOT perform solo manual bed-to-chair lifts (use 2-person assist or transfer aids).']
       : []),
     ...(safePatient.isBedBound
-      ? ['Strict Q2H (2-hourly) turning & repositioning protocol to prevent sacral and heel pressure ulcers.']
+      ? ['Create an individualized repositioning plan, often every 2-3 hours depending on skin status, comfort, perfusion, and support surface.']
       : []),
     ...(safePatient.fallHistoryLast6Months >= 1
-      ? ['High Fall Hazard: Bedside commode and non-slip bathroom safety grab rails required.']
+      ? ['High Fall Hazard: review bedside commode, footwear, lighting, and non-slip bathroom grab rails for fit and feasibility.']
       : []),
     ...(report.acuityAssessment.dominantSkillTier === 'nurse'
-      ? ['Clinical Nursing Directive: Sterile wound dressing and catheter drainage hygiene mandatory.']
+      ? ['Clinical Nursing Review: confirm wound dressing plan, catheter drainage hygiene, escalation signs, and local nursing scope of practice.']
       : []),
     'Maintain daily blood pressure and vitals log prior to morning medication administration.'
   ];

@@ -233,14 +233,14 @@ export function ZaritResultsView({
                   <div>
                     <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                       <Sparkles className="w-5 h-5 text-primary" />
-                      Targeted Clinical Caregiver Prescriptions
+                      Targeted Caregiver Support Suggestions
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Personalized action steps generated automatically based on your specific subscale burdens.
+                      Personalized action steps generated from ZBI score plus Sanjeevani triage rules.
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs font-semibold">
-                    {prescriptions.length} Prescribed Actions
+                    {prescriptions.length} Suggested Actions
                   </Badge>
                 </div>
 

@@ -120,7 +120,7 @@ export const MAX_FORMAL_ABSORBABLE_FRACTION = 0.85;
  * 
  * @citation CMS Home Health PPS productivity ratio benchmarks (direct patient contact vs rest/charting).
  * @citation Indian Geriatric Home Care Practices (AIIMS / HelpAge India): 24h live-in domestic attendants (ayahs)
- *           provide 16h hands-on care with a mandatory 8h nocturnal rest/sleep window.
+ *           often provide about 16h hands-on care with an 8h nocturnal rest/sleep window.
  */
 export interface FormalSupportSpec {
   nominalHours: number;

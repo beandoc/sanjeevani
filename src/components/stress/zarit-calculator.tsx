@@ -124,7 +124,7 @@ export function ZaritCalculator({ onComplete, lang = 'en' }: ZaritCalculatorProp
               Zarit Caregiver Burden Scale (ZBI)
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Quantify caregiver fatigue, evaluate multi-dimensional role strain, and generate targeted respite prescriptions.
+              Quantify caregiver fatigue, evaluate role strain, and generate targeted respite suggestions for review.
             </p>
           </div>
 

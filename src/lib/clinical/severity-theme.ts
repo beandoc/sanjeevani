@@ -51,7 +51,7 @@ export const SEVERITY_CONFIGS: Record<SeverityBand, SeverityConfig> = {
     bgColor: 'bg-red-100 dark:bg-red-950/50 border-red-300 dark:border-red-800',
     badgeBg: 'bg-red-600 text-white animate-pulse',
     desc: {
-      en: 'Critical caregiver exhaustion and imminent collapse risk. Emergency respite intervention and mandatory care team rotation required.',
+      en: 'Critical caregiver exhaustion and possible collapse risk. Urgent respite support and care team rotation should be arranged.',
       hi: 'अति-गंभीर आपातकालीन स्थिति! तुरंत आपातकालीन विश्राम और परिवार के अन्य सदस्यों की भागीदारी अनिवार्य है।',
       mr: 'अति-गंभीर आणीबाणीची स्थिती! तात्काळ मदत आणि रुग्णाची काळजी घेणाऱ्या व्यक्तीची अदलाबदल आवश्यक.'
     }

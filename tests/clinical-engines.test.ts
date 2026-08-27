@@ -101,6 +101,26 @@ describe('Beers Criteria & STOPP Interaction Engine Tests', () => {
     assert.ok(evalResult.warnings.some((w) => w.includes('Triple Whammy')));
     assert.ok(evalResult.stoppTriggers.some((t) => t.includes('STOPP: Discontinue oral NSAID')));
   });
+
+  test('should flag opioid-benzodiazepine and broader CNS polypharmacy risk', () => {
+    const evalResult = MedicationChecker.evaluateRegimen([
+      { name: 'Tramadol 50mg' },
+      { name: 'Clonazepam 0.5mg' },
+      { name: 'Pregabalin 75mg' }
+    ]);
+
+    assert.ok(evalResult.warnings.some((w) => w.includes('Opioid plus benzodiazepine')));
+    assert.ok(evalResult.warnings.some((w) => w.includes('CNS POLYPHARMACY')));
+    assert.ok(evalResult.provenance.note.includes('selected screening subset'));
+  });
+
+  test('should include provenance on individual medication warnings', () => {
+    const warning = MedicationChecker.checkBeersCriteria('Pantoprazole 40mg');
+
+    assert.ok(warning !== null);
+    assert.strictEqual(warning?.drugClass, 'Proton Pump Inhibitors (Long-Term Use)');
+    assert.strictEqual(warning?.provenance.validated, false);
+  });
 });
 
 describe('isReassessmentDue — reassessment cadence', () => {

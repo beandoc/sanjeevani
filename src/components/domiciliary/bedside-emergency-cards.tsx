@@ -45,13 +45,13 @@ export const EMERGENCY_ACTION_CARDS: EmergencyActionCard[] = [
       'Stop feeding or giving liquids immediately.',
       'Instruct and assist the patient to tuck their chin firmly downward toward their chest (chin-tuck maneuver closes the airway).',
       'Encourage strong coughing—do not pat back forcefully while sitting upright (which can lodge the bolus deeper).',
-      'Use a penlight and gauze to sweep and clear pocketed food from the paralyzed cheek once coughing subsides.'
+      'If visible and easy to reach, clear pocketed food from the cheek with gauze; avoid blind finger sweeps.'
     ],
     doNotDo: [
       'Never give water to "wash down" a choking episode—thin water accelerates lung aspiration!',
       'Never feed a patient lying flat or in a reclined position.'
     ],
-    escalationThreshold: 'If patient turns blue (cyanosis), cannot breathe, or loses consciousness, call 112 emergency immediately and initiate Heimlich / CPR.'
+    escalationThreshold: 'If patient turns blue (cyanosis), cannot breathe, or loses consciousness, call 112 immediately and follow dispatcher-guided choking/CPR instructions.'
   },
   {
     id: 'sundowning_delirium',
@@ -81,7 +81,7 @@ export const EMERGENCY_ACTION_CARDS: EmergencyActionCard[] = [
     color: 'border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20 text-orange-900 dark:text-orange-100',
     steps: [
       'Immediately lower the patient safely onto the nearest surface (bed, chair, or floor)—do not attempt to heroically carry them alone.',
-      'Stop all single-person manual lifting. Fasten a lumbar support belt on yourself.',
+      'Stop all single-person manual lifting. Use any prescribed support belt only if it is already part of your care plan.',
       'Utilize slide sheets and ask a second family member or neighbor for help.',
       'Lie supine on a firm surface with knees bent over pillows for 15 minutes.'
     ],
@@ -89,7 +89,7 @@ export const EMERGENCY_ACTION_CARDS: EmergencyActionCard[] = [
       'Never twist your spine while bearing the patient’s body weight.',
       'Do not continue heavy manual lifting while experiencing acute radiating sciatica pain.'
     ],
-    escalationThreshold: 'If you experience severe shooting leg pain or numbness, seek medical evaluation and mobilize secondary family caregivers.'
+    escalationThreshold: 'If you experience severe shooting leg pain, numbness, weakness, bladder/bowel symptoms, or pain after a fall, seek urgent medical evaluation and mobilize secondary family caregivers.'
   },
   {
     id: 'skin_tear_anticoagulation',
@@ -120,7 +120,7 @@ export const EMERGENCY_ACTION_CARDS: EmergencyActionCard[] = [
     steps: [
       'Immediately assist the patient back into a seated or lying position.',
       'Elevate the patient’s legs on 2 pillows to facilitate venous blood return to the heart and brain.',
-      'Give 200ml room-temperature water.',
+      'Offer small sips of water if the patient is fully awake, able to swallow safely, and not on a fluid-restriction plan.',
       'Instruct patient on "3-Stage Transfer": Lie down → Sit at edge of bed for 2 minutes → Stand up slowly with support.'
     ],
     doNotDo: [

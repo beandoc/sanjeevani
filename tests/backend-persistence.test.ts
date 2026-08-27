@@ -64,7 +64,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
           medicationManagement: false,
           finances: false
         },
-        cognitiveBehavioralLoad: 'moderate' as const,
+        cognitiveBehavioralLoad: 'wandering_agitation' as const,
         fallHistoryLast6Months: 2,
         isBedBound: true
       };
@@ -240,7 +240,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
           }
         ],
         formalSupport: {
-          type: 'paid_attendant_12h_day' as const,
+          type: 'paid_attendant_12h' as const,
           hoursPerDay: 12,
           handlesHeavyTransfers: true,
           handlesMedicationWoundCare: false
@@ -270,9 +270,9 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
       expect(retrieved.caregiverHealth.hasBackPain).toBe(true);
       expect(retrieved.secondaryMembers).toHaveLength(1);
       expect(retrieved.secondaryMembers![0].name).toContain('Pooja');
-      expect(retrieved.formalSupport.type).toBe('paid_attendant_12h_day');
-      expect(retrieved.formalSupport.hoursPerDay).toBe(12);
-      expect(retrieved.emergencyLogistics.hospitalDistanceKm).toBe(3.5);
+      expect(retrieved.formalSupport?.type).toBe('paid_attendant_12h');
+      expect(retrieved.formalSupport?.hoursPerDay).toBe(12);
+      expect(retrieved.emergencyLogistics?.hospitalDistanceKm).toBe(3.5);
     });
 
     it('should evaluate care gap and injury risk based on Care Matrix inputs', () => {

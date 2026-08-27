@@ -18,11 +18,11 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     guideline: 'WHO Integrated Care for Older People (ICOPE) Guidelines',
     organization: 'World Health Organization (WHO)',
     year: '2023 / 2019',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Intrinsic Capacity',
     keyFindings: [
       'Declines in intrinsic capacity (cognition, locomotion, vitality/nutrition, vision, hearing, and psychological capacity) are the strongest predictors of loss of independence in older age.',
-      'Community-level screening and early multi-domain lifestyle interventions significantly delay disability and reduce hospitalization rates by 22-30% in community-dwelling seniors.',
+      'Community-level screening and multi-domain interventions may help delay disability when paired with local referral pathways and follow-up.',
       'Person-centered, personalized goal setting outperforms disease-isolated siloed treatments for multimorbid elders.'
     ],
     caregiverImplications: [
@@ -36,18 +36,18 @@ export const literatureReviewData: LiteratureReviewItem[] = [
       'Establish community referral pathways linking primary health centers with family caregivers.'
     ],
     referenceUrl: 'https://www.who.int/publications/i/item/9789241550109',
-    doiOrCitation: 'WHO Guidelines on Community-Level Interventions to Manage Declines in Intrinsic Capacity, Geneva: WHO (2019, updated 2023).'
+    doiOrCitation: 'WHO Guidelines on Community-Level Interventions to Manage Declines in Intrinsic Capacity, Geneva: WHO (2017); ICOPE implementation framework (2019).'
   },
   {
     id: 'ags-beers-2023',
     guideline: 'AGS Beers Criteria® for Potentially Inappropriate Medication Use in Older Adults',
     organization: 'American Geriatrics Society (AGS)',
     year: '2023 Update',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Pharmacology & Safety',
     keyFindings: [
-      'Over 20% of acute geriatric hospital admissions are attributable to preventable Adverse Drug Events (ADEs) and drug-drug interactions.',
-      'First-generation antihistamines, long-acting benzodiazepines, high-dose NSAIDs, and long-acting sulfonylureas (e.g., glibenclamide) confer severe risks of cognitive worsening, falls, GI hemorrhage, and prolonged hypoglycemia.',
+      'Potentially inappropriate medications and drug-drug interactions are common modifiable contributors to adverse events in older adults.',
+      'First-generation antihistamines, benzodiazepines, Z-drugs, NSAIDs, antipsychotics in dementia, and sulfonylureas are important high-yield review targets.',
       'Prescribing cascades frequently occur when drug side effects (e.g., peripheral edema from CCBs) are misdiagnosed as new conditions and treated with additional medications (e.g., loop diuretics).'
     ],
     caregiverImplications: [
@@ -57,7 +57,7 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     ],
     clinicalRecommendations: [
       'Perform medication reconciliation and Beers Criteria screening at every clinical transition or acute deterioration.',
-      'Gradually taper and deprescribe high-risk sedatives, anticholinergics, and unnecessary proton pump inhibitors (PPIs).',
+      'Review and, when appropriate, taper/deprescribe high-risk sedatives, anticholinergics, antipsychotics, and unnecessary proton pump inhibitors (PPIs).',
       'Adjust dosage regimens based on estimated glomerular filtration rate (eGFR) and frailty score.'
     ],
     referenceUrl: 'https://geriatricscareonline.org/toc/american-geriatrics-society-updated-beers-criteria-for-potentially-inappropriate-medication-use-in-older-adults/CL001',
@@ -68,11 +68,11 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     guideline: 'World Guidelines for Falls Prevention & CDC STEADI Protocol',
     organization: 'World Falls Guidelines Taskforce / CDC',
     year: '2022',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Mobility & Falls',
     keyFindings: [
-      'One in three adults aged 65+ falls each year, with 20-30% suffering moderate to severe injuries (hip fractures, subdural hematomas).',
-      'Multifactorial fall risk assessment combined with targeted environmental home modifications and progressive balance training reduces fall rates by 34%.',
+      'Falls are common in older adults and can cause serious injuries including fractures and intracranial bleeding.',
+      'Multifactorial fall-risk assessment, environmental modification, medication review, and progressive balance/strength training reduce fall risk in appropriately selected patients.',
       'Orthostatic hypotension (systolic drop >= 20 mmHg or diastolic drop >= 10 mmHg within 3 min of standing) is an underdiagnosed leading trigger for syncope and falls.'
     ],
     caregiverImplications: [
@@ -93,7 +93,7 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     guideline: 'NICE NG97 Guidelines & ARDSI National Dementia Report',
     organization: 'National Institute for Health and Care Excellence (NICE) / ARDSI India',
     year: '2024 / 2021',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Cognitive & Mental Health',
     keyFindings: [
       'Dementia affects over 8.8 million seniors in India; the vast majority are cared for at home by family caregivers with high physical and emotional strain.',
@@ -118,15 +118,15 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     guideline: 'Prevention and Treatment of Pressure Ulcers/Injuries: Clinical Practice Guideline',
     organization: 'EPUAP / NPIAP / Pan Pacific Pressure Injury Alliance (PPPIA)',
     year: '2019 (Updated 2023 Standards)',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Wound & Bedside Care',
     keyFindings: [
-      'Pressure injuries develop within 2 hours of unrelieved pressure over bony prominences (sacrum, greater trochanter, heels, occiput).',
-      'Regular Q2H (2-hourly) 30-degree lateral tilt repositioning prevents tissue ischemia and capillary collapse.',
-      'Moisture-Associated Skin Damage (MASD) from incontinence compromises the epidermal barrier, accelerating pressure injury development by 4-fold.'
+      'Pressure injuries can develop rapidly when pressure, shear, moisture, immobility, poor perfusion, and malnutrition combine.',
+      'Repositioning frequency should be individualized; two- or three-hourly schedules may be appropriate for many at-risk patients on suitable support surfaces.',
+      'Moisture-associated skin damage from incontinence compromises the epidermal barrier and increases pressure-injury vulnerability.'
     ],
     caregiverImplications: [
-      'Turn and tilt bed-bound patients every 2 hours using the 30-degree tilt method with supportive pillows under the back and between the knees.',
+      'Use an individualized repositioning plan, often every 2-3 hours, with 30-degree lateral positioning when appropriate and tolerable.',
       'Never massage red or irritated skin over bony spots—massaging fragile tissue worsens deep microvascular damage.',
       'Cleanse skin promptly after incontinence using pH-neutral soap, pat dry gently without rubbing, and apply zinc oxide barrier creams.'
     ],
@@ -140,14 +140,14 @@ export const literatureReviewData: LiteratureReviewItem[] = [
   },
   {
     id: 'icmr-geriatric-guidelines',
-    guideline: 'ICMR Multicentric Consensus Guidelines for Comprehensive Geriatric Care',
+    guideline: 'Indian Geriatric Chronic Disease Care Principles',
     organization: 'Indian Council of Medical Research (ICMR) & MoHFW',
     year: '2023',
-    evidenceLevel: 'Level B (Well-designed Cohort / Clinical Trials)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Chronic Disease',
     keyFindings: [
-      'Multimorbidity (hypertension, type 2 diabetes, osteoarthritis, chronic kidney disease) affects >65% of Indian seniors over 60 years.',
-      'Strict glycemic control (HbA1c < 6.5%) in frail or elderly individuals leads to catastrophic hypoglycemia, cardiac arrhythmias, and fall-related fractures without mortality benefit.',
+      'Multimorbidity is common among Indian older adults and often requires individualized rather than single-disease care plans.',
+      'Overly strict glycemic control in frail older adults can increase hypoglycemia and fall-related harm without clear functional benefit.',
       'Individualized HbA1c targets (7.5% - 8.0% for moderate frailty, up to 8.5% for advanced frailty) provide optimal safety and quality of life.'
     ],
     caregiverImplications: [
@@ -161,19 +161,19 @@ export const literatureReviewData: LiteratureReviewItem[] = [
       'Promote vaccination against Influenza, Pneumococcal disease, and Herpes Zoster for all older adults with chronic conditions.'
     ],
     referenceUrl: 'https://main.icmr.nic.in',
-    doiOrCitation: 'Indian Council of Medical Research (ICMR). Consensus Guidelines on Management of Common Geriatric Conditions in Primary and Secondary Care. New Delhi: ICMR; 2023.'
+    doiOrCitation: 'Local clinical adaptation required; verify against current ICMR/MoHFW/NPHCE guidance before using as formal protocol.'
   },
   {
     id: 'delirium-bgs-nice-guidelines',
     guideline: 'Delirium in Older Adults: Diagnosis, Prevention and Management (NICE CG103 & BGS)',
     organization: 'British Geriatrics Society (BGS) / NICE',
     year: '2023',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Cognitive & Mental Health',
     keyFindings: [
       'Delirium is an acute, fluctuating medical emergency characterized by sudden disturbances in attention, awareness, and cognition.',
       'Unlike dementia (which progresses over months to years), delirium onset occurs over hours to days and is frequently triggered by acute infections (UTI, chest infection), medication changes, dehydration, or urinary retention.',
-      'Up to 30-40% of delirium episodes in hospitalized or home-care elderly are preventable through proactive hydration, pain relief, sensory aid maintenance, and sleep hygiene.'
+      'Many delirium episodes are preventable or mitigable through proactive hydration, pain relief, sensory aid maintenance, medication review, and sleep hygiene.'
     ],
     caregiverImplications: [
       'If a loved one suddenly starts hallucinating, becoming unusually agitated, or becomes unusually sleepy and uncommunicative within a few hours or days, treat it as an URGENT medical event.',
@@ -182,7 +182,7 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     ],
     clinicalRecommendations: [
       'Utilize the 4AT (4-Item Assessment for Delirium) or Confusion Assessment Method (CAM) for rapid screening.',
-      'Identify and aggressively treat underlying medical triggers (PINCHES: Pain, Infection, Nutrition/hydration, Constipation, Hydration/hypoxia, Electrolytes, Sedatives).',
+      'Identify and treat underlying medical triggers such as pain, infection, dehydration, constipation, hypoxia, electrolyte disturbance, and sedating/anticholinergic medicines.',
       'Avoid physical restraints and minimize sedating psychoactive medications which exacerbate delirium duration and mortality.'
     ],
     referenceUrl: 'https://www.nice.org.uk/guidance/cg103',
@@ -193,24 +193,24 @@ export const literatureReviewData: LiteratureReviewItem[] = [
     guideline: 'Transitional Geriatric Care & Post-Discharge Dyadic Blueprint Model',
     organization: 'American Geriatrics Society (AGS) / Transitional Care Model (Coleman & Naylor et al.)',
     year: '2024 / 2023',
-    evidenceLevel: 'Level A (High Quality RCTs / Meta-analyses)',
+    evidenceLevel: 'Level C (Expert Consensus / Clinical Guidelines)',
     category: 'Intrinsic Capacity',
     keyFindings: [
-      'The "Post-Discharge Care Void" is the single biggest predictor of 30-day emergency hospital readmissions (up to 35% preventable) and catastrophic family caregiver burnout.',
+      'Poorly structured post-discharge support is a plausible contributor to readmission risk and family caregiver overload.',
       'Traditional discharge (giving a medication summary without structured shift allocations) causes severe uncertainty, financial toxicity (over-hiring 24h staff or hiring untrained attendants), and caregiver lumbar spine injuries.',
-      'A collaborative "Doctor\'s Home Care Blueprint" that pre-prescribes staffing tiers, diurnal shift windows, safety directives, and assistive devices reduces 30-day readmissions by 32-38% while eliminating family blank-page friction.'
+      'A collaborative home-care blueprint may reduce family confusion and support safer transitions; the Sanjeevani-specific model still requires prospective outcome validation.'
     ],
     caregiverImplications: [
       'Zero Blank-Page Panic: Families open their pre-filled Doctor\'s Blueprint to immediately see recommended shift hours, formal staffing tiers, and safety directives.',
       'Clear Division of Responsibilities: Doctor defines clinical acuity (e.g., Q2H turns, nurse-tier requirements); family fine-tunes real-world logistics (who covers morning commute, who takes evening shifts).',
-      'Ergonomic Protection: Adopting motorized hospital beds, ripple mattresses, and 2-person transfer aids prevents irreversible caregiver lumbar spine injury.'
+      'Ergonomic Protection: appropriate beds, pressure-redistribution surfaces, and trained two-person/device-assisted transfers may reduce caregiver injury risk.'
     ],
     clinicalRecommendations: [
-      'Prescribe a structured Home Care Blueprint at discharge rather than a vague "manage at home" directive.',
-      'Match formal support tiers (Nurse vs. Attendant vs. Physio aide) to objective patient acuity (pressure sores, catheters, high ACB score).',
+      'Offer a structured Home Care Blueprint at discharge rather than a vague "manage at home" directive.',
+      'Match formal support tiers (Nurse vs. Attendant vs. Physio aide) to objective patient acuity, local scope of practice, and clinician review.',
       'Digitally bridge hospital discharge plans directly into the family Kutumbh Care Circle via secure invite codes and 1-tap WhatsApp care digests.'
     ],
     referenceUrl: 'https://www.transitionalcare.info',
-    doiOrCitation: 'Naylor MD, Brooten DA, Campbell RL, et al. Comprehensive discharge planning and home follow-up of hospitalized elders. JAMA. 1999;281(7):613-620. Updated in AGS/JAGS Transitional Care Guidelines (2023).'
+    doiOrCitation: 'Naylor MD, Brooten DA, Campbell RL, et al. JAMA. 1999;281(7):613-620. Sanjeevani blueprint intervention requires local validation.'
   }
 ];

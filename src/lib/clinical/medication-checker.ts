@@ -1,8 +1,13 @@
 /**
  * Sanjeevani Geriatric Medication Safety & Beers Criteria Engine
- * Evaluates prescription items against the American Geriatrics Society (AGS) Beers Criteria 2023
- * and STOPP/START (Screening Tool of Older Persons' Prescriptions) consensus.
+ * Screens prescription items against a selected high-yield subset of the
+ * American Geriatrics Society (AGS) Beers Criteria 2023 and STOPP/START v3.
+ * This is decision support only; it is not a complete pharmacist medication
+ * review and does not evaluate indication, dose, duration, renal function, or
+ * patient-specific goals of care.
  */
+
+import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
 
 export interface BeersWarning {
   severity: 'high-risk' | 'caution' | 'prescribing-cascade';
@@ -11,6 +16,7 @@ export interface BeersWarning {
   rationale: string;
   recommendation: string;
   alternatives: string;
+  provenance: ClinicalProvenance;
 }
 
 export interface RegimenSafetyEvaluation {
@@ -19,6 +25,7 @@ export interface RegimenSafetyEvaluation {
   warnings: string[];
   stoppTriggers: string[];
   summary: string;
+  provenance: ClinicalProvenance;
 }
 
 interface BeersDatabaseEntry {
@@ -38,7 +45,8 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 3,
       rationale: 'Highly anticholinergic in older adults; clearance reduced with advanced age. Strongly associated with acute delirium, cognitive decline, urinary retention, severe dry mouth, and falls.',
       recommendation: 'Avoid use for sleep or routine allergy/itching in elderly individuals.',
-      alternatives: 'Saline nasal sprays, topical moisturizers, or non-sedating 2nd-gen antihistamines like Fexofenadine, Levocetirizine, or Loratadine under clinical supervision.'
+      alternatives: 'Saline nasal sprays, topical moisturizers, or non-sedating 2nd-gen antihistamines like Fexofenadine, Levocetirizine, or Loratadine under clinical supervision.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
@@ -50,7 +58,8 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 0,
       rationale: 'Older adults have increased sensitivity to benzodiazepines and slower hepatic clearance. Significant risk of cognitive impairment, daytime sedation, delirium, ataxia, and hip fractures.',
       recommendation: 'Avoid as first-line treatment for insomnia or chronic agitation in seniors.',
-      alternatives: 'Sleep hygiene protocols, CBT-I (Cognitive Behavioral Therapy for Insomnia), daytime light exposure routines.'
+      alternatives: 'Sleep hygiene protocols, CBT-I (Cognitive Behavioral Therapy for Insomnia), daytime light exposure routines.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
@@ -62,7 +71,8 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 0,
       rationale: 'Similar adverse effect profile to benzodiazepines in older adults; elevates emergency delirium visits, motor vehicular accidents, and nocturnal fall injuries.',
       recommendation: 'Avoid long-term usage (>2 weeks) in older adults.',
-      alternatives: 'Non-pharmacological sleep routine restructuring.'
+      alternatives: 'Non-pharmacological sleep routine restructuring.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
@@ -74,7 +84,8 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 0,
       rationale: 'Marked elevation in risk of gastrointestinal bleeding, peptic ulcers, acute kidney injury (AKI), fluid retention, and worsening of pre-existing hypertension or heart failure in seniors.',
       recommendation: 'Avoid chronic scheduled oral NSAID use in elderly patients, especially those with CKD, HTN, or CHF.',
-      alternatives: 'Topical NSAID gels (Diclofenac gel), Paracetamol (within 2-3g/day max), guided physiotherapy, hot/cold fermentation.'
+      alternatives: 'Topical NSAID gels (Diclofenac gel), Paracetamol (within 2-3g/day max), guided physiotherapy, hot/cold fermentation.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
@@ -86,19 +97,21 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 3,
       rationale: 'Strong anticholinergic and alpha-adrenergic blocking properties; high risk of orthostatic hypotension, cardiac conduction delay, urinary retention, and sedation in seniors.',
       recommendation: 'Avoid TCAs in older adults with fall risk, glaucoma, or cardiac conduction issues.',
-      alternatives: 'SSRIs (e.g. Sertraline, Escitalopram) or SNRIs (e.g. Duloxetine) with lower anticholinergic profiles.'
+      alternatives: 'SSRIs (e.g. Sertraline, Escitalopram) or SNRIs (e.g. Duloxetine) with lower anticholinergic profiles.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
-    keywords: ['glimepiride', 'glibenclamide', 'glyburide', 'daonil', 'amaryl'],
+    keywords: ['glimepiride', 'glibenclamide', 'glyburide', 'daonil', 'amaryl', 'glipizide', 'gliclazide', 'chlorpropamide'],
     acbScore: 0,
     warning: {
       severity: 'caution',
-      drugClass: 'Long-Acting Sulfonylureas',
+      drugClass: 'Sulfonylureas',
       acbScore: 0,
-      rationale: 'Higher risk of severe, prolonged, life-threatening hypoglycemia in older adults due to reduced renal clearance and variable carbohydrate intake.',
-      recommendation: 'Avoid Glibenclamide; use shorter-acting agents or DPP-4 inhibitors with lower hypoglycemia incidence.',
-      alternatives: 'Gliclazide MR, DPP-4 inhibitors (Teneligliptin, Linagliptin), or adjusted Metformin.'
+      rationale: 'Sulfonylureas increase hypoglycemia risk in older adults; longer-acting agents have higher risk of prolonged hypoglycemia.',
+      recommendation: 'Avoid as first- or second-line therapy when safer options are feasible; if used, prefer shorter-acting choices with explicit renal and meal-pattern review.',
+      alternatives: 'Individualized diabetes regimen review; options may include adjusted Metformin, DPP-4 inhibitors, SGLT2 inhibitors, or insulin simplification depending on renal function, frailty, and affordability.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   },
   {
@@ -110,7 +123,47 @@ const BEERS_DATABASE: BeersDatabaseEntry[] = [
       acbScore: 0,
       rationale: 'Classic prescribing cascade trigger: Dihydropyridine CCBs frequently induce bilateral dependent ankle swelling (edema) due to precapillary vasodilation, which is often misdiagnosed as heart failure or renal failure, leading to unnecessary diuretic prescription.',
       recommendation: 'If new ankle swelling occurs after starting/increasing CCB dose, consult physician before accepting a water pill (diuretic).',
-      alternatives: 'Dose titration, leg elevation, or combining/switching with ACE inhibitors/ARBs.'
+      alternatives: 'Dose titration, leg elevation, or combining/switching with ACE inhibitors/ARBs.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
+    }
+  },
+  {
+    keywords: ['haloperidol', 'risperidone', 'olanzapine', 'quetiapine', 'aripiprazole', 'chlorpromazine'],
+    acbScore: 0,
+    warning: {
+      severity: 'high-risk',
+      drugClass: 'Antipsychotics in Dementia / Delirium',
+      acbScore: 0,
+      rationale: 'Antipsychotics can increase stroke, mortality, sedation, falls, and extrapyramidal effects in older adults, especially in dementia.',
+      recommendation: 'Avoid routine use for behavioral symptoms unless non-drug approaches fail and the patient poses substantial risk of harm; use the lowest effective dose for the shortest duration with deprescribing review.',
+      alternatives: 'Identify triggers such as pain, infection, constipation, urinary retention, dehydration, medication toxicity, sensory deprivation, or environmental distress.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
+    }
+  },
+  {
+    keywords: ['omeprazole', 'pantoprazole', 'esomeprazole', 'rabeprazole', 'lansoprazole'],
+    acbScore: 0,
+    warning: {
+      severity: 'caution',
+      drugClass: 'Proton Pump Inhibitors (Long-Term Use)',
+      acbScore: 0,
+      rationale: 'Long-term scheduled PPI use without a clear indication is associated with infection, fracture, hypomagnesemia, and kidney-related concerns in older adults.',
+      recommendation: 'Confirm ongoing indication and duration; consider step-down or deprescribing when clinically appropriate.',
+      alternatives: 'Lifestyle measures, time-limited acid suppression, H2 blocker review, or gastroprotection only when indicated.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
+    }
+  },
+  {
+    keywords: ['tramadol', 'morphine', 'oxycodone', 'fentanyl', 'tapentadol', 'codeine'],
+    acbScore: 0,
+    warning: {
+      severity: 'caution',
+      drugClass: 'Opioid Analgesics',
+      acbScore: 0,
+      rationale: 'Opioids increase constipation, sedation, delirium, respiratory depression, and fall risk in older adults; risk is higher with benzodiazepines or other CNS depressants.',
+      recommendation: 'Verify indication, dose, bowel regimen, sedation monitoring, and concurrent sedative exposure.',
+      alternatives: 'Non-pharmacological pain strategies, topical agents, acetaminophen within safe dose limits, or specialist pain review.',
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     }
   }
 ];
@@ -210,6 +263,26 @@ export class MedicationChecker {
       );
     }
 
+    const hasOpioid = namesLower.some((n) =>
+      ['tramadol', 'morphine', 'oxycodone', 'fentanyl', 'tapentadol', 'codeine'].some((k) => n.includes(k))
+    );
+    if (hasOpioid && hasBenzo) {
+      warnings.push(
+        'HIGH-RISK BEERS INTERACTION: Opioid plus benzodiazepine creates additive sedation, respiratory depression, delirium, and fall risk.'
+      );
+      stoppTriggers.push('Beers: Avoid concurrent opioid and benzodiazepine use whenever possible.');
+    }
+
+    const hasMultipleCnsDepressants = namesLower.filter((n) =>
+      ['alprazolam', 'clonazepam', 'diazepam', 'lorazepam', 'zolpidem', 'zopiclone', 'tramadol', 'morphine', 'oxycodone', 'quetiapine', 'olanzapine', 'gabapentin', 'pregabalin'].some((k) => n.includes(k))
+    ).length >= 3;
+    if (hasMultipleCnsDepressants) {
+      warnings.push(
+        'HIGH-RISK CNS POLYPHARMACY: Three or more CNS-active medicines substantially increase falls, delirium, and sedation risk in older adults.'
+      );
+      stoppTriggers.push('Beers: Avoid concurrent use of three or more CNS-active drugs when feasible.');
+    }
+
     let acbRiskLevel: RegimenSafetyEvaluation['acbRiskLevel'] = 'low';
     if (totalAcbScore >= 3) acbRiskLevel = 'high-risk';
     else if (totalAcbScore >= 1) acbRiskLevel = 'moderate';
@@ -224,7 +297,8 @@ export class MedicationChecker {
       acbRiskLevel,
       warnings,
       stoppTriggers,
-      summary
+      summary,
+      provenance: CLINICAL_PROVENANCE.beersStoppScreen
     };
   }
 }

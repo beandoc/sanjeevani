@@ -21,8 +21,8 @@ In traditional geriatric practice:
 ```text
 [ Doctor in Clinic / OPD / Ward ]
   ├─ 1. Assesses Katz ADLs & Multimorbidity (60 seconds)
-  ├─ 2. Prescribes Staffing Tier & Shift Window (e.g. "Targeted 4h Morning Attendant")
-  ├─ 3. Orders Assistive Devices (e.g. "Motorized Bed + Ripple Mattress")
+  ├─ 2. Drafts Staffing Tier & Shift Window for clinical/family review (e.g. "Targeted 4h Morning Attendant")
+  ├─ 3. Recommends Assistive Devices when appropriate (e.g. "Motorized Bed + Ripple Mattress")
   └─ 4. Issues 8-char Invite Code or Sends WhatsApp Link
                 │
                 ▼ (Instant Cloud Sync via Firestore)
@@ -38,22 +38,22 @@ In traditional geriatric practice:
 
 #### 1. Zero "Blank Page" Cognitive Friction for Families
 When families open the app, they don't see an intimidating blank form asking them to invent a care schedule from scratch. They see:
-> **"Dr. Vivek’s Home Care Prescription & Blueprint"**
-> - **Prescribed Support**: 4h Morning Shift Attendant (07:00–11:00) for sponge bath and pivot transfers.
+> **"Dr. Vivek’s Home Care Blueprint"**
+> - **Suggested Support**: 4h Morning Shift Attendant (07:00–11:00) for sponge bath and pivot transfers.
 > - **Safety Precaution**: Primary caregiver (Smt. Shanti) must not perform solo manual transfers.
 > - **Device Orders**: Motorized backrest bed + alternating pressure ripple mattress.
 
 #### 2. Clear Boundary Between "Clinical Orders" vs. "Family Logistics"
 - **Doctor’s Role (Clinical Blueprint)**:
-  - Determines **Clinical Acuity Tier** (e.g., Catheter/Pressure sore $\rightarrow$ Must be Nurse tier; Bedbound $\rightarrow$ Q2H turning protocol).
+  - Determines **Clinical Acuity Tier** (e.g., catheter/pressure sore $\rightarrow$ nursing review; bedbound $\rightarrow$ individualized repositioning plan).
   - Flags **Safety Red Lines** (e.g., No heavy lifting for 65+ spouse with osteoporosis).
 - **Family’s Role (Logistical Fine-Tuning)**:
   - Assigns who physically does what based on office commutes and family availability (e.g., who drops kids to school, who is free in evenings).
   - Rotates weekend shifts and schedules respite days among siblings.
 
-#### 3. Prevents 30-Day Emergency Hospital Readmissions
-- Studies in geriatric transitional care show that structured, task-placed home care plans reduce **30-day post-discharge readmissions by up to 35%**.
-- Prevents the three classic causes of readmission: **aspiration pneumonia, transfer-related falls, and pressure ulcer sepsis**.
+#### 3. Targets Preventable 30-Day Emergency Readmission Drivers
+- Transitional-care studies support structured discharge planning and follow-up, but the Sanjeevani blueprint itself still needs local prospective validation.
+- The app focuses on common preventable home-care hazards: **aspiration risk, transfer-related falls, pressure injuries, medication problems, and caregiver collapse**.
 
 ---
 
@@ -75,7 +75,7 @@ When families open the app, they don't see an intimidating blank form asking the
 ## Core Features & Modules:
 
 - **Diurnal Care Gap & Biomechanical Load Engine**: Per-block diurnal mismatch index ($g_b$) and NIOSH RNLE lifting index ($LI$).
-- **Doctor's Clinical Care Blueprint & Prescription**: Structured discharge prescription bridge linking hospital doctor to home family circle.
+- **Doctor's Clinical Care Blueprint**: Structured discharge bridge linking hospital doctor to home family circle.
 - **Multi-Generational Care Circle & WhatsApp Roster**: Constraint satisfaction shift allocator, RFC 5545 `.ics` export, and WhatsApp digest.
 - **AGS Beers 2023 / STOPP-START Medication Safety**: Anticholinergic Cognitive Burden ($\text{ACB}$) and deprescribing decision support.
 - **Multilingual Geriatric Education Hub**: Evidence-based guides in English, Hindi (हिंदी), and Marathi (मराठी).

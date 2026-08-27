@@ -93,10 +93,10 @@ export function ClinicalSummaryPrint({
       ? Math.round(sugarValues.reduce((a, b) => a + b, 0) / sugarValues.length)
       : null;
 
-  // BP Stage Interpretation
+  // BP category for communication only; older-adult targets should be individualized.
   let bpClassification = '';
   if (meanSystolic && meanDiastolic) {
-    if (meanSystolic < 120 && meanDiastolic < 80) bpClassification = 'Normotensive';
+    if (meanSystolic < 120 && meanDiastolic < 80) bpClassification = 'Average in normal range';
     else if (meanSystolic <= 129 && meanDiastolic < 80) bpClassification = 'Elevated';
     else if (meanSystolic <= 139 || meanDiastolic <= 89) bpClassification = 'Stage 1 HTN';
     else bpClassification = 'Stage 2 HTN';

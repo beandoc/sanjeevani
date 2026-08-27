@@ -2,7 +2,14 @@
  * Standardized Zarit Caregiver Burden Scale (ZBI) Clinical Psychometric Engine
  * Supporting ZBI-22 (Full), ZBI-12 (Bédard Short Form), and ZBI-4 (Rapid Triage)
  * Multilingual Support: English (en), Hindi (hi), Marathi (mr)
+ *
+ * The summed ZBI score follows published instrument conventions. The red-flag
+ * reasons, domain-capacity views, crisis flag, and action prompts are
+ * Sanjeevani local triage overlays and should not be presented as validated
+ * ZBI subscales.
  */
+
+import { CLINICAL_PROVENANCE, ClinicalProvenance } from './clinical/provenance';
 
 export type ZbiTier = 'ZBI22' | 'ZBI12' | 'ZBI4';
 export type SeverityBand = 'normal' | 'amber' | 'red' | 'critical_red';
@@ -375,6 +382,10 @@ export interface ZaritEvaluationResult {
   };
   redFlags: string[];
   isCrisisTriggered: boolean;
+  provenance?: {
+    score: ClinicalProvenance;
+    triageOverlay: ClinicalProvenance;
+  };
   prescriptions: CaregiverPrescription[];
   completedAt: string;
 }
@@ -575,7 +586,7 @@ export function calculateZaritScore(
         mr: 'साप्ताहिक नियोजित विश्रांती'
       },
       action: {
-        en: 'Designate at least 4 continuous daytime hours this week where another family member or attendant takes full charge of direct care.',
+        en: 'Try to arrange at least 4 continuous daytime hours this week where another family member or attendant takes full charge of direct care.',
         hi: 'इस सप्ताह कम से कम 4 घंटे का समय तय करें जिसमें परिवार का कोई अन्य सदस्य देखभाल की पूरी जिम्मेदारी संभाले।',
         mr: 'या आठवड्यात किमान ४ तास इतर कोणाकडे तरी सर्व जबाबदारी सोपवून स्वतःसाठी वेळ काढा.'
       },
@@ -662,6 +673,10 @@ export function calculateZaritScore(
     redFlags,
     isCrisisTriggered,
     prescriptions,
+    provenance: {
+      score: CLINICAL_PROVENANCE.zaritScore,
+      triageOverlay: CLINICAL_PROVENANCE.careGapHeuristic
+    },
     completedAt: new Date().toISOString()
   };
 }

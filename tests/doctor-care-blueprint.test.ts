@@ -89,7 +89,7 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
       clinicalPrecautions: [
         'Senior spouse (72yo with back pain) must NOT perform solo bed-to-chair lifts.',
         'Strict Q2H repositioning to prevent sacral pressure sores.',
-        'Alternating pressure ripple mattress mandatory.'
+        'Review pressure-redistribution mattress need with wound-care nurse.'
       ],
       recommendedAssistiveDevices: {
         ...DEFAULT_ASSISTIVE_DEVICES,
