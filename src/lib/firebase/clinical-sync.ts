@@ -350,6 +350,23 @@ export async function saveCaregiverAttributesFor(
 }
 
 /**
+ * Mirrors the signed-in caregiver's own capacity and support matrix to Firestore.
+ * Returns `{ queued: true }` if accepted, `{ queued: false }` if signed out.
+ */
+export async function syncCaregiverAttributes(attrs: CaregiverAttributes): Promise<SyncResult> {
+  const uid = currentUid();
+  if (!uid || !db) return { queued: false };
+  try {
+    const ref = doc(db, 'users', uid, 'caregiverAttributes', 'current');
+    await setDoc(ref, { ...attrs, updatedAt: new Date().toISOString() });
+    return { queued: true };
+  } catch (err) {
+    console.warn('Caregiver attributes sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/**
  * Mirrors one vital-signs reading to Firestore.
  * vitals is an append-only (create-only) subcollection — readings are
  * immutable audit trail entries. Use `addDoc` to auto-assign document ID.
@@ -748,6 +765,22 @@ async function applyInviteClaim(
       updatedAt: claimedAt
     })
   );
+
+  // Migrate any caregiverAttributes pre-configured by the clinician
+  try {
+    const dyadDocId = invite.dyadUid || `dyad_${invite.inviteCode}`;
+    const dyadAttrsSnap = await getDoc(doc(db!, 'users', dyadDocId, 'caregiverAttributes', 'current'));
+    if (dyadAttrsSnap.exists()) {
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', uid, 'caregiverAttributes', 'current'), {
+          ...dyadAttrsSnap.data(),
+          updatedAt: claimedAt
+        })
+      );
+    }
+  } catch (attrsErr) {
+    console.warn('Dyad caregiverAttributes migration notice:', attrsErr);
+  }
 
   return { ...invite, claimedAt, claimedByUid: uid };
 }

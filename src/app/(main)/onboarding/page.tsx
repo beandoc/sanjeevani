@@ -45,7 +45,9 @@ import {
   getPatientDisplayName,
   getPatientProfileFor,
   savePatientProfileFor,
+  saveCaregiverAttributesFor,
   syncPatientProfile,
+  syncCaregiverAttributes,
   claimDyadInvite,
   updateDyadInviteDraft,
   type DyadInvite
@@ -292,13 +294,17 @@ export default function OnboardingIntakePage() {
       // a freshly-registered invite so it carries through once claimed.
       if (selectedPatientUid) {
         void savePatientProfileFor(selectedPatientUid, patient);
+        void saveCaregiverAttributesFor(selectedPatientUid, caregiver);
       } else if (pendingInvite) {
         void updateDyadInviteDraft(pendingInvite.inviteCode, patient);
       }
     } else {
       HealthRepository.savePatientProfile(patient);
       HealthRepository.saveCaregiverAttributes(caregiver);
-      await syncPatientProfile(patient);
+      await Promise.all([
+        syncPatientProfile(patient),
+        syncCaregiverAttributes(caregiver)
+      ]);
     }
     setRole(selectedRole);
     completeOnboarding();

@@ -80,10 +80,10 @@ export function AssistedZaritAssessmentForm({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
+            <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
               <HeartHandshake className="w-4 h-4 text-rose-500" />
               Assisted Caregiver Burden Assessment
             </DialogTitle>

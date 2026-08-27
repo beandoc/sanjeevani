@@ -352,30 +352,30 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-border/60 bg-card/60 p-4 rounded-3xl backdrop-blur">
-        <div className="flex items-center gap-3">
-          <Link href="/clinic/roster">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60 bg-card/60 p-4 rounded-3xl backdrop-blur">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/clinic/roster" className="shrink-0">
             <Button variant="outline" size="icon" className="h-9 w-9">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
-          <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-bold">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-bold shrink-0">
               <User className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold font-headline">{displayName}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base sm:text-xl font-bold font-headline truncate">{displayName}</h1>
                 <Badge variant="outline" className="text-[10px] font-mono">
                   {patientUid.replace('demo-', '').toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">Comprehensive Geriatric Care Dyad & Infrastructure Workspace</p>
+              <p className="text-xs text-muted-foreground truncate">Geriatric Care Dyad & Support Workspace</p>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => void load()} className="h-9 text-xs gap-1.5">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end">
+          <Button variant="outline" size="sm" onClick={() => void load()} className="h-9 text-xs gap-1.5 flex-1 sm:flex-none">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </Button>
           <DoctorCareBlueprintDialog
@@ -646,7 +646,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                       <Plus className="w-3.5 h-3.5" /> Add Medication
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                     <DialogHeader>
                       <DialogTitle className="text-base font-bold">Add Prescription / Medication</DialogTitle>
                       <DialogDescription className="text-xs">
@@ -664,7 +664,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                           required
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs font-semibold">Dosage</Label>
                           <Input
@@ -688,11 +688,11 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                           </select>
                         </div>
                       </div>
-                      <DialogFooter className="pt-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setIsMedModalOpen(false)}>
+                      <DialogFooter className="pt-2 flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsMedModalOpen(false)} className="w-full sm:w-auto">
                           Cancel
                         </Button>
-                        <Button type="submit" size="sm" disabled={isSavingMed} className="bg-primary font-bold">
+                        <Button type="submit" size="sm" disabled={isSavingMed} className="bg-primary font-bold w-full sm:w-auto">
                           {isSavingMed ? 'Saving…' : 'Save Prescription'}
                         </Button>
                       </DialogFooter>
@@ -741,7 +741,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                       <Plus className="w-3.5 h-3.5" /> Log Vital
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                     <DialogHeader>
                       <DialogTitle className="text-base font-bold">Log Clinical Vital Reading</DialogTitle>
                       <DialogDescription className="text-xs">

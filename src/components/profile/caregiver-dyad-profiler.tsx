@@ -47,7 +47,13 @@ import {
 } from '@/lib/clinical/formal-support';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { syncPatientProfile } from '@/lib/firebase/clinical-sync';
+import {
+  syncPatientProfile,
+  syncCaregiverAttributes,
+  getCaregiverAttributesFor,
+  getPatientProfileFor
+} from '@/lib/firebase/clinical-sync';
+import { auth } from '@/lib/firebase/client';
 
 export function CaregiverDyadProfiler() {
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
@@ -80,8 +86,29 @@ export function CaregiverDyadProfiler() {
   };
 
   useEffect(() => {
-    setCaregiver(HealthRepository.getCaregiverAttributes());
-    setPatient(HealthRepository.getPatientProfile());
+    // Initial local read
+    const localCg = HealthRepository.getCaregiverAttributes();
+    const localPt = HealthRepository.getPatientProfile();
+    setCaregiver(localCg);
+    setPatient(localPt);
+
+    // If authenticated, hydrate from cloud
+    const uid = auth?.currentUser?.uid;
+    if (uid) {
+      Promise.all([
+        getCaregiverAttributesFor(uid).catch(() => null),
+        getPatientProfileFor(uid).catch(() => null)
+      ]).then(([remoteCg, remotePt]) => {
+        if (remoteCg) {
+          setCaregiver(remoteCg);
+          HealthRepository.saveCaregiverAttributes(remoteCg);
+        }
+        if (remotePt) {
+          setPatient(remotePt);
+          HealthRepository.savePatientProfile(remotePt);
+        }
+      });
+    }
   }, []);
 
   // Derived, never stored. Every edit handler previously had to remember to
@@ -103,12 +130,16 @@ export function CaregiverDyadProfiler() {
     HealthRepository.saveCaregiverAttributes(caregiver);
     HealthRepository.savePatientProfile(patient);
     // Durably mirrors edits to Firestore so a clinician with an active grant
-    // sees the updated profile (e.g. from Settings), not just the onboarding snapshot.
-    const { queued } = await syncPatientProfile(patient);
+    // sees the updated profile & care matrix, not just the onboarding snapshot.
+    const [ptSync, cgSync] = await Promise.all([
+      syncPatientProfile(patient),
+      syncCaregiverAttributes(caregiver)
+    ]);
+    const queued = ptSync.queued || cgSync.queued;
     toast({
-      title: queued ? '☁️ Dyad Profile Saved to Cloud' : 'Dyad Profile Saved',
+      title: queued ? '☁️ Dyad Profile & Care Matrix Saved to Cloud' : 'Dyad Profile Saved',
       description: queued
-        ? 'Caregiver capacity and patient dependence metrics updated and backed up.'
+        ? 'Caregiver capacity, support matrix, and patient metrics updated and backed up.'
         : 'Caregiver capacity and patient dependence metrics updated.',
     });
   };

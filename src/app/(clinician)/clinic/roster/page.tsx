@@ -147,17 +147,19 @@ export default function ClinicianRosterPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 text-xs font-semibold"
+            className="gap-1.5 text-xs font-semibold flex-1 sm:flex-none"
             onClick={() => void load()}
             disabled={isRefreshing}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
           </Button>
-          <RegisterPatientDialog onRegistered={() => void load()} />
+          <div className="w-full sm:w-auto">
+            <RegisterPatientDialog onRegistered={() => void load()} />
+          </div>
         </div>
       </div>
 

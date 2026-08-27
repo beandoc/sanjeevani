@@ -68,9 +68,9 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Barthel ADL + Lawton IADL</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg font-bold">Barthel ADL + Lawton IADL</DialogTitle>
           <div className="flex items-center justify-between gap-2 flex-wrap pt-1.5">
             <DialogDescription className="text-xs">
               {answeredItems} of {totalItems} items answered. Unanswered items default to 0 (fully dependent) when saved.

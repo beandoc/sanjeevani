@@ -201,13 +201,13 @@ export function DoctorCareBlueprintDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-6">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-4 sm:p-6">
         <DialogHeader className="pb-3 border-b border-border/60">
           <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">
             <FileSignature className="w-4 h-4" />
             <span>Clinical Decision Support & Home Care Prescription</span>
           </div>
-          <DialogTitle className="text-xl font-bold font-headline">
+          <DialogTitle className="text-lg sm:text-xl font-bold font-headline">
             Issue Home Care Blueprint for {patientName}
           </DialogTitle>
           <DialogDescription className="text-xs">

@@ -562,9 +562,9 @@ export function CaregiverSupportMatrix({
                 <Edit3 className="w-3.5 h-3.5" /> Configure Matrix
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
               <DialogHeader>
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
                   <Users2 className="w-4 h-4 text-primary" />
                   Configure Monthly Care Support Matrix & Assistive Infrastructure
                 </DialogTitle>
@@ -1469,7 +1469,7 @@ export function CaregiverSupportMatrix({
 
       {/* WHATSAPP CARE DIGEST MODAL */}
       <Dialog open={isWhatsAppOpen} onOpenChange={setIsWhatsAppOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
               <Share2 className="w-5 h-5" />
@@ -1482,11 +1482,11 @@ export function CaregiverSupportMatrix({
           <div className="p-3 bg-muted rounded-xl font-mono text-xs whitespace-pre-wrap max-h-[50vh] overflow-y-auto border border-border/60 select-all">
             {whatsAppText}
           </div>
-          <DialogFooter className="flex items-center justify-between gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={handleCopyWhatsAppText} className="text-xs gap-1.5 font-bold">
+          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={handleCopyWhatsAppText} className="text-xs gap-1.5 font-bold w-full sm:w-auto">
               <Copy className="w-3.5 h-3.5" /> Copy Text
             </Button>
-            <Button size="sm" onClick={handleOpenWhatsAppUrl} className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+            <Button size="sm" onClick={handleOpenWhatsAppUrl} className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 w-full sm:w-auto">
               <ExternalLink className="w-3.5 h-3.5" /> Open in WhatsApp
             </Button>
           </DialogFooter>
@@ -1495,7 +1495,7 @@ export function CaregiverSupportMatrix({
 
       {/* 1-PAGE BEDSIDE WALL SHEET PRINT PREVIEW MODAL */}
       <Dialog open={isPrintSheetOpen} onOpenChange={setIsPrintSheetOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Printer className="w-5 h-5 text-primary" />

@@ -81,9 +81,10 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
   }
 
   return (
-    <div className="space-y-2">
-      <ResponsiveContainer width="100%" height={340}>
-        <ComposedChart data={sortedRows} margin={{ top: 15, right: 20, left: 0, bottom: 0 }}>
+    <div className="space-y-2 w-full">
+      <div className="w-full h-72 sm:h-80 md:h-[340px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={sortedRows} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
           <XAxis dataKey="dateLabel" tick={{ fontSize: 11 }} />
           <YAxis
@@ -146,6 +147,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
           />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
       <div className="flex flex-wrap items-center justify-between text-[11px] text-muted-foreground px-1 gap-2">
         {tierChanges.length > 0 && (
           <p>

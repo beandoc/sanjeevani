@@ -131,22 +131,24 @@ export function DoctorCohortDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs font-bold"
+              className="gap-1.5 text-xs font-bold flex-1 sm:flex-none"
               onClick={() => void load()}
               disabled={isRefreshing}
             >
               <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
             </Button>
-            <Link href="/clinic/roster">
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-bold border-blue-500/30 text-blue-700 dark:text-blue-300">
+            <Link href="/clinic/roster" className="flex-1 sm:flex-none">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-bold border-blue-500/30 text-blue-700 dark:text-blue-300 w-full sm:w-auto">
                 <Users className="w-4 h-4" /> Full Cohort Roster
               </Button>
             </Link>
-            <RegisterPatientDialog onRegistered={() => void load()} />
+            <div className="w-full sm:w-auto">
+              <RegisterPatientDialog onRegistered={() => void load()} />
+            </div>
           </div>
         </CardContent>
       </Card>

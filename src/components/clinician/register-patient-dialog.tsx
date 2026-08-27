@@ -244,7 +244,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         {issuedInvite ? (
           /* SUCCESS STATE: Display Invite Code & Sharing Options */
           <div className="space-y-5 py-1">
@@ -315,11 +315,11 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
               </div>
             </div>
 
-            <DialogFooter className="gap-2 pt-2 border-t border-border/60">
-              <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="text-xs font-semibold">
+            <DialogFooter className="gap-2 pt-2 border-t border-border/60 flex-col sm:flex-row">
+              <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="text-xs font-semibold w-full sm:w-auto">
                 Close
               </Button>
-              <Button size="sm" onClick={resetForm} className="text-xs font-bold">
+              <Button size="sm" onClick={resetForm} className="text-xs font-bold w-full sm:w-auto">
                 Register Another Patient
               </Button>
             </DialogFooter>
@@ -349,8 +349,8 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   <span>1. Patient Profile</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Patient First Name <span className="text-destructive">*</span></Label>
                       <Input
