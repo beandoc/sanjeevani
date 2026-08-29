@@ -292,7 +292,7 @@ export function DailyBedsideRoutine() {
           <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                <Bed className="w-3.5 h-3.5" />
+                <Bed className="w-3.5 h-3.5" aria-hidden="true" />
                 Q2H Turning Clock
               </span>
               <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300">
@@ -300,7 +300,13 @@ export function DailyBedsideRoutine() {
               </Badge>
             </div>
 
-            <div className="text-center py-1">
+            <div
+              className="text-center py-1"
+              role="timer"
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label={`Time remaining until next lateral repositioning: ${formatTimer(q2hTimerSeconds)}`}
+            >
               <div className="text-3xl font-black font-mono text-amber-950 dark:text-amber-100 tracking-tight">
                 {formatTimer(q2hTimerSeconds)}
               </div>
@@ -313,9 +319,10 @@ export function DailyBedsideRoutine() {
               size="sm"
               variant="outline"
               onClick={resetQ2hTimer}
+              aria-label="Log patient turning event and reset countdown timer to 2 hours"
               className="w-full text-xs font-bold border-amber-500/40 hover:bg-amber-500/10 text-amber-900 dark:text-amber-200"
             >
-              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Log Turn & Reset (2h)
+              <RotateCcw className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Log Turn & Reset (2h)
             </Button>
           </CardContent>
         </Card>

@@ -66,6 +66,7 @@ type VitalLogFormValues = z.infer<typeof vitalLogSchema>;
 
 export default function VitalLogsPage() {
   const [logs, setLogs] = useState<VitalRecord[]>([]);
+  const [lastDeletedLog, setLastDeletedLog] = useState<VitalRecord | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -86,6 +87,50 @@ export default function VitalLogsPage() {
       notes: '',
     },
   });
+
+  // Draft Auto-Save: Restore draft on initial render
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedDraft = localStorage.getItem('sanjeevani_vitals_draft');
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        form.reset({
+          date: parsed.date ? new Date(parsed.date) : new Date(),
+          systolic: parsed.systolic || '',
+          diastolic: parsed.diastolic || '',
+          pulse: parsed.pulse || '',
+          spo2: parsed.spo2 || '',
+          bloodSugar: parsed.bloodSugar || '',
+          weight: parsed.weight || '',
+          sleep: parsed.sleep || 'average',
+          notes: parsed.notes || '',
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [form]);
+
+  // Draft Auto-Save: Persist changes to localStorage
+  const formValues = form.watch();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const hasContent =
+        formValues.systolic ||
+        formValues.diastolic ||
+        formValues.pulse ||
+        formValues.spo2 ||
+        formValues.bloodSugar ||
+        formValues.notes;
+      if (hasContent) {
+        localStorage.setItem('sanjeevani_vitals_draft', JSON.stringify(formValues));
+      }
+    } catch {
+      // ignore
+    }
+  }, [formValues]);
 
   async function onSubmit(data: VitalLogFormValues) {
     const consent = HealthRepository.getConsent();
@@ -111,6 +156,11 @@ export default function VitalLogsPage() {
     });
     const { queued } = await syncVitals(saved);
 
+    // Clear draft upon successful save
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sanjeevani_vitals_draft');
+    }
+
     setLogs(HealthRepository.getVitals());
     form.reset({
       date: new Date(),
@@ -133,11 +183,33 @@ export default function VitalLogsPage() {
   }
 
   function deleteLog(id: string) {
+    const recordToDelete = logs.find((l) => l.id === id);
+    if (!recordToDelete) return;
+
     HealthRepository.deleteVital(id);
+    setLastDeletedLog(recordToDelete);
     setLogs(HealthRepository.getVitals());
+
     toast({
-      title: '🗑️ Log Deleted',
-      description: 'The log entry has been removed.',
+      title: '🗑️ Log Entry Deleted',
+      description: `Removed log for ${format(new Date(recordToDelete.date), 'dd MMM yyyy')}.`,
+      action: (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
+          onClick={() => {
+            HealthRepository.addVital(recordToDelete);
+            setLogs(HealthRepository.getVitals());
+            toast({
+              title: '↩️ Action Undone',
+              description: 'The deleted vital record has been restored.',
+            });
+          }}
+        >
+          Undo
+        </Button>
+      ),
     });
   }
 
@@ -210,7 +282,19 @@ export default function VitalLogsPage() {
 
                 {/* Blood Pressure: Separate Systolic & Diastolic */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold block text-foreground">Blood Pressure (mmHg)</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold block text-foreground">Blood Pressure (mmHg)</span>
+                    {formValues.systolic && Number(formValues.systolic) >= 140 && (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                        Stage 1/2 High
+                      </span>
+                    )}
+                    {formValues.systolic && Number(formValues.systolic) < 90 && Number(formValues.systolic) > 0 && (
+                      <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">
+                        Hypotension
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
@@ -263,10 +347,14 @@ export default function VitalLogsPage() {
                     name="spo2"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold flex items-center justify-between">
-                          <span>SpO2 (%)</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">Optional</span>
-                        </FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="text-xs font-semibold">SpO2 (%)</FormLabel>
+                          {formValues.spo2 && Number(formValues.spo2) < 95 && (
+                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                              Low O2
+                            </span>
+                          )}
+                        </div>
                         <FormControl>
                           <Input placeholder="e.g. 98" type="number" min="50" max="100" className="h-9 text-xs font-mono" {...field} />
                         </FormControl>
@@ -283,7 +371,14 @@ export default function VitalLogsPage() {
                     name="bloodSugar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-semibold">Sugar (mg/dL)</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="text-xs font-semibold">Sugar (mg/dL)</FormLabel>
+                          {formValues.bloodSugar && Number(formValues.bloodSugar) > 180 && (
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                              Elevated
+                            </span>
+                          )}
+                        </div>
                         <FormControl>
                           <Input placeholder="e.g. 110" type="number" className="h-9 text-xs font-mono" {...field} />
                         </FormControl>
@@ -396,8 +491,14 @@ export default function VitalLogsPage() {
                         <TableCell className="capitalize">{log.sleep}</TableCell>
                         <TableCell className="max-w-[180px] truncate text-muted-foreground">{log.notes || '—'}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteLog(log.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete vital log from ${format(new Date(log.date), 'dd MMM yyyy')}`}
+                            className="h-8 w-8 min-h-[36px] min-w-[36px] text-destructive hover:bg-destructive/10 inline-flex items-center justify-center rounded-lg"
+                            onClick={() => deleteLog(log.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </Button>
                         </TableCell>
                       </TableRow>

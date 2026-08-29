@@ -46,24 +46,30 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">
             <Link
               href="/stress-calculator"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+              title="Zarit Burden Interview (ZBI-22) — Assess caregiver fatigue and burnout risk"
+              aria-label="Caregiver Stress Check (Zarit ZBI-22 psychometric gauge)"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <HeartPulse className="w-3.5 h-3.5 text-rose-400" />
-              <span>Zarit Burden Gauge</span>
+              <HeartPulse className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
+              <span>Stress Check <span className="text-[10px] opacity-75">(ZBI-22)</span></span>
             </Link>
             <Link
               href="/medications"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+              title="Geriatric Medication Regimen & Beers Criteria Safety Warnings"
+              aria-label="Medication Safety Regimen (Beers criteria high-risk drug checks)"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Beers Safety Regimen</span>
+              <Shield className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+              <span>Med Safety <span className="text-[10px] opacity-75">(Beers Regimen)</span></span>
             </Link>
             <Link
               href="/simulations"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors"
+              title="21 Interactive Clinical & Home-care Emergency Simulations"
+              aria-label="21 Indian Geriatric Home Care Simulations"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <Stethoscope className="w-3.5 h-3.5 text-blue-400" />
-              <span>21 Indian Simulations</span>
+              <Stethoscope className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
+              <span>21 Triage Sims</span>
             </Link>
           </div>
         </div>
