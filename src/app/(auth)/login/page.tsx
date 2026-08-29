@@ -379,6 +379,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('caregiver')}
+                aria-pressed={selectedRole === 'caregiver'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'caregiver'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
@@ -390,6 +391,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('nurse')}
+                aria-pressed={selectedRole === 'nurse'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'nurse'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
@@ -401,6 +403,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRole('professional')}
+                aria-pressed={selectedRole === 'professional' || selectedRole === 'doctor'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'professional' || selectedRole === 'doctor'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground'
@@ -417,6 +420,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('email')}
+              aria-pressed={authMethod === 'email'}
               className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'email'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
@@ -432,6 +436,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('mobile')}
+              aria-pressed={authMethod === 'mobile'}
               className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'mobile'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
@@ -447,6 +452,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setAuthMethod('abha')}
+              aria-pressed={authMethod === 'abha'}
               className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'abha'
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
@@ -546,6 +552,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                       className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

@@ -93,7 +93,7 @@ export function Header() {
           >
             <Search className="h-4 w-4 text-primary shrink-0" />
             <span className="truncate flex-1">
-              {isDoctor ? 'Search patients, ICD-10, drugs...' : isNurse ? 'Search bedside tasks, eMAR, vitals...' : 'Search tools, drugs, triage...'}
+              {isDoctor ? 'Search patients, consults, medicines...' : isNurse ? 'Search tasks, medicines, vitals...' : 'Search medicines, vitals, care tasks...'}
             </span>
             <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium">
               ⌘K
@@ -125,7 +125,7 @@ export function Header() {
               >
                 <Link href="/clinic/roster">
                   <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Patient Roster</span>
+                  <span>Patients</span>
                 </Link>
               </Button>
 
@@ -137,7 +137,7 @@ export function Header() {
               >
                 <Link href="/sehat-opd">
                   <Computer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>SeHAT OPD</span>
+                  <span>Consults</span>
                 </Link>
               </Button>
             </>
@@ -154,7 +154,7 @@ export function Header() {
               >
                 <Link href="/domiciliary">
                   <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>Turn Clock</span>
+                  <span>Today</span>
                 </Link>
               </Button>
 
@@ -166,7 +166,7 @@ export function Header() {
               >
                 <Link href="/vital-logs">
                   <Activity className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                  <span>Vitals Log</span>
+                  <span>Vitals</span>
                 </Link>
               </Button>
 
@@ -177,7 +177,7 @@ export function Header() {
                 className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                <span>Emergency</span>
+                <span>SOS</span>
               </Button>
             </>
           )}
@@ -192,7 +192,7 @@ export function Header() {
                 className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs gap-1.5 shrink-0"
               >
                 <HeartPulse className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>Bedside Triage</span>
+                <span>Bedside Help</span>
               </Button>
 
               <Button
@@ -202,7 +202,7 @@ export function Header() {
                 className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                <span>Crisis & Helplines</span>
+                <span>SOS & Helplines</span>
               </Button>
             </>
           )}
@@ -228,48 +228,48 @@ export function Header() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 mt-2 rounded-2xl p-2 shadow-2xl border-border/60">
               <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Switch Role / Dashboard
+                Switch View
               </DropdownMenuLabel>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Kutumbh Hub (Family)</span>
+                  <span>Family Today</span>
                   <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Kutumbh</Badge>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/clinic/roster" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Doctor / Clinician Roster</span>
+                  <span>Doctor Patients</span>
                   <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-500/30">Doctor</Badge>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/domiciliary" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Nurse / Bedside Companion</span>
+                  <span>Nurse Today</span>
                   <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Nurse</Badge>
                 </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="bg-border/40 my-1" />
               <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Account & Settings
+                Account
               </DropdownMenuLabel>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/settings" className="flex items-center gap-2 text-xs font-medium">
                   <User className="h-4 w-4 text-primary" />
-                  <span>Profile & Care Scenario</span>
+                  <span>Profile & Privacy</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/privacy" className="flex items-center gap-2 text-xs font-medium">
                   <LifeBuoy className="h-4 w-4 text-primary" />
-                  <span>Privacy & DPDP Rights</span>
+                  <span>Data Rights</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/40 my-1" />
               <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                 <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-primary">
                   <User className="h-4 w-4 text-primary" />
-                  <span>Main Login / Switch Persona</span>
+                  <span>Sign In / Switch</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -277,7 +277,7 @@ export function Header() {
                 className="rounded-xl px-3 py-2 cursor-pointer focus:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2"
               >
                 <PhoneCall className="h-4 w-4" />
-                <span>Emergency Escalation</span>
+                <span>Emergency Help</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

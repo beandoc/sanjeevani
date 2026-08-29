@@ -102,89 +102,89 @@ export function AppSidebar() {
 
   const doctorSections: NavSection[] = [
     {
-      title: 'Doctor & Clinician Portal',
+      title: 'Doctor Portal',
       items: [
         {
           href: '/clinic/roster',
-          label: 'Patient Roster & Risk Banding',
+          label: 'Patients',
           icon: Stethoscope,
-          badge: 'Roster',
+          badge: null,
           isHighlighted: true
         },
         {
           href: '/sehat-opd',
-          label: 'SeHAT OPD Tele-Consultation',
+          label: 'Consults',
           icon: Computer,
-          badge: 'Tele-OPD'
+          badge: null
         },
         {
           href: '/reports',
-          label: 'Longitudinal Trajectory Reports',
+          label: 'Reports',
           icon: FileText,
-          badge: 'Analytics'
+          badge: null
         }
       ]
     },
     {
-      title: 'Pharmacology & Diagnostics',
+      title: 'Clinical Tools',
       items: [
         {
           href: '/medications',
-          label: 'Medications & Reminders',
+          label: 'Medicines',
           icon: ClipboardList,
-          badge: 'Meds'
+          badge: null
         },
         {
           href: '/stress-calculator',
-          label: 'Zarit Psychometrics Review',
+          label: 'Stress Review',
           icon: HeartPulse,
-          badge: 'ZBI-22'
+          badge: null
         },
         {
           href: '/vital-logs',
-          label: 'Patient Vitals Telemetry',
+          label: 'Vitals',
           icon: Activity,
-          badge: 'Vitals'
+          badge: null
         }
       ]
     },
     {
-      title: 'Clinical Workforce & Training',
+      title: 'Care Plans & Learning',
       items: [
         {
           href: '/modules',
-          label: 'Geriatric Clinical Modules',
+          label: 'Learning',
           icon: GraduationCap,
-          badge: 'Modules'
+          badge: null
         },
         {
           href: '/simulations',
-          label: 'Virtual Clinical Simulations',
+          label: 'Practice Cases',
           icon: Bot,
-          badge: '21 Sims'
+          badge: null
         },
         {
           href: '/resources',
-          label: 'Patient Education & Literature',
+          label: 'Resources',
           icon: BookMarked,
-          badge: 'Evidence'
+          badge: null
         },
         {
           href: '/onboarding',
-          label: 'Patient Intake Wizard',
+          label: 'Patient Setup',
           icon: Sparkles,
-          badge: 'Intake'
+          badge: null
         }
       ]
     },
     {
-      title: 'Switch Portal / Sign Out',
+      title: 'Account',
       items: [
         {
           href: '/login',
-          label: 'Main Sign In / Account Switcher',
+          label: 'Sign In / Switch',
           icon: Users,
-          badge: 'Login'
+          badge: null
         }
       ]
     }
@@ -192,83 +192,83 @@ export function AppSidebar() {
 
   const nurseSections: NavSection[] = [
     {
-      title: 'Nurse & Attendant Portal',
+      title: 'Nurse Portal',
       items: [
         {
           href: '/domiciliary',
-          label: 'Bedside Companion & Q2H Clock',
+          label: 'Today',
           icon: Bed,
-          badge: 'Bedside',
+          badge: null,
           isHighlighted: true
         },
         {
           href: '/vital-logs',
-          label: 'Vital Signs & Shift Telemetry',
+          label: 'Vitals',
           icon: Activity,
-          badge: 'Vitals'
+          badge: null
         },
         {
           href: '/medications',
-          label: 'eMAR Medication Schedule',
+          label: 'Medicines',
           icon: ClipboardList,
-          badge: 'eMAR'
+          badge: null
         }
       ]
     },
     {
-      title: 'Care Coordination & Pathway',
+      title: 'Care Coordination',
       items: [
         {
           href: '/appointments',
-          label: 'Telemedicine & Doctor Visits',
+          label: 'Appointments',
           icon: CalendarDays,
-          badge: 'Visits'
+          badge: null
         },
         {
           href: '/care-circle',
-          label: 'Care Circle Dyad Roster',
+          label: 'Care Team',
           icon: Users,
-          badge: 'Team'
+          badge: null
         },
         {
           href: '/onboarding',
-          label: 'Clinical Onboarding Intake',
+          label: 'Patient Setup',
           icon: Sparkles,
-          badge: 'Setup'
+          badge: null
         }
       ]
     },
     {
-      title: 'Skill Modules & Training',
+      title: 'Learning',
       items: [
         {
           href: '/modules',
-          label: 'Practical Nursing Modules',
+          label: 'Lessons',
           icon: GraduationCap,
-          badge: 'Nursing'
+          badge: null
         },
         {
           href: '/simulations',
-          label: 'Interactive Patient Simulations',
+          label: 'Practice Cases',
           icon: Bot,
-          badge: '21 Sims'
+          badge: null
         },
         {
           href: '/resources',
-          label: 'Patient Education & Leaflets',
+          label: 'Resources',
           icon: BookMarked,
-          badge: 'Guides'
+          badge: null
         }
       ]
     },
     {
-      title: 'Switch Portal / Sign Out',
+      title: 'Account',
       items: [
         {
           href: '/login',
-          label: 'Main Sign In / Account Switcher',
+          label: 'Sign In / Switch',
           icon: Users,
-          badge: 'Login'
+          badge: null
         }
       ]
     }
@@ -276,102 +276,102 @@ export function AppSidebar() {
 
   const caregiverSections: NavSection[] = [
     {
-      title: 'Kutumbh Family Portal (कुटुम्ब)',
+      title: 'Family Care',
       items: [
         {
           href: '/dashboard',
-          label: 'Kutumbh Hub & Dashboard',
+          label: 'Today',
           icon: LayoutDashboard,
-          badge: 'Kutumbh'
+          badge: null
         },
         {
           href: '/domiciliary',
-          label: 'Bedside Care & Turn Alarm',
+          label: 'Bedside Care',
           icon: Bed,
-          badge: 'Bedside'
+          badge: null
         },
         {
           href: '/medications',
-          label: 'Medications & Reminders',
+          label: 'Medicines',
           icon: ClipboardList,
-          badge: 'Schedule'
+          badge: null
         },
         {
           href: '/vital-logs',
-          label: 'Vital Signs & Daily Log',
+          label: 'Vitals',
           icon: Activity,
-          badge: 'Vitals'
+          badge: null
         },
         {
           href: '/appointments',
-          label: 'Doctor Appointments',
+          label: 'Appointments',
           icon: CalendarDays,
           badge: null
         },
         {
           href: '/care-circle',
-          label: 'Kutumbh Care Circle & Roster',
+          label: 'Care Team',
           icon: Users,
-          badge: 'Kutumbh'
+          badge: null
         }
       ]
     },
     {
-      title: 'Clinical Tools & Assessment',
+      title: 'Health Records',
       items: [
         {
           href: '/onboarding',
-          label: 'Clinical Onboarding Wizard',
+          label: 'Patient Setup',
           icon: Sparkles,
-          badge: 'Setup',
+          badge: null,
           isHighlighted: true
         },
         {
           href: '/reports',
-          label: 'Clinical Care Gap Reports',
+          label: 'Doctor Visit Notes',
           icon: FileText,
           badge: null
         }
       ]
     },
     {
-      title: 'Education & VR Simulations',
+      title: 'Learn',
       items: [
         {
           href: '/resources',
-          label: 'Patient Education & Handouts',
+          label: 'Resources',
           icon: BookMarked,
-          badge: 'Guides',
+          badge: null,
           isHighlighted: true
         },
         {
           href: '/modules',
-          label: 'Learning Modules',
+          label: 'Lessons',
           icon: GraduationCap,
           badge: null
         },
         {
           href: '/simulations',
-          label: '21 Virtual Simulations',
+          label: 'Practice Cases',
           icon: Bot,
-          badge: 'Sims'
+          badge: null
         },
         {
           href: '/assessment-guide',
-          label: 'Clinical Assessment Guide',
+          label: 'Assessment Guide',
           icon: Stethoscope,
           badge: null
         }
       ]
     },
     {
-      title: 'Account & Login',
+      title: 'Account',
       items: [
         {
           href: '/login',
-          label: 'Main Sign In / Switch Role',
+          label: 'Sign In / Switch',
           icon: Users,
-          badge: 'Login'
+          badge: null
         }
       ]
     }
@@ -416,11 +416,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <div className="px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 group-data-[collapsible=icon]:hidden space-y-2.5 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-mono font-extrabold text-slate-300 tracking-wider">Active Portal</span>
+                <span className="text-xs uppercase font-mono font-extrabold text-slate-300 tracking-wider">Current View</span>
                 <Badge
                   variant="outline"
                   className={cn(
-                    'text-[9px] font-extrabold uppercase tracking-wider',
+                    'text-[10px] font-extrabold uppercase tracking-wider',
                     isDoctor ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/15' :
                       isNurse ? 'border-amber-500/50 text-amber-400 bg-amber-500/15' :
                         'border-sky-500/50 text-sky-400 bg-sky-500/15'
@@ -435,8 +435,9 @@ export function AppSidebar() {
                     <button
                       type="button"
                       onClick={() => setRole('caregiver')}
+                      aria-pressed={role === 'caregiver'}
                       className={cn(
-                        'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                        'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
                         role === 'caregiver'
                           ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
                           : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
@@ -447,8 +448,9 @@ export function AppSidebar() {
                     <button
                       type="button"
                       onClick={() => setRole('nurse')}
+                      aria-pressed={role === 'nurse'}
                       className={cn(
-                        'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                        'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
                         role === 'nurse'
                           ? 'bg-amber-600 text-white border-amber-500 shadow-xs'
                           : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
@@ -462,8 +464,9 @@ export function AppSidebar() {
                   <button
                     type="button"
                     onClick={() => setRole('doctor')}
+                    aria-pressed={isDoctor}
                     className={cn(
-                      'text-[10px] font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
+                      'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
                       isDoctor
                         ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
                         : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
@@ -488,9 +491,9 @@ export function AppSidebar() {
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Search className="h-4 w-4 shrink-0 text-sky-400" />
-                    <span className="truncate text-slate-200 group-data-[collapsible=icon]:hidden">Quick Search</span>
+                    <span className="truncate text-slate-200 group-data-[collapsible=icon]:hidden">Search</span>
                   </div>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 group-data-[collapsible=icon]:hidden">
+                  <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 group-data-[collapsible=icon]:hidden">
                     ⌘K
                   </span>
                 </SidebarMenuButton>
@@ -502,7 +505,7 @@ export function AppSidebar() {
         {navSections.map((section, idx) => (
           <SidebarGroup key={idx} className="p-0">
             {section.title && (
-              <SidebarGroupLabel className="px-3 text-[11px] uppercase font-extrabold tracking-wider text-slate-300/90 mb-1 group-data-[collapsible=icon]:hidden">
+              <SidebarGroupLabel className="px-3 text-xs uppercase font-extrabold tracking-wider text-slate-300/90 mb-1 group-data-[collapsible=icon]:hidden">
                 {section.title}
               </SidebarGroupLabel>
             )}
@@ -543,7 +546,7 @@ export function AppSidebar() {
                           {link.badge && (
                             <span
                               className={cn(
-                                'text-[9px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border',
+                                'text-xs font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border',
                                 active
                                   ? 'bg-white/20 text-white border-white/30'
                                   : link.isHighlighted

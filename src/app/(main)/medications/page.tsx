@@ -42,6 +42,7 @@ import { HealthRepository, MedicationItem } from '@/lib/db/health-repository';
 import { syncMedications } from '@/lib/firebase/clinical-sync';
 import { MedicationChecker, BeersWarning } from '@/lib/clinical/medication-checker';
 import { useToast } from '@/hooks/use-toast';
+import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
 const TIME_SLOTS = [
   { key: 'morning', label: 'Morning', icon: Sun, timeRange: '06:00 - 11:59' },
@@ -93,6 +94,20 @@ export default function MedicationsPage() {
         variant: 'destructive',
         title: 'Missing Details',
         description: 'Please enter medication name and dosage.',
+      });
+      return;
+    }
+
+    const requiredSlotCount =
+      frequency === 'Once Daily' ? 1 :
+      frequency === 'Twice Daily' ? 2 :
+      frequency === 'Thrice Daily' ? 3 :
+      null;
+    if (requiredSlotCount !== null && selectedSlots.length !== requiredSlotCount) {
+      toast({
+        variant: 'destructive',
+        title: 'Check Dose Times',
+        description: `${frequency} should have ${requiredSlotCount} selected time ${requiredSlotCount === 1 ? 'slot' : 'slots'}.`,
       });
       return;
     }
@@ -160,13 +175,34 @@ export default function MedicationsPage() {
   };
 
   const handleDeleteMed = async (id: string) => {
+    const removed = medications.find((m) => m.id === id);
+    if (!removed) return;
     const updated = medications.filter((m) => m.id !== id);
     HealthRepository.saveMedications(updated);
     await syncMedications(updated);
     setMedications(updated);
     toast({
       title: 'Medication Removed',
-      description: 'Medicine removed from schedule.',
+      description: `${removed.name} was removed from the schedule.`,
+      action: (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
+          onClick={async () => {
+            const restored = [...HealthRepository.getMedications(), removed];
+            HealthRepository.saveMedications(restored);
+            await syncMedications(restored);
+            setMedications(restored);
+            toast({
+              title: 'Medication Restored',
+              description: `${removed.name} is back on the schedule.`,
+            });
+          }}
+        >
+          Undo
+        </Button>
+      ),
     });
   };
 
@@ -189,6 +225,7 @@ export default function MedicationsPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto p-4 sm:p-6">
+      <SyncStatusBanner />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -284,6 +321,8 @@ export default function MedicationsPage() {
                           key={slot.key}
                           type="button"
                           onClick={() => toggleSlotSelection(slot.key)}
+                          aria-pressed={isSel}
+                          aria-label={`${slot.label} dose time ${isSel ? 'selected' : 'not selected'}`}
                           className={`p-2 rounded-xl text-center border transition-all text-xs font-medium ${
                             isSel
                               ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
@@ -460,6 +499,7 @@ export default function MedicationsPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteMed(med.id)}
+                      aria-label={`Remove ${med.name} from medicines`}
                       className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -479,6 +519,8 @@ export default function MedicationsPage() {
                             key={slot}
                             type="button"
                             onClick={() => handleToggleSlot(med.id, slot)}
+                            aria-pressed={Boolean(isSlotTaken)}
+                            aria-label={`${med.name} ${slot} dose ${isSlotTaken ? 'taken' : 'not taken'}`}
                             className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
                               isSlotTaken
                                 ? 'border-emerald-500/80 bg-emerald-500/15 text-emerald-900 dark:text-emerald-300'

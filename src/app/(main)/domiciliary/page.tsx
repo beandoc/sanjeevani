@@ -72,15 +72,15 @@ export default function DomiciliaryHubPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="routine" className="space-y-4 outline-hidden">
+        <TabsContent value="routine" className="space-y-4 outline-none">
           <DailyBedsideRoutine />
         </TabsContent>
 
-        <TabsContent value="emergency" className="space-y-4 outline-hidden">
+        <TabsContent value="emergency" className="space-y-4 outline-none">
           <BedsideEmergencyCards />
         </TabsContent>
 
-        <TabsContent value="pathway" className="space-y-4 outline-hidden">
+        <TabsContent value="pathway" className="space-y-4 outline-none">
           <DischargeOnboardingPathway />
         </TabsContent>
       </Tabs>

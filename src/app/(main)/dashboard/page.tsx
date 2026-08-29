@@ -40,36 +40,36 @@ export default function DashboardPage() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
-            Evidence-based psychometric tracking, clinical triage simulations, and caregiver safety protocols calibrated for Indian geriatric care.
+            Your daily care plan, medicine reminders, vitals, and doctor-ready notes in one place.
           </p>
 
           <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">
             <Link
               href="/stress-calculator"
               title="Zarit Burden Interview (ZBI-22) — Assess caregiver fatigue and burnout risk"
-              aria-label="Caregiver Stress Check (Zarit ZBI-22 psychometric gauge)"
+              aria-label="Check caregiver stress"
               className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
               <HeartPulse className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
-              <span>Stress Check <span className="text-[10px] opacity-75">(ZBI-22)</span></span>
+              <span>Stress Check</span>
             </Link>
             <Link
               href="/medications"
               title="Geriatric Medication Regimen & Beers Criteria Safety Warnings"
-              aria-label="Medication Safety Regimen (Beers criteria high-risk drug checks)"
+              aria-label="Open medicine reminders"
               className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Shield className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-              <span>Med Safety <span className="text-[10px] opacity-75">(Beers Regimen)</span></span>
+              <span>Medicines</span>
             </Link>
             <Link
               href="/simulations"
               title="21 Interactive Clinical & Home-care Emergency Simulations"
-              aria-label="21 Indian Geriatric Home Care Simulations"
+              aria-label="Open practice cases"
               className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Stethoscope className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
-              <span>21 Triage Sims</span>
+              <span>Practice Cases</span>
             </Link>
           </div>
         </div>

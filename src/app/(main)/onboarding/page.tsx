@@ -59,12 +59,23 @@ import { signInOrCreateDemoAccount } from '@/lib/firebase/auth';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
+const ONBOARDING_DRAFT_KEY = 'kutumbh_onboarding_draft';
+
 export default function OnboardingIntakePage() {
   const router = useRouter();
   const { role, setRole, completeOnboarding } = useProfile();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<number>(1);
+  const [step, setStep] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    try {
+      const draft = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (draft) return JSON.parse(draft).step || 1;
+    } catch {
+      // Ignore malformed drafts.
+    }
+    return 1;
+  });
   const [selectedRole, setSelectedRole] = useState<Role>(() => {
     if (role === 'professional' || role === 'doctor') return 'doctor';
     if (role === 'nurse') return 'nurse';
@@ -75,20 +86,38 @@ export default function OnboardingIntakePage() {
   useEffect(() => {
     if (role === 'professional' || role === 'doctor') {
       setSelectedRole('doctor');
+      if (step === 1 && typeof window !== 'undefined' && !localStorage.getItem(ONBOARDING_DRAFT_KEY)) {
+        setStep(2);
+      }
     } else if (role === 'nurse') {
       setSelectedRole('nurse');
+      if (step === 1 && typeof window !== 'undefined' && !localStorage.getItem(ONBOARDING_DRAFT_KEY)) {
+        setStep(2);
+      }
     } else {
       setSelectedRole('caregiver');
     }
-  }, [role]);
+  }, [role, step]);
 
   // Working state for Patient & Caregiver
   const [patient, setPatient] = useState<PatientDependenceProfile>(() => {
     if (typeof window === 'undefined') return DEFAULT_PATIENT_PROFILE;
+    try {
+      const draft = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (draft) return JSON.parse(draft).patient || HealthRepository.getPatientProfile() || DEFAULT_PATIENT_PROFILE;
+    } catch {
+      // Ignore malformed drafts.
+    }
     return HealthRepository.getPatientProfile() || DEFAULT_PATIENT_PROFILE;
   });
   const [caregiver, setCaregiver] = useState<CaregiverAttributes>(() => {
     if (typeof window === 'undefined') return DEFAULT_CAREGIVER_ATTRIBUTES;
+    try {
+      const draft = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (draft) return JSON.parse(draft).caregiver || HealthRepository.getCaregiverAttributes() || DEFAULT_CAREGIVER_ATTRIBUTES;
+    } catch {
+      // Ignore malformed drafts.
+    }
     return HealthRepository.getCaregiverAttributes() || DEFAULT_CAREGIVER_ATTRIBUTES;
   });
 
@@ -96,6 +125,18 @@ export default function OnboardingIntakePage() {
   const [patientLastName, setPatientLastName] = useState('');
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
   const [caregiverLastName, setCaregiverLastName] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(
+        ONBOARDING_DRAFT_KEY,
+        JSON.stringify({ step, selectedRole, patient, caregiver, updatedAt: new Date().toISOString() })
+      );
+    } catch {
+      // Draft persistence is a convenience; don't block the form.
+    }
+  }, [step, selectedRole, patient, caregiver]);
 
   // Sync patient name to first/last inputs
   useEffect(() => {
@@ -308,10 +349,13 @@ export default function OnboardingIntakePage() {
     }
     setRole(selectedRole);
     completeOnboarding();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+    }
 
     toast({
-      title: 'Baseline Intake & Dyad Mapping Complete',
-      description: `Your custom ${selectedRole === 'doctor' ? 'Doctor / Geriatrician' : selectedRole === 'nurse' ? 'Trained Nurse / Attendant' : 'Family Caregiver'} Dashboard is ready!`
+      title: 'Patient Setup Complete',
+      description: `Your ${selectedRole === 'doctor' ? 'doctor' : selectedRole === 'nurse' ? 'nurse' : 'family care'} view is ready.`
     });
 
     if (selectedRole === 'doctor') {
@@ -352,8 +396,12 @@ export default function OnboardingIntakePage() {
           {/* Stepper Dots */}
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4].map((s) => (
-              <div
+              <button
                 key={s}
+                type="button"
+                onClick={() => setStep(s)}
+                aria-label={`Go to setup step ${s}`}
+                aria-current={step === s ? 'step' : undefined}
                 className={cn(
                   'w-7 h-7 rounded-full text-xs font-bold font-mono flex items-center justify-center transition-all',
                   step === s
@@ -364,7 +412,7 @@ export default function OnboardingIntakePage() {
                 )}
               >
                 {step > s ? '✓' : s}
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -449,6 +497,7 @@ export default function OnboardingIntakePage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRole('caregiver')}
+                    aria-pressed={selectedRole === 'caregiver'}
                     className={cn(
                       'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
                       selectedRole === 'caregiver'
@@ -477,6 +526,7 @@ export default function OnboardingIntakePage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRole('nurse')}
+                    aria-pressed={selectedRole === 'nurse'}
                     className={cn(
                       'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
                       selectedRole === 'nurse'
@@ -505,6 +555,7 @@ export default function OnboardingIntakePage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRole('doctor')}
+                    aria-pressed={selectedRole === 'doctor'}
                     className={cn(
                       'p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between space-y-3',
                       selectedRole === 'doctor'
@@ -567,7 +618,8 @@ export default function OnboardingIntakePage() {
                         value={inviteCodeInput}
                         onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
                         placeholder="e.g. 7XK2QNPR"
-                        className="h-9 text-xs font-mono tracking-widest"
+                        className="h-9 text-sm font-mono tracking-widest"
+                        aria-label="Doctor invite code"
                         maxLength={8}
                       />
                       <Button
@@ -754,10 +806,12 @@ export default function OnboardingIntakePage() {
                     const isIndep = patient.katzAdl[item.key as keyof typeof patient.katzAdl];
                     return (
                       <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => toggleKatzItem(item.key as any)}
-                        className={cn(
+	                        key={item.key}
+	                        type="button"
+	                        onClick={() => toggleKatzItem(item.key as any)}
+	                        aria-pressed={isIndep}
+	                        aria-label={`${item.label}: ${isIndep ? 'independent' : 'needs help'}`}
+	                        className={cn(
                           'p-3 rounded-xl border text-left flex flex-col justify-between transition-all',
                           isIndep
                             ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-900 dark:text-emerald-300 font-bold'
@@ -766,11 +820,11 @@ export default function OnboardingIntakePage() {
                       >
                         <div className="flex items-center justify-between w-full mb-1">
                           <span className="text-xs font-bold">{item.label}</span>
-                          <Badge variant={isIndep ? 'default' : 'destructive'} className="text-[9px] font-mono">
-                            {isIndep ? 'Independent' : 'Dependent'}
-                          </Badge>
+	                          <Badge variant={isIndep ? 'default' : 'destructive'} className="text-xs font-mono">
+	                            {isIndep ? 'Independent' : 'Needs help'}
+	                          </Badge>
                         </div>
-                        <span className="text-[11px] text-muted-foreground">{item.desc}</span>
+	                        <span className="text-xs text-muted-foreground">{item.desc}</span>
                       </button>
                     );
                   })}

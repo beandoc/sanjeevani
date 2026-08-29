@@ -55,7 +55,13 @@ import { auth } from '@/lib/firebase/client';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
 import { getPersonalizedPath, PersonalizedPathResult } from '@/lib/learning-paths';
-import { HealthRepository, MedicationItem, CareGapEvaluationResult } from '@/lib/db/health-repository';
+import {
+  HealthRepository,
+  MedicationItem,
+  CareGapEvaluationResult,
+  VitalRecord,
+  AppointmentRecord
+} from '@/lib/db/health-repository';
 import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
 import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
 import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
@@ -99,6 +105,8 @@ export default function DashboardClient() {
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathResult | null>(null);
   const [latestZarit, setLatestZarit] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
+  const [vitals, setVitals] = useState<VitalRecord[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [careGap, setCareGap] = useState<CareGapEvaluationResult | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentUserUid, setCurrentUserUid] = useState<string>('');
@@ -134,6 +142,8 @@ export default function DashboardClient() {
 
     const meds = HealthRepository.getMedications();
     setMedications(meds);
+    setVitals(HealthRepository.getVitals());
+    setAppointments(HealthRepository.getAppointments());
 
     const gap = HealthRepository.getCareGapEvaluation();
     setCareGap(gap);
@@ -153,6 +163,55 @@ export default function DashboardClient() {
     (sum, m) => sum + (m.takenSlots?.length || (m.takenToday ? m.timeOfDay.length : 0)),
     0
   );
+  const doseAdherencePercentage =
+    totalScheduledDoses > 0 ? Math.round((completedDoses / totalScheduledDoses) * 100) : 0;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const latestVital = [...vitals].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const lastVitalDate = latestVital ? new Date(latestVital.date) : null;
+  const loggedVitalsToday = Boolean(lastVitalDate && lastVitalDate >= todayStart);
+  const nextAppointment = appointments
+    .filter((app) => new Date(app.date) >= todayStart)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+  const todayActionItems = [
+    {
+      href: '/medications',
+      icon: Pill,
+      title: totalScheduledDoses > 0 && completedDoses < totalScheduledDoses ? 'Record today\'s medicines' : 'Review medicines',
+      detail:
+        totalScheduledDoses > 0
+          ? `${completedDoses} of ${totalScheduledDoses} doses recorded`
+          : 'Add the medicines you track every day',
+      status: totalScheduledDoses > 0 && completedDoses === totalScheduledDoses ? 'Done' : 'Due',
+      tone: totalScheduledDoses > 0 && completedDoses === totalScheduledDoses ? 'text-emerald-700 bg-emerald-500/10 border-emerald-500/30' : 'text-amber-700 bg-amber-500/10 border-amber-500/30'
+    },
+    {
+      href: '/vital-logs',
+      icon: HeartPulse,
+      title: loggedVitalsToday ? 'Vitals logged today' : 'Log today\'s vitals',
+      detail: loggedVitalsToday ? 'Blood pressure, pulse, sugar, or notes are up to date' : 'Add BP, pulse, oxygen, sugar, weight, or notes',
+      status: loggedVitalsToday ? 'Done' : 'Due',
+      tone: loggedVitalsToday ? 'text-emerald-700 bg-emerald-500/10 border-emerald-500/30' : 'text-rose-700 bg-rose-500/10 border-rose-500/30'
+    },
+    {
+      href: nextAppointment ? '/appointments' : '/appointments',
+      icon: CalendarCheck,
+      title: nextAppointment ? 'Next appointment' : 'Schedule a doctor visit',
+      detail: nextAppointment
+        ? `${nextAppointment.doctor} - ${new Date(nextAppointment.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`
+        : 'Keep upcoming consultations visible to the family',
+      status: nextAppointment ? 'Planned' : 'Add',
+      tone: 'text-blue-700 bg-blue-500/10 border-blue-500/30'
+    },
+    {
+      href: '/care-circle',
+      icon: Users,
+      title: 'Coordinate care team',
+      detail: 'Assign family tasks, share updates, and keep emergency contacts close',
+      status: 'Open',
+      tone: 'text-sky-700 bg-sky-500/10 border-sky-500/30'
+    }
+  ];
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -170,7 +229,7 @@ export default function DashboardClient() {
               }`}
             >
               <HeartPulse className="w-3.5 h-3.5" />
-              <span>Family Caregiver</span>
+              <span>Family</span>
             </button>
             <button
               type="button"
@@ -182,14 +241,14 @@ export default function DashboardClient() {
               }`}
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>Nurse / Attendant</span>
+              <span>Nurse</span>
             </button>
           </div>
 
           <Link href="/onboarding">
             <Button variant="ghost" size="sm" className="h-8 text-xs font-semibold gap-1 text-primary hover:bg-primary/10">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Intake & Dyad Setup Wizard</span>
+              <span>Patient Setup</span>
             </Button>
           </Link>
         </div>
@@ -229,15 +288,60 @@ export default function DashboardClient() {
               </CardContent>
             </Card>
           )}
-          {/* 1. Quick KPI Cards Overview */}
+          {/* 1. Today Dashboard */}
+          <Card className="border-border bg-card shadow-sm overflow-hidden">
+            <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="font-headline text-xl">Today</CardTitle>
+                  <CardDescription className="text-sm">
+                    The next care actions that usually matter most today.
+                  </CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm" className="text-sm font-semibold gap-1.5 w-full sm:w-auto">
+                  <Link href="/domiciliary">
+                    <Bed className="w-4 h-4" />
+                    Bedside Care
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {todayActionItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="group flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{item.detail}</p>
+                      </div>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold ${item.tone}`}>
+                      {item.status}
+                    </span>
+                  </Link>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* 2. Quick KPI Cards Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Zarit Burden Gauge Metric */}
         <Link href="/stress-calculator" className="group">
           <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
             <CardContent className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Burden & Stress Gauge
+                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                  Stress Check
                 </span>
                 <HeartPulse className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
               </div>
@@ -248,15 +352,15 @@ export default function DashboardClient() {
                       {latestZarit.totalScore ?? 0}
                     </span>
                     <span className="text-xs text-muted-foreground font-mono">/ {latestZarit.maxScore ?? 88}</span>
-                    <Badge variant={latestZarit.severityBand === 'critical_red' ? 'destructive' : 'secondary'} className="text-[10px] ml-auto font-mono">
+                    <Badge variant={latestZarit.severityBand === 'critical_red' ? 'destructive' : 'secondary'} className="text-xs ml-auto font-mono">
                       {latestZarit.normalizedPercentage ?? 0}%
                     </Badge>
                   </>
                 ) : (
-                  <span className="text-sm font-bold text-primary">Take Assessment →</span>
+                  <span className="text-sm font-bold text-primary">Take Check</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {latestZarit
                   ? (typeof latestZarit.classification === 'string'
                       ? latestZarit.classification
@@ -267,8 +371,8 @@ export default function DashboardClient() {
                   this a caregiver typically never accumulates the 3+
                   assessments the longitudinal trend engine needs. */}
               {latestZarit && isReassessmentDue(latestZarit) && (
-                <Badge variant="outline" className="text-[10px] font-semibold text-amber-600 border-amber-500/40 w-fit">
-                  Reassessment due
+                <Badge variant="outline" className="text-xs font-semibold text-amber-600 border-amber-500/40 w-fit">
+                  Due again
                 </Badge>
               )}
             </CardContent>
@@ -280,8 +384,8 @@ export default function DashboardClient() {
           <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
             <CardContent className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Today&apos;s Doses
+                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                  Medicines
                 </span>
                 <Pill className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
               </div>
@@ -290,12 +394,12 @@ export default function DashboardClient() {
                   {completedDoses} / {totalScheduledDoses}
                 </span>
                 <span className="text-xs text-muted-foreground font-semibold">Doses Taken</span>
-                <Badge variant="outline" className="text-[10px] ml-auto font-mono">
-                  {totalScheduledDoses > 0 ? Math.round((completedDoses / totalScheduledDoses) * 100) : 0}%
+                <Badge variant="outline" className="text-xs ml-auto font-mono">
+                  {doseAdherencePercentage}%
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {medications.length} active prescriptions tracked
+              <p className="text-xs text-muted-foreground truncate">
+                {medications.length} active medicines tracked
               </p>
             </CardContent>
           </Card>
@@ -306,8 +410,8 @@ export default function DashboardClient() {
           <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
             <CardContent className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Care Gap Deficit
+                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                  Care Support Gap
                 </span>
                 <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
               </div>
@@ -315,12 +419,12 @@ export default function DashboardClient() {
                 <span className={`text-2xl font-black ${careGap && careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-foreground'}`}>
                   {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : '0h'}
                 </span>
-                <span className="text-xs text-muted-foreground font-semibold">Deficit / Day</span>
-                <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-[10px] ml-auto uppercase">
+                <span className="text-xs text-muted-foreground font-semibold">Needs / day</span>
+                <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase">
                   {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Balanced'}
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 Demand: {careGap?.patientCareDemandHours || 0}h vs Cap: {careGap?.caregiverSafeCapacityHours || 0}h
               </p>
             </CardContent>
@@ -332,18 +436,18 @@ export default function DashboardClient() {
           <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
             <CardContent className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Govt Teleconsultation
+                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                  Doctor Visits
                 </span>
                 <Building2 className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-base font-bold text-foreground">
-                  eSanjeevani & SeHAT
+                  Online OPD
                 </span>
               </div>
-              <p className="text-[11px] text-primary font-semibold flex items-center gap-1">
-                <span>Free Online OPD</span>
+              <p className="text-xs text-primary font-semibold flex items-center gap-1">
+                <span>Open consultation options</span>
                 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
               </p>
             </CardContent>
@@ -362,14 +466,14 @@ export default function DashboardClient() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-bold text-rose-900 dark:text-rose-200 flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5 text-rose-600 animate-pulse" />
-                    Caregiver Crisis Escalation Notice
+                    Urgent Stress Support
                   </CardTitle>
                   <Badge variant="destructive" className="text-xs uppercase font-mono">
                     Urgent
                   </Badge>
                 </div>
                 <CardDescription className="text-xs text-rose-900/80 dark:text-rose-300">
-                  Critical strain markers detected on your recent evaluation. Please access support immediately.
+                  Your recent check suggests high strain. Please use support now.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-1 text-xs">
@@ -401,16 +505,16 @@ export default function DashboardClient() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider text-primary border-primary/30">
-                      Real-Time Bedside Companion
+                    <Badge variant="outline" className="text-xs font-bold uppercase tracking-wider text-primary border-primary/30">
+                  Bedside Care
                     </Badge>
-                    <span className="text-xs font-mono text-muted-foreground">• Q2H Turning Clock Active</span>
+                    <span className="text-xs font-mono text-muted-foreground">2-hour turn timer</span>
                   </div>
                   <h3 className="font-bold text-sm sm:text-base text-foreground">
-                    Home Care Daily Routine & JIT Emergency Action Cards
+                    Daily Routine & Emergency Cards
                   </h3>
                   <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
-                    Live bedside checklist, 2-hourly turning countdown, emergency flash protocols (choking/delirium), and 14-day post-discharge roadmap.
+                    Bedside checklist, turning countdown, emergency cards, and a 14-day post-discharge plan.
                   </p>
                 </div>
               </div>
@@ -418,7 +522,7 @@ export default function DashboardClient() {
               <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                 <Button asChild size="sm" className="font-bold text-xs gap-1.5 shadow-xs">
                   <Link href="/domiciliary">
-                    <span>Open Bedside Hub</span>
+                    <span>Open Bedside Care</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </Button>
@@ -435,14 +539,14 @@ export default function DashboardClient() {
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <CardTitle className="font-headline text-lg sm:text-xl">Clinical Learning Path</CardTitle>
+                    <CardTitle className="font-headline text-lg sm:text-xl">Learning Path</CardTitle>
                     <CardDescription className="text-xs">
-                      Deterministic recommendations calibrated for <strong>{caregivingScenario}</strong> ({skillLevel} level).
+                      Lessons recommended for <strong>{caregivingScenario}</strong> ({skillLevel} level).
                     </CardDescription>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary hidden sm:inline-flex">
-                  Rules Engine Active
+                <Badge variant="outline" className="text-xs font-mono border-primary/30 text-primary hidden sm:inline-flex">
+                  Recommended
                 </Badge>
               </div>
               {personalizedPath?.reasoning && (
@@ -471,11 +575,11 @@ export default function DashboardClient() {
                             <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
                               {module.title}
                             </h3>
-                            <Badge variant="secondary" className="text-[10px] capitalize">
+                            <Badge variant="secondary" className="text-xs capitalize">
                               {module.category}
                             </Badge>
                             {module.urgency === 'critical' && (
-                              <Badge variant="destructive" className="text-[10px]">
+                              <Badge variant="destructive" className="text-xs">
                                 Priority
                               </Badge>
                             )}
@@ -484,8 +588,8 @@ export default function DashboardClient() {
                             {module.description}
                           </p>
                           {module.clinicalRationale && module.clinicalRationale.length > 0 && (
-                            <p className="text-[11px] text-primary/90 font-medium">
-                              💡 {module.clinicalRationale[0]}
+                            <p className="text-xs text-primary/90 font-medium">
+                              {module.clinicalRationale[0]}
                             </p>
                           )}
                         </div>
@@ -510,10 +614,10 @@ export default function DashboardClient() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Tailored Caregiver Micro-Actions
+                  Suggested Care Actions
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Clinical action steps derived from your recent health logs and psychometrics.
+                  Small next steps from your care profile and recent logs.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2.5">
@@ -524,7 +628,7 @@ export default function DashboardClient() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-foreground">{rx.title}</span>
-                      <Badge variant="outline" className="text-[10px] capitalize">
+                      <Badge variant="outline" className="text-xs capitalize">
                         {rx.category}
                       </Badge>
                     </div>
@@ -544,32 +648,32 @@ export default function DashboardClient() {
           {/* Care Operations Hub */}
           <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold">Care Operations Hub</CardTitle>
-              <CardDescription className="text-xs">Essential clinical tools.</CardDescription>
+              <CardTitle className="text-base font-bold">Quick Links</CardTitle>
+              <CardDescription className="text-sm">Common care tools.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2.5">
               <Link href="/stress-calculator" className="p-3 rounded-xl border border-border bg-background hover:border-primary/40 transition-all space-y-1">
                 <HeartPulse className="w-4 h-4 text-rose-500" />
-                <p className="font-bold text-xs text-foreground">Zarit Burden Scale</p>
-                <p className="text-[10px] text-muted-foreground">Stress & fatigue gauge</p>
+                <p className="font-bold text-sm text-foreground">Stress Check</p>
+                <p className="text-xs text-muted-foreground">Caregiver fatigue</p>
               </Link>
 
               <Link href="/medications" className="p-3 rounded-xl border border-border bg-background hover:border-primary/40 transition-all space-y-1">
                 <Pill className="w-4 h-4 text-amber-500" />
-                <p className="font-bold text-xs text-foreground">Medications</p>
-                <p className="text-[10px] text-muted-foreground">Schedule & Beers alerts</p>
+                <p className="font-bold text-sm text-foreground">Medicines</p>
+                <p className="text-xs text-muted-foreground">Schedule & alerts</p>
               </Link>
 
               <Link href="/care-circle" className="p-3 rounded-xl border border-border bg-background hover:border-primary/40 transition-all space-y-1">
                 <Users className="w-4 h-4 text-blue-500" />
-                <p className="font-bold text-xs text-foreground">Care Circle</p>
-                <p className="text-[10px] text-muted-foreground">Share vitals & tasks</p>
+                <p className="font-bold text-sm text-foreground">Care Team</p>
+                <p className="text-xs text-muted-foreground">Share tasks</p>
               </Link>
 
               <Link href="/reports" className="p-3 rounded-xl border border-border bg-background hover:border-primary/40 transition-all space-y-1">
                 <FileText className="w-4 h-4 text-emerald-500" />
-                <p className="font-bold text-xs text-foreground">Clinical Brief</p>
-                <p className="text-[10px] text-muted-foreground">Export PDF for OPD</p>
+                <p className="font-bold text-sm text-foreground">Visit Notes</p>
+                <p className="text-xs text-muted-foreground">Print summary</p>
               </Link>
             </CardContent>
           </Card>

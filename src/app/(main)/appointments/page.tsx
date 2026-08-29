@@ -35,6 +35,7 @@ import { CalendarDays, Clock, Trash2, User, Hospital, CalendarCheck } from 'luci
 import { useToast } from '@/hooks/use-toast';
 import { HealthRepository, AppointmentRecord } from '@/lib/db/health-repository';
 import { syncAppointment } from '@/lib/firebase/clinical-sync';
+import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
 const appointmentSchema = z.object({
   department: z.string().min(1, { message: 'Department is required.' }),
@@ -104,14 +105,36 @@ export default function AppointmentsPage() {
 
   function deleteAppointment(id: string) {
     const appt = appointments.find((a) => a.id === id);
+    if (!appt) return;
     HealthRepository.deleteAppointment(id);
     setAppointments(HealthRepository.getAppointments());
-    if (appt) {
-      void syncAppointment({ ...appt, status: 'cancelled' });
-    }
+    void syncAppointment({ ...appt, status: 'cancelled' });
     toast({
-      title: '🗑️ Appointment Cancelled',
-      description: 'The appointment has been removed from your calendar.',
+      title: 'Appointment Cancelled',
+      description: `${appt.doctor} on ${format(new Date(appt.date), 'dd MMM yyyy')} was removed.`,
+      action: (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
+          onClick={() => {
+            const restored = HealthRepository.addAppointment({
+              date: appt.date,
+              department: appt.department,
+              doctor: appt.doctor,
+              notes: appt.notes,
+            });
+            setAppointments(HealthRepository.getAppointments());
+            void syncAppointment(restored);
+            toast({
+              title: 'Appointment Restored',
+              description: `${appt.doctor} is back on your schedule.`,
+            });
+          }}
+        >
+          Undo
+        </Button>
+      ),
     });
   }
 
@@ -121,6 +144,7 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
+      <SyncStatusBanner />
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
           <CalendarCheck className="w-4 h-4" />
@@ -261,6 +285,7 @@ export default function AppointmentsPage() {
                       size="sm"
                       className="h-7 text-xs text-destructive hover:bg-destructive/10"
                       onClick={() => deleteAppointment(app.id)}
+                      aria-label={`Cancel appointment with ${app.doctor} on ${format(new Date(app.date), 'dd MMM yyyy')}`}
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> Cancel
                     </Button>

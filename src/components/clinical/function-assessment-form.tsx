@@ -81,7 +81,7 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
                 type="date"
                 value={assessmentDate}
                 onChange={(e) => setAssessmentDate(e.target.value)}
-                className="h-7 text-xs px-2.5 rounded-lg border border-input bg-background font-mono focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                className="h-7 text-xs px-2.5 rounded-lg border border-input bg-background font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
               />
             </div>
           </div>

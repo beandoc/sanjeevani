@@ -10,7 +10,8 @@ import {
   CalendarDays,
   ShieldAlert,
   Stethoscope,
-  HeartPulse
+  HeartPulse,
+  Pill
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/context/role-context';
@@ -28,13 +29,13 @@ export function MobileBottomNav() {
     ? [
         {
           href: '/clinic/roster',
-          label: 'Roster',
+          label: 'Patients',
           icon: Stethoscope,
           match: (path: string) => path.startsWith('/clinic')
         },
         {
           href: '/sehat-opd',
-          label: 'Tele-OPD',
+          label: 'Consults',
           icon: CalendarDays,
           match: (path: string) => path.startsWith('/sehat-opd') || path.startsWith('/appointments')
         },
@@ -46,7 +47,7 @@ export function MobileBottomNav() {
         },
         {
           href: '/dashboard',
-          label: 'Hub',
+          label: 'Today',
           icon: LayoutDashboard,
           match: (path: string) => path === '/dashboard'
         }
@@ -54,15 +55,15 @@ export function MobileBottomNav() {
     : [
         {
           href: '/dashboard',
-          label: 'Home',
+          label: 'Today',
           icon: LayoutDashboard,
           match: (path: string) => path === '/dashboard'
         },
         {
-          href: '/care-circle',
-          label: 'Care Circle',
-          icon: Users2,
-          match: (path: string) => path.startsWith('/care-circle') || path.startsWith('/clinic/dyad')
+          href: '/medications',
+          label: 'Meds',
+          icon: Pill,
+          match: (path: string) => path.startsWith('/medications')
         },
         {
           href: '/vital-logs',
@@ -71,10 +72,10 @@ export function MobileBottomNav() {
           match: (path: string) => path.startsWith('/vital-logs') || path.startsWith('/vitals')
         },
         {
-          href: '/appointments',
-          label: 'Visits',
-          icon: CalendarDays,
-          match: (path: string) => path.startsWith('/appointments') || path.startsWith('/sehat-opd')
+          href: '/care-circle',
+          label: 'Care Team',
+          icon: Users2,
+          match: (path: string) => path.startsWith('/care-circle') || path.startsWith('/clinic/dyad')
         }
       ];
 
@@ -109,7 +110,7 @@ export function MobileBottomNav() {
         >
           <Icon className="w-5 h-5" aria-hidden="true" />
         </div>
-        <span className="text-[10px] tracking-tight mt-0.5 leading-none">
+        <span className="text-xs tracking-normal mt-0.5 leading-none">
           {item.label}
         </span>
         {isActive && (
@@ -133,15 +134,15 @@ export function MobileBottomNav() {
           <button
             type="button"
             onClick={() => setIsCrisisOpen(true)}
-            aria-label="Emergency Crisis Escalation (14416 / 112 / Care Circle SOS)"
+            aria-label="Emergency help: call helplines or alert your care team"
             aria-haspopup="dialog"
-            className="flex flex-col items-center justify-center -mt-3 mx-1 shrink-0 group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500 rounded-full"
+            className="flex flex-col items-center justify-center -mt-3 mx-1 shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-full"
           >
             <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 group-hover:scale-105 border-2 border-background">
               <span className="absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-25 pointer-events-none" />
               <ShieldAlert className="w-6 h-6" aria-hidden="true" />
             </div>
-            <span className="text-[9px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mt-1 leading-none">
+            <span className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mt-1 leading-none">
               SOS
             </span>
           </button>
