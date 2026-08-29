@@ -6,7 +6,7 @@ import { VitalRecord, MedicationItem, HealthRepository } from '@/lib/db/health-r
 import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
   DEFAULT_PATIENT_PROFILE,
-  CareGapEngine
+  CareGapEvaluationResult
 } from '@/lib/clinical/care-gap-engine';
 import { format } from 'date-fns';
 
@@ -32,17 +32,20 @@ export function ClinicalSummaryPrint({
   const [generatedDate, setGeneratedDate] = useState<Date | null>(null);
   const [caregiverAttrs, setCaregiverAttrs] = useState(DEFAULT_CAREGIVER_ATTRIBUTES);
   const [patientProfile, setPatientProfile] = useState(DEFAULT_PATIENT_PROFILE);
-  const [careGapEval, setCareGapEval] = useState(() =>
-    CareGapEngine.evaluate(DEFAULT_CAREGIVER_ATTRIBUTES, DEFAULT_PATIENT_PROFILE)
-  );
+  const [careGapEval, setCareGapEval] = useState<CareGapEvaluationResult | null>(null);
+  const [hasRealDyadProfile, setHasRealDyadProfile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setGeneratedDate(new Date());
     setDocId(`SNJ-CLINICAL-${Date.now().toString().slice(-6)}`);
-    setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
-    setPatientProfile(HealthRepository.getPatientProfile());
-    setCareGapEval(HealthRepository.getCareGapEvaluation());
+    const hasProfile = HealthRepository.hasStoredDyadProfile();
+    setHasRealDyadProfile(hasProfile);
+    if (hasProfile) {
+      setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
+      setPatientProfile(HealthRepository.getPatientProfile());
+      setCareGapEval(HealthRepository.getCareGapEvaluation());
+    }
   }, []);
 
   // Consistent 10-Record / Recent 14-Day Window Analytics
@@ -111,7 +114,7 @@ export function ClinicalSummaryPrint({
             Kutumbh Clinical Care Brief
           </h1>
           <p className="text-xs font-semibold text-slate-600">
-            Geriatric Caregiver Dyad Assessment & Health Trajectory Report
+            Geriatric Caregiver Dyad Assessment & Clinician Review Brief
           </p>
         </div>
         <div className="text-right space-y-0.5">
@@ -128,42 +131,55 @@ export function ClinicalSummaryPrint({
       <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-300 rounded-lg">
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-bold text-slate-500">Patient Demographics & Functional State</span>
-          <p className="text-sm font-bold text-slate-900">{patientProfile.name} (Age {patientProfile.age})</p>
-          <p className="text-xs text-slate-700">Conditions: {patientProfile.primaryConditions.join(', ')}</p>
-          <p className="text-xs font-medium text-slate-800">
-            Katz ADL Independence: <strong>{careGapEval.katzAdlScore}/6</strong> ({careGapEval.katzDependenceLevel.replace('_', ' ')})
-          </p>
+          {hasRealDyadProfile && careGapEval ? (
+            <>
+              <p className="text-sm font-bold text-slate-900">{patientProfile.name} (Age {patientProfile.age})</p>
+              <p className="text-xs text-slate-700">Conditions: {patientProfile.primaryConditions.join(', ')}</p>
+              <p className="text-xs font-medium text-slate-800">
+                Katz ADL Independence: <strong>{careGapEval.katzAdlScore}/6</strong> ({careGapEval.katzDependenceLevel.replace('_', ' ')})
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-600 italic">Patient setup incomplete. Care-gap calculations withheld to avoid printing demo data.</p>
+          )}
         </div>
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-bold text-slate-500">Caregiver Dyad Profile & Capacity</span>
-          <p className="text-sm font-bold text-slate-900">{caregiverAttrs.name} (Age {caregiverAttrs.age}, {caregiverAttrs.kinship})</p>
-          <p className="text-xs text-slate-700">
-            Employment: {caregiverAttrs.employment.replace('_', ' ')} • Available: {caregiverAttrs.dailyHoursCommitted} hrs/day
-          </p>
-          <p className="text-xs text-slate-700">
-            Formal Support: <strong>{caregiverAttrs.formalSupport && caregiverAttrs.formalSupport.type !== 'none' ? caregiverAttrs.formalSupport.type.replace(/_/g, ' ') : 'None (Solo Family)'}</strong>
-            {careGapEval.formalSupportAbsorbedHours > 0 && ` (absorbs ${careGapEval.formalSupportAbsorbedHours}h/day)`}
-          </p>
-          <p className="text-xs font-medium text-slate-800">
-            Net Care Gap: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs deficit/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
-          </p>
+          {hasRealDyadProfile && careGapEval ? (
+            <>
+              <p className="text-sm font-bold text-slate-900">{caregiverAttrs.name} (Age {caregiverAttrs.age}, {caregiverAttrs.kinship})</p>
+              <p className="text-xs text-slate-700">
+                Employment: {caregiverAttrs.employment.replace('_', ' ')} • Available: {caregiverAttrs.dailyHoursCommitted} hrs/day
+              </p>
+              <p className="text-xs text-slate-700">
+                Formal Support: <strong>{caregiverAttrs.formalSupport && caregiverAttrs.formalSupport.type !== 'none' ? caregiverAttrs.formalSupport.type.replace(/_/g, ' ') : 'None (Solo Family)'}</strong>
+                {careGapEval.formalSupportAbsorbedHours > 0 && ` (estimated ${careGapEval.formalSupportAbsorbedHours}h/day relief)`}
+              </p>
+              <p className="text-xs font-medium text-slate-800">
+                Net Care Gap Estimate: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-600 italic">Caregiver setup incomplete.</p>
+          )}
         </div>
       </div>
 
       {/* 3. Care Gap & Biomechanical Deficit Findings */}
+      {careGapEval ? (
       <div className="p-3 bg-amber-50/60 border border-amber-300 rounded-lg text-xs space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase font-bold text-amber-900 block">
-            Geriatric Care Gap & Physical Fatigue Indicator
+            Geriatric Care Gap & Manual-Handling Planning Estimate
           </span>
           <span className="text-[10px] font-bold text-slate-700">
-            Ergonomic Discount: -{careGapEval.assistiveDeviceStatus?.ergonomicInjuryDiscountPercent || 0}%
+            Evidence: Local heuristic, clinician review required
           </span>
         </div>
         <p className="text-slate-800">
-          Patient requires <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance. 
-          {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff absorbs ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
-          Caregiver safe physical threshold is <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong> (Caregiver Lumbar Injury Risk: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>).
+          Patient requires an estimated <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance.
+          {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff is estimated to relieve ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
+          Primary caregiver capacity is estimated at <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong>. Manual-handling risk score: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>.
         </p>
         <div className="flex items-center gap-2 pt-1 border-t border-amber-200 text-[11px] text-slate-700">
           <span><strong>Assistive Devices:</strong> {[
@@ -174,7 +190,15 @@ export function ClinicalSummaryPrint({
             careGapEval.assistiveDeviceStatus?.hasTransferAids ? 'Transfer Gait Belt' : null
           ].filter(Boolean).join(' • ')}</span>
         </div>
+        <p className="text-[11px] text-slate-700 border-t border-amber-200 pt-1">
+          Use this section for planning conversations only. It is not a diagnosis, treatment order, or independently validated staffing calculator.
+        </p>
       </div>
+      ) : (
+        <div className="p-3 bg-amber-50/60 border border-amber-300 rounded-lg text-xs text-slate-700">
+          Care-gap and manual-handling estimates are withheld until real patient and caregiver profiles are completed.
+        </div>
+      )}
 
       {/* 4. Standardized Zarit Caregiver Burden Scale (ZBI) Psychometrics */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
@@ -184,7 +208,7 @@ export function ClinicalSummaryPrint({
           </h3>
           {zaritResult && (
             <span className="font-mono font-bold text-xs px-2 py-0.5 bg-slate-200 text-slate-900 rounded">
-              Instrument: {zaritResult.tier} ({zaritResult.totalScore}/{zaritResult.maxScore})
+              Validated score: {zaritResult.tier} ({zaritResult.totalScore}/{zaritResult.maxScore})
             </span>
           )}
         </div>
@@ -211,7 +235,7 @@ export function ClinicalSummaryPrint({
             {/* Subscale Factor Decomposition */}
             {zaritResult.factors && (
               <div className="pt-2">
-                <span className="text-[10px] uppercase font-bold text-slate-600">Subscale Factor Breakdown</span>
+                <span className="text-[10px] uppercase font-bold text-slate-600">Score Breakdown and Local Overlays</span>
                 <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
                   {Object.entries(zaritResult.factors).map(([key, f]) => (
                     <div key={key} className={`p-1.5 border rounded ${f.isMeasured ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
@@ -225,9 +249,12 @@ export function ClinicalSummaryPrint({
             {/* Red Flags if Present */}
             {zaritResult.redFlags && zaritResult.redFlags.length > 0 && (
               <div className="p-2 bg-red-50 border border-red-200 text-red-900 rounded text-xs">
-                <strong>Critical Clinical Flags:</strong> {zaritResult.redFlags.join('; ')}
+                <strong>High Strain Flags:</strong> {zaritResult.redFlags.join('; ')}
               </div>
             )}
+            <p className="text-[11px] text-slate-600">
+              ZBI total score is the validated instrument output. Domain capacity, red flags, and action prompts are Sanjeevani triage overlays.
+            </p>
           </div>
         ) : (
           <p className="text-xs text-slate-500 italic">No Zarit evaluation recorded yet.</p>
@@ -289,7 +316,7 @@ export function ClinicalSummaryPrint({
       {/* 6. Active Medication Regimen & Beers Safety */}
       <div className="space-y-2 border border-slate-300 p-4 rounded-lg">
         <h3 className="text-sm font-bold text-slate-900 uppercase border-b border-slate-200 pb-2">
-          3. Active Medication Schedule ({medications.length} Prescriptions)
+          3. Active Medication Schedule ({medications.length} Medicines)
         </h3>
 
         {medications.length > 0 ? (
@@ -300,6 +327,7 @@ export function ClinicalSummaryPrint({
                 <th className="py-1 px-2">Dosage</th>
                 <th className="py-1 px-2">Timing</th>
                 <th className="py-1 px-2">Food Relation</th>
+                <th className="py-1 px-2">Review Context</th>
                 <th className="py-1 px-2">Geriatric Caution</th>
               </tr>
             </thead>
@@ -310,7 +338,10 @@ export function ClinicalSummaryPrint({
                   <td className="py-1 px-2 font-mono">{m.dosage}</td>
                   <td className="py-1 px-2 capitalize">{m.timeOfDay.join(', ')}</td>
                   <td className="py-1 px-2 capitalize">{m.foodRelation} food</td>
-                  <td className="py-1 px-2 text-slate-700">{m.beersWarning ? `⚠️ ${m.beersWarning}` : 'Standard'}</td>
+                  <td className="py-1 px-2 text-slate-700">
+                    {[m.indication, m.renalFunctionEgfr, m.duration].filter(Boolean).join(' • ') || 'Needs indication/eGFR/duration review'}
+                  </td>
+                  <td className="py-1 px-2 text-slate-700">{m.beersWarning ? `Caution: ${m.beersWarning}` : 'No high-yield alert in limited screen'}</td>
                 </tr>
               ))}
             </tbody>
@@ -318,12 +349,15 @@ export function ClinicalSummaryPrint({
         ) : (
           <p className="text-xs text-slate-500 italic">No medications recorded.</p>
         )}
+        <p className="text-[11px] text-slate-600">
+          Limited Beers/STOPP screen only. Do not stop or change medicines without clinician/pharmacist review.
+        </p>
       </div>
 
       {/* 7. Clinician Clinical Notes & Orders Box */}
       <div className="border-2 border-dashed border-slate-400 p-4 rounded-lg space-y-6">
         <span className="text-[10px] uppercase font-bold text-slate-600 block">
-          4. Attending Geriatrician / Clinician Assessment & Orders
+          4. Attending Clinician Review, Revisions & Orders
         </span>
         <div className="h-16" />
         <div className="flex items-center justify-between pt-4 border-t border-slate-300 text-[11px] text-slate-700">

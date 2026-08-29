@@ -54,6 +54,8 @@ import {
   getPatientProfileFor
 } from '@/lib/firebase/clinical-sync';
 import { auth } from '@/lib/firebase/client';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 export function CaregiverDyadProfiler() {
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
@@ -235,9 +237,17 @@ export function CaregiverDyadProfiler() {
         </CardHeader>
       </Card>
 
-      {/* TAB 1: Care Gap Overview & Staffing Prescription */}
+      {/* TAB 1: Care Gap Overview & Staffing Recommendation */}
       {activeTab === 'gap' && (
         <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} />
+          </div>
+          <ClinicalSafetyNote>
+            These outputs support a planning conversation. They are not diagnostic, prescribing, or staffing orders until reviewed and accepted by the clinical team.
+          </ClinicalSafetyNote>
           {evaluation.dataQuality.completeness !== 'complete' && (
             <Card className="border-amber-500/40 bg-amber-500/5 shadow-xs">
               <CardContent className="p-4 flex items-start gap-3">
@@ -259,7 +269,7 @@ export function CaregiverDyadProfiler() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Patient Care Demand</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Care Demand Estimate</span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-black text-foreground">{evaluation.patientCareDemandHours}</span>
                   <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
@@ -271,7 +281,7 @@ export function CaregiverDyadProfiler() {
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Available Capacity</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Available Capacity Estimate</span>
                   <div className="flex items-center gap-1">
                     {evaluation.familySupportAbsorbedHours > 0 && (
                       <Badge variant="secondary" className="text-[9px] font-mono">
@@ -301,7 +311,7 @@ export function CaregiverDyadProfiler() {
 
             <Card className={`border shadow-xs ${evaluation.netCareGapHours > 2 ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Net Care Gap (Deficit)</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Net Care Gap Estimate</span>
                 <div className="flex items-baseline gap-2">
                   <span className={`text-3xl font-black ${evaluation.netCareGapHours > 2 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours}` : `${evaluation.netCareGapHours}`}
@@ -317,7 +327,7 @@ export function CaregiverDyadProfiler() {
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">NIOSH Lifting Index</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Manual-Handling Risk</span>
                   <Badge
                     variant={evaluation.liftingIndex >= 2.0 ? 'destructive' : evaluation.liftingIndex >= 1.0 ? 'secondary' : 'outline'}
                     className="text-[9px] font-mono capitalize"
@@ -329,10 +339,10 @@ export function CaregiverDyadProfiler() {
                   <span className={`text-3xl font-black ${evaluation.liftingIndex >= 2.0 ? 'text-rose-600' : evaluation.liftingIndex >= 1.0 ? 'text-amber-600' : 'text-primary'}`}>
                     {typeof evaluation.liftingIndex === 'number' ? evaluation.liftingIndex.toFixed(1) : (evaluation.caregiverInjuryRiskScore / 40).toFixed(1)}
                   </span>
-                  <span className="text-xs text-muted-foreground font-semibold">LI (Limit: 1.0)</span>
+                  <span className="text-xs text-muted-foreground font-semibold">LI flag</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  L5/S1 Compression: {evaluation.spinalCompressionKN ?? 2.4} kN • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
+                  Planning estimate: {evaluation.spinalCompressionKN ?? 2.4} kN • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
                 </p>
               </CardContent>
             </Card>
@@ -346,7 +356,7 @@ export function CaregiverDyadProfiler() {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-primary" />
                     <CardTitle className="text-sm font-bold">
-                      Diurnal Care Gap Index — Non-Linear Schedule Matrix
+                      Diurnal Care Gap Planning Matrix
                     </CardTitle>
                   </div>
                   <div className="flex items-center gap-2">
@@ -360,7 +370,7 @@ export function CaregiverDyadProfiler() {
                   </div>
                 </div>
                 <CardDescription className="text-xs text-muted-foreground mt-1">
-                  Non-linearly weights time-critical deficits (Night Watch & Morning Rush penalized higher than elective midday hours).
+                  Local model weighting of time-critical deficits. Use to focus clinician/family review on morning, evening, and night bottlenecks.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
@@ -428,7 +438,7 @@ export function CaregiverDyadProfiler() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <Stethoscope className="w-4 h-4 text-primary" />
-                Clinical Findings & Biomechanical Analysis
+                Review Findings & Manual-Handling Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs">
@@ -519,10 +529,10 @@ export function CaregiverDyadProfiler() {
             </div>
           )}
 
-          {/* Targeted Care Gap Prescriptions */}
+          {/* Targeted Care Gap Recommendations */}
           <div className="space-y-3">
             <h3 className="text-sm font-bold font-headline uppercase tracking-wider text-muted-foreground">
-              Prescribed Interventions to Bridge the Gap
+              Suggested Interventions to Bridge the Gap
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {evaluation.prescriptions.map((rx) => (
@@ -540,7 +550,7 @@ export function CaregiverDyadProfiler() {
                       <strong>Action:</strong> {rx.action}
                     </p>
                     <p className="text-primary font-medium text-[11px] pt-1 border-t border-border/40">
-                      <strong>Clinical Impact:</strong> {rx.impact}
+                      <strong>Expected Impact:</strong> {rx.impact}
                     </p>
                   </CardContent>
                 </Card>

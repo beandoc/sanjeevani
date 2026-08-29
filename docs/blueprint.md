@@ -6,7 +6,7 @@
 
 ```text
 [ Traditional Discharge (Broken) ]
-  Doctor gives medical discharge summary ──▶ Family goes home in panic ──▶ Unstructured caregiving & sleep deprivation ──▶ Caregiver breakdown / Readmission in 30 days
+  Doctor gives medical discharge summary ──▶ Family goes home in panic ──▶ Unstructured caregiving & sleep deprivation ──▶ Caregiver breakdown / avoidable acute care use
 ```
 
 In traditional geriatric practice:
@@ -22,7 +22,7 @@ In traditional geriatric practice:
 [ Doctor in Clinic / OPD / Ward ]
   ├─ 1. Assesses Katz ADLs & Multimorbidity (60 seconds)
   ├─ 2. Drafts Staffing Tier & Shift Window for clinical/family review (e.g. "Targeted 4h Morning Attendant")
-  ├─ 3. Recommends Assistive Devices when appropriate (e.g. "Motorized Bed + Ripple Mattress")
+  ├─ 3. Suggests Assistive Devices when appropriate (e.g. "Motorized Bed + Ripple Mattress")
   └─ 4. Issues 8-char Invite Code or Sends WhatsApp Link
                 │
                 ▼ (Instant Cloud Sync via Firestore)
@@ -39,14 +39,14 @@ In traditional geriatric practice:
 #### 1. Zero "Blank Page" Cognitive Friction for Families
 When families open the app, they don't see an intimidating blank form asking them to invent a care schedule from scratch. They see:
 > **"Dr. Vivek’s Home Care Blueprint"**
-> - **Suggested Support**: 4h Morning Shift Attendant (07:00–11:00) for sponge bath and pivot transfers.
-> - **Safety Precaution**: Primary caregiver (Smt. Shanti) must not perform solo manual transfers.
-> - **Device Orders**: Motorized backrest bed + alternating pressure ripple mattress.
+> - **Suggested Support**: 4h Morning Shift Attendant (07:00-11:00) for sponge bath and pivot transfers.
+> - **Safety Note**: Primary caregiver (Smt. Shanti) should not perform solo manual transfers unless trained and cleared by the care team.
+> - **Device Suggestions**: Motorized backrest bed + alternating pressure ripple mattress for clinician/family review.
 
-#### 2. Clear Boundary Between "Clinical Orders" vs. "Family Logistics"
+#### 2. Clear Boundary Between "Clinician-Reviewed Recommendations" vs. "Family Logistics"
 - **Doctor’s Role (Clinical Blueprint)**:
   - Determines **Clinical Acuity Tier** (e.g., catheter/pressure sore $\rightarrow$ nursing review; bedbound $\rightarrow$ individualized repositioning plan).
-  - Flags **Safety Red Lines** (e.g., No heavy lifting for 65+ spouse with osteoporosis).
+  - Flags **Safety Red Lines** (e.g., avoid solo heavy transfers by a 65+ spouse with osteoporosis unless a trained clinician has cleared the transfer method).
 - **Family’s Role (Logistical Fine-Tuning)**:
   - Assigns who physically does what based on office commutes and family availability (e.g., who drops kids to school, who is free in evenings).
   - Rotates weekend shifts and schedules respite days among siblings.
@@ -61,7 +61,7 @@ When families open the app, they don't see an intimidating blank form asking the
 
 1. **Doctor Registers & Seeds the Blueprint**:
    - In [`RegisterPatientDialog`](file:///Users/sachinsrivastava/Downloads/sanjeevani/src/components/clinician/register-patient-dialog.tsx) and [`DoctorCareBlueprintDialog`](file:///Users/sachinsrivastava/Downloads/sanjeevani/src/components/clinician/doctor-care-blueprint-dialog.tsx), the doctor enters the baseline and generates an invite code (e.g., `7XK2QNPR`).
-   - The doctor's ADL assessment and staffing recommendation draft is stored on the invite (`patientProfileDraft` and `careBlueprint`).
+   - The doctor's ADL assessment and staffing recommendation draft is stored on the invite (`patientProfileDraft` and `careBlueprint`) with review status, policy version, and decision-support provenance.
 2. **Family Claims the Blueprint**:
    - In [`/onboarding`](file:///Users/sachinsrivastava/Downloads/sanjeevani/src/app/(main)/onboarding/page.tsx) or via SMS/WhatsApp link, the caregiver types the code (or auto-claims via verified phone).
    - The entire clinical profile, demand hours, and recommended staff tier appear pre-populated.
@@ -74,8 +74,8 @@ When families open the app, they don't see an intimidating blank form asking the
 
 ## Core Features & Modules:
 
-- **Diurnal Care Gap & Biomechanical Load Engine**: Per-block diurnal mismatch index ($g_b$) and NIOSH RNLE lifting index ($LI$).
+- **Diurnal Care Gap & Manual-Handling Load Engine**: Per-block planning estimate and NIOSH-informed lifting hazard flag. This is not a validated staffing calculator until local clinical validation is complete.
 - **Doctor's Clinical Care Blueprint**: Structured discharge bridge linking hospital doctor to home family circle.
 - **Multi-Generational Care Circle & WhatsApp Roster**: Constraint satisfaction shift allocator, RFC 5545 `.ics` export, and WhatsApp digest.
-- **AGS Beers 2023 / STOPP-START Medication Safety**: Anticholinergic Cognitive Burden ($\text{ACB}$) and deprescribing decision support.
+- **AGS Beers 2023 / STOPP-START Medication Safety**: Selected high-yield screening for anticholinergic burden, sedatives, NSAID/renal risk, and prescribing cascades. It supports medication reconciliation and does not replace pharmacist or prescriber review.
 - **Multilingual Geriatric Education Hub**: Evidence-based guides in English, Hindi (हिंदी), and Marathi (मराठी).

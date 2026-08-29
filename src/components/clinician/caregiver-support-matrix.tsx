@@ -71,6 +71,8 @@ import {
 } from '@/lib/clinical/care-gap-engine';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface CaregiverSupportMatrixProps {
   patientUid: string;
@@ -282,6 +284,10 @@ export function CaregiverSupportMatrix({
   };
 
   const currentEval = CareGapEngine.evaluate(currentCaregiver, currentPatient);
+  const dataQualityItems = [
+    ...currentEval.dataQuality.missingFields,
+    ...currentEval.dataQuality.limitations
+  ];
 
   // Live Simulated Caregiver & Patient
   const simulatedCaregiver: CaregiverAttributes = {
@@ -1200,7 +1206,7 @@ export function CaregiverSupportMatrix({
                   : 'Solo Caregiver (0 Helpers)'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Absorbs <strong className="text-foreground">{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong> of care
+                Estimated relief: <strong className="text-foreground">{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong>
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
@@ -1230,7 +1236,7 @@ export function CaregiverSupportMatrix({
                   : 'Standard Bed'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Ergonomic Relief: <strong className="text-indigo-600 dark:text-indigo-400">-{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}% strain</strong>
+                Manual-handling relief estimate: <strong className="text-indigo-600 dark:text-indigo-400">-{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}%</strong>
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-indigo-500/20">
@@ -1246,7 +1252,7 @@ export function CaregiverSupportMatrix({
           <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-primary" /> Calculated Care Gap
+                <Activity className="w-4 h-4 text-primary" /> Care Gap Estimate
               </span>
               <Badge
                 className={cn(
@@ -1265,10 +1271,10 @@ export function CaregiverSupportMatrix({
             </div>
             <div>
               <p className={cn('text-base font-black font-mono', currentEval.netCareGapHours > 0 ? 'text-red-600' : 'text-emerald-600')}>
-                {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'Sustainable (0h Gap)'}
+                {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'No Estimated Gap'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Spine strain: <strong className="text-foreground font-mono">{currentEval.caregiverInjuryRiskScore}%</strong>
+                Manual-handling risk flag: <strong className="text-foreground font-mono">{currentEval.caregiverInjuryRiskScore}%</strong>
               </p>
             </div>
             <div className="w-full bg-muted rounded-full h-2 overflow-hidden mt-1">
@@ -1288,12 +1294,26 @@ export function CaregiverSupportMatrix({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="text-sm font-bold text-foreground flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Patient Care Demand Hours Distribution ({currentEval.patientCareDemandHours} hrs/day Total)
+              Patient Care Demand Distribution ({currentEval.patientCareDemandHours} hrs/day estimate)
             </span>
             <span className="text-xs text-muted-foreground font-mono">
-              Capacity: Primary ({currentEval.teamAllocations.primaryCaregiverHours}h) + Formal ({currentEval.teamAllocations.formalStaffHours}h) + Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
+              Estimated capacity: Primary ({currentEval.teamAllocations.primaryCaregiverHours}h) + Formal ({currentEval.teamAllocations.formalStaffHours}h) + Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} />
+            {currentEval.dataQuality.status !== 'ready_for_clinician_review' && (
+              <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-700 dark:text-amber-300">
+                {currentEval.dataQuality.status.replace(/_/g, ' ')}
+              </Badge>
+            )}
+          </div>
+          {dataQualityItems.length > 0 && (
+            <ClinicalSafetyNote>
+              Confirm before acting: {dataQualityItems.join(' ')}
+            </ClinicalSafetyNote>
+          )}
 
           <div className="w-full h-5 rounded-full bg-muted overflow-hidden flex shadow-inner">
             {primaryPct > 0 && (

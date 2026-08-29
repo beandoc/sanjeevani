@@ -64,6 +64,8 @@ import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
 import { Stethoscope, FileSignature, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 export default function CareCirclePage() {
   const { user } = useAuthUser();
@@ -167,8 +169,8 @@ export default function CareCirclePage() {
       }
 
       toast({
-        title: 'Care Matrix & Family Rota Deployed',
-        description: 'Your changes have been saved and synced directly with your hospital clinical care team.',
+        title: 'Care Matrix Saved',
+        description: 'Your changes are saved. Clinician-facing updates remain decision support until reviewed.',
       });
     } catch (err) {
       console.error('Failed to save care matrix:', err);
@@ -265,8 +267,9 @@ export default function CareCirclePage() {
     window.open(waUrl, '_blank');
   };
 
-  // Evaluate live matrix metrics for summary banners
-  const currentEval = CareGapEngine.evaluate(caregiverAttrs, patientProfile);
+  // Evaluate live matrix metrics only when the user has a real dyad profile.
+  const hasStoredDyadProfile = HealthRepository.hasStoredDyadProfile();
+  const currentEval = hasStoredDyadProfile ? CareGapEngine.evaluate(caregiverAttrs, patientProfile) : null;
   const completedCount = tasks.filter((t) => t.isCompleted).length;
   const secondaryCount = caregiverAttrs.secondaryMembers?.length || 0;
   const respiteDays = caregiverAttrs.rotationPolicy?.primaryCaregiverRespiteDaysPerMonth ?? 4;
@@ -275,6 +278,14 @@ export default function CareCirclePage() {
   // Export Roster Calendar
   const handleExportIcs = () => {
     try {
+      if (!currentEval) {
+        toast({
+          variant: 'destructive',
+          title: 'Complete Patient Setup First',
+          description: 'Roster export needs a real patient and caregiver profile, not demo defaults.'
+        });
+        return;
+      }
       const ics = generateCareRosterIcs(caregiverAttrs, patientProfile, currentEval);
       const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -326,12 +337,14 @@ export default function CareCirclePage() {
       await saveCaregiverAttributesFor(user.uid, updatedAttrs);
     }
     toast({
-      title: "Doctor's Blueprint Applied",
-      description: `${bp.prescribedByDoctor}'s staffing tier, safety directives, and assistive devices are now active in your Care Matrix.`
+      title: 'Clinician Recommendation Applied',
+      description: `${bp.prescribedByDoctor}'s staffing tier, safety notes, and assistive devices are now active in your Care Matrix.`
     });
   };
 
-  const waDigestText = generateWhatsAppCareDigest(caregiverAttrs, patientProfile, currentEval);
+  const waDigestText = currentEval
+    ? generateWhatsAppCareDigest(caregiverAttrs, patientProfile, currentEval)
+    : 'Complete patient setup before sharing a care roster. This prevents demo data from being sent as a real care plan.';
 
   const activeDevicesCount = Object.values(caregiverAttrs.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES).filter(
     (v) => v === true || (typeof v === 'string' && v !== 'none')
@@ -417,6 +430,25 @@ export default function CareCirclePage() {
       </div>
 
       {/* Live Dyad Health & Rotation Status Pills */}
+      {!hasStoredDyadProfile && (
+        <Card className="border-amber-500/40 bg-amber-500/10 shadow-xs">
+          <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+                <h2 className="text-sm font-bold text-foreground">Patient Setup Needed</h2>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Care-gap numbers and roster exports stay hidden until a real patient profile and caregiver profile are documented.
+              </p>
+            </div>
+            <Button asChild size="sm" className="text-xs font-bold">
+              <a href="/onboarding">Complete Setup</a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="border-border bg-card/70 shadow-xs">
           <CardContent className="p-3.5 space-y-1">
@@ -490,7 +522,7 @@ export default function CareCirclePage() {
 
         {/* TAB 1: Family Support Matrix & Assistive Infrastructure Overview */}
         <TabsContent value="matrix" className="space-y-6">
-          {/* Doctor's Clinical Home Care Blueprint Card (if issued) */}
+          {/* Clinician Home Care Blueprint Card (if issued) */}
           {blueprint && (
             <Card className="border-blue-500/40 bg-gradient-to-r from-blue-500/10 via-background to-blue-500/5 shadow-xs overflow-hidden">
               <CardHeader className="pb-3 border-b border-blue-500/20">
@@ -502,7 +534,7 @@ export default function CareCirclePage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base font-bold font-headline">
-                          Doctor&apos;s Clinical Home Care Blueprint
+                          Clinician-Reviewed Home Care Blueprint
                         </CardTitle>
                         <Badge
                           variant={blueprint.status === 'adopted_by_family' ? 'default' : 'outline'}
@@ -517,7 +549,7 @@ export default function CareCirclePage() {
                         </Badge>
                       </div>
                       <CardDescription className="text-xs">
-                        Issued by <strong>{blueprint.prescribedByDoctor}</strong> on{' '}
+                        Drafted or issued by <strong>{blueprint.prescribedByDoctor}</strong> on{' '}
                         {new Date(blueprint.prescribedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                       </CardDescription>
                     </div>
@@ -529,12 +561,16 @@ export default function CareCirclePage() {
                       className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shrink-0"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Apply Doctor&apos;s Prescription</span>
+                      <span>Apply Recommendation</span>
                     </Button>
                   )}
                 </div>
               </CardHeader>
               <CardContent className="p-4 space-y-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} />
+                  <EvidenceLevelBadge level="expert-consensus" label="Clinician Review Required" />
+                </div>
                 <p className="text-foreground leading-relaxed">
                   <strong>Clinical Rationale:</strong> {blueprint.clinicalSummary}
                 </p>
@@ -542,7 +578,7 @@ export default function CareCirclePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1">
                     <span className="font-bold text-primary block text-[11px] uppercase tracking-wider">
-                      Prescribed Staffing & Shift Window
+                      Suggested Staffing & Shift Window
                     </span>
                     <p className="font-semibold text-foreground">
                       {blueprint.recommendedSupportType.replace(/_/g, ' ').toUpperCase()} ({blueprint.recommendedHoursPerDay}h/day)
@@ -552,7 +588,7 @@ export default function CareCirclePage() {
 
                   <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1">
                     <span className="font-bold text-primary block text-[11px] uppercase tracking-wider">
-                      Prescribed Devices & Respite
+                      Suggested Devices & Respite
                     </span>
                     <p className="font-semibold text-foreground">
                       {blueprint.recommendedRespiteDaysPerMonth} Respite Days / Mo
@@ -567,7 +603,7 @@ export default function CareCirclePage() {
                 {blueprint.clinicalPrecautions.length > 0 && (
                   <div className="space-y-1 pt-1">
                     <span className="font-bold text-foreground text-[11px] uppercase tracking-wider block">
-                      Doctor&apos;s Safety Directives for Family:
+                      Safety Notes for Family Review:
                     </span>
                     <div className="space-y-1">
                       {blueprint.clinicalPrecautions.map((prec, idx) => (
@@ -579,6 +615,9 @@ export default function CareCirclePage() {
                     </div>
                   </div>
                 )}
+                <ClinicalSafetyNote>
+                  Family changes to staffing, medicines, suction, wound care, tube feeding, or transfers should be reviewed by the care team.
+                </ClinicalSafetyNote>
               </CardContent>
             </Card>
           )}
@@ -689,7 +728,7 @@ export default function CareCirclePage() {
                     Active Ergonomic & Assistive Infrastructure
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Home equipment configured to prevent caregiver spine strain and patient pressure ulcers.
+                    Home equipment configured to reduce manual-handling strain and support pressure-injury prevention.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -698,7 +737,7 @@ export default function CareCirclePage() {
                       <Bed className="w-5 h-5 text-blue-500 shrink-0" />
                       <div>
                         <p className="font-bold text-xs">Hospital Motorized Bed</p>
-                        <p className="text-[10px] text-muted-foreground">{caregiverAttrs.assistiveDevices?.hospitalBed === 'motorized_multichannel' ? 'Active (Cuts 70% lift strain)' : 'Standard bed'}</p>
+                        <p className="text-[10px] text-muted-foreground">{caregiverAttrs.assistiveDevices?.hospitalBed === 'motorized_multichannel' ? 'Active (reduces bending and lift load)' : 'Standard bed'}</p>
                       </div>
                     </div>
 

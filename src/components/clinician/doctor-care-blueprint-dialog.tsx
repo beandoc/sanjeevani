@@ -38,6 +38,8 @@ import {
 import { StaffingRecommender, SimulatedStaffingOption } from '@/lib/clinical/staffing-recommender';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface DoctorCareBlueprintDialogProps {
   patientUid: string;
@@ -192,7 +194,7 @@ export function DoctorCareBlueprintDialog({
 
       await onBlueprintIssued(blueprint);
       toast({
-        title: 'Clinical Care Blueprint Issued',
+        title: 'Reviewed Care Blueprint Issued',
         description: `Reviewed plan saved for ${patientName}. The family can now review and adopt it in their Care Circle.`
       });
       setOpen(false);
@@ -224,14 +226,22 @@ export function DoctorCareBlueprintDialog({
             <span>Clinical Decision Support & Home Care Planning</span>
           </div>
           <DialogTitle className="text-lg sm:text-xl font-bold font-headline">
-            Issue Home Care Blueprint for {patientName}
+            Review Home Care Blueprint for {patientName}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Review documented inputs and draft a home-care plan. The family receives the clinician-issued plan in their Kutumbh Care Circle to fine-tune and adopt.
+            Review documented inputs and draft a home-care plan. The family receives the clinician-reviewed plan in their Kutumbh Care Circle to fine-tune and adopt.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} />
+            <EvidenceLevelBadge level="expert-consensus" label="Clinician Sign-Off" />
+          </div>
+          <ClinicalSafetyNote>
+            The ladder below is a draft decision-support output. Confirm scope of practice, affordability, family capacity, transfer safety, wound/catheter needs, and medication review before issuing.
+          </ClinicalSafetyNote>
           {report.decisionSupportStatus !== 'ready_for_clinician_review' && (
             <div className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/5 text-xs">
               <p className="font-bold text-amber-900 dark:text-amber-200">
@@ -317,7 +327,7 @@ export function DoctorCareBlueprintDialog({
           {/* Clinical Safety Directives & Precautions */}
           <div className="space-y-3">
             <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" /> Clinical Safety Notes & Precautions for Family
+              <ShieldCheck className="w-3.5 h-3.5" /> Safety Notes & Precautions for Family
             </Label>
             <div className="space-y-2">
               {precautions.map((item, idx) => (
@@ -341,7 +351,7 @@ export function DoctorCareBlueprintDialog({
               <Input
                 value={newPrecautionText}
                 onChange={(e) => setNewPrecautionText(e.target.value)}
-                placeholder="Add custom clinical precaution for the family…"
+                placeholder="Add custom safety note for the family..."
                 className="h-9 text-xs"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -351,15 +361,15 @@ export function DoctorCareBlueprintDialog({
                 }}
               />
               <Button type="button" size="sm" variant="outline" onClick={handleAddPrecaution} className="text-xs shrink-0">
-                + Add Directive
+                + Add Note
               </Button>
             </div>
           </div>
 
-          {/* Prescribed Assistive Devices */}
+          {/* Suggested Assistive Devices */}
           <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 space-y-3">
             <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <Bed className="w-3.5 h-3.5" /> Prescribed Assistive & Ergonomic Devices
+              <Bed className="w-3.5 h-3.5" /> Suggested Assistive & Ergonomic Devices
             </Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card cursor-pointer text-xs">
@@ -389,7 +399,7 @@ export function DoctorCareBlueprintDialog({
                 />
                 <div>
                   <span className="font-bold block">Alternating Pressure Ripple Air Mattress</span>
-                  <span className="text-[10px] text-muted-foreground">Prevents Stage 2+ pressure sores by rotating cell pressure</span>
+                  <span className="text-[10px] text-muted-foreground">Supports pressure redistribution when combined with skin checks and repositioning</span>
                 </div>
               </label>
 
@@ -402,7 +412,7 @@ export function DoctorCareBlueprintDialog({
                 />
                 <div>
                   <span className="font-bold block">Transfer Aids (Gait Belt / Pivot Disc)</span>
-                  <span className="text-[10px] text-muted-foreground">Reduces caregiver spinal shear stress during chair-to-bed transfers</span>
+                  <span className="text-[10px] text-muted-foreground">May reduce manual-handling load when matched to patient ability and training</span>
                 </div>
               </label>
 
@@ -458,7 +468,7 @@ export function DoctorCareBlueprintDialog({
             className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>{isSubmitting ? 'Issuing…' : 'Issue Reviewed Care Blueprint'}</span>
+            <span>{isSubmitting ? 'Issuing...' : 'Issue Reviewed Care Blueprint'}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

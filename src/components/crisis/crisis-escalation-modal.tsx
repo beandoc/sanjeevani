@@ -70,7 +70,7 @@ export function CrisisEscalationModal({
       ? `\nMy Current GPS Location: https://www.google.com/maps?q=${coords.lat},${coords.lng}`
       : '';
 
-    const message = `🚨 *URGENT CARE CRISIS ALERT via Kutumbh App* 🚨\n\nI am currently experiencing severe caregiver distress and need immediate support for our patient.\n\nPlease contact me or step in as soon as possible.${locationText}\n\nSent via Kutumbh Caregiver Decision Support.`;
+    const message = `URGENT CARE SUPPORT REQUEST via Kutumbh App\n\nI am experiencing severe caregiver distress and need immediate support for our patient.\n\nPlease contact me or step in as soon as possible.${locationText}\n\nSent via Kutumbh Caregiver Decision Support.`;
 
     if (navigator.share) {
       navigator
@@ -103,7 +103,7 @@ export function CrisisEscalationModal({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Badge variant="destructive" className="text-[10px] font-bold uppercase tracking-wider">
-                Clinical Crisis Protocol
+                Support Escalation
               </Badge>
               {isSelfHarmBranch && (
                 <Badge className="bg-amber-600 text-white text-[10px] font-bold uppercase">
@@ -112,10 +112,10 @@ export function CrisisEscalationModal({
               )}
             </div>
             <DialogTitle className="text-lg sm:text-xl font-bold font-headline text-foreground">
-              Immediate Caregiver Crisis Escalation
+              Immediate Caregiver Support Options
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              {severityReason}. You do not have to carry this burden alone. Connect immediately with 24x7 verified Indian support helplines.
+              {severityReason}. You do not have to carry this burden alone. Use locally verified emergency, mental-health, senior-care, or family support now.
             </DialogDescription>
           </div>
         </div>
@@ -132,7 +132,7 @@ export function CrisisEscalationModal({
           {/* 1. Verified Live Helplines */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              1. 24x7 National Clinical & Mental Health Helplines
+              1. Locally Verified Emergency & Support Contacts
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <a href="tel:14416" className="block">
@@ -204,14 +204,14 @@ export function CrisisEscalationModal({
               className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs gap-2 shadow-md"
             >
               <Share2 className="w-4 h-4" />
-              <span>Send SOS WhatsApp / SMS Broadcast to Care Circle</span>
+                  <span>Send Urgent WhatsApp / SMS Broadcast to Care Circle</span>
             </Button>
           </div>
         </div>
 
         <DialogFooter className="p-4 bg-muted/30 border-t border-border flex items-center justify-end">
           <Button variant="ghost" size="sm" onClick={onClose} className="rounded-xl text-xs font-semibold">
-            Dismiss Protocol
+            Dismiss
           </Button>
         </DialogFooter>
       </DialogContent>

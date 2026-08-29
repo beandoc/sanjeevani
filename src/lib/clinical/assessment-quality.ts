@@ -77,6 +77,9 @@ export function assessClinicalDataQuality(
   if (metadata?.source === 'caregiver_reported') {
     limitations.push('Function assessment is caregiver-reported and should be confirmed by a clinician when it changes care intensity.');
   }
+  limitations.push(
+    `Confirm comprehensive geriatric assessment domains before plan adoption: ${CLINICAL_POLICY.comprehensiveGeriatricAssessmentDomains.join('; ')}.`
+  );
 
   const completeness = missingFields.length > 0 ? 'insufficient' : limitations.length > 0 ? 'partial' : 'complete';
   const status: ClinicalDecisionSupportStatus = missingFields.length > 0

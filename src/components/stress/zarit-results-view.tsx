@@ -33,6 +33,8 @@ import { cn } from '@/lib/utils';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { SEVERITY_CONFIGS } from '@/lib/clinical/severity-theme';
 import { computeTrajectory } from '@/lib/analytics/trajectory';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface ZaritResultsViewProps {
   result: ZaritEvaluationResult;
@@ -105,10 +107,10 @@ export function ZaritResultsView({
             </div>
             <div>
               <h4 className="font-extrabold text-destructive text-base sm:text-lg flex items-center gap-2">
-                Clinical Safety & Crisis Escalation Triggered
+                High Strain Support Flag
               </h4>
               <p className="text-xs sm:text-sm text-destructive/90 mt-1 font-medium">
-                {redFlags.length > 0 ? redFlags.join(' • ') : 'Severe caregiver fatigue requires immediate escalation.'}
+                {redFlags.length > 0 ? redFlags.join(' • ') : 'Severe caregiver fatigue suggests urgent support and clinician review.'}
               </p>
             </div>
           </div>
@@ -119,7 +121,7 @@ export function ZaritResultsView({
               onClick={() => setIsCrisisModalOpen(true)}
               className="gap-2 font-bold shadow-md whitespace-nowrap"
             >
-              <PhoneCall className="w-4 h-4" /> Trigger Crisis Protocol
+              <PhoneCall className="w-4 h-4" /> Open Support Options
             </Button>
           </div>
         </div>
@@ -134,6 +136,7 @@ export function ZaritResultsView({
                 <Badge className={cn('font-bold text-xs px-3 py-1 shadow-sm', config.badgeBg)}>
                   {result?.tier || 'ZBI'} Assessment Complete
                 </Badge>
+                <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.zaritScore} />
                 <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
                   <Clock className="w-3.5 h-3.5" />
                   {formatSafeDate(result?.completedAt)}
@@ -145,6 +148,9 @@ export function ZaritResultsView({
               <p className="text-sm text-foreground/80 max-w-2xl leading-relaxed">
                 {config.desc[lang] || config.desc.en}
               </p>
+              <ClinicalSafetyNote className="max-w-2xl">
+                The total ZBI score is a validated caregiver-burden measure. Domain capacity ratings, red-flag reasons, and action prompts are Sanjeevani triage overlays for review.
+              </ClinicalSafetyNote>
             </div>
 
             {/* Score Ring Visualizer */}
@@ -197,7 +203,7 @@ export function ZaritResultsView({
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            <Activity className="w-4 h-4" /> Overview & Prescriptions
+            <Activity className="w-4 h-4" /> Overview & Support
           </button>
           <button
             onClick={() => setActiveTab('factors')}
@@ -208,7 +214,7 @@ export function ZaritResultsView({
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            <Layers className="w-4 h-4" /> Subscale Factor Breakdown
+            <Layers className="w-4 h-4" /> Score Breakdown
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -227,7 +233,7 @@ export function ZaritResultsView({
           {/* TAB 1: OVERVIEW & PRESCRIPTIONS */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
-              {/* Prescriptions Section */}
+              {/* Support Suggestions Section */}
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -236,7 +242,7 @@ export function ZaritResultsView({
                       Targeted Caregiver Support Suggestions
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Personalized action steps generated from ZBI score plus Sanjeevani triage rules.
+                      Personalized action steps generated from ZBI score plus Sanjeevani local triage rules.
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs font-semibold">
@@ -262,7 +268,7 @@ export function ZaritResultsView({
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">
-                              {rx.category || 'Prescription'}
+                              {rx.category || 'Support Suggestion'}
                             </span>
                             <Badge
                               variant={isUrgent ? 'destructive' : 'secondary'}
@@ -305,13 +311,13 @@ export function ZaritResultsView({
                   <div>
                     <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
                       <HeartPulse className="w-4 h-4 text-primary" />
-                      Caregiver Domain Capacity Ratings (CCFM Scale)
+                      Caregiver Domain Capacity Ratings
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Calculates available support capacity across the 6 clinical dyad domains (100 = Full Capacity, 0 = Depleted).
+                      Local triage overlay across 6 dyad domains. Higher values suggest more remaining support capacity.
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs font-mono">0 - 100% Ruler</Badge>
+                  <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} />
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4">
@@ -345,10 +351,10 @@ export function ZaritResultsView({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  Psychometric Factor Breakdown
+                  Psychometric Score Breakdown
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Detailed analysis of the 6 underlying drivers of caregiver burden from the Zarit scale.
+                  Shows measured ZBI item groups. Short forms intentionally leave some areas unassessed.
                 </p>
               </div>
 

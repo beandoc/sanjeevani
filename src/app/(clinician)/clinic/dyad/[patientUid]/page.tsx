@@ -67,6 +67,8 @@ import { AssignModulesPanel } from '@/components/clinician/assign-modules-panel'
 import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 const FACTOR_LABELS: Record<ZbiFactor, string> = {
   personal_strain: 'Personal Strain',
@@ -98,7 +100,10 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
-  const [medFrequency, setMedFrequency] = useState('Morning');
+  const [medFrequency, setMedFrequency] = useState<'morning' | 'afternoon' | 'evening' | 'bedtime'>('morning');
+  const [medIndication, setMedIndication] = useState('');
+  const [medDuration, setMedDuration] = useState('');
+  const [medRenalFunction, setMedRenalFunction] = useState('');
   const [isSavingMed, setIsSavingMed] = useState(false);
 
   // Add Vital Dialog State
@@ -285,17 +290,23 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         name: medName.trim(),
         dosage: medDosage.trim() || 'As directed',
         frequency: 'Daily',
-        timeOfDay: [medFrequency.toLowerCase() as any],
-        foodRelation: 'after'
+        timeOfDay: [medFrequency],
+        foodRelation: 'after',
+        indication: medIndication.trim() || undefined,
+        duration: medDuration.trim() || undefined,
+        renalFunctionEgfr: medRenalFunction.trim() || undefined
       };
       const updated = [...medications, newItem];
       await saveMedicationsFor(patientUid, updated);
       setMedications(updated);
       setMedName('');
       setMedDosage('');
+      setMedIndication('');
+      setMedDuration('');
+      setMedRenalFunction('');
       setIsMedModalOpen(false);
       toast({
-        title: 'Prescription Added',
+        title: 'Medication Added for Review',
         description: `${newItem.name} has been added to the dyad's active regimen.`
       });
     } catch (err) {
@@ -460,7 +471,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
           )}
         >
           <Pill className="w-4 h-4" />
-          <span>Prescriptions & Regimen</span>
+          <span>Medicines & Regimen</span>
           <Badge variant="outline" className="text-[9px] ml-1">
             {medications.length}
           </Badge>
@@ -592,11 +603,14 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-primary" /> Active Prescription Regimen
+                    <Pill className="w-4 h-4 text-primary" /> Active Medication Regimen
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    {medications.length} prescription{medications.length === 1 ? '' : 's'} on file for {displayName}
+                    {medications.length} medicine{medications.length === 1 ? '' : 's'} on file for {displayName}
                   </CardDescription>
+                  <div className="pt-1">
+                    <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} />
+                  </div>
                 </div>
 
                 <Dialog open={isMedModalOpen} onOpenChange={setIsMedModalOpen}>
@@ -607,9 +621,9 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                   </DialogTrigger>
                   <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                     <DialogHeader>
-                      <DialogTitle className="text-base font-bold">Add Prescription / Medication</DialogTitle>
+                      <DialogTitle className="text-base font-bold">Add Medication for Review</DialogTitle>
                       <DialogDescription className="text-xs">
-                        Prescribed medication for {displayName}. Saved directly to the dyad record.
+                        Add a medication for {displayName}. Confirm indication, dose, duration, renal function, and prescriber intent during reconciliation.
                       </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddMedication} className="space-y-3 py-2">
@@ -637,14 +651,43 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                           <Label className="text-xs font-semibold">Slot</Label>
                           <select
                             value={medFrequency}
-                            onChange={(e) => setMedFrequency(e.target.value)}
+                            onChange={(e) => setMedFrequency(e.target.value as typeof medFrequency)}
                             className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
                           >
-                            <option value="Morning">Morning</option>
-                            <option value="Afternoon">Afternoon</option>
-                            <option value="Evening">Evening</option>
-                            <option value="Night">Night</option>
+                            <option value="morning">Morning</option>
+                            <option value="afternoon">Afternoon</option>
+                            <option value="evening">Evening</option>
+                            <option value="bedtime">Bedtime</option>
                           </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Indication</Label>
+                        <Input
+                          placeholder="e.g. BP, diabetes, pain, sleep"
+                          value={medIndication}
+                          onChange={(e) => setMedIndication(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Duration / Review Date</Label>
+                          <Input
+                            placeholder="e.g. 5 days, review in 2 weeks"
+                            value={medDuration}
+                            onChange={(e) => setMedDuration(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Renal Function / eGFR</Label>
+                          <Input
+                            placeholder="e.g. eGFR 42, normal, unknown"
+                            value={medRenalFunction}
+                            onChange={(e) => setMedRenalFunction(e.target.value)}
+                            className="h-9 text-xs"
+                          />
                         </div>
                       </div>
                       <DialogFooter className="pt-2 flex-col sm:flex-row gap-2">
@@ -652,7 +695,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                           Cancel
                         </Button>
                         <Button type="submit" size="sm" disabled={isSavingMed} className="bg-primary font-bold w-full sm:w-auto">
-                          {isSavingMed ? 'Saving…' : 'Save Prescription'}
+                          {isSavingMed ? 'Saving...' : 'Save Medication'}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -671,6 +714,11 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                           <p className="text-[11px] text-muted-foreground">
                             {m.dosage} · Slot: {m.timeOfDay.join(', ')}
                           </p>
+                          {(m.indication || m.renalFunctionEgfr || m.duration) && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {[m.indication, m.renalFunctionEgfr, m.duration].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
                         </div>
                         <Badge variant="outline" className="text-[10px]">Active</Badge>
                       </div>

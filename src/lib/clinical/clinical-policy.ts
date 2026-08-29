@@ -12,6 +12,17 @@ export const CLINICAL_POLICY = {
   reviewedAt: '2026-08-28',
   reviewCadenceDays: 180,
   assessmentFreshnessDays: 30,
+  comprehensiveGeriatricAssessmentDomains: [
+    'What matters most / goals of care',
+    'Cognition and delirium risk',
+    'Mood and caregiver distress',
+    'Mobility, falls, and transfer safety',
+    'Medication indication, dose, duration, interactions, and renal function',
+    'Nutrition and swallowing risk',
+    'Continence, skin, and pressure injury risk',
+    'Vision, hearing, pain, and sleep',
+    'Emergency plan, transport, and social support'
+  ],
   staffingRanking: {
     unresolvedNightGap: 120,
     unresolvedMorningGap: 60,

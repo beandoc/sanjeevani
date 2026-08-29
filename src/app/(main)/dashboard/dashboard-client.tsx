@@ -66,6 +66,8 @@ import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
 import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
 import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
 import { subscribeToReassessmentRequest } from '@/lib/firebase/clinical-sync';
+import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -145,8 +147,11 @@ export default function DashboardClient() {
     setVitals(HealthRepository.getVitals());
     setAppointments(HealthRepository.getAppointments());
 
-    const gap = HealthRepository.getCareGapEvaluation();
-    setCareGap(gap);
+    setCareGap(
+      HealthRepository.hasStoredDyadProfile()
+        ? HealthRepository.getCareGapEvaluation()
+        : null
+    );
   }, [skillLevel, caregivingScenario, role]);
 
   const activeModules = allModules
@@ -367,6 +372,7 @@ export default function DashboardClient() {
                       : (latestZarit.classification?.en || 'Burden Assessment'))
                   : 'Establish clinical baseline'}
               </p>
+              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.zaritScore} className="w-fit" />
               {/* Nothing else in the product ever prompts a retake, so without
                   this a caregiver typically never accumulates the 3+
                   assessments the longitudinal trend engine needs. */}
@@ -401,6 +407,7 @@ export default function DashboardClient() {
               <p className="text-xs text-muted-foreground truncate">
                 {medications.length} active medicines tracked
               </p>
+              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} className="w-fit" />
             </CardContent>
           </Card>
         </Link>
@@ -417,16 +424,19 @@ export default function DashboardClient() {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className={`text-2xl font-black ${careGap && careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-foreground'}`}>
-                  {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : '0h'}
+                  {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : 'Setup'}
                 </span>
-                <span className="text-xs text-muted-foreground font-semibold">Needs / day</span>
+                <span className="text-xs text-muted-foreground font-semibold">Estimate</span>
                 <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase">
-                  {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Balanced'}
+                  {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Needed'}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                Demand: {careGap?.patientCareDemandHours || 0}h vs Cap: {careGap?.caregiverSafeCapacityHours || 0}h
+                {careGap
+                  ? `Demand: ${careGap.patientCareDemandHours}h vs Cap: ${careGap.caregiverSafeCapacityHours}h`
+                  : 'Complete patient and caregiver setup first'}
               </p>
+              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} className="w-fit" />
             </CardContent>
           </Card>
         </Link>

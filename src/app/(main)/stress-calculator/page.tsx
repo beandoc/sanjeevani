@@ -122,9 +122,9 @@ export default function StressCalculatorPage() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-foreground">Burnout & Crisis Prevention</h4>
+                  <h4 className="font-bold text-sm text-foreground">Burnout Risk Recognition</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Early identification of acute health degradation and caregiver role collapse before emergencies occur.
+                    Early identification of high caregiver strain so the family or clinician can add support sooner.
                   </p>
                 </div>
               </CardContent>
@@ -136,9 +136,9 @@ export default function StressCalculatorPage() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-foreground">Automated Respite Prescriptions</h4>
+                  <h4 className="font-bold text-sm text-foreground">Reviewable Support Suggestions</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Provides tailored action plans, respite care vouchers, tele-consultations, and task-sharing recommendations.
+                    Provides tailored respite, tele-consultation, and task-sharing suggestions for family and clinician review.
                   </p>
                 </div>
               </CardContent>

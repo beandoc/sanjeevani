@@ -43,6 +43,8 @@ import { syncMedications } from '@/lib/firebase/clinical-sync';
 import { MedicationChecker, BeersWarning } from '@/lib/clinical/medication-checker';
 import { useToast } from '@/hooks/use-toast';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
+import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 const TIME_SLOTS = [
   { key: 'morning', label: 'Morning', icon: Sun, timeRange: '06:00 - 11:59' },
@@ -63,6 +65,11 @@ export default function MedicationsPage() {
   const [frequency, setFrequency] = useState('Once Daily');
   const [selectedSlots, setSelectedSlots] = useState<('morning' | 'afternoon' | 'evening' | 'bedtime')[]>(['morning']);
   const [foodRelation, setFoodRelation] = useState<'before' | 'after' | 'with' | 'any'>('after');
+  const [indication, setIndication] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [duration, setDuration] = useState('');
+  const [renalFunctionEgfr, setRenalFunctionEgfr] = useState('');
+  const [riskHistory, setRiskHistory] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
   const [prescribedBy, setPrescribedBy] = useState('');
   const [detectedWarning, setDetectedWarning] = useState<BeersWarning | null>(null);
@@ -121,6 +128,11 @@ export default function MedicationsPage() {
       frequency,
       timeOfDay: selectedSlots,
       foodRelation,
+      indication: indication.trim() || undefined,
+      startDate: startDate || undefined,
+      duration: duration.trim() || undefined,
+      renalFunctionEgfr: renalFunctionEgfr.trim() || undefined,
+      riskHistory,
       instructions: instructions.trim() || undefined,
       prescribedBy: prescribedBy.trim() || undefined,
       beersWarning: warning?.rationale,
@@ -137,6 +149,11 @@ export default function MedicationsPage() {
     // Reset Form
     setName('');
     setDosage('');
+    setIndication('');
+    setStartDate('');
+    setDuration('');
+    setRenalFunctionEgfr('');
+    setRiskHistory([]);
     setInstructions('');
     setPrescribedBy('');
     setSelectedSlots(['morning']);
@@ -235,7 +252,7 @@ export default function MedicationsPage() {
           </div>
           <h1 className="text-3xl font-bold font-headline">Medication Reminders & Schedule</h1>
           <p className="text-muted-foreground text-sm">
-            Dose-frequency tracking, daily adherence resets, and AGS Beers Criteria / ACB safety screening.
+            Dose reminders plus limited Beers/STOPP screening for clinician or pharmacist review.
           </p>
         </div>
 
@@ -249,9 +266,9 @@ export default function MedicationsPage() {
           <DialogContent className="max-w-md rounded-3xl">
             <form onSubmit={handleAddMedication}>
               <DialogHeader>
-                <DialogTitle className="text-lg font-headline">Add Prescription Medicine</DialogTitle>
+                <DialogTitle className="text-lg font-headline">Add Medicine for Review</DialogTitle>
                 <DialogDescription className="text-xs">
-                  Enter dosage and timing details. We automatically screen for geriatric safety alerts.
+                  Enter dose, timing, indication, and review context. The safety screen is limited and does not replace medication reconciliation.
                 </DialogDescription>
               </DialogHeader>
 
@@ -278,10 +295,24 @@ export default function MedicationsPage() {
                       {detectedWarning.rationale}
                     </p>
                     <p className="text-primary font-medium text-[11px]">
-                      <strong>Safer Alternative:</strong> {detectedWarning.alternatives}
+                      <strong>Possible alternatives to discuss:</strong> {detectedWarning.alternatives}
+                    </p>
+                    <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                      Do not stop or change this medicine without clinician review.
                     </p>
                   </div>
                 )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="med-indication" className="text-xs font-semibold">Why is it prescribed?</Label>
+                  <Input
+                    id="med-indication"
+                    placeholder="e.g. diabetes, BP, pain, sleep, urine symptoms"
+                    value={indication}
+                    onChange={(e) => setIndication(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -308,6 +339,70 @@ export default function MedicationsPage() {
                         <SelectItem value="As Needed (SOS)" className="text-xs">As Needed (SOS)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="med-start" className="text-xs font-semibold">Start Date</Label>
+                    <Input
+                      id="med-start"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="med-duration" className="text-xs font-semibold">Intended Duration</Label>
+                    <Input
+                      id="med-duration"
+                      placeholder="e.g. 5 days, long-term, review in 2 weeks"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="med-egfr" className="text-xs font-semibold">Kidney Function / eGFR</Label>
+                  <Input
+                    id="med-egfr"
+                    placeholder="e.g. eGFR 42, normal last month, unknown"
+                    value={renalFunctionEgfr}
+                    onChange={(e) => setRenalFunctionEgfr(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Relevant Older-Adult Risks</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['falls', 'delirium', 'dementia', 'constipation', 'urine retention', 'low BP'].map((risk) => {
+                      const isSelected = riskHistory.includes(risk);
+                      return (
+                        <button
+                          key={risk}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setRiskHistory((current) =>
+                              current.includes(risk)
+                                ? current.filter((item) => item !== risk)
+                                : [...current, risk]
+                            );
+                          }}
+                          className={`rounded-xl border px-2.5 py-2 text-left text-[11px] font-semibold capitalize transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {risk}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -389,6 +484,24 @@ export default function MedicationsPage() {
         </Dialog>
       </div>
 
+      <Card className="border-blue-500/30 bg-blue-500/5 shadow-xs">
+        <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <ShieldAlert className="w-4 h-4 text-blue-600" />
+              <h2 className="text-sm font-bold text-foreground">Medication Safety Boundary</h2>
+              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} />
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This screen checks selected high-yield geriatric medication risks. It cannot verify indication, dose appropriateness, kidney adjustment, duplicate therapy, affordability, or goals of care by itself.
+            </p>
+          </div>
+          <ClinicalSafetyNote className="sm:max-w-xs">
+            Do not stop, restart, or change any medicine without the prescribing clinician or pharmacist.
+          </ClinicalSafetyNote>
+        </CardContent>
+      </Card>
+
       {/* Regimen Safety Alerts (ACB Score & STOPP Interactions) */}
       {regimenEval.warnings.length > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5 shadow-xs">
@@ -399,7 +512,7 @@ export default function MedicationsPage() {
                 Cumulative Regimen Safety Review (ACB Score: {regimenEval.totalAcbScore})
               </CardTitle>
               <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-800 dark:text-amber-300">
-                STOPP/START Screen
+                Limited Screen
               </Badge>
             </div>
             <CardDescription className="text-xs text-amber-900/80 dark:text-amber-300/80">
@@ -411,6 +524,27 @@ export default function MedicationsPage() {
               <div key={i} className="p-2.5 rounded-xl bg-background/80 border border-amber-500/20 flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <span className="text-muted-foreground leading-relaxed">{w}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {regimenEval.reviewGaps.length > 0 && medications.length > 0 && (
+        <Card className="border-slate-300 bg-muted/20 shadow-xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Info className="w-4 h-4 text-primary" />
+              Medication Review Gaps
+            </CardTitle>
+            <CardDescription className="text-xs">
+              These fields are needed before a clinician can safely reconcile the regimen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-1 text-xs">
+            {regimenEval.reviewGaps.map((gap) => (
+              <div key={gap} className="rounded-xl border border-border/70 bg-background px-3 py-2 text-muted-foreground">
+                {gap}
               </div>
             ))}
           </CardContent>
@@ -542,8 +676,14 @@ export default function MedicationsPage() {
                   </div>
 
                   {/* Special Instructions & Prescriber */}
-                  {(med.instructions || med.prescribedBy) && (
+              {(med.instructions || med.prescribedBy || med.indication || med.startDate || med.duration || med.renalFunctionEgfr || (med.riskHistory?.length ?? 0) > 0) && (
                     <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-0.5">
+                      {med.indication && <p><strong>Reason:</strong> {med.indication}</p>}
+                      {(med.startDate || med.duration) && (
+                        <p><strong>Review timing:</strong> {[med.startDate, med.duration].filter(Boolean).join(' • ')}</p>
+                      )}
+                      {med.renalFunctionEgfr && <p><strong>Kidney context:</strong> {med.renalFunctionEgfr}</p>}
+                      {med.riskHistory && med.riskHistory.length > 0 && <p><strong>Older-adult risks:</strong> {med.riskHistory.join(', ')}</p>}
                       {med.instructions && <p><strong>Notes:</strong> {med.instructions}</p>}
                       {med.prescribedBy && <p><strong>Prescribed by:</strong> {med.prescribedBy}</p>}
                     </div>
@@ -557,6 +697,7 @@ export default function MedicationsPage() {
                         <span>{warning.drugClass}</span>
                       </div>
                       <p className="leading-relaxed opacity-90">{warning.recommendation}</p>
+                      <p className="font-semibold">Do not stop or change without clinician review.</p>
                     </div>
                   )}
                 </CardContent>
@@ -582,7 +723,7 @@ export default function MedicationsPage() {
           <div className="col-span-2 text-center py-12 text-muted-foreground border border-dashed rounded-3xl">
             <Pill className="w-10 h-10 mx-auto mb-2 text-muted-foreground/60" />
             <p className="text-sm font-medium">No medications in this time slot</p>
-            <p className="text-xs">Click &quot;Add Medication&quot; above to schedule prescriptions.</p>
+            <p className="text-xs">Click &quot;Add Medication&quot; above to schedule medicines for review.</p>
           </div>
         )}
       </div>

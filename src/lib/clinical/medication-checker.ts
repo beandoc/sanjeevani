@@ -23,9 +23,22 @@ export interface RegimenSafetyEvaluation {
   totalAcbScore: number;
   acbRiskLevel: 'low' | 'moderate' | 'high-risk';
   warnings: string[];
+  reviewGaps: string[];
   stoppTriggers: string[];
   summary: string;
   provenance: ClinicalProvenance;
+}
+
+export interface MedicationReviewInput {
+  name: string;
+  genericName?: string;
+  dosage?: string;
+  frequency?: string;
+  indication?: string;
+  startDate?: string;
+  duration?: string;
+  renalFunctionEgfr?: string;
+  riskHistory?: string[];
 }
 
 interface BeersDatabaseEntry {
@@ -192,13 +205,32 @@ export class MedicationChecker {
    * Computes cumulative Anticholinergic Cognitive Burden (ACB) and screens for STOPP/START interactions.
    */
   static evaluateRegimen(
-    medications: Array<{ name: string; genericName?: string }>
+    medications: MedicationReviewInput[]
   ): RegimenSafetyEvaluation {
     let totalAcbScore = 0;
     const warnings: string[] = [];
+    const reviewGaps: string[] = [];
     const stoppTriggers: string[] = [];
 
     const namesLower = medications.map((m) => `${m.name} ${m.genericName || ''}`.toLowerCase());
+
+    const missingIndication = medications.filter((m) => !m.indication?.trim()).length;
+    const missingDose = medications.filter((m) => !m.dosage?.trim()).length;
+    const missingDuration = medications.filter((m) => !m.startDate?.trim() && !m.duration?.trim()).length;
+    const missingRenalContext = medications.filter((m) => !m.renalFunctionEgfr?.trim()).length;
+
+    if (missingIndication > 0) {
+      reviewGaps.push(`${missingIndication} medicine(s) lack a documented indication.`);
+    }
+    if (missingDose > 0) {
+      reviewGaps.push(`${missingDose} medicine(s) lack a documented dose.`);
+    }
+    if (missingDuration > 0) {
+      reviewGaps.push(`${missingDuration} medicine(s) lack start date or intended duration.`);
+    }
+    if (missingRenalContext > 0) {
+      reviewGaps.push('Renal function/eGFR is not documented for every medicine; dose-safety review is incomplete.');
+    }
 
     // 1. Calculate Cumulative ACB (Anticholinergic Cognitive Burden)
     for (const name of namesLower) {
@@ -289,13 +321,16 @@ export class MedicationChecker {
 
     const summary =
       warnings.length > 0
-        ? `${warnings.length} safety alert(s) detected across current ${medications.length} medications.`
-        : 'All active medications screened against 2023 Beers Criteria & STOPP guidelines without major interaction flags.';
+        ? `${warnings.length} high-yield safety alert(s) detected across current ${medications.length} medications. Confirm indication, dose, renal function, duration, and goals of care with the prescriber before making changes.`
+        : medications.length > 0
+          ? 'No high-yield Beers/STOPP alerts detected in this limited screen. This does not prove the regimen is safe; clinician/pharmacist medication reconciliation is still needed.'
+          : 'No medicines entered. Medication-risk screening cannot run until the current regimen is documented.';
 
     return {
       totalAcbScore,
       acbRiskLevel,
       warnings,
+      reviewGaps,
       stoppTriggers,
       summary,
       provenance: CLINICAL_PROVENANCE.beersStoppScreen

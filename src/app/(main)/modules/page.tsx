@@ -312,12 +312,12 @@ const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' |
       {/* 2b. Explicitly Assigned by Clinician */}
       {assignedModules.length > 0 && (
         <CompetencySection
-          title={`Doctor Prescribed Learning (Assigned by ${assignedByLabel || 'Physician'})`}
-          subtitle="Clinical priorities explicitly assigned by your consulting physician for this dyad."
+          title={`Clinician Assigned Learning (Assigned by ${assignedByLabel || 'Physician'})`}
+          subtitle="Learning priorities explicitly assigned by your consulting clinician for this dyad."
           icon={Stethoscope}
           modules={assignedModules}
-          badgeText={`${assignedModules.length} Doctor Prescribed`}
-          tag="Assigned by Doctor"
+          badgeText={`${assignedModules.length} Clinician Assigned`}
+          tag="Assigned by Clinician"
         />
       )}
 

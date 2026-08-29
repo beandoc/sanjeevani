@@ -65,6 +65,11 @@ export interface MedicationItem {
   frequency: string; // e.g. "Once daily", "Twice daily"
   timeOfDay: ('morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos')[];
   foodRelation: 'before' | 'after' | 'with' | 'any';
+  indication?: string;
+  startDate?: string;
+  duration?: string;
+  renalFunctionEgfr?: string;
+  riskHistory?: string[];
   instructions?: string;
   prescribedBy?: string;
   beersWarning?: string;
@@ -701,6 +706,15 @@ export class HealthRepository {
     return DEFAULT_CAREGIVER_ATTRIBUTES;
   }
 
+  static hasStoredCaregiverAttributes(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return Boolean(localStorage.getItem(STORAGE_KEYS.CAREGIVER_ATTRIBUTES));
+    } catch {
+      return false;
+    }
+  }
+
   static saveCaregiverAttributes(attrs: CaregiverAttributes): void {
     if (typeof window === 'undefined') return;
     try {
@@ -740,6 +754,19 @@ export class HealthRepository {
       console.error('Error reading patient profile:', e);
     }
     return DEFAULT_PATIENT_PROFILE;
+  }
+
+  static hasStoredPatientProfile(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return Boolean(localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE));
+    } catch {
+      return false;
+    }
+  }
+
+  static hasStoredDyadProfile(): boolean {
+    return this.hasStoredCaregiverAttributes() && this.hasStoredPatientProfile();
   }
 
   static savePatientProfile(prof: PatientDependenceProfile): void {
@@ -799,7 +826,7 @@ export class HealthRepository {
     medications: MedicationItem[];
     caregiverAttributes: CaregiverAttributes;
     patientProfile: PatientDependenceProfile;
-    careGapEvaluation: CareGapEvaluationResult;
+    careGapEvaluation: CareGapEvaluationResult | null;
     careCircle: {
       members: CareCircleMember[];
       tasks: CareCircleTask[];
@@ -818,7 +845,7 @@ export class HealthRepository {
       medications: this.getMedications(),
       caregiverAttributes: this.getCaregiverAttributes(),
       patientProfile: this.getPatientProfile(),
-      careGapEvaluation: this.getCareGapEvaluation(),
+      careGapEvaluation: this.hasStoredDyadProfile() ? this.getCareGapEvaluation() : null,
       careCircle: {
         members: this.getCareCircleMembers(),
         tasks: this.getCareCircleTasks()

@@ -25,6 +25,20 @@ Sanjeevani is a clinician-reviewed planning and coordination tool for home care 
 - Record the issuing clinician, policy version, and decision-support status with each issued plan; add a reason whenever a later clinician revision or rejection changes an adopted plan.
 - Report missing inputs and model limitations in the user interface and exports.
 - Review policy values at least every 180 days and after any material outcome or workflow change.
+- Label every output as one of: validated scale, guideline-based screen, expert-reviewed note, local planning estimate, or user-entered data.
+- Withhold patient-specific care-gap and roster exports when only demo/default patient or caregiver data is available.
+- Treat medication alerts as a limited Beers/STOPP screen. Do not display "safe regimen" language unless a clinician or pharmacist has completed indication, dose, duration, renal function, and goals-of-care review.
+- Capture adverse events and near misses during pilots: falls, transfer injury, medication error, missed appointment, pressure injury, delirium episode, caregiver acute distress, and unplanned emergency care.
+- Maintain a content governance log with reviewer name, specialty, source guideline, last-reviewed date, policy version, and rationale for every material rule change.
+
+## Minimum Clinical Dataset Before Plan Adoption
+
+- Patient goals and "what matters most."
+- Katz ADL and Lawton IADL with assessment date and source.
+- Cognition/delirium risk, mood, sleep, pain, sensory impairment, continence, nutrition/swallowing, skin/pressure-injury risk, and fall/transfer history.
+- Medication list with dose, frequency, indication, start date or duration, prescriber, renal function/eGFR when relevant, and recent medication changes.
+- Caregiver age, health limitations, available hours, work constraints, training, household support, affordability limits, and emergency transport plan.
+- Clinician review status for wound care, catheter/stoma care, suction, tube feeding, insulin/anticoagulants, sedatives, opioids, and any high-risk transfer plan.
 
 ## Commercial Success Criteria
 
