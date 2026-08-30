@@ -250,7 +250,8 @@ export function DoctorCareBlueprintDialog({
                   : 'Confirm the following limitations before issuing this plan.'}
               </p>
               <p className="text-muted-foreground mt-1">
-                {[...report.dataQuality.missingFields, ...report.dataQuality.limitations].join(' ')}
+                {[...report.dataQuality.missingFields, ...report.dataQuality.limitations].slice(0, 2).join(' • ')}
+                {[...report.dataQuality.missingFields, ...report.dataQuality.limitations].length > 2 ? ' (and more)' : ''}
               </p>
             </div>
           )}

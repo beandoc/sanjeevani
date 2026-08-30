@@ -58,10 +58,14 @@ import { auth } from '@/lib/firebase/client';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
-export function CaregiverDyadProfiler() {
+interface CaregiverDyadProfilerProps {
+  defaultTab?: 'caregiver' | 'patient' | 'gap';
+}
+
+export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDyadProfilerProps) {
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patient, setPatient] = useState<PatientDependenceProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>('gap');
+  const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>(defaultTab);
   const { toast } = useToast();
 
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
@@ -260,7 +264,8 @@ export function CaregiverDyadProfiler() {
                       : 'Staffing options require clinician review.'}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {[...evaluation.dataQuality.missingFields, ...evaluation.dataQuality.limitations].join(' ')}
+                    {[...evaluation.dataQuality.missingFields, ...evaluation.dataQuality.limitations].slice(0, 2).join(' • ')}
+                    {[...evaluation.dataQuality.missingFields, ...evaluation.dataQuality.limitations].length > 2 ? ' (and more)' : ''}
                   </p>
                 </div>
               </CardContent>

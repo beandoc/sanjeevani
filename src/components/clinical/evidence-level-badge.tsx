@@ -53,12 +53,20 @@ export function EvidenceLevelBadge({
 interface ClinicalSafetyNoteProps {
   children?: ReactNode;
   className?: string;
+  defaultExpanded?: boolean;
 }
 
 export function ClinicalSafetyNote({ children, className }: ClinicalSafetyNoteProps) {
   return (
-    <div className={cn('rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:text-amber-200', className)}>
-      {children || 'Decision support only. Confirm with a qualified clinician before changing treatment, staffing, or transfer plans.'}
+    <div className={cn('rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-900 dark:text-amber-200 shadow-2xs', className)}>
+      <div className="flex items-center gap-2">
+        <span className="font-bold uppercase tracking-wider text-[10px] text-amber-700 dark:text-amber-400 shrink-0 bg-amber-500/20 px-1.5 py-0.5 rounded">
+          Precaution
+        </span>
+        <div className="text-[11px] leading-snug line-clamp-2 hover:line-clamp-none transition-all">
+          {children || 'Decision support only. Confirm with a clinician before altering care or staffing.'}
+        </div>
+      </div>
     </div>
   );
 }

@@ -35,7 +35,14 @@ import {
   Calendar,
   FileText,
   Sparkles,
-  Layers
+  Layers,
+  HeartHandshake,
+  ClipboardPlus,
+  MapPin,
+  Hospital,
+  Store,
+  Ambulance,
+  ExternalLink
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -102,6 +109,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   const [appointments, setAppointments] = useState<any[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
+  const [showCdssDetails, setShowCdssDetails] = useState(false);
 
   // Add Medication Dialog State
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
@@ -386,68 +394,195 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
 
   const careGapResult = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
 
+  // Extract clean patient name and dyad identifiers
+  const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
+  const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
+  const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${patientUid.replace('demo-', '').toUpperCase()}`;
+  const patientInitials = cleanPatientName
+    .replace(/^(Smt\.|Shri|Dr\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'PT';
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
-      {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60 bg-card/60 p-4 rounded-3xl backdrop-blur">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/clinic/roster" className="shrink-0">
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-bold shrink-0">
-              <User className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-xl font-bold font-headline truncate">{displayName}</h1>
-                <Badge variant="outline" className="text-[10px] font-mono">
-                  {patientUid.replace('demo-', '').toUpperCase()}
-                </Badge>
+      {/* Breadcrumb & Live Status Bar */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Link
+              href="/clinic/roster"
+              className="flex items-center gap-1 hover:text-foreground text-muted-foreground transition-colors group"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Patient Clinical Roster</span>
+            </Link>
+            <span className="text-border">/</span>
+            <span className="text-foreground font-semibold">{cleanPatientName}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Active Care Surveillance
+            </span>
+          </div>
+        </div>
+
+        {/* Executive Patient Clinical Header */}
+        <div className="p-4 sm:p-6 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-xs space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Patient Identity & Clinical Metadata */}
+            <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-base sm:text-lg shadow-sm ring-2 ring-blue-500/20">
+                  {patientInitials}
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background border-2 border-card flex items-center justify-center text-primary shadow-2xs" title="Geriatric Dyad Patient">
+                  <Stethoscope className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground truncate">Geriatric Care Dyad & Support Workspace</p>
+
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate">
+                    {cleanPatientName}
+                  </h1>
+                  <Badge variant="outline" className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5">
+                    {dyadTag}
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {patientProfile?.age || 78} Yrs • Female
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1 font-medium text-foreground/90">
+                    <Users2 className="w-3.5 h-3.5 text-primary" />
+                    {caregiver?.name ? `Caregiver: ${caregiver.name} (${caregiver.kinship})` : 'Primary Caregiver Connected'}
+                  </span>
+                  <span className="hidden sm:inline text-border">•</span>
+                  <span className="text-xs">
+                    {caregiver?.coResidence === 'lives_together' ? 'Co-residing at home' : 'Family Care Circle'}
+                  </span>
+                  <span className="hidden sm:inline text-border">•</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                    {latestAssessment ? `ZBI Strain: ${latestAssessment.totalScore}/88 (${latestAssessment.tier})` : 'ZBI: Score Intake Needed'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void load()}
+                className="h-9 text-xs gap-1.5 bg-background/80 hover:bg-muted"
+                title="Sync clinical observations and telemetry"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+
+              <AssistedZaritAssessmentForm
+                patientName={cleanPatientName}
+                onComplete={handleZaritAssessmentSaved}
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-semibold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 bg-background/80"
+                  >
+                    <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
+                    <span>ZBI Strain</span>
+                  </Button>
+                }
+              />
+
+              <FunctionAssessmentForm
+                onComplete={handleFunctionAssessmentSaved}
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs font-semibold gap-1.5 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 bg-background/80"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>ADL / IADL</span>
+                  </Button>
+                }
+              />
+
+              <DoctorCareBlueprintDialog
+                patientUid={patientUid}
+                patientName={cleanPatientName}
+                caregiver={caregiver}
+                patientProfile={patientProfile}
+                onBlueprintIssued={handleBlueprintIssued}
+                trigger={
+                  <Button
+                    size="sm"
+                    className="h-9 text-xs font-bold gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                    <span>Review Blueprint</span>
+                  </Button>
+                }
+              />
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end">
-          <Button variant="outline" size="sm" onClick={() => void load()} className="h-9 text-xs gap-1.5 flex-1 sm:flex-none">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </Button>
-          <DoctorCareBlueprintDialog
-            patientUid={patientUid}
-            patientName={displayName}
-            caregiver={caregiver}
-            patientProfile={patientProfile}
-            onBlueprintIssued={handleBlueprintIssued}
-          />
-          <AssistedZaritAssessmentForm
-            patientName={displayName}
-            onComplete={handleZaritAssessmentSaved}
-          />
-          <FunctionAssessmentForm onComplete={handleFunctionAssessmentSaved} />
-        </div>
       </div>
 
-      {/* Quality of Care Warning Banner */}
+      {/* Quality of Care Warning Banner / Compact CDSS Advisory Bar */}
       {careGapResult.qualityOfCareWarnings.length > 0 && (
-        <Card className="border-red-500/30 bg-red-500/5 shadow-xs animate-in fade-in duration-300">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5 uppercase tracking-wider">
-              <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" />
-              Quality of Care Alerts (Potential Neglect / Care Breakdown)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 p-4 pt-0">
-            {careGapResult.qualityOfCareWarnings.map((warning, index) => (
-              <div key={index} className="p-3 rounded-xl border border-red-200 bg-white dark:bg-zinc-900 flex items-start gap-2.5 text-xs">
-                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <p className="text-foreground leading-relaxed">{warning}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-2.5 sm:px-4 text-xs shadow-2xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="font-bold text-amber-800 dark:text-amber-300 text-[11px] uppercase tracking-wider shrink-0">
+                CDSS Advisory ({careGapResult.qualityOfCareWarnings.length}):
+              </span>
+              <p className="text-foreground/80 truncate text-xs">
+                {careGapResult.qualityOfCareWarnings[0].replace(/^Decision-support limitation:\s*/i, '')}
+                {careGapResult.qualityOfCareWarnings.length > 1 && (
+                  <span className="text-muted-foreground ml-1">
+                    (+{careGapResult.qualityOfCareWarnings.length - 1} more items)
+                  </span>
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCdssDetails(!showCdssDetails)}
+              className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0 pl-2 cursor-pointer"
+            >
+              {showCdssDetails ? 'Collapse' : 'Show Details'}
+            </button>
+          </div>
+
+          {showCdssDetails && (
+            <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 space-y-1.5 animate-in fade-in duration-200">
+              {careGapResult.qualityOfCareWarnings.map((warning, index) => {
+                const cleanWarning = warning.replace(/^Decision-support limitation:\s*/i, '');
+                return (
+                  <div
+                    key={index}
+                    className="p-2 rounded-xl border border-amber-200/70 dark:border-amber-800/60 bg-white/90 dark:bg-zinc-900/90 flex items-start gap-2 text-xs shadow-2xs"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                    <p className="text-foreground/90 leading-relaxed">{cleanWarning}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* HORIZONTAL WORKSPACE NAVIGATION TABS */}
@@ -933,11 +1068,68 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-muted/30 border border-border/70 space-y-2">
-                  <span className="text-xs font-bold block">Hospital & Emergency Helpline:</span>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <span>Preferred Emergency Center: <strong>{caregiver?.emergencyLogistics?.preferredHospitalName || 'AIIMS Geriatric Center'}</strong></span>
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      Patient Home Address & Emergency Geolocation Setpoint:
+                    </span>
                     <span className="font-mono text-primary font-bold">Helpline: {caregiver?.emergencyLogistics?.ambulanceContact || '108'}</span>
+                  </div>
+                  <p className="text-xs text-foreground bg-card p-2.5 rounded-xl border border-border/60">
+                    {patientProfile?.homeCareAddress || 'H-402, Green Park Society, New Delhi (Default Registered Address)'}
+                  </p>
+
+                  <div className="pt-2 border-t border-border/50">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
+                      Live Google Search Around Patient Residence:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const addr = patientProfile?.homeCareAddress || 'AIIMS New Delhi';
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`hospitals emergency near ${addr}`)}`, '_blank');
+                        }}
+                        className="p-2 rounded-xl border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 text-left transition-all flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-300">
+                          <Hospital className="w-3.5 h-3.5 text-rose-600" />
+                          Nearby Hospitals
+                        </span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const addr = patientProfile?.homeCareAddress || 'AIIMS New Delhi';
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`medical stores pharmacy near ${addr}`)}`, '_blank');
+                        }}
+                        className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-left transition-all flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
+                          <Pill className="w-3.5 h-3.5 text-emerald-600" />
+                          24x7 Pharmacies
+                        </span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const addr = patientProfile?.homeCareAddress || 'AIIMS New Delhi';
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`ambulance service near ${addr}`)}`, '_blank');
+                        }}
+                        className="p-2 rounded-xl border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 text-left transition-all flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-bold text-red-700 dark:text-red-300">
+                          <Ambulance className="w-3.5 h-3.5 text-red-600" />
+                          Ambulance Services
+                        </span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </CardContent>

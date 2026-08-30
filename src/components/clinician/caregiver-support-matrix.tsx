@@ -1308,12 +1308,12 @@ export function CaregiverSupportMatrix({
                 {currentEval.dataQuality.status.replace(/_/g, ' ')}
               </Badge>
             )}
+            {dataQualityItems.length > 0 && (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                • Verify unconfirmed inputs with clinician before plan adoption
+              </span>
+            )}
           </div>
-          {dataQualityItems.length > 0 && (
-            <ClinicalSafetyNote>
-              Confirm before acting: {dataQualityItems.join(' ')}
-            </ClinicalSafetyNote>
-          )}
 
           <div className="w-full h-5 rounded-full bg-muted overflow-hidden flex shadow-inner">
             {primaryPct > 0 && (

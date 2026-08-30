@@ -63,23 +63,21 @@ export function assessClinicalDataQuality(
   const metadata = patient.assessmentMetadata;
   const ageDays = assessmentAgeDays(metadata?.assessedAt, now);
   if (!metadata?.assessedAt || ageDays === null) {
-    limitations.push('Assessment date is not recorded; confirm that function and support data remain current.');
+    limitations.push('Assessment date unrecorded; confirm function & support data remain current.');
   } else if (ageDays > CLINICAL_POLICY.assessmentFreshnessDays) {
-    limitations.push(`Assessment is ${ageDays} days old; repeat functional and caregiver-capacity review before acting on staffing options.`);
+    limitations.push(`Assessment is ${ageDays}d old; review functional capacity before changing staffing.`);
   }
 
   if (!patient.currentMedications) {
-    limitations.push('Medication list is not documented; medication-risk screening is incomplete.');
+    limitations.push('Medication list pending documentation; risk screening incomplete.');
   }
   if (!patient.weightKg && !patient.heightCm && !patient.katzAdl?.transferring) {
-    limitations.push('Weight and height are not documented; transfer-load estimates have reduced precision.');
+    limitations.push('Height/weight unrecorded; transfer-load estimates have reduced precision.');
   }
   if (metadata?.source === 'caregiver_reported') {
-    limitations.push('Function assessment is caregiver-reported and should be confirmed by a clinician when it changes care intensity.');
+    limitations.push('Caregiver-reported score; confirm clinically before escalation.');
   }
-  limitations.push(
-    `Confirm comprehensive geriatric assessment domains before plan adoption: ${CLINICAL_POLICY.comprehensiveGeriatricAssessmentDomains.join('; ')}.`
-  );
+  limitations.push('Confirm core CGA domains (cognition, mood, mobility, meds, nutrition, social) before plan adoption.');
 
   const completeness = missingFields.length > 0 ? 'insufficient' : limitations.length > 0 ? 'partial' : 'complete';
   const status: ClinicalDecisionSupportStatus = missingFields.length > 0
