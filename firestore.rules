@@ -18,10 +18,11 @@ service cloud.firestore {
     // A pre-claim dyad pseudo-account (`dyad_{inviteCode}`) created by
     // createDyadInvite before the caregiver has signed up. Its only content
     // is what the issuing doctor entered, gated behind an unguessable invite
-    // code (see dyadInvites below, which is already readable by any
-    // authenticated user on the same reasoning) — so it's safe to let any
-    // professional write it and any authenticated user read it, without
-    // extending that same bypass to a real, already-claimed caregiver's uid.
+    // code (see dyadInvites below — a direct get-by-known-code is open to any
+    // authenticated user on the same reasoning, but listing/querying the
+    // collection is restricted) — so it's safe to let any professional write
+    // it and any authenticated user read it by known id, without extending
+    // that same bypass to a real, already-claimed caregiver's uid.
     function isDyadPlaceholder(userId) {
       return userId.matches('^dyad_.*');
     }
@@ -41,10 +42,7 @@ service cloud.firestore {
     function isProfessional(uid) {
       return isAuthenticated()
           && exists(/databases/$(database)/documents/users/$(uid))
-          && (
-            !('role' in get(/databases/$(database)/documents/users/$(uid)).data)
-            || get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor', 'nurse']
-          );
+          && get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor', 'nurse'];
     }
 
     function hasActiveGrant(userId) {
@@ -408,9 +406,22 @@ service cloud.firestore {
     // itself only ever stores the pre-claim intake + claim status, never the
     // grant relationship, so read access here cannot itself expose grants.
     match /dyadInvites/{inviteCode} {
-      // Any authenticated user may read an invite by its code to claim it —
-      // codes are short-lived, unguessable random tokens, not enumerable.
-      allow read: if isAuthenticated();
+      // Direct lookup by a known code (claim flow) — codes are short-lived,
+      // unguessable random tokens, so a get-by-known-code is safe for any
+      // authenticated user.
+      allow get: if isAuthenticated();
+      // Listing/querying is restricted to invites the requester has a
+      // legitimate reason to see: the clinician who issued them, or the
+      // caregiver whose own Firebase Auth phone number matches the invite's
+      // caregiverPhone. Without this split, `allow read` would also cover an
+      // unfiltered `list`/query, letting any authenticated user enumerate
+      // every clinician's entire patient roster.
+      allow list: if isAuthenticated()
+                  && (
+                    resource.data.clinicianUid == request.auth.uid
+                    || (request.auth.token.phone_number != null
+                        && resource.data.caregiverPhone == request.auth.token.phone_number)
+                  );
       allow create: if isAuthenticated()
                     && isProfessional(request.auth.uid)
                     && request.resource.data.clinicianUid == request.auth.uid

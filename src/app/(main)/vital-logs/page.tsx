@@ -292,7 +292,7 @@ export default function VitalLogsPage() {
         </p>
       </div>
 
-      <ConsentManager mode="banner" onConsentChange={() => setLogs(HealthRepository.getVitals())} />
+      <ConsentManager mode="banner" onConsentChange={() => void refreshLogs()} />
 
       <div className="grid gap-8 md:grid-cols-3">
         <Card className="md:col-span-1 shadow-sm border-border bg-card">

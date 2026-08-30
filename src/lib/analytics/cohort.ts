@@ -279,13 +279,8 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
       })
     );
 
-    // Merge registered rows with demo cohort so doctor always sees full cohort context
-    const currentUids = new Set(rows.map((r) => r.patientUid));
-    const demoToAdd = DEMO_COHORT_ROWS.filter((d) => !currentUids.has(d.patientUid));
-    const allRows = [...rows, ...demoToAdd];
-
-    allRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
-    return allRows;
+    rows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+    return rows;
   } catch (err) {
     console.warn('Could not load cohort roster, falling back to demo cohort:', err);
     return DEMO_COHORT_ROWS;

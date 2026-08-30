@@ -12,8 +12,6 @@ import {
   LayoutDashboard,
   BookOpen,
   ArrowUpRight,
-  ShieldCheck,
-  Check,
   ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

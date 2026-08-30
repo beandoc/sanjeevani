@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -283,7 +283,10 @@ export function CaregiverSupportMatrix({
     }
   };
 
-  const currentEval = CareGapEngine.evaluate(currentCaregiver, currentPatient);
+  const currentEval = useMemo(
+    () => CareGapEngine.evaluate(currentCaregiver, currentPatient),
+    [currentCaregiver, currentPatient]
+  );
   const dataQualityItems = [
     ...currentEval.dataQuality.missingFields,
     ...currentEval.dataQuality.limitations
@@ -341,7 +344,45 @@ export function CaregiverSupportMatrix({
     }
   };
 
-  const simulatedEval = CareGapEngine.evaluate(simulatedCaregiver, simulatedPatient);
+  const simulatedEval = useMemo(
+    () => CareGapEngine.evaluate(simulatedCaregiver, simulatedPatient),
+    [
+      currentCaregiver,
+      currentPatient,
+      firstName,
+      lastName,
+      age,
+      kinship,
+      coResidence,
+      employment,
+      committedHours,
+      secondaryMembers,
+      hospitalDistanceKm,
+      travelTimeMinutes,
+      fourWheelerAvailable,
+      vehicleDetails,
+      emergencyDriver,
+      preferredHospital,
+      ambulanceContact,
+      rotationInterval,
+      respiteDaysPerMonth,
+      weekendLeader,
+      nightArrangement,
+      hasBackPain,
+      hasHypertension,
+      hasArthritis,
+      hasInsomnia,
+      supportType,
+      supportHours,
+      handlesTransfers,
+      handlesMeds,
+      hospitalBed,
+      airWaterMattress,
+      wheelchair,
+      suctionApparatus,
+      transferAids
+    ]
+  );
 
   const handleSupportTypeChange = (type: FormalSupportType) => {
     setSupportType(type);

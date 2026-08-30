@@ -261,7 +261,9 @@ export function BedsideEmergencyCards() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleTriggerCrisis(`${card.title}: Hospital Escalation`)}
+                      onClick={() => {
+                        window.location.href = 'tel:112';
+                      }}
                       className="shrink-0 text-xs font-bold text-destructive hover:bg-destructive/10"
                     >
                       Call Emergency (112)

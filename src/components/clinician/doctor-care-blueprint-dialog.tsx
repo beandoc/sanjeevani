@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -110,7 +110,10 @@ export function DoctorCareBlueprintDialog({
     isBedBound: false
   };
 
-  const report = StaffingRecommender.recommend(safeCaregiver, safePatient);
+  const report = useMemo(
+    () => StaffingRecommender.recommend(safeCaregiver, safePatient),
+    [safeCaregiver, safePatient]
+  );
 
   // Selected Option State (defaults to recommended ladder rung)
   const [selectedRung, setSelectedRung] = useState<'minimum_viable' | 'recommended' | 'optimal'>('recommended');

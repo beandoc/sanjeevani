@@ -251,13 +251,13 @@ export function ZaritResultsView({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {prescriptions.map((rx) => {
+                  {prescriptions.map((rx, rxIdx) => {
                     const isUrgent = rx?.urgency === 'urgent';
                     const rxTitle = typeof rx?.title === 'string' ? rx.title : (rx?.title?.[lang] || rx?.title?.en || 'Clinical Recommendation');
                     const rxAction = typeof rx?.action === 'string' ? rx.action : (rx?.action?.[lang] || rx?.action?.en || '');
                     return (
                       <div
-                        key={rx.id || Math.random()}
+                        key={rx.id || `${rx.category || 'rx'}-${rxIdx}`}
                         className={cn(
                           'p-5 rounded-2xl border transition-all flex flex-col justify-between',
                           isUrgent

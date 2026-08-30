@@ -1784,8 +1784,8 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
         });
         existingUids.add(pUid);
       }
-    } catch {
-      // continue to local entries
+    } catch (err) {
+      console.warn('Collection-group clinicianGrants query failed (missing index?), falling back to local entries:', err);
     }
   }
 

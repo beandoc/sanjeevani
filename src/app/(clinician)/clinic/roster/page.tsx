@@ -109,6 +109,16 @@ export default function ClinicianRosterPage() {
   const respiteCount = useMemo(() => rows?.filter((r) => r.respitePrescription?.needed).length || 0, [rows]);
   const flagsCount = useMemo(() => rows?.filter((r) => r.hasRedFlag || (r.dailyLogSignals && r.dailyLogSignals.length > 0)).length || 0, [rows]);
 
+  // Build invite lookup by code or dyadUid
+  const inviteByPatientUid = useMemo(() => {
+    const map = new Map<string, DyadInvite>();
+    for (const inv of invites) {
+      if (inv.dyadUid) map.set(inv.dyadUid, inv);
+      map.set(`dyad_${inv.inviteCode}`, inv);
+    }
+    return map;
+  }, [invites]);
+
   const filteredRows = useMemo(() => {
     if (!rows) return [];
     return rows.filter((r) => {
@@ -149,7 +159,14 @@ export default function ClinicianRosterPage() {
       (localStorage.getItem('sanjeevani_user_role') === 'doctor' ||
         localStorage.getItem('sanjeevani_user_role') === 'professional'));
 
-  if (authLoading && !isClinicianRole) return null;
+  if (authLoading && !isClinicianRole) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 animate-pulse">
+        <div className="h-10 bg-muted/60 rounded-xl w-1/3" />
+        <div className="h-40 bg-muted/40 rounded-3xl" />
+      </div>
+    );
+  }
 
   if (!user && !isClinicianRole) {
     return (
@@ -161,13 +178,6 @@ export default function ClinicianRosterPage() {
         </CardContent>
       </Card>
     );
-  }
-
-  // Build invite lookup by code or dyadUid
-  const inviteByPatientUid = new Map<string, DyadInvite>();
-  for (const inv of invites) {
-    if (inv.dyadUid) inviteByPatientUid.set(inv.dyadUid, inv);
-    inviteByPatientUid.set(`dyad_${inv.inviteCode}`, inv);
   }
 
   return (
@@ -321,7 +331,8 @@ export default function ClinicianRosterPage() {
           <div className="space-y-3.5">
             {filteredRows.map((row) => {
               const matchedInvite = inviteByPatientUid.get(row.patientUid);
-              const caregiverKinshipText = row.caregiverKinship || 'Spouse (Solo 78y)';
+              const caregiverName = row.caregiverName || matchedInvite?.caregiverName || null;
+              const caregiverKinshipText = row.caregiverKinship || null;
               const formalText = row.formalSupportHours
                 ? `${row.formalSupportHours}h (${row.formalSupportType || 'Part-time'})`
                 : '0h (100% Family Solo)';
@@ -393,10 +404,20 @@ export default function ClinicianRosterPage() {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap font-mono">
                         <span className="text-muted-foreground font-sans">
                           Caregiver:{' '}
-                          <strong className="text-foreground font-semibold">
-                            {row.caregiverName || matchedInvite?.caregiverName || 'Suresh Kumar'}
-                          </strong>{' '}
-                          <span className="text-muted-foreground/80">({caregiverKinshipText})</span>
+                          {caregiverName ? (
+                            <>
+                              <strong className="text-foreground font-semibold">
+                                {caregiverName}
+                              </strong>{' '}
+                              {caregiverKinshipText && (
+                                <span className="text-muted-foreground/80">({caregiverKinshipText})</span>
+                              )}
+                            </>
+                          ) : (
+                            <strong className="text-muted-foreground/70 font-semibold italic">
+                              No caregiver linked
+                            </strong>
+                          )}
                         </span>
                         <span className="hidden sm:inline text-border">•</span>
                         <span className="text-muted-foreground font-sans">

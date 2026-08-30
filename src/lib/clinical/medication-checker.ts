@@ -254,7 +254,7 @@ export class MedicationChecker {
 
     // 2. STOPP Screening: "Triple Whammy" (NSAID + ACEi/ARB + Diuretic)
     const hasNsaid = namesLower.some((n) =>
-      ['diclofenac', 'ibuprofen', 'naproxen', 'aceclofenac', 'combiflam', 'voveran', 'zerodol', 'brufen'].some((k) => n.includes(k))
+      ['diclofenac', 'ibuprofen', 'naproxen', 'aceclofenac', 'combiflam', 'voveran', 'zerodol', 'brufen', 'piroxicam', 'ketorolac', 'mefenamic'].some((k) => n.includes(k))
     );
     const hasAceOrArb = namesLower.some((n) =>
       ['telmisartan', 'losartan', 'olmesartan', 'ramipril', 'enalapril', 'valsartan'].some((k) => n.includes(k))
@@ -272,7 +272,7 @@ export class MedicationChecker {
 
     // 3. STOPP Screening: Dual Sedation / Benzodiazepine + Z-drug
     const hasBenzo = namesLower.some((n) =>
-      ['alprazolam', 'clonazepam', 'diazepam', 'lorazepam', 'alprax', 'restyl', 'ativan'].some((k) => n.includes(k))
+      ['alprazolam', 'clonazepam', 'diazepam', 'lorazepam', 'alprax', 'restyl', 'ativan', 'calmpose', 'etizolam'].some((k) => n.includes(k))
     );
     const hasZDrug = namesLower.some((n) =>
       ['zolpidem', 'zopiclone', 'nitrest', 'zolfresh'].some((k) => n.includes(k))
@@ -287,7 +287,7 @@ export class MedicationChecker {
 
     // 4. Prescribing Cascade Check (CCB + Diuretic without heart failure)
     const hasCcb = namesLower.some((n) =>
-      ['amlodipine', 'nifedipine', 'cilnidipine', 'stamlo'].some((k) => n.includes(k))
+      ['amlodipine', 'nifedipine', 'cilnidipine', 'stamlo', 'amlong'].some((k) => n.includes(k))
     );
     if (hasCcb && hasDiuretic) {
       warnings.push(

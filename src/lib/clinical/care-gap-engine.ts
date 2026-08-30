@@ -461,9 +461,17 @@ export class CareGapEngine {
     // Every branch below reads these merged locals rather than the raw params.
     // Reading the params directly (as this engine previously did from step 3
     // onward) made the guards inert — evaluate(null, null) still threw.
+    const patientWasMissing = !patient;
+    const caregiverWasMissing = !caregiver;
     const safePatient = patient || DEFAULT_PATIENT_PROFILE;
     const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
     const dataQuality = assessClinicalDataQuality(safeCaregiver, safePatient, now);
+    if (patientWasMissing || caregiverWasMissing) {
+      dataQuality.status = 'requires_data_completion';
+      dataQuality.completeness = 'insufficient';
+      if (caregiverWasMissing) dataQuality.missingFields.unshift('Caregiver profile not yet created');
+      if (patientWasMissing) dataQuality.missingFields.unshift('Patient profile not yet created');
+    }
 
     const safeKatz = { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(safePatient.katzAdl || {}) };
     const safeIadl: LawtonIadlProfile = { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(safePatient.lawtonIadl || {}) };

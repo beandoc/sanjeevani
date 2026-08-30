@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use as usePromise } from 'react';
+import { useEffect, useMemo, useState, use as usePromise } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,16 +134,19 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
 
   const load = async () => {
     try {
-      let assessments = await getZaritAssessmentsFor(patientUid);
-      let functionScores = await getFunctionScoresFor(patientUid);
-      let name = await getPatientDisplayName(patientUid);
-      const [meds, vitalRecords, cgAttrs, prof, appts] = await Promise.all([
+      const [assessmentsResult, functionScoresResult, nameResult, meds, vitalRecords, cgAttrs, prof, appts] = await Promise.all([
+        getZaritAssessmentsFor(patientUid),
+        getFunctionScoresFor(patientUid),
+        getPatientDisplayName(patientUid),
         getMedicationsFor(patientUid).catch(() => []),
         getVitalsFor(patientUid).catch(() => []),
         getCaregiverAttributesFor(patientUid).catch(() => null),
         getPatientProfileFor(patientUid).catch(() => null),
         getAppointmentsFor(patientUid).catch(() => [])
       ]);
+      let assessments = assessmentsResult;
+      let functionScores = functionScoresResult;
+      let name = nameResult;
       setMedications(meds);
       setVitals(vitalRecords);
       setAppointments(appts);
@@ -247,14 +250,22 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   };
 
   const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
-    await saveCaregiverAttributesFor(patientUid, attrs);
-    setCaregiver(attrs);
-    if (devices && patientProfile) {
-      const updatedProfile = { ...patientProfile, assistiveDevices: devices };
-      await savePatientProfileFor(patientUid, updatedProfile);
-      setPatientProfile(updatedProfile);
+    try {
+      await saveCaregiverAttributesFor(patientUid, attrs);
+      setCaregiver(attrs);
+      if (devices && patientProfile) {
+        const updatedProfile = { ...patientProfile, assistiveDevices: devices };
+        await savePatientProfileFor(patientUid, updatedProfile);
+        setPatientProfile(updatedProfile);
+      }
+      await load();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
+      });
     }
-    await load();
   };
 
   const handleBlueprintIssued = async (blueprint: ClinicalCareBlueprint) => {
@@ -290,14 +301,22 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
       }
     };
 
-    await saveCaregiverAttributesFor(patientUid, updatedCaregiver);
-    setCaregiver(updatedCaregiver);
-    if (patientProfile) {
-      const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
-      await savePatientProfileFor(patientUid, updatedProfile);
-      setPatientProfile(updatedProfile);
+    try {
+      await saveCaregiverAttributesFor(patientUid, updatedCaregiver);
+      setCaregiver(updatedCaregiver);
+      if (patientProfile) {
+        const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
+        await savePatientProfileFor(patientUid, updatedProfile);
+        setPatientProfile(updatedProfile);
+      }
+      await load();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
+      });
     }
-    await load();
   };
 
   const handleFunctionAssessmentSaved = async (result: Parameters<typeof recordFunctionScore>[1]) => {
@@ -388,16 +407,28 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     }
   };
 
+  // Computed once and reused by every tab so severity/warnings never disagree
+  // between the header banner and the Daily Updates panel for the same instant.
+  const careGapResult = useMemo(
+    () => CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments, medications),
+    [caregiver, patientProfile, vitals, appointments, medications]
+  );
+
   if (!isMounted || !trajectory) {
     return <p className="text-sm text-muted-foreground p-6">Loading dyad…</p>;
   }
-
-  const careGapResult = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
 
   // Extract clean patient name and dyad identifiers
   const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
   const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${patientUid.replace('demo-', '').toUpperCase()}`;
+  // PatientDependenceProfile does not (yet) declare `gender` in its TS type, but the
+  // underlying record may carry one — read defensively rather than hardcoding a value.
+  const rawPatientGender = (patientProfile as (PatientDependenceProfile & { gender?: 'female' | 'male' | 'other' }) | null)?.gender;
+  const patientGenderLabel = rawPatientGender
+    ? rawPatientGender.charAt(0).toUpperCase() + rawPatientGender.slice(1)
+    : 'Not specified';
+
   const patientInitials = cleanPatientName
     .replace(/^(Smt\.|Shri|Dr\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
     .split(' ')
@@ -455,7 +486,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                     {dyadTag}
                   </Badge>
                   <Badge variant="secondary" className="text-xs font-normal">
-                    {patientProfile?.age || 78} Yrs • Female
+                    {patientProfile?.age || 78} Yrs • {patientGenderLabel}
                   </Badge>
                 </div>
 
@@ -703,8 +734,6 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         </button>
       </div>
 
-      {/* FULL WIDTH MAIN WORKSPACE AREA */}
-      <div className="w-full space-y-6">
       {/* FULL WIDTH MAIN WORKSPACE AREA */}
       <div className="w-full space-y-6">
         {/* TAB 1: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
@@ -1003,7 +1032,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                 patientUid={patientUid}
                 patientName={displayName}
                 latestZarit={latestAssessment}
-                careGap={caregiver && patientProfile ? CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments, medications) : null}
+                careGap={careGapResult}
                 caregiver={caregiver}
                 patient={patientProfile}
                 vitals={vitals}
@@ -1041,28 +1070,49 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Hospital Distance</span>
-                    <p className="text-xl font-mono font-black text-foreground">
-                      {caregiver?.emergencyLogistics?.hospitalDistanceKm ?? 4.5} km
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">~{caregiver?.emergencyLogistics?.travelTimeMinutes ?? 15} mins transit time</p>
+                    {caregiver?.emergencyLogistics?.hospitalDistanceKm != null ? (
+                      <>
+                        <p className="text-xl font-mono font-black text-foreground">
+                          {caregiver.emergencyLogistics.hospitalDistanceKm} km
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {caregiver?.emergencyLogistics?.travelTimeMinutes != null
+                            ? `~${caregiver.emergencyLogistics.travelTimeMinutes} mins transit time`
+                            : 'Transit time not configured'}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xl font-mono font-black text-muted-foreground/60 italic">—</p>
+                        <p className="text-[11px] text-muted-foreground italic">Not configured</p>
+                      </>
+                    )}
                   </div>
                   <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">4-Wheeler (Car) Readiness</span>
                     <div>
-                      {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
-                        <Badge className="bg-emerald-600 text-white font-bold text-xs py-1">Vehicle at Home</Badge>
+                      {caregiver?.emergencyLogistics ? (
+                        caregiver.emergencyLogistics.fourWheelerAvailableAtHome ? (
+                          <Badge className="bg-emerald-600 text-white font-bold text-xs py-1">Vehicle at Home</Badge>
+                        ) : (
+                          <Badge className="bg-red-600 text-white font-bold text-xs py-1">No Vehicle (Cab Dependent)</Badge>
+                        )
                       ) : (
-                        <Badge className="bg-red-600 text-white font-bold text-xs py-1">No Vehicle (Cab Dependent)</Badge>
+                        <Badge variant="outline" className="text-muted-foreground font-bold text-xs py-1">Not configured</Badge>
                       )}
                     </div>
                     <p className="text-[11px] text-muted-foreground pt-1">
-                      {caregiver?.emergencyLogistics?.vehicleDetails || 'Sedan (Parked at Home)'}
+                      {caregiver?.emergencyLogistics?.vehicleDetails || (
+                        <span className="italic text-muted-foreground/70">Not configured</span>
+                      )}
                     </p>
                   </div>
                   <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Emergency Driver</span>
                     <p className="text-base font-bold text-foreground">
-                      {caregiver?.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'}
+                      {caregiver?.emergencyLogistics?.designatedEmergencyDriver || (
+                        <span className="text-muted-foreground italic font-normal text-sm">Not configured</span>
+                      )}
                     </p>
                     <p className="text-[11px] text-muted-foreground">Designated key holder for rapid triage transit</p>
                   </div>
@@ -1135,7 +1185,6 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
               </CardContent>
             </Card>
           )}
-        </div>
       </div>
     </div>
   );

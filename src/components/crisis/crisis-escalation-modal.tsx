@@ -136,14 +136,20 @@ export function CrisisEscalationModal({
         })
         .catch(() => {});
     } else {
-      // Fallback: Open WhatsApp with first primary contact or copy to clipboard
+      // Fallback: Open WhatsApp targeted at the first configured crisis contact,
+      // or copy to clipboard if no crisis contact is configured.
       const primaryPhone = primaryContacts[0]?.phone || '';
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      const waPhone = primaryPhone.replace(/\D/g, '');
+      const waUrl = waPhone
+        ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+        : `https://wa.me/?text=${encodeURIComponent(message)}`;
       window.open(waUrl, '_blank');
       navigator.clipboard?.writeText(message);
       toast({
         title: 'Crisis Alert Prepared',
-        description: 'Alert message copied to clipboard and WhatsApp broadcast opened.',
+        description: waPhone
+          ? `Alert message copied to clipboard and WhatsApp opened for ${primaryContacts[0]?.name || 'your primary contact'}.`
+          : 'Alert message copied to clipboard and WhatsApp broadcast opened. No crisis contact is configured, so choose a recipient manually.',
       });
     }
   };

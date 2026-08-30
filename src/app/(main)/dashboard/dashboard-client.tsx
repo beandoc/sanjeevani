@@ -136,8 +136,6 @@ export default function DashboardClient() {
     return () => unsub();
   }, [currentUserUid]);
 
-  const isUserDoctor = userEmail.toLowerCase().includes('doctor') || userEmail.toLowerCase().includes('clinic');
-
   useEffect(() => {
     const path = getPersonalizedPath(skillLevel, caregivingScenario, role);
     setPersonalizedPath(path);
@@ -206,7 +204,10 @@ export default function DashboardClient() {
       tone: loggedVitalsToday ? 'text-emerald-700 bg-emerald-500/10 border-emerald-500/30' : 'text-rose-700 bg-rose-500/10 border-rose-500/30'
     },
     {
-      href: nextAppointment ? '/appointments' : '/appointments',
+      // Both branches route to /appointments: it hosts the scheduling form and
+      // the upcoming-visit list on one page, so there is no separate booking
+      // route to send the "no appointment yet" case to.
+      href: '/appointments',
       icon: CalendarCheck,
       title: nextAppointment ? 'Next appointment' : 'Schedule a doctor visit',
       detail: nextAppointment

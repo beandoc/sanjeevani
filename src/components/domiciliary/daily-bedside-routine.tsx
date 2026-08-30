@@ -187,23 +187,53 @@ export const BED_SIDE_TASKS: BedsideTask[] = [
   }
 ];
 
+const Q2H_LAST_TURNED_KEY = 'sanjeevani_q2h_last_turned_at';
+const Q2H_CYCLE_SECONDS = 7200; // 2 hours
+
+function readLastTurnedAt(): number {
+  if (typeof window === 'undefined') return Date.now();
+  try {
+    const raw = localStorage.getItem(Q2H_LAST_TURNED_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed)) return parsed;
+  } catch (e) {
+    console.error('Error reading Q2H last-turned timestamp:', e);
+  }
+  // No persisted timestamp yet — initialize to now rather than assuming a fresh cycle.
+  const now = Date.now();
+  try {
+    localStorage.setItem(Q2H_LAST_TURNED_KEY, String(now));
+  } catch (e) {
+    console.error('Error initializing Q2H last-turned timestamp:', e);
+  }
+  return now;
+}
+
 export function DailyBedsideRoutine() {
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   const [activeTaskModal, setActiveTaskModal] = useState<BedsideTask | null>(null);
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
-  const [q2hTimerSeconds, setQ2hTimerSeconds] = useState<number>(7200); // 2 hours = 7200s
+  const [lastTurnedAt, setLastTurnedAt] = useState<number>(() => readLastTurnedAt());
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
   useEffect(() => {
     setCompletedTasks(HealthRepository.getBedsideRoutineChecklist());
   }, []);
 
-  // 2-hour countdown timer ticker
+  // 1-second ticker driving the elapsed-time calculation. The countdown is
+  // derived from a persisted timestamp (not decremented in-memory), so it
+  // survives navigation/refresh and never silently rolls back to a fresh
+  // 2 hours unless a turn is actually logged.
   useEffect(() => {
     const interval = setInterval(() => {
-      setQ2hTimerSeconds((prev) => (prev > 0 ? prev - 1 : 7200));
+      setNowTick(Date.now());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowTick - lastTurnedAt) / 1000));
+  const isOverdue = elapsedSeconds >= Q2H_CYCLE_SECONDS;
+  const q2hTimerSeconds = isOverdue ? elapsedSeconds - Q2H_CYCLE_SECONDS : Q2H_CYCLE_SECONDS - elapsedSeconds;
 
   const toggleTask = (id: string) => {
     setCompletedTasks((prev) => {
@@ -219,7 +249,14 @@ export function DailyBedsideRoutine() {
   };
 
   const resetQ2hTimer = () => {
-    setQ2hTimerSeconds(7200);
+    const now = Date.now();
+    setLastTurnedAt(now);
+    setNowTick(now);
+    try {
+      localStorage.setItem(Q2H_LAST_TURNED_KEY, String(now));
+    } catch (e) {
+      console.error('Error saving Q2H last-turned timestamp:', e);
+    }
   };
 
   const totalTasks = BED_SIDE_TASKS.length;
@@ -277,39 +314,74 @@ export function DailyBedsideRoutine() {
         </Card>
 
         {/* Q2H Pressure Sore Countdown Timer */}
-        <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
+        <Card
+          className={cn(
+            'shadow-sm transition-colors',
+            isOverdue
+              ? 'border-destructive/60 bg-destructive/10 animate-pulse'
+              : 'border-amber-500/30 bg-amber-500/5'
+          )}
+        >
           <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1">
+              <span
+                className={cn(
+                  'text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1',
+                  isOverdue ? 'text-destructive' : 'text-amber-700 dark:text-amber-300'
+                )}
+              >
                 <Bed className="w-3.5 h-3.5" aria-hidden="true" />
                 Q2H Turning Clock
               </span>
-              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300">
-                2-Hour Cycle
-              </Badge>
+              {isOverdue ? (
+                <Badge variant="destructive" className="text-[10px] gap-1">
+                  <AlertCircle className="w-3 h-3" aria-hidden="true" /> Overdue
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300">
+                  2-Hour Cycle
+                </Badge>
+              )}
             </div>
 
             <div
               className="text-center py-1"
               role="timer"
-              aria-live="polite"
+              aria-live={isOverdue ? 'assertive' : 'polite'}
               aria-atomic="true"
-              aria-label={`Time remaining until next lateral repositioning: ${formatTimer(q2hTimerSeconds)}`}
+              aria-label={
+                isOverdue
+                  ? `Repositioning is overdue by ${formatTimer(q2hTimerSeconds)}. Reposition the patient now.`
+                  : `Time remaining until next lateral repositioning: ${formatTimer(q2hTimerSeconds)}`
+              }
             >
-              <div className="text-3xl font-black font-mono text-amber-950 dark:text-amber-100 tracking-tight">
-                {formatTimer(q2hTimerSeconds)}
+              <div
+                className={cn(
+                  'text-3xl font-black font-mono tracking-tight',
+                  isOverdue ? 'text-destructive' : 'text-amber-950 dark:text-amber-100'
+                )}
+              >
+                {isOverdue ? `-${formatTimer(q2hTimerSeconds)}` : formatTimer(q2hTimerSeconds)}
               </div>
-              <span className="text-[11px] text-amber-800/80 dark:text-amber-300/80 font-medium">
-                Next Lateral Repositioning
+              <span
+                className={cn(
+                  'text-[11px] font-medium',
+                  isOverdue ? 'text-destructive/90' : 'text-amber-800/80 dark:text-amber-300/80'
+                )}
+              >
+                {isOverdue ? 'OVERDUE — Reposition Patient Now' : 'Next Lateral Repositioning'}
               </span>
             </div>
 
             <Button
               size="sm"
-              variant="outline"
+              variant={isOverdue ? 'destructive' : 'outline'}
               onClick={resetQ2hTimer}
               aria-label="Log patient turning event and reset countdown timer to 2 hours"
-              className="w-full text-xs font-bold border-amber-500/40 hover:bg-amber-500/10 text-amber-900 dark:text-amber-200"
+              className={cn(
+                'w-full text-xs font-bold',
+                !isOverdue && 'border-amber-500/40 hover:bg-amber-500/10 text-amber-900 dark:text-amber-200'
+              )}
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Log Turn & Reset (2h)
             </Button>

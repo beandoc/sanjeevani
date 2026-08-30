@@ -1,4 +1,21 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "clinicianGrants",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "clinicianUid", "order": "ASCENDING" },
+        { "fieldPath": "revokedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dyadInvites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caregiverPhone", "order": "ASCENDING" },
+        { "fieldPath": "claimedAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }
