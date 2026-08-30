@@ -20,11 +20,13 @@ interface ScissorsChartProps {
 
 interface ChartRow {
   date: string;
-  dateLabel: string;
+  dateMs: number;
   burdenPct: number | null;
   dependencyPct: number | null;
   tierChange?: string;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The core visualization: caregiver burden (ZBI normalized %, rising = worse)
@@ -46,7 +48,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
     const key = point.date;
     rows.set(key, {
       date: key,
-      dateLabel: format(new Date(key), 'dd MMM yy'),
+      dateMs: new Date(key).getTime(),
       burdenPct: point.normalizedPercentage,
       dependencyPct: rows.get(key)?.dependencyPct ?? null
     });
@@ -56,7 +58,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
     const existing = rows.get(key);
     rows.set(key, {
       date: key,
-      dateLabel: format(new Date(key), 'dd MMM yy'),
+      dateMs: new Date(key).getTime(),
       burdenPct: existing?.burdenPct ?? null,
       dependencyPct: point.dependencyPercentage
     });
@@ -65,6 +67,10 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
   const sortedRows = Array.from(rows.values()).sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+  const minDateMs = sortedRows[0]?.dateMs ?? Date.now();
+  const maxDateMs = sortedRows[sortedRows.length - 1]?.dateMs ?? minDateMs;
+  const domainPadMs =
+    sortedRows.length === 1 ? 7 * DAY_MS : Math.max(DAY_MS, Math.round((maxDateMs - minDateMs) * 0.04));
 
   for (const tc of tierChanges) {
     const row = sortedRows.find((r) => r.date === tc.date);
@@ -84,9 +90,16 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
     <div className="space-y-2 w-full">
       <div className="w-full h-72 sm:h-80 md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={sortedRows} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
+          <ComposedChart data={sortedRows} margin={{ top: 15, right: 24, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-          <XAxis dataKey="dateLabel" tick={{ fontSize: 11 }} />
+          <XAxis
+            dataKey="dateMs"
+            type="number"
+            scale="time"
+            domain={[minDateMs - domainPadMs, maxDateMs + domainPadMs]}
+            tick={{ fontSize: 11 }}
+            tickFormatter={(value) => format(new Date(value), 'dd MMM yy')}
+          />
           <YAxis
             domain={[0, 100]}
             tick={{ fontSize: 11 }}
@@ -97,7 +110,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
               value === null ? '—' : `${value}%`,
               name === 'burdenPct' ? 'Caregiver Burden (ZBI)' : 'Care-Recipient Dependency (100 − Barthel)'
             ]}
-            labelFormatter={(label) => label}
+            labelFormatter={(label) => format(new Date(Number(label)), 'dd MMM yy, h:mm a')}
           />
           <Legend
             formatter={(value) =>
@@ -107,7 +120,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
           {tierChanges.map((tc) => (
             <ReferenceLine
               key={`tier-${tc.date}`}
-              x={format(new Date(tc.date), 'dd MMM yy')}
+              x={new Date(tc.date).getTime()}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"
               label={{ value: `Tier: ${tc.toTier}`, fontSize: 9, position: 'top', fill: 'hsl(var(--muted-foreground))' }}
@@ -116,11 +129,11 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
           {interventions.map((iv) => (
             <ReferenceLine
               key={`iv-${iv.id}-${iv.date}`}
-              x={format(new Date(iv.date), 'dd MMM yy')}
+              x={new Date(iv.date).getTime()}
               stroke="hsl(var(--primary))"
               strokeWidth={1.5}
               label={{
-                value: `⚡ ${iv.title}`,
+                value: iv.title,
                 fontSize: 9,
                 position: 'insideTopLeft',
                 fill: 'hsl(var(--primary))'
@@ -156,7 +169,7 @@ export function ScissorsChart({ trajectory }: ScissorsChartProps) {
         )}
         {interventions.length > 0 && (
           <p className="font-semibold text-primary">
-            ⚡ Vertical lines mark active Care Matrix Builder interventions.
+            Vertical lines mark active Care Matrix Builder interventions.
           </p>
         )}
       </div>

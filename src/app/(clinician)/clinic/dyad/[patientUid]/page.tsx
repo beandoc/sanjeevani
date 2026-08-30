@@ -33,6 +33,7 @@ import {
   Car,
   ShieldCheck,
   Calendar,
+  FileText,
   Sparkles,
   Layers
 } from 'lucide-react';
@@ -50,7 +51,8 @@ import {
   saveCaregiverAttributesFor,
   getPatientProfileFor,
   savePatientProfileFor,
-  getAppointmentsFor
+  getAppointmentsFor,
+  subscribeToDyadClinicalData
 } from '@/lib/firebase/clinical-sync';
 import type { MedicationItem, VitalRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
@@ -61,11 +63,14 @@ import { ScissorsChart } from '@/components/clinician/scissors-chart';
 import { RiskHeader } from '@/components/clinician/risk-header';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
 import { AssistedZaritAssessmentForm } from '@/components/clinical/assisted-zarit-assessment-form';
+import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
+import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
 import { DoctorCareBlueprintDialog } from '@/components/clinician/doctor-care-blueprint-dialog';
 import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
 import { AssignModulesPanel } from '@/components/clinician/assign-modules-panel';
 import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { cn } from '@/lib/utils';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
@@ -79,11 +84,13 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
   global_burden: 'Global Burden'
 };
 
-type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'modules' | 'emergency';
+type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'dailyLogs' | 'modules' | 'emergency';
 
 export default function DyadDetailPage({ params }: { params: Promise<{ patientUid: string }> }) {
   const { patientUid } = usePromise(params);
   const { toast } = useToast();
+  const { user } = useAuthUser();
+  const clinicianLabel = user?.displayName || 'Your Doctor';
 
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<DyadTab>('matrix');
@@ -196,6 +203,24 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted, patientUid]);
 
+  useEffect(() => {
+    if (!isMounted || patientUid.startsWith('demo-')) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = subscribeToDyadClinicalData(patientUid, () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void load();
+      }, 150);
+    });
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted, patientUid]);
+
   const handleZaritAssessmentSaved = async (result: ZaritEvaluationResult) => {
     try {
       await recordZaritAssessmentFor(patientUid, result);
@@ -207,8 +232,8 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Could Not Save',
-        description: err instanceof Error ? err.message : 'Please try again.'
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
       });
     }
   };
@@ -221,6 +246,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
       await savePatientProfileFor(patientUid, updatedProfile);
       setPatientProfile(updatedProfile);
     }
+    await load();
   };
 
   const handleBlueprintIssued = async (blueprint: ClinicalCareBlueprint) => {
@@ -274,8 +300,8 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Could Not Save',
-        description: err instanceof Error ? err.message : 'Check your access to this dyad and try again.'
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Check your access to this dyad and try again.'}`
       });
     }
   };
@@ -312,8 +338,8 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Could Not Save Medication',
-        description: err instanceof Error ? err.message : 'Please try again.'
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
       });
     } finally {
       setIsSavingMed(false);
@@ -346,8 +372,8 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Could Not Save Vital',
-        description: err instanceof Error ? err.message : 'Please try again.'
+        title: 'Saved Locally — Cloud Sync Failed',
+        description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
       });
     } finally {
       setIsSavingVital(false);
@@ -492,6 +518,20 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
           <Badge variant="outline" className="text-[9px] ml-1">
             {vitals.length}
           </Badge>
+        </button>
+
+        {/* Tab 5: Daily Bedside Updates */}
+        <button
+          onClick={() => setActiveTab('dailyLogs')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'dailyLogs'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Daily Updates</span>
         </button>
 
         {/* Tab 5: Assigned Modules */}
@@ -821,14 +861,37 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
             </Card>
           )}
 
-          {/* TAB 5: MODULES */}
-          {(activeTab === 'modules') && (
-            <div className="animate-in fade-in duration-200">
-              <AssignModulesPanel patientUid={patientUid} />
+          {/* TAB 5: DAILY BEDSIDE UPDATES */}
+          {(activeTab === 'dailyLogs') && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <CareIntelligencePanel
+                patientUid={patientUid}
+                patientName={displayName}
+                latestZarit={latestAssessment}
+                careGap={caregiver && patientProfile ? CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments, medications) : null}
+                caregiver={caregiver}
+                patient={patientProfile}
+                vitals={vitals}
+                mode="clinician"
+              />
+              <DailyCareLogPanel
+                patientUid={patientUid}
+                patientName={displayName}
+                mode="readonly"
+                title="Daily Bedside Updates"
+                medications={medications}
+              />
             </div>
           )}
 
-          {/* TAB 6: EMERGENCY READINESS */}
+          {/* TAB 6: MODULES */}
+          {(activeTab === 'modules') && (
+            <div className="animate-in fade-in duration-200">
+              <AssignModulesPanel patientUid={patientUid} clinicianLabel={clinicianLabel} />
+            </div>
+          )}
+
+          {/* TAB 7: EMERGENCY READINESS */}
           {(activeTab === 'emergency') && (
             <Card className="rounded-3xl border-red-500/20 shadow-xs animate-in fade-in duration-200">
               <CardHeader className="pb-3 border-b border-border/50 bg-red-500/5">

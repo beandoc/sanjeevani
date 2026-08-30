@@ -73,6 +73,19 @@ describe('Firestore Security Rules Compliance Audit', () => {
     assert.ok(vitalsBlock.includes('allow create: if (isOwner(userId) || hasActiveGrant(userId))'));
   });
 
+  test('should secure daily bedside care logs for owner and granted clinical team access', () => {
+    assert.ok(rulesContent.includes('match /dailyCareLogs/{logId}'));
+    const logsBlock = rulesContent.slice(
+      rulesContent.indexOf('match /dailyCareLogs/{logId}'),
+      rulesContent.indexOf('match /medications/{docId}')
+    );
+    assert.ok(logsBlock.includes('allow read: if isOwner(userId) || hasActiveGrant(userId);'));
+    assert.ok(logsBlock.includes('allow create, update: if (isOwner(userId) || hasActiveGrant(userId))'));
+    assert.ok(logsBlock.includes("request.resource.data.shift in ['morning', 'day', 'evening', 'night', 'full_day']"));
+    assert.ok(logsBlock.includes('request.resource.data.monitoringRows is list'));
+    assert.ok(logsBlock.includes('request.resource.data.medications is list'));
+  });
+
   test('should secure medications as a single synced document, clinician-writable', () => {
     assert.ok(rulesContent.includes('match /medications/{docId}'));
     const medsBlock = rulesContent.slice(rulesContent.indexOf('match /medications/{docId}'));

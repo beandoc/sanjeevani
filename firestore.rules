@@ -15,6 +15,17 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.uid in circleData.memberUids);
     }
 
+    // A pre-claim dyad pseudo-account (`dyad_{inviteCode}`) created by
+    // createDyadInvite before the caregiver has signed up. Its only content
+    // is what the issuing doctor entered, gated behind an unguessable invite
+    // code (see dyadInvites below, which is already readable by any
+    // authenticated user on the same reasoning) — so it's safe to let any
+    // professional write it and any authenticated user read it, without
+    // extending that same bypass to a real, already-claimed caregiver's uid.
+    function isDyadPlaceholder(userId) {
+      return userId.matches('^dyad_.*');
+    }
+
     function isValidTimestamp(ts) {
       return ts is timestamp;
     }
@@ -79,12 +90,28 @@ service cloud.firestore {
       // Vital readings are immutable clinical observations. Correcting an
       // entry means a new record, not mutating history.
       match /vitals/{vitalId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.keys().hasAll(['date', 'sleep', 'createdAt'])
                       && request.resource.data.sleep in ['good', 'average', 'poor']
                       && request.resource.data.createdAt is string;
         // No allow update or allow delete — vitals is append-only.
+      }
+
+      // Subcollection: Daily bedside care sheets maintained by a nurse,
+      // medical assistant, caregiver, or granted clinician. Unlike vitals,
+      // a date/shift sheet is intentionally mutable during the active day.
+      match /dailyCareLogs/{logId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.id == logId
+                              && request.resource.data.date is string
+                              && request.resource.data.shift in ['morning', 'day', 'evening', 'night', 'full_day']
+                              && request.resource.data.recordedByRole in ['nurse', 'medical_assistant', 'caregiver', 'doctor', 'unknown']
+                              && request.resource.data.monitoringRows is list
+                              && request.resource.data.medications is list
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
       }
 
       // Document: full medication regimen, synced as one array (there is one
@@ -93,21 +120,19 @@ service cloud.firestore {
       // convention as patientProfile. A granted clinician may add/update
       // prescriptions during an OPD encounter, same as functionScores.
       match /medications/{docId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
         allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
                               && request.resource.data.items is list
                               && request.resource.data.updatedAt is string;
         allow delete: if isOwner(userId);
       }
 
-      // Subcollection: Appointments & Tele-consultations
-      match /appointments/{appointmentId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // Subcollection: Module Progress (Stores discrete Set of completed section IDs)
+      // Subcollection: Module Progress (Stores discrete Set of completed section IDs).
+      // Read is also opened to a granted clinician so a doctor who assigned
+      // modules (see assignedModules below) can see whether the caregiver
+      // actually completed them — otherwise the assignment loop never closes.
       match /moduleProgress/{moduleId} {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create, update: if isOwner(userId)
                               && request.resource.data.completedSections is list
                               && request.resource.data.completedSections.size() <= 100
@@ -137,7 +162,7 @@ service cloud.firestore {
       // the score is computed as (totalScore / maxScore * 100) which yields a
       // float for most real-world inputs (e.g. 47 / 88 * 100 = 53.4090...).
       match /zaritAssessments/{assessmentId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']
                       && request.resource.data.totalScore is int
@@ -155,10 +180,23 @@ service cloud.firestore {
         allow read, write: if isOwner(userId) || hasActiveGrant(userId);
       }
 
-      // Subcollection: Reassessment alerts for clinicians
+      // Subcollection: Reassessment alerts for clinicians. `userId` here is
+      // the CLINICIAN's own uid (alerts live under the recipient, not the
+      // patient) — the caregiver whose burden score triggered the alert is
+      // never `isOwner(userId)`, so a narrower bypass is needed. Scoped to
+      // exactly that caregiver (their own uid must equal the alert's
+      // patientUid field) acting on a clinician they actually have an active
+      // grant with — not "any authenticated user", which would let a
+      // stranger spam alerts into any clinician's inbox.
       match /reassessmentAlerts/{alertId} {
         allow read, update, delete: if isOwner(userId);
-        allow create: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.resource.data.patientUid == request.auth.uid
+                      && exists(/databases/$(database)/documents/users/$(request.auth.uid)/clinicianGrants/$(userId))
+                      && (
+                        !('revokedAt' in get(/databases/$(database)/documents/users/$(request.auth.uid)/clinicianGrants/$(userId)).data)
+                        || get(/databases/$(database)/documents/users/$(request.auth.uid)/clinicianGrants/$(userId)).data.revokedAt == null
+                      );
       }
 
       // Subcollection: Appointments
@@ -175,7 +213,7 @@ service cloud.firestore {
       // Function scores are immutable clinical observations. Correcting a
       // score means recording a new one, not overwriting the previous.
       match /functionScores/{scoreId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.barthelScore is int
                       && request.resource.data.barthelScore >= 0
@@ -191,12 +229,17 @@ service cloud.firestore {
       // cognitive-behavioral load), synced from the caregiver's local
       // CareGapEngine intake. Single fixed-id document ('current') — there is
       // exactly one patient per caregiver's dyad in this data model, same as
-      // functionScores below. A granted clinician may also write this
-      // (e.g. from the onboarding wizard's doctor-mode patient picker,
-      // recording a fresh Katz assessment during an OPD visit).
+      // functionScores below. A granted clinician may also write this during
+      // an OPD visit. Any professional may additionally write (and any
+      // authenticated user may read) a `dyad_*` placeholder specifically —
+      // that's the doctor-pre-registration bootstrap case (createDyadInvite),
+      // before a clinicianGrant exists yet. A REAL claimed caregiver's uid
+      // must go through hasActiveGrant like every other clinical collection
+      // — an unscoped `isProfessional` bypass here previously let ANY
+      // verified doctor/nurse overwrite ANY dyad's ADL profile, granted or not.
       match /patientProfile/{profileId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && isDyadPlaceholder(userId)))
                               && request.resource.data.katzAdl is map
                               && request.resource.data.lawtonIadl is map
                               && request.resource.data.updatedAt is string;
@@ -204,10 +247,13 @@ service cloud.firestore {
       }
 
       // Document: Caregiver capacity, family support network, and formal
-      // support infrastructure (e.g. attendant 10h/day, secondary family members).
+      // support infrastructure (e.g. attendant 10h/day, secondary family
+      // members). Same dyad-placeholder-only professional bypass as
+      // patientProfile above — see that comment for the access-control
+      // rationale.
       match /caregiverAttributes/{docId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && isDyadPlaceholder(userId)))
                               && request.resource.data.name is string;
         allow delete: if isOwner(userId);
       }
@@ -220,12 +266,39 @@ service cloud.firestore {
       // sets for themselves (they still see and complete the modules; see
       // the /modules page's "Assigned by your doctor" section).
       match /assignedModules/{docId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
         allow create, update: if hasActiveGrant(userId)
                               && request.resource.data.moduleIds is list
                               && request.resource.data.assignedByUid == request.auth.uid
                               && request.resource.data.assignedAt is string;
         allow delete: if isOwner(userId) || hasActiveGrant(userId);
+      }
+
+      // Document: the caregiver's Care Circle — helper family members/friends
+      // and the coordination tasks assigned among them. Single fixed-id
+      // document ('current'), same convention as caregiverAttributes/
+      // medications. Previously local-storage-only with no Firestore mirror
+      // at all, so a home nurse or family member's task assignments were
+      // invisible to the doctor and to any other device.
+      match /careCircle/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.members is list
+                              && request.resource.data.tasks is list
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Subcollection: Bedside nursing procedure checklists (one document per
+      // calendar date), maintained by a shift nurse or granted clinician.
+      // Mutable during the active day, same convention as dailyCareLogs.
+      match /nursingProcedures/{dateId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.date is string
+                              && request.resource.data.procedures is map
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
       }
 
       // Subcollection: OPD encounters. The visit anchor that Zarit/function

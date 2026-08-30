@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { HealthRepository, ModuleSectionProgress } from '@/lib/db/health-repository';
+import { syncModuleProgress } from '@/lib/firebase/clinical-sync';
 
 export type Role = 'caregiver' | 'nurse' | 'doctor' | 'professional';
 export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -81,18 +82,25 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const toggleSection = useCallback((moduleId: string, sectionId: string | number): string[] => {
     const secStr = String(sectionId);
     const updatedSections = HealthRepository.toggleSectionCompletion(moduleId, secStr);
-    
+    const progress = {
+      moduleId,
+      completedSections: updatedSections,
+      lastAccessedAt: new Date().toISOString()
+    };
+
     setModuleSectionMap((prev) => ({
       ...prev,
-      [moduleId]: {
-        moduleId,
-        completedSections: updatedSections,
-        lastAccessedAt: new Date().toISOString()
-      }
+      [moduleId]: progress
     }));
 
     const pct = Math.min(100, Math.round((updatedSections.length / 4) * 100));
     setModulePercentages((prev) => ({ ...prev, [moduleId]: pct }));
+
+    // Best-effort mirror so a doctor who assigned this module (see
+    // assignModulesFor/AssignModulesPanel) can see completion — previously
+    // this never synced at all, so the assign→complete loop never closed.
+    void syncModuleProgress(moduleId, progress);
+
     return updatedSections;
   }, []);
 

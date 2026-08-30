@@ -56,7 +56,15 @@ import { auth, db } from './client';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { DEFAULT_CAREGIVER_ATTRIBUTES, type PatientDependenceProfile, type CaregiverAttributes } from '@/lib/clinical/care-gap-engine';
-import { HealthRepository, type VitalRecord, type MedicationItem } from '@/lib/db/health-repository';
+import {
+  HealthRepository,
+  type VitalRecord,
+  type MedicationItem,
+  type DailyCareLog,
+  type CareCircleMember,
+  type CareCircleTask,
+  type ModuleSectionProgress
+} from '@/lib/db/health-repository';
 
 /** Result returned by the caregiver sync helpers. */
 export interface SyncResult {
@@ -99,6 +107,163 @@ async function withRetry<T>(
     }
   }
   throw lastErr;
+}
+
+const RESPITE_ALERT_MIN_DELTA_PCT = 5;
+const RESPITE_ALERT_MIN_SCORE_PCT = 50;
+
+function assessmentIdentity(result: ZaritEvaluationResult): string {
+  return `${result.completedAt}|${result.tier}|${result.totalScore}|${result.normalizedPercentage}`;
+}
+
+function mergeZaritAssessments(
+  local: ZaritEvaluationResult[],
+  cloud: ZaritEvaluationResult[]
+): ZaritEvaluationResult[] {
+  const byIdentity = new Map<string, ZaritEvaluationResult>();
+  for (const item of [...cloud, ...local]) {
+    byIdentity.set(assessmentIdentity(item), item);
+  }
+  return Array.from(byIdentity.values()).sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  );
+}
+
+function functionScoreIdentity(result: FunctionEvaluationResult): string {
+  return `${result.recordedAt}|${result.barthelScore}|${result.lawtonScore}|${result.dependencyPercentage}`;
+}
+
+function mergeFunctionScores(
+  local: FunctionEvaluationResult[],
+  cloud: FunctionEvaluationResult[]
+): FunctionEvaluationResult[] {
+  const byIdentity = new Map<string, FunctionEvaluationResult>();
+  for (const item of [...cloud, ...local]) {
+    byIdentity.set(functionScoreIdentity(item), item);
+  }
+  return Array.from(byIdentity.values()).sort(
+    (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+  );
+}
+
+function dailyCareLogIdentity(log: DailyCareLog): string {
+  return log.id;
+}
+
+function mergeDailyCareLogs(local: DailyCareLog[], cloud: DailyCareLog[]): DailyCareLog[] {
+  const byId = new Map<string, DailyCareLog>();
+  for (const item of [...local, ...cloud]) {
+    const existing = byId.get(dailyCareLogIdentity(item));
+    if (!existing || new Date(item.updatedAt).getTime() >= new Date(existing.updatedAt).getTime()) {
+      byId.set(dailyCareLogIdentity(item), item);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => {
+    const dateDelta = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDelta !== 0) return dateDelta;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+}
+
+function shouldCreateCaregiverRespiteAlert(
+  previous: ZaritEvaluationResult | null,
+  current: ZaritEvaluationResult
+): { shouldAlert: boolean; deltaPct: number; reason: string } {
+  if (!previous) {
+    const currentHighRisk =
+      current.normalizedPercentage >= RESPITE_ALERT_MIN_SCORE_PCT ||
+      current.severityBand === 'red' ||
+      current.severityBand === 'critical_red' ||
+      current.redFlags.length > 0;
+    return {
+      shouldAlert: currentHighRisk,
+      deltaPct: 0,
+      reason: current.redFlags.length > 0
+        ? 'Latest assessment has red flags and requires caregiver respite review.'
+        : 'Latest assessment is already in the high-burden range and requires caregiver respite review.'
+    };
+  }
+
+  const deltaPct = Math.round((current.normalizedPercentage - previous.normalizedPercentage) * 10) / 10;
+  const rose = deltaPct > 0;
+  const clinicallyMeaningfulRise = deltaPct >= RESPITE_ALERT_MIN_DELTA_PCT;
+  const highCurrentBurden =
+    current.normalizedPercentage >= RESPITE_ALERT_MIN_SCORE_PCT ||
+    current.severityBand === 'red' ||
+    current.severityBand === 'critical_red' ||
+    current.redFlags.length > 0;
+
+  return {
+    shouldAlert: rose && (clinicallyMeaningfulRise || highCurrentBurden),
+    deltaPct,
+    reason:
+      current.redFlags.length > 0
+        ? 'Caregiver burden increased and the latest assessment has red flags.'
+        : highCurrentBurden
+          ? 'Caregiver burden increased into the high-burden range.'
+          : `Caregiver burden increased by ${deltaPct} percentage points.`
+  };
+}
+
+async function getAlertClinicianUids(patientUid: string, fallbackClinicianUid?: string | null): Promise<string[]> {
+  const uids = new Set<string>();
+  if (fallbackClinicianUid) uids.add(fallbackClinicianUid);
+
+  if (db) {
+    try {
+      const grants = await getDocs(collection(db, 'users', patientUid, 'clinicianGrants'));
+      grants.docs.forEach((grantDoc) => {
+        const data = grantDoc.data() as ClinicianGrant;
+        if (!data.revokedAt) uids.add(data.clinicianUid || grantDoc.id);
+      });
+    } catch {
+      // Fall through to dyad invite lookup below.
+    }
+  }
+
+  if (patientUid.startsWith('dyad_')) {
+    try {
+      const invite = await getDyadInvite(patientUid.replace('dyad_', ''));
+      if (invite?.clinicianUid) uids.add(invite.clinicianUid);
+    } catch {
+      // No-op: alerts are best-effort and local persistence already happened.
+    }
+  }
+
+  return Array.from(uids);
+}
+
+async function createCaregiverRespiteAlertsIfNeeded(
+  patientUid: string,
+  patientName: string,
+  current: ZaritEvaluationResult,
+  previousAssessments: ZaritEvaluationResult[],
+  fallbackClinicianUid?: string | null
+): Promise<void> {
+  if (!db) return;
+  const previous = previousAssessments
+    .filter((item) => new Date(item.completedAt).getTime() < new Date(current.completedAt).getTime())
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0] ?? null;
+
+  const alertDecision = shouldCreateCaregiverRespiteAlert(previous, current);
+  if (!alertDecision.shouldAlert) return;
+
+  const clinicianUids = await getAlertClinicianUids(patientUid, fallbackClinicianUid);
+  await Promise.all(
+    clinicianUids.map((clinicianUid) =>
+      createReassessmentAlert(clinicianUid, {
+        patientUid,
+        patientName,
+        previousScore: previous?.normalizedPercentage ?? current.normalizedPercentage,
+        newScore: current.normalizedPercentage,
+        completedAt: current.completedAt,
+        alertType: 'caregiver_respite_needed',
+        deltaPct: alertDecision.deltaPct,
+        needsCaregiverRespite: true,
+        reason: alertDecision.reason
+      })
+    )
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -154,6 +319,13 @@ export async function syncZaritAssessment(result: ZaritEvaluationResult): Promis
       }
     }
 
+    try {
+      const patientName = await getPatientDisplayName(uid);
+      await createCaregiverRespiteAlertsIfNeeded(uid, patientName, result, past);
+    } catch (alertErr) {
+      console.warn('Caregiver respite alert sync notice:', alertErr);
+    }
+
     return { queued: true };
   } catch (err) {
     console.warn('Zarit assessment sync failed:', err);
@@ -169,14 +341,22 @@ export async function recordZaritAssessmentFor(
   patientUid: string,
   result: ZaritEvaluationResult
 ): Promise<void> {
-  if (!db) return;
+  const past = await getZaritAssessmentsFor(patientUid);
   const payload = {
     ...result,
     normalizedPercentage: Number(result.normalizedPercentage),
     completedAt: result.completedAt || new Date().toISOString()
   };
+  HealthRepository.saveZaritAssessmentFor(patientUid, payload);
+  if (!db) return;
   try {
     await withRetry(() => addDoc(collection(db!, 'users', patientUid, 'zaritAssessments'), payload));
+    try {
+      const patientName = await getPatientDisplayName(patientUid);
+      await createCaregiverRespiteAlertsIfNeeded(patientUid, patientName, payload, past, currentUid());
+    } catch (alertErr) {
+      console.warn('Caregiver respite alert sync notice:', alertErr);
+    }
   } catch (err) {
     console.warn('Record Zarit assessment failed after retries:', err);
     throw err;
@@ -192,11 +372,12 @@ export async function recordFunctionScore(
   patientUid: string,
   result: FunctionEvaluationResult
 ): Promise<void> {
-  if (!db) return;
   const payload = {
     ...result,
     encounterId: result.encounterId ?? null
   };
+  HealthRepository.saveFunctionScoreFor(patientUid, payload);
+  if (!db) return;
   try {
     await withRetry(() => addDoc(collection(db!, 'users', patientUid, 'functionScores'), payload));
   } catch (err) {
@@ -233,8 +414,25 @@ export async function syncPatientProfile(profile: PatientDependenceProfile): Pro
 export async function getPatientProfileFor(
   patientUid: string
 ): Promise<(PatientDependenceProfile & { updatedAt: string }) | null> {
-  // 1. Check local HealthRepository first
   const local = HealthRepository.getPatientProfileFor(patientUid);
+
+  // Firestore is authoritative for clinician-visible per-dyad current state.
+  // localStorage is only a fallback; otherwise one browser's stale cached
+  // matrix/profile can mask a newer caregiver or clinician update.
+  if (db) {
+    try {
+      const snap = await getDoc(doc(db, 'users', patientUid, 'patientProfile', 'current'));
+      if (snap.exists()) {
+        const data = snap.data();
+        return { ...data, updatedAt: toIsoString(data.updatedAt) } as PatientDependenceProfile & {
+          updatedAt: string;
+        };
+      }
+    } catch {
+      // Fall through to local/invite fallback.
+    }
+  }
+
   if (local) {
     return { ...local, updatedAt: new Date().toISOString() };
   }
@@ -270,19 +468,7 @@ export async function getPatientProfileFor(
     }
   }
 
-  if (!db) return null;
-  try {
-    const snap = await getDoc(doc(db, 'users', patientUid, 'patientProfile', 'current'));
-    if (snap.exists()) {
-      const data = snap.data();
-      return { ...data, updatedAt: toIsoString(data.updatedAt) } as PatientDependenceProfile & {
-        updatedAt: string;
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -316,11 +502,8 @@ export async function savePatientProfileFor(
 export async function getCaregiverAttributesFor(
   patientUid: string
 ): Promise<CaregiverAttributes | null> {
-  // 1. Check local HealthRepository first
   const local = HealthRepository.getCaregiverAttributesFor(patientUid);
-  if (local) return local;
 
-  // 2. Check Firestore
   if (db) {
     try {
       const snap = await getDoc(doc(db, 'users', patientUid, 'caregiverAttributes', 'current'));
@@ -332,7 +515,8 @@ export async function getCaregiverAttributesFor(
     }
   }
 
-  // 3. Fallback from invite if dyad_
+  if (local) return local;
+
   if (patientUid.startsWith('dyad_')) {
     const code = patientUid.replace('dyad_', '');
     const inv = await getDyadInvite(code);
@@ -415,28 +599,109 @@ export async function syncVitals(record: VitalRecord): Promise<SyncResult> {
  * Records a vital reading on a patient's behalf.
  * Used by a granted clinician (e.g. during an OPD visit).
  * vitals is create-only; uses withRetry for intent-critical writes.
+ *
+ * Writes to HealthRepository's local durability cache first — previously
+ * this was cloud-only, so a Firestore outage lost the reading entirely with
+ * no local backup, unlike its sibling record*For functions (Zarit, function
+ * scores, daily care logs).
  */
 export async function recordVitalFor(patientUid: string, record: VitalRecord): Promise<void> {
+  HealthRepository.saveVitalFor(patientUid, record);
   if (!db) return;
   try {
     await withRetry(() => addDoc(collection(db!, 'users', patientUid, 'vitals'), record));
   } catch (err) {
-    console.warn('Record vital failed after retries:', err);
+    console.warn('Record vital failed after retries (saved locally):', err);
     throw err;
   }
 }
 
 /** All vital-sign readings for one patient, newest first. Requires ownership or an active grant. */
 export async function getVitalsFor(patientUid: string): Promise<VitalRecord[]> {
-  if (!db) return [];
+  const local = HealthRepository.getVitalsFor(patientUid);
+  if (!db) return local;
   try {
     const snap = await getDocs(collection(db, 'users', patientUid, 'vitals'));
-    return snap.docs
-      .map((d) => d.data() as VitalRecord)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const cloud = snap.docs.map((d) => d.data() as VitalRecord);
+    const map = new Map<string, VitalRecord>();
+    for (const item of [...local, ...cloud]) map.set(item.id, item);
+    return Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   } catch {
-    return [];
+    return local;
   }
+}
+
+/**
+ * Mirrors a nurse/caregiver daily bedside sheet for the signed-in dyad.
+ * One document per date+shift is updated through the day.
+ */
+export async function syncDailyCareLog(log: DailyCareLog): Promise<SyncResult> {
+  const uid = currentUid();
+  if (!uid) return { queued: false };
+  const payload = {
+    ...log,
+    patientUid: uid,
+    updatedAt: new Date().toISOString()
+  };
+  HealthRepository.saveDailyCareLogFor(uid, payload);
+  if (!db) return { queued: false };
+  try {
+    await setDoc(doc(db, 'users', uid, 'dailyCareLogs', payload.id), payload);
+    return { queued: true };
+  } catch (err) {
+    console.warn('Daily care log sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/** Clinician/nurse records or updates a datewise bedside sheet for a dyad. */
+export async function saveDailyCareLogFor(patientUid: string, log: DailyCareLog): Promise<void> {
+  const payload = {
+    ...log,
+    patientUid,
+    updatedAt: new Date().toISOString()
+  };
+  HealthRepository.saveDailyCareLogFor(patientUid, payload);
+  if (!db) return;
+  await withRetry(() => setDoc(doc(db!, 'users', patientUid, 'dailyCareLogs', payload.id), payload));
+}
+
+/** All daily bedside sheets for one patient, newest first. */
+export async function getDailyCareLogsFor(patientUid: string): Promise<DailyCareLog[]> {
+  const sameSignedInDyad = currentUid() === patientUid;
+  const local = mergeDailyCareLogs(
+    HealthRepository.getDailyCareLogsFor(patientUid),
+    sameSignedInDyad ? HealthRepository.getDailyCareLogs() : []
+  );
+  if (!db) return local;
+  try {
+    const snap = await getDocs(collection(db, 'users', patientUid, 'dailyCareLogs'));
+    const cloud = snap.docs.map((d) => d.data() as DailyCareLog);
+    return mergeDailyCareLogs(local, cloud);
+  } catch {
+    return local;
+  }
+}
+
+/** Live daily bedside sheets for one patient, newest first. */
+export function subscribeToDailyCareLogsFor(
+  patientUid: string,
+  callback: (logs: DailyCareLog[]) => void
+) {
+  const sameSignedInDyad = currentUid() === patientUid;
+  const local = mergeDailyCareLogs(
+    HealthRepository.getDailyCareLogsFor(patientUid),
+    sameSignedInDyad ? HealthRepository.getDailyCareLogs() : []
+  );
+  if (!db) {
+    callback(local);
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'users', patientUid, 'dailyCareLogs'),
+    (snap) => callback(mergeDailyCareLogs(local, snap.docs.map((d) => d.data() as DailyCareLog))),
+    () => callback(local)
+  );
 }
 
 /**
@@ -461,19 +726,26 @@ export async function syncMedications(items: MedicationItem[]): Promise<SyncResu
 
 /** Reads one patient's synced medication regimen. Requires ownership or an active grant. */
 export async function getMedicationsFor(patientUid: string): Promise<MedicationItem[]> {
-  if (!db) return [];
+  if (!db) return HealthRepository.getMedicationsFor(patientUid);
   try {
     const snap = await getDoc(doc(db, 'users', patientUid, 'medications', 'current'));
-    if (!snap.exists()) return [];
+    if (!snap.exists()) return HealthRepository.getMedicationsFor(patientUid);
     const data = snap.data();
     return Array.isArray(data.items) ? (data.items as MedicationItem[]) : [];
   } catch {
-    return [];
+    return HealthRepository.getMedicationsFor(patientUid);
   }
 }
 
-/** Writes a patient's medication regimen on their behalf. Used by a granted clinician. */
+/**
+ * Writes a patient's medication regimen on their behalf. Used by a granted
+ * clinician. Saves to HealthRepository's local durability cache first — this
+ * was previously cloud-only-with-no-fallback, so a Firestore write failure
+ * (offline, misconfigured backend) would silently discard the whole edit
+ * even though the caller's success toast implied it was saved.
+ */
 export async function saveMedicationsFor(patientUid: string, items: MedicationItem[]): Promise<void> {
+  HealthRepository.saveMedicationsFor(patientUid, items);
   if (!db) return;
   await withRetry(() =>
     setDoc(doc(db!, 'users', patientUid, 'medications', 'current'), {
@@ -546,6 +818,156 @@ export async function createEncounter(
     })
   );
   return ref.id;
+}
+
+/**
+ * Mirrors the signed-in caregiver's Care Circle (helper members + assigned
+ * coordination tasks) to Firestore as a single current-state document.
+ * Previously this had NO Firestore mirror at all — a home nurse or family
+ * member added to the circle, and any task assigned to them, was invisible
+ * outside the one device/browser that created it.
+ */
+export async function syncCareCircle(
+  members: CareCircleMember[],
+  tasks: CareCircleTask[]
+): Promise<SyncResult> {
+  const uid = currentUid();
+  if (!uid || !db) return { queued: false };
+  try {
+    await setDoc(doc(db, 'users', uid, 'careCircle', 'current'), {
+      members,
+      tasks,
+      updatedAt: new Date().toISOString()
+    });
+    return { queued: true };
+  } catch (err) {
+    console.warn('Care circle sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/** Reads one patient's synced Care Circle. Requires ownership or an active grant. */
+export async function getCareCircleFor(
+  patientUid: string
+): Promise<{ members: CareCircleMember[]; tasks: CareCircleTask[] } | null> {
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', patientUid, 'careCircle', 'current'));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+      members: Array.isArray(data.members) ? (data.members as CareCircleMember[]) : [],
+      tasks: Array.isArray(data.tasks) ? (data.tasks as CareCircleTask[]) : []
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Live Care Circle for one patient. */
+export function subscribeToCareCircleFor(
+  patientUid: string,
+  callback: (circle: { members: CareCircleMember[]; tasks: CareCircleTask[] } | null) => void
+) {
+  if (!db) {
+    callback(null);
+    return () => {};
+  }
+  return onSnapshot(
+    doc(db, 'users', patientUid, 'careCircle', 'current'),
+    (snap) => {
+      if (!snap.exists()) {
+        callback(null);
+        return;
+      }
+      const data = snap.data();
+      callback({
+        members: Array.isArray(data.members) ? (data.members as CareCircleMember[]) : [],
+        tasks: Array.isArray(data.tasks) ? (data.tasks as CareCircleTask[]) : []
+      });
+    },
+    () => callback(null)
+  );
+}
+
+/**
+ * Mirrors one learning module's completed-section progress to Firestore so
+ * the doctor who assigned it (see assignModulesFor) can see whether the
+ * caregiver actually completed it — previously the assignment loop never
+ * closed: a clinician could push modules down but never see uptake.
+ * Best-effort and non-blocking; called from role-context.tsx on every
+ * section toggle, a high-frequency, non-critical write.
+ */
+export async function syncModuleProgress(
+  moduleId: string,
+  progress: ModuleSectionProgress
+): Promise<SyncResult> {
+  const uid = currentUid();
+  if (!uid || !db) return { queued: false };
+  try {
+    await setDoc(doc(db, 'users', uid, 'moduleProgress', moduleId), progress);
+    return { queued: true };
+  } catch (err) {
+    console.warn('Module progress sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/** Reads one patient's synced module-completion map, keyed by moduleId. Requires ownership or an active grant. */
+export async function getModuleProgressFor(
+  patientUid: string
+): Promise<Record<string, ModuleSectionProgress>> {
+  if (!db) return {};
+  try {
+    const snap = await getDocs(collection(db, 'users', patientUid, 'moduleProgress'));
+    const map: Record<string, ModuleSectionProgress> = {};
+    snap.docs.forEach((d) => {
+      map[d.id] = d.data() as ModuleSectionProgress;
+    });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Mirrors a shift nurse's bedside procedure checklist for one calendar date.
+ * Previously this checklist was plain React state on the nurse dashboard
+ * with no persistence at all — refreshing the page silently discarded it,
+ * and it was never visible to the doctor or the family.
+ */
+export async function syncNursingProcedures(
+  patientUid: string,
+  date: string,
+  procedures: Record<string, boolean>
+): Promise<SyncResult> {
+  HealthRepository.saveNursingProceduresFor(patientUid, date, procedures);
+  if (!db) return { queued: false };
+  try {
+    await setDoc(doc(db, 'users', patientUid, 'nursingProcedures', date), {
+      date,
+      procedures,
+      updatedAt: new Date().toISOString()
+    });
+    return { queued: true };
+  } catch (err) {
+    console.warn('Nursing procedures sync failed:', err);
+    return { queued: false };
+  }
+}
+
+/** Reads one patient's bedside procedure checklist for one calendar date. */
+export async function getNursingProceduresFor(patientUid: string, date: string): Promise<Record<string, boolean>> {
+  const local = HealthRepository.getNursingProceduresFor(patientUid, date);
+  if (!db) return local;
+  try {
+    const snap = await getDoc(doc(db, 'users', patientUid, 'nursingProcedures', date));
+    if (!snap.exists()) return local;
+    const data = snap.data();
+    return data.procedures && typeof data.procedures === 'object' ? { ...local, ...data.procedures } : local;
+  } catch {
+    return local;
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -787,12 +1209,27 @@ export async function getDyadInvite(inviteCode: string): Promise<DyadInvite | nu
 
 /**
  * Shared linkage logic for claiming an unclaimed invite as `uid`: creates
- * the clinicianGrant the roster query depends on, and — if the doctor
- * already filled out a Katz ADL assessment for this patient before the
- * caregiver even signed up — applies it to the caregiver's own synced
- * profile (isOwner(userId) on patientProfile already permits this since the
- * caller is now that owner). Used by both the manual code-entry path and
- * the automatic phone-number match below.
+ * the clinicianGrant the roster query depends on, then migrates EVERYTHING
+ * the doctor recorded against the pre-claim `dyad_{code}` pseudo-account
+ * (patientProfile, caregiverAttributes, medications, vitals, Zarit/function
+ * assessments, and assigned modules) onto the caregiver's real uid.
+ *
+ * Previously only caregiverAttributes was migrated (and patientProfile was
+ * re-derived from the invite's own draft/defaults, never from the dyad's
+ * *live* patientProfile document — which is what the doctor's dyad page
+ * actually writes to via savePatientProfileFor). Any medications, vitals, or
+ * assessments recorded pre-claim were silently orphaned: `listMyRoster()`
+ * stops surfacing the `dyad_{code}` uid once a real grant supersedes it, so
+ * that data became permanently unreachable from the UI on either side.
+ *
+ * Reading `users/dyad_{code}/...` here relies on firestore.rules' `
+ * isDyadPlaceholder` read bypass — a `dyad_*` uid is pre-claim scratch space
+ * behind an unguessable invite code, so any authenticated user (i.e. the
+ * caregiver who just claimed it) may read it, same reasoning as `dyadInvites`
+ * itself already being readable by any authenticated user.
+ *
+ * Used by both the manual code-entry path and the automatic phone-number
+ * match below.
  */
 async function applyInviteClaim(
   inviteRef: ReturnType<typeof doc>,
@@ -801,6 +1238,7 @@ async function applyInviteClaim(
 ): Promise<DyadInvite> {
   if (!db) throw new Error('Firestore is unavailable.');
   const claimedAt = new Date().toISOString();
+  const dyadDocId = invite.dyadUid || `dyad_${invite.inviteCode}`;
 
   await withRetry(() => setDoc(inviteRef, { claimedAt, claimedByUid: uid }, { merge: true }));
   await withRetry(() =>
@@ -811,7 +1249,8 @@ async function applyInviteClaim(
       revokedAt: null
     })
   );
-  const profileToSave = invite.patientProfileDraft || {
+
+  const defaultProfile = {
     name: invite.patientName,
     age: invite.patientAge,
     primaryConditions: invite.primaryConditions || [],
@@ -830,6 +1269,22 @@ async function applyInviteClaim(
     fallHistoryLast6Months: 0
   };
 
+  // patientProfile: prefer the dyad's LIVE document (what the doctor's dyad
+  // workspace actually edits via savePatientProfileFor), then the invite's
+  // own draft (filled out from the onboarding wizard), then bare defaults.
+  let profileToSave: Record<string, unknown> = defaultProfile;
+  try {
+    const dyadProfileSnap = await getDoc(doc(db!, 'users', dyadDocId, 'patientProfile', 'current'));
+    if (dyadProfileSnap.exists()) {
+      profileToSave = dyadProfileSnap.data() as Record<string, unknown>;
+    } else if (invite.patientProfileDraft) {
+      profileToSave = invite.patientProfileDraft as unknown as Record<string, unknown>;
+    }
+  } catch (profileErr) {
+    console.warn('Dyad patientProfile migration notice (using draft/defaults):', profileErr);
+    if (invite.patientProfileDraft) profileToSave = invite.patientProfileDraft as unknown as Record<string, unknown>;
+  }
+
   await withRetry(() =>
     setDoc(doc(db!, 'users', uid, 'patientProfile', 'current'), {
       ...profileToSave,
@@ -837,9 +1292,10 @@ async function applyInviteClaim(
     })
   );
 
-  // Migrate any caregiverAttributes pre-configured by the clinician
+  // Migrate every other pre-claim clinical record. Each is independently
+  // best-effort — a failure on one (e.g. no medications were ever recorded)
+  // must not block the others or the claim itself.
   try {
-    const dyadDocId = invite.dyadUid || `dyad_${invite.inviteCode}`;
     const dyadAttrsSnap = await getDoc(doc(db!, 'users', dyadDocId, 'caregiverAttributes', 'current'));
     if (dyadAttrsSnap.exists()) {
       await withRetry(() =>
@@ -851,6 +1307,41 @@ async function applyInviteClaim(
     }
   } catch (attrsErr) {
     console.warn('Dyad caregiverAttributes migration notice:', attrsErr);
+  }
+
+  try {
+    const dyadMedsSnap = await getDoc(doc(db!, 'users', dyadDocId, 'medications', 'current'));
+    if (dyadMedsSnap.exists()) {
+      const items = dyadMedsSnap.data().items;
+      await withRetry(() =>
+        setDoc(doc(db!, 'users', uid, 'medications', 'current'), {
+          items: Array.isArray(items) ? items : [],
+          updatedAt: claimedAt
+        })
+      );
+    }
+  } catch (medsErr) {
+    console.warn('Dyad medications migration notice:', medsErr);
+  }
+
+  try {
+    const dyadModulesSnap = await getDoc(doc(db!, 'users', dyadDocId, 'assignedModules', 'current'));
+    if (dyadModulesSnap.exists()) {
+      await withRetry(() => setDoc(doc(db!, 'users', uid, 'assignedModules', 'current'), dyadModulesSnap.data()));
+    }
+  } catch (modulesErr) {
+    console.warn('Dyad assignedModules migration notice:', modulesErr);
+  }
+
+  for (const subcollection of ['vitals', 'zaritAssessments', 'functionScores'] as const) {
+    try {
+      const dyadDocs = await getDocs(collection(db!, 'users', dyadDocId, subcollection));
+      await Promise.all(
+        dyadDocs.docs.map((d) => withRetry(() => setDoc(doc(db!, 'users', uid, subcollection, d.id), d.data())))
+      );
+    } catch (subErr) {
+      console.warn(`Dyad ${subcollection} migration notice:`, subErr);
+    }
   }
 
   return { ...invite, claimedAt, claimedByUid: uid };
@@ -1052,33 +1543,37 @@ function toIsoString(value: unknown): string {
 
 /** All Zarit assessments for one patient, newest first. Requires an active grant or ownership. */
 export async function getZaritAssessmentsFor(patientUid: string): Promise<ZaritEvaluationResult[]> {
-  if (!db) return [];
+  const local = HealthRepository.getZaritAssessmentsFor(patientUid);
+  if (!db) return local;
   try {
     const snap = await getDocs(collection(db, 'users', patientUid, 'zaritAssessments'));
-    return snap.docs
+    const cloud = snap.docs
       .map((d) => {
         const data = d.data();
         return { ...data, completedAt: toIsoString(data.completedAt) } as ZaritEvaluationResult;
       })
       .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+    return mergeZaritAssessments(local, cloud);
   } catch {
-    return [];
+    return local;
   }
 }
 
 /** All function assessments for one patient, newest first. */
 export async function getFunctionScoresFor(patientUid: string): Promise<FunctionEvaluationResult[]> {
-  if (!db) return [];
+  const local = HealthRepository.getFunctionScoresFor(patientUid);
+  if (!db) return local;
   try {
     const snap = await getDocs(collection(db, 'users', patientUid, 'functionScores'));
-    return snap.docs
+    const cloud = snap.docs
       .map((d) => {
         const data = d.data();
         return { ...data, recordedAt: toIsoString(data.recordedAt) } as FunctionEvaluationResult;
       })
       .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+    return mergeFunctionScores(local, cloud);
   } catch {
-    return [];
+    return local;
   }
 }
 
@@ -1147,6 +1642,113 @@ export function subscribeToReassessmentRequest(
   );
 }
 
+/** Live merged Zarit assessment history for one dyad, newest first. */
+export function subscribeToZaritAssessmentsFor(
+  patientUid: string,
+  callback: (assessments: ZaritEvaluationResult[]) => void
+) {
+  const local = HealthRepository.getZaritAssessmentsFor(patientUid);
+  if (!db) {
+    callback(local);
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'users', patientUid, 'zaritAssessments'),
+    (snap) => {
+      const cloud = snap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, completedAt: toIsoString(data.completedAt) } as ZaritEvaluationResult;
+      });
+      callback(mergeZaritAssessments(local, cloud));
+    },
+    () => callback(local)
+  );
+}
+
+/** Live merged Barthel/Lawton function history for one dyad, newest first. */
+export function subscribeToFunctionScoresFor(
+  patientUid: string,
+  callback: (scores: FunctionEvaluationResult[]) => void
+) {
+  const local = HealthRepository.getFunctionScoresFor(patientUid);
+  if (!db) {
+    callback(local);
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'users', patientUid, 'functionScores'),
+    (snap) => {
+      const cloud = snap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, recordedAt: toIsoString(data.recordedAt) } as FunctionEvaluationResult;
+      });
+      callback(mergeFunctionScores(local, cloud));
+    },
+    () => callback(local)
+  );
+}
+
+/** Live current caregiver support matrix for one dyad. */
+export function subscribeToCaregiverAttributesFor(
+  patientUid: string,
+  callback: (attrs: CaregiverAttributes | null) => void
+) {
+  const local = HealthRepository.getCaregiverAttributesFor(patientUid);
+  if (!db) {
+    callback(local);
+    return () => {};
+  }
+  return onSnapshot(
+    doc(db, 'users', patientUid, 'caregiverAttributes', 'current'),
+    (snap) => callback(snap.exists() ? (snap.data() as CaregiverAttributes) : local),
+    () => callback(local)
+  );
+}
+
+/** Live current patient dependence profile for one dyad. */
+export function subscribeToPatientProfileFor(
+  patientUid: string,
+  callback: (profile: (PatientDependenceProfile & { updatedAt?: string }) | null) => void
+) {
+  const local = HealthRepository.getPatientProfileFor(patientUid);
+  if (!db) {
+    callback(local);
+    return () => {};
+  }
+  return onSnapshot(
+    doc(db, 'users', patientUid, 'patientProfile', 'current'),
+    (snap) => {
+      if (!snap.exists()) {
+        callback(local);
+        return;
+      }
+      const data = snap.data();
+      callback({ ...data, updatedAt: toIsoString(data.updatedAt) } as PatientDependenceProfile & {
+        updatedAt: string;
+      });
+    },
+    () => callback(local)
+  );
+}
+
+/** Subscribe to the dyad records that affect the doctor workspace. */
+export function subscribeToDyadClinicalData(patientUid: string, callback: () => void) {
+  if (!db) return () => {};
+  const unsubscribers = [
+    onSnapshot(collection(db, 'users', patientUid, 'zaritAssessments'), callback, callback),
+    onSnapshot(collection(db, 'users', patientUid, 'functionScores'), callback, callback),
+    onSnapshot(collection(db, 'users', patientUid, 'vitals'), callback, callback),
+    onSnapshot(collection(db, 'users', patientUid, 'dailyCareLogs'), callback, callback),
+    onSnapshot(collection(db, 'users', patientUid, 'appointments'), callback, callback),
+    onSnapshot(doc(db, 'users', patientUid, 'caregiverAttributes', 'current'), callback, callback),
+    onSnapshot(doc(db, 'users', patientUid, 'patientProfile', 'current'), callback, callback),
+    onSnapshot(doc(db, 'users', patientUid, 'medications', 'current'), callback, callback),
+    onSnapshot(doc(db, 'users', patientUid, 'careCircle', 'current'), callback, callback),
+    onSnapshot(collection(db, 'users', patientUid, 'moduleProgress'), callback, callback)
+  ];
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+}
+
 /** Caregiver marks reassessment request as completed */
 export async function completeReassessmentRequest(patientUid: string): Promise<void> {
   if (!db) return;
@@ -1169,12 +1771,19 @@ export async function createReassessmentAlert(
     previousScore: number;
     newScore: number;
     completedAt: string;
+    alertType?: 'zarit_surge' | 'caregiver_respite_needed';
+    deltaPct?: number;
+    needsCaregiverRespite?: boolean;
+    reason?: string;
   }
 ): Promise<void> {
   if (!db) return;
-  const alertId = `${alert.patientUid}_${Date.now()}`;
+  const alertTime = new Date(alert.completedAt).getTime() || Date.now();
+  const alertId = `${alert.patientUid}_${alert.alertType || 'zarit_surge'}_${alertTime}`;
   await setDoc(doc(db, 'users', clinicianUid, 'reassessmentAlerts', alertId), {
     ...alert,
+    alertType: alert.alertType || 'zarit_surge',
+    needsCaregiverRespite: Boolean(alert.needsCaregiverRespite),
     id: alertId,
     read: false,
     createdAt: new Date().toISOString()

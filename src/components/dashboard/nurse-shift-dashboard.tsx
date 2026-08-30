@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,10 +22,24 @@ import {
   Sparkles
 } from 'lucide-react';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
-import { syncVitals } from '@/lib/firebase/clinical-sync';
+import { syncVitals, syncNursingProcedures, getNursingProceduresFor } from '@/lib/firebase/clinical-sync';
+import { subscribeToAuthState } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
+import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
+
+const DEFAULT_PROCEDURES = {
+  morningBathSkinInspect: false,
+  dentureLukewarmClean: false,
+  q2hTurnCompleted: false,
+  woundDressingChanged: false,
+  catheterOutputMeasured: false,
+  eveningMedsAdministered: false
+};
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function NurseShiftDashboard() {
   const { toast } = useToast();
@@ -38,18 +52,44 @@ export function NurseShiftDashboard() {
   const [bloodSugar, setBloodSugar] = useState('');
   const [spO2, setSpO2] = useState('');
 
-  // Nursing Procedures Checklist
-  const [procedures, setProcedures] = useState({
-    morningBathSkinInspect: false,
-    dentureLukewarmClean: false,
-    q2hTurnCompleted: false,
-    woundDressingChanged: false,
-    catheterOutputMeasured: false,
-    eveningMedsAdministered: false
-  });
+  // Signed-in dyad uid — resolves so the nurse's shift readings and daily
+  // sheet write to the SAME `users/{uid}/...` tree the family caregiver's
+  // dashboard reads (see dashboard-client.tsx), not a device-only silo.
+  const [currentUid, setCurrentUid] = useState<string>('');
+
+  // Nursing Procedures Checklist. Previously plain React state with no
+  // persistence at all — a page refresh silently discarded the whole shift's
+  // completed-procedure record, and it was never visible to the doctor or
+  // family. Now backed by HealthRepository (survives refresh) and mirrored
+  // to Firestore once signed in, keyed by today's date so it resets daily.
+  const [procedures, setProcedures] = useState<typeof DEFAULT_PROCEDURES>(DEFAULT_PROCEDURES);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState((user) => {
+      setCurrentUid(user?.uid || '');
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!currentUid) return;
+    let cancelled = false;
+    void getNursingProceduresFor(currentUid, todayStr()).then((saved) => {
+      if (!cancelled && Object.keys(saved).length > 0) {
+        setProcedures((prev) => ({ ...prev, ...saved }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUid]);
 
   const toggleProcedure = (key: keyof typeof procedures) => {
-    setProcedures((prev) => ({ ...prev, [key]: !prev[key] }));
+    setProcedures((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      if (currentUid) void syncNursingProcedures(currentUid, todayStr(), updated);
+      return updated;
+    });
   };
 
   const handleLogShiftVitals = async (e: React.FormEvent) => {
@@ -258,6 +298,22 @@ export function NurseShiftDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <DailyCareLogPanel
+        patientUid={currentUid || undefined}
+        patientName={patient.name}
+        title="Nurse Daily Bedside Sheet"
+      />
+
+      <CareIntelligencePanel
+        patientName={patient.name}
+        latestZarit={HealthRepository.getZaritAssessments()[0] || null}
+        careGap={HealthRepository.hasStoredDyadProfile() ? HealthRepository.getCareGapEvaluation() : null}
+        caregiver={HealthRepository.getCaregiverAttributes()}
+        patient={patient}
+        vitals={HealthRepository.getVitals()}
+        mode="clinician"
+      />
     </div>
   );
 }

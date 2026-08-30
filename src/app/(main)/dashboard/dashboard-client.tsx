@@ -66,8 +66,11 @@ import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
 import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
 import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
 import { subscribeToReassessmentRequest } from '@/lib/firebase/clinical-sync';
+import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
+import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import type { CaregiverAttributes, PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -110,6 +113,8 @@ export default function DashboardClient() {
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [careGap, setCareGap] = useState<CareGapEvaluationResult | null>(null);
+  const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
+  const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentUserUid, setCurrentUserUid] = useState<string>('');
   const [reassessmentRequest, setReassessmentRequest] = useState<any | null>(null);
@@ -146,6 +151,8 @@ export default function DashboardClient() {
     setMedications(meds);
     setVitals(HealthRepository.getVitals());
     setAppointments(HealthRepository.getAppointments());
+    setCaregiver(HealthRepository.getCaregiverAttributes());
+    setPatientProfile(HealthRepository.getPatientProfile());
 
     setCareGap(
       HealthRepository.hasStoredDyadProfile()
@@ -337,6 +344,24 @@ export default function DashboardClient() {
               })}
             </CardContent>
           </Card>
+
+          <DailyCareLogPanel
+            patientUid={currentUserUid || undefined}
+            patientName={HealthRepository.getPatientProfile().name}
+            mode="readonly"
+            title="Family Daily Update"
+          />
+
+          <CareIntelligencePanel
+            patientUid={currentUserUid || undefined}
+            patientName={patientProfile?.name || HealthRepository.getPatientProfile().name}
+            latestZarit={latestZarit}
+            careGap={careGap}
+            caregiver={caregiver}
+            patient={patientProfile}
+            vitals={vitals}
+            mode="family"
+          />
 
           {/* 2. Quick KPI Cards Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

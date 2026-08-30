@@ -419,5 +419,125 @@ describe('reassessmentRequests & reassessmentAlerts — workflow rules', () => {
       getDoc(doc(stranger, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'alert-1'))
     );
   });
+
+  it('a user with NO active grant on that clinician CANNOT create a reassessment alert, even claiming their own uid as patientUid', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(stranger, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'spoofed-alert'),
+        { patientUid: RANDOM_STRANGER_UID, patientName: 'Mallory', previousScore: 40, newScore: 60 }
+      )
+    );
+  });
+
+  it('a user CANNOT create a reassessment alert claiming a different patientUid than their own', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(caregiver, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'spoofed-alert-2'),
+        { patientUid: RANDOM_STRANGER_UID, patientName: 'Not Alice', previousScore: 40, newScore: 60 }
+      )
+    );
+  });
+
+  it('a REVOKED grant no longer lets the caregiver create a reassessment alert for that clinician', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'clinicianGrants', CLINICIAN_UID), {
+        clinicianUid: CLINICIAN_UID,
+        grantedAt: new Date().toISOString(),
+        revokedAt: new Date().toISOString()
+      });
+    });
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(caregiver, 'users', CLINICIAN_UID, 'reassessmentAlerts', 'alert-after-revoke'),
+        { patientUid: CAREGIVER_UID, patientName: 'Alice', previousScore: 40, newScore: 60 }
+      )
+    );
+  });
+});
+
+describe('patientProfile / caregiverAttributes — professional bypass scoped to dyad_* placeholders only', () => {
+  const VALID_PROFILE = {
+    katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+    lawtonIadl: {
+      telephone: true, shopping: true, mealPreparation: true, housekeeping: true,
+      laundry: true, transportation: true, medicationManagement: true, finances: true
+    },
+    updatedAt: new Date().toISOString()
+  };
+  const VALID_CAREGIVER_ATTRS = { name: 'Primary Caregiver' };
+
+  it('an ungranted professional CANNOT write a real caregiver uid\'s patientProfile', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'patientProfile', 'current'), VALID_PROFILE)
+    );
+  });
+
+  it('an ungranted professional CANNOT write a real caregiver uid\'s caregiverAttributes', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(
+      setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'), VALID_CAREGIVER_ATTRS)
+    );
+  });
+
+  it('a granted clinician CAN still write the real caregiver uid\'s patientProfile', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(clinician, 'users', CAREGIVER_UID, 'patientProfile', 'current'), VALID_PROFILE)
+    );
+  });
+
+  it('ANY professional (even ungranted) CAN bootstrap a dyad_* placeholder patientProfile pre-claim', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(otherClinician, 'users', 'dyad_ABC123', 'patientProfile', 'current'), VALID_PROFILE)
+    );
+  });
+
+  it('a non-professional caregiver CANNOT write a dyad_* placeholder patientProfile', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(
+      setDoc(doc(stranger, 'users', 'dyad_ABC123', 'patientProfile', 'current'), VALID_PROFILE)
+    );
+  });
+
+  it('any authenticated user CAN read a dyad_* placeholder patientProfile (invite-claim migration)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'dyad_ABC123', 'patientProfile', 'current'), VALID_PROFILE);
+    });
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertSucceeds(getDoc(doc(stranger, 'users', 'dyad_ABC123', 'patientProfile', 'current')));
+  });
+
+  it('a stranger with no grant CANNOT read a real caregiver uid\'s patientProfile', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(getDoc(doc(stranger, 'users', CAREGIVER_UID, 'patientProfile', 'current')));
+  });
+});
+
+describe('careCircle — single current document, same access model as caregiverAttributes', () => {
+  const VALID_CIRCLE = { members: [], tasks: [], updatedAt: new Date().toISOString() };
+
+  it('the owning caregiver CAN write their own care circle', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'careCircle', 'current'), VALID_CIRCLE));
+  });
+
+  it('a granted clinician CAN read the care circle', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'careCircle', 'current'), VALID_CIRCLE);
+    });
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'careCircle', 'current')));
+  });
+
+  it('an ungranted clinician CANNOT read or write the care circle', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'careCircle', 'current')));
+    await assertFails(setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'careCircle', 'current'), VALID_CIRCLE));
+  });
 });
 

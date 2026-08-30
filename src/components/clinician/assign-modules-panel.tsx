@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { caregiverModules } from '@/lib/modules';
 import { getTailoredModuleIds, GENERAL_MODULE_IDS } from '@/lib/modules-personalization';
-import { assignModulesFor, getAssignedModulesFor, getPatientProfileFor } from '@/lib/firebase/clinical-sync';
+import { assignModulesFor, getAssignedModulesFor, getPatientProfileFor, getModuleProgressFor } from '@/lib/firebase/clinical-sync';
+import type { ModuleSectionProgress } from '@/lib/db/health-repository';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ export function AssignModulesPanel({ patientUid, clinicianLabel }: AssignModules
   const [matchedLabels, setMatchedLabels] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [previouslyAssignedIds, setPreviouslyAssignedIds] = useState<Set<string>>(new Set());
+  const [progressMap, setProgressMap] = useState<Record<string, ModuleSectionProgress>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showAllModules, setShowAllModules] = useState(false);
@@ -35,21 +37,24 @@ export function AssignModulesPanel({ patientUid, clinicianLabel }: AssignModules
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    Promise.all([getPatientProfileFor(patientUid), getAssignedModulesFor(patientUid)]).then(
-      ([profile, assigned]) => {
-        if (cancelled) return;
-        const { moduleIds, matchedLabels: labels } = getTailoredModuleIds(
-          profile?.primaryConditions,
-          profile?.katzAdl
-        );
-        setSuggestedIds(moduleIds);
-        setMatchedLabels(labels);
-        const initial = assigned?.moduleIds?.length ? new Set(assigned.moduleIds) : new Set(moduleIds);
-        setSelectedIds(initial);
-        setPreviouslyAssignedIds(new Set(assigned?.moduleIds || []));
-        setIsLoading(false);
-      }
-    );
+    Promise.all([
+      getPatientProfileFor(patientUid),
+      getAssignedModulesFor(patientUid),
+      getModuleProgressFor(patientUid)
+    ]).then(([profile, assigned, progress]) => {
+      if (cancelled) return;
+      const { moduleIds, matchedLabels: labels } = getTailoredModuleIds(
+        profile?.primaryConditions,
+        profile?.katzAdl
+      );
+      setSuggestedIds(moduleIds);
+      setMatchedLabels(labels);
+      const initial = assigned?.moduleIds?.length ? new Set(assigned.moduleIds) : new Set(moduleIds);
+      setSelectedIds(initial);
+      setPreviouslyAssignedIds(new Set(assigned?.moduleIds || []));
+      setProgressMap(progress);
+      setIsLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -123,10 +128,17 @@ export function AssignModulesPanel({ patientUid, clinicianLabel }: AssignModules
                       onChange={() => toggleModule(m.id)}
                       className="mt-0.5 rounded-sm text-primary"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate">{m.title}</p>
                       <p className="text-[10px] text-muted-foreground">{m.category}</p>
                     </div>
+                    {previouslyAssignedIds.has(m.id) && (
+                      <Badge variant="outline" className="text-[9px] font-semibold shrink-0">
+                        {progressMap[m.id]?.completedSections?.length
+                          ? `${progressMap[m.id].completedSections.length} section${progressMap[m.id].completedSections.length === 1 ? '' : 's'} done`
+                          : 'Not started'}
+                      </Badge>
+                    )}
                   </label>
                 ))}
               </div>
@@ -157,10 +169,17 @@ export function AssignModulesPanel({ patientUid, clinicianLabel }: AssignModules
                       onChange={() => toggleModule(m.id)}
                       className="mt-0.5 rounded-sm text-primary"
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate">{m.title}</p>
                       <p className="text-[10px] text-muted-foreground">{m.category}</p>
                     </div>
+                    {previouslyAssignedIds.has(m.id) && (
+                      <Badge variant="outline" className="text-[9px] font-semibold shrink-0">
+                        {progressMap[m.id]?.completedSections?.length
+                          ? `${progressMap[m.id].completedSections.length} section${progressMap[m.id].completedSections.length === 1 ? '' : 's'} done`
+                          : 'Not started'}
+                      </Badge>
+                    )}
                   </label>
                 ))}
               </div>

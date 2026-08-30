@@ -44,7 +44,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
-import { syncVitals } from '@/lib/firebase/clinical-sync';
+import { syncVitals, getVitalsFor } from '@/lib/firebase/clinical-sync';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { ConsentManager } from '@/components/privacy/consent-manager';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
@@ -68,10 +69,38 @@ export default function VitalLogsPage() {
   const [logs, setLogs] = useState<VitalRecord[]>([]);
   const [lastDeletedLog, setLastDeletedLog] = useState<VitalRecord | null>(null);
   const { toast } = useToast();
+  const { user } = useAuthUser();
+
+  // Merges this device's own local vitals with the signed-in user's cloud
+  // copy of `users/{uid}/vitals` — which also holds any vital a clinician
+  // recorded directly on this dyad (recordVitalFor writes to the same
+  // collection). Previously this page only ever read
+  // HealthRepository.getVitals() (local-only), so a doctor-entered vital was
+  // invisible in the caregiver's own history unless entered from this exact
+  // device.
+  async function refreshLogs() {
+    const dismissed = new Set(HealthRepository.getDismissedVitalIds());
+    const own = HealthRepository.getVitals().filter((v) => !dismissed.has(v.id));
+    if (!user?.uid) {
+      setLogs(own);
+      return;
+    }
+    try {
+      const merged = await getVitalsFor(user.uid);
+      const map = new Map<string, VitalRecord>();
+      for (const v of [...own, ...merged]) {
+        if (!dismissed.has(v.id)) map.set(v.id, v);
+      }
+      setLogs(Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch {
+      setLogs(own);
+    }
+  }
 
   useEffect(() => {
-    setLogs(HealthRepository.getVitals());
-  }, []);
+    void refreshLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const form = useForm<VitalLogFormValues>({
     resolver: zodResolver(vitalLogSchema),
@@ -161,7 +190,7 @@ export default function VitalLogsPage() {
       localStorage.removeItem('sanjeevani_vitals_draft');
     }
 
-    setLogs(HealthRepository.getVitals());
+    void refreshLogs();
     form.reset({
       date: new Date(),
       systolic: '',
@@ -186,24 +215,31 @@ export default function VitalLogsPage() {
     const recordToDelete = logs.find((l) => l.id === id);
     if (!recordToDelete) return;
 
-    HealthRepository.deleteVital(id);
+    // Dismiss rather than hard-delete: vitals are an immutable clinical
+    // audit trail once synced (firestore.rules forbids update/delete on the
+    // subcollection), so this only hides the entry from this caregiver's own
+    // view — the doctor's trend still reflects the real reading. A true
+    // localStorage delete here would either do nothing once cloud-merged
+    // (the record would just reappear on the next refresh) or, for a
+    // never-synced entry, be indistinguishable from that case up front.
+    HealthRepository.dismissVital(id);
     setLastDeletedLog(recordToDelete);
-    setLogs(HealthRepository.getVitals());
+    void refreshLogs();
 
     toast({
-      title: '🗑️ Log Entry Deleted',
-      description: `Removed log for ${format(new Date(recordToDelete.date), 'dd MMM yyyy')}.`,
+      title: '🗑️ Log Entry Removed From Your View',
+      description: `Hid the ${format(new Date(recordToDelete.date), 'dd MMM yyyy')} entry. Already-synced readings stay on your care team's record.`,
       action: (
         <Button
           variant="outline"
           size="sm"
           className="h-7 px-2.5 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
           onClick={() => {
-            HealthRepository.addVital(recordToDelete);
-            setLogs(HealthRepository.getVitals());
+            HealthRepository.undismissVital(id);
+            void refreshLogs();
             toast({
               title: '↩️ Action Undone',
-              description: 'The deleted vital record has been restored.',
+              description: 'The vital record is visible again.',
             });
           }}
         >

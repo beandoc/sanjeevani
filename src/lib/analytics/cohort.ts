@@ -18,11 +18,18 @@ import {
   getCaregiverAttributesFor,
   getPatientProfileFor,
   getVitalsFor,
-  getAppointmentsFor
+  getAppointmentsFor,
+  getDailyCareLogsFor
 } from '@/lib/firebase/clinical-sync';
 import { computeTrajectory, type RiskBand } from './trajectory';
 import { isReassessmentDue, type ZbiTier } from '@/lib/zarit-scale';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
+import {
+  analyzeDailyCareLogs,
+  prescribeRespite,
+  type ClinicalSignal,
+  type RespitePrescription
+} from '@/lib/clinical/care-intelligence';
 
 export interface CohortRow {
   patientUid: string;
@@ -46,6 +53,10 @@ export interface CohortRow {
   lastVitalBp?: string | null;
   lastVitalSpo2?: string | null;
   latestAlertSnippet?: string | null;
+  dailyLogCount?: number;
+  lastDailyLogDate?: string | null;
+  dailyLogSignals?: ClinicalSignal[];
+  respitePrescription?: RespitePrescription;
 }
 
 // A dyad that was escalating at last contact and has since gone quiet ranks
@@ -89,7 +100,28 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     fallHistory: 2,
     lastVitalBp: '168/102',
     lastVitalSpo2: '94%',
-    latestAlertSnippet: 'Solo elderly spouse handling heavy nocturnal bed-turns. BP spike 168/102.'
+    latestAlertSnippet: 'Solo elderly spouse handling heavy nocturnal bed-turns. BP spike 168/102.',
+    dailyLogCount: 1,
+    lastDailyLogDate: new Date().toISOString().slice(0, 10),
+    dailyLogSignals: [
+      {
+        id: 'demo_delirium',
+        category: 'delirium',
+        severity: 'urgent',
+        title: 'Possible delirium or acute behavior change',
+        detail: 'Evening sundowning and low sleep reported in bedside handoff.',
+        source: 'daily_log',
+        date: new Date().toISOString().slice(0, 10)
+      }
+    ],
+    respitePrescription: {
+      needed: true,
+      urgency: 'urgent',
+      recommendedDaysPerMonth: 8,
+      recommendedHoursPerWeek: 24,
+      recommendedSupport: 'Formal respite attendant plus family night rotation this week',
+      reasons: ['High caregiver burden (64%).', 'No formal attendant support is recorded.']
+    }
   },
   {
     patientUid: 'demo-ramesh',
@@ -112,7 +144,28 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     fallHistory: 1,
     lastVitalBp: '134/86',
     lastVitalSpo2: '97%',
-    latestAlertSnippet: 'Transfer assistance fatigue rising; evening sundowning reported.'
+    latestAlertSnippet: 'Transfer assistance fatigue rising; evening sundowning reported.',
+    dailyLogCount: 1,
+    lastDailyLogDate: new Date().toISOString().slice(0, 10),
+    dailyLogSignals: [
+      {
+        id: 'demo_fall',
+        category: 'falls',
+        severity: 'watch',
+        title: 'Fall or unsafe transfer signal',
+        detail: 'Gait freezing and prior fall history need mobility review.',
+        source: 'profile',
+        date: new Date().toISOString().slice(0, 10)
+      }
+    ],
+    respitePrescription: {
+      needed: true,
+      urgency: 'priority',
+      recommendedDaysPerMonth: 4,
+      recommendedHoursPerWeek: 12,
+      recommendedSupport: 'Planned weekly half-day respite and backup family roster',
+      reasons: ['Rising caregiver burden (42%).']
+    }
   },
   {
     patientUid: 'demo-kamla',
@@ -135,7 +188,18 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     fallHistory: 0,
     lastVitalBp: '122/78',
     lastVitalSpo2: '98%',
-    latestAlertSnippet: 'Cognitive stimulation & medication schedule fully compliant.'
+    latestAlertSnippet: 'Cognitive stimulation & medication schedule fully compliant.',
+    dailyLogCount: 1,
+    lastDailyLogDate: new Date().toISOString().slice(0, 10),
+    dailyLogSignals: [],
+    respitePrescription: {
+      needed: false,
+      urgency: 'none',
+      recommendedDaysPerMonth: 0,
+      recommendedHoursPerWeek: 0,
+      recommendedSupport: 'Monthly backup caregiver coverage',
+      reasons: []
+    }
   }
 ];
 
@@ -154,20 +218,23 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
     const rows = await Promise.all(
       roster.map(async ({ patientUid }) => {
         try {
-          const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments] = await Promise.all([
+          const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments, dailyLogs] = await Promise.all([
             getZaritAssessmentsFor(patientUid),
             getFunctionScoresFor(patientUid),
             getPatientDisplayName(patientUid),
             getCaregiverAttributesFor(patientUid).catch(() => null),
             getPatientProfileFor(patientUid).catch(() => null),
             getVitalsFor(patientUid).catch(() => []),
-            getAppointmentsFor(patientUid).catch(() => [])
+            getAppointmentsFor(patientUid).catch(() => []),
+            getDailyCareLogsFor(patientUid).catch(() => [])
           ]);
           const trajectory = computeTrajectory(assessments, functionScores);
           const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
           const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
           const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
           const latestVital = vitals?.[0];
+          const dailyLogSignals = analyzeDailyCareLogs(dailyLogs);
+          const respitePrescription = prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile);
           return {
             patientUid,
             displayName,
@@ -189,7 +256,11 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
             fallHistory: patientProfile?.fallHistoryLast6Months || 0,
             lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
             lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
-            latestAlertSnippet: hasQocWarning ? careGap.qualityOfCareWarnings[0] : null
+            latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap.qualityOfCareWarnings[0] : null),
+            dailyLogCount: dailyLogs.length,
+            lastDailyLogDate: dailyLogs[0]?.date || null,
+            dailyLogSignals,
+            respitePrescription
           } satisfies CohortRow;
         } catch {
           return {

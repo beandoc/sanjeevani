@@ -334,11 +334,27 @@ export default function OnboardingIntakePage() {
       // No local dyad belongs to the doctor's own account — write only to
       // whichever granted patient was selected, or attach the assessment to
       // a freshly-registered invite so it carries through once claimed.
-      if (selectedPatientUid) {
-        void savePatientProfileFor(selectedPatientUid, patient);
-        void saveCaregiverAttributesFor(selectedPatientUid, caregiver);
-      } else if (pendingInvite) {
-        void updateDyadInviteDraft(pendingInvite.inviteCode, patient);
+      // Awaited (previously fire-and-forget with no error handling) so a
+      // Firestore failure here — which HealthRepository's local write inside
+      // these functions won't experience, but the cloud mirror can — is
+      // surfaced to the doctor instead of silently vanishing right before
+      // navigating away.
+      try {
+        if (selectedPatientUid) {
+          await Promise.all([
+            savePatientProfileFor(selectedPatientUid, patient),
+            saveCaregiverAttributesFor(selectedPatientUid, caregiver)
+          ]);
+        } else if (pendingInvite) {
+          await updateDyadInviteDraft(pendingInvite.inviteCode, patient);
+        }
+      } catch (err) {
+        toast({
+          variant: 'destructive',
+          title: 'Could Not Save Assessment',
+          description: err instanceof Error ? err.message : 'Please try again before leaving this page.'
+        });
+        return;
       }
     } else {
       HealthRepository.savePatientProfile(patient);

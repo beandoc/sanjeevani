@@ -58,7 +58,9 @@ import {
 import {
   getCaregiverAttributesFor,
   saveCaregiverAttributesFor,
-  getPatientProfileFor
+  getPatientProfileFor,
+  syncCareCircle,
+  getCareCircleFor
 } from '@/lib/firebase/clinical-sync';
 import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
@@ -120,16 +122,41 @@ export default function CareCirclePage() {
     void loadDyadData();
   }, [user]);
 
-  // Load members & tasks
+  // Load members & tasks. Previously local-storage-only with no Firestore
+  // mirror at all, so a member/task added on one device (or by a nurse
+  // signed into their own session) was invisible everywhere else, including
+  // the doctor's dyad workspace. Cloud copy (when present) is authoritative
+  // once signed in, mirroring the pattern used for caregiverAttributes above.
   useEffect(() => {
-    const loadedMembers = HealthRepository.getCareCircleMembers();
-    const loadedTasks = HealthRepository.getCareCircleTasks();
-    setMembers(loadedMembers);
-    setTasks(loadedTasks);
-    if (loadedMembers.length > 0 && !assignedTo) {
-      setAssignedTo(loadedMembers[0].name);
+    let cancelled = false;
+    async function loadCircle() {
+      const localMembers = HealthRepository.getCareCircleMembers();
+      const localTasks = HealthRepository.getCareCircleTasks();
+      if (!cancelled) {
+        setMembers(localMembers);
+        setTasks(localTasks);
+        if (localMembers.length > 0 && !assignedTo) setAssignedTo(localMembers[0].name);
+      }
+      if (!user?.uid) return;
+      try {
+        const remote = await getCareCircleFor(user.uid);
+        if (remote && !cancelled) {
+          HealthRepository.saveCareCircleMembers(remote.members);
+          HealthRepository.saveCareCircleTasks(remote.tasks);
+          setMembers(remote.members);
+          setTasks(remote.tasks);
+          if (remote.members.length > 0 && !assignedTo) setAssignedTo(remote.members[0].name);
+        }
+      } catch (err) {
+        console.warn('Could not sync remote care circle:', err);
+      }
     }
-  }, [assignedTo]);
+    void loadCircle();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Handle Save from the interactive CaregiverSupportMatrix builder
   const handleSaveMatrix = async (updatedAttrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
@@ -166,6 +193,7 @@ export default function CareCirclePage() {
         });
         HealthRepository.saveCareCircleMembers(newMembersList);
         setMembers(newMembersList);
+        void syncCareCircle(newMembersList, tasks);
       }
 
       toast({
@@ -185,6 +213,7 @@ export default function CareCirclePage() {
   const handleToggleTask = (taskId: string) => {
     const updated = HealthRepository.toggleCareCircleTask(taskId);
     setTasks(updated);
+    void syncCareCircle(members, updated);
     const task = updated.find((t) => t.id === taskId);
     if (task?.isCompleted) {
       toast({
@@ -212,6 +241,7 @@ export default function CareCirclePage() {
     const updatedTasks = [newTask, ...currentTasks];
     HealthRepository.saveCareCircleTasks(updatedTasks);
     setTasks(updatedTasks);
+    void syncCareCircle(members, updatedTasks);
     setTaskTitle('');
     setIsAddTaskOpen(false);
     toast({
@@ -241,6 +271,7 @@ export default function CareCirclePage() {
     const updatedMembers = [...currentMembers, newMember];
     HealthRepository.saveCareCircleMembers(updatedMembers);
     setMembers(updatedMembers);
+    void syncCareCircle(updatedMembers, tasks);
     setNewMemberFirstName('');
     setNewMemberLastName('');
     setNewMemberPhone('');

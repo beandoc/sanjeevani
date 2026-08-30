@@ -5,6 +5,7 @@
  */
 
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
+import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import {
   CaregiverAttributes,
   PatientDependenceProfile,
@@ -30,6 +31,56 @@ export interface VitalRecord {
   sleep: 'good' | 'average' | 'poor';
   notes?: string;
   createdAt: string;
+}
+
+export type DailyCareShift = 'morning' | 'day' | 'evening' | 'night' | 'full_day';
+
+export interface DailyCareLogVitalsRow {
+  id: string;
+  timeLabel: string;
+  bloodSugar?: string;
+  bp?: string;
+  pulse?: string;
+  spo2?: string;
+  physiotherapy?: string;
+  exercise?: string;
+  remarks?: string;
+}
+
+export interface DailyCareLogMedication {
+  id: string;
+  label: string;
+  slot: 'morning' | 'lunch' | 'evening' | 'night' | 'sos';
+  given: boolean;
+  notes?: string;
+}
+
+export interface DailyCareLog {
+  id: string;
+  date: string; // YYYY-MM-DD
+  shift: DailyCareShift;
+  patientUid?: string | null;
+  patientName?: string | null;
+  recordedByName?: string | null;
+  recordedByRole: 'nurse' | 'medical_assistant' | 'caregiver' | 'doctor' | 'unknown';
+  meals: {
+    breakfast?: string;
+    lunch?: string;
+    eveningSnack?: string;
+    dinner?: string;
+    feedNotes?: string;
+  };
+  monitoringRows: DailyCareLogVitalsRow[];
+  medications: DailyCareLogMedication[];
+  stoolPassed: boolean | null;
+  urineMorningMl?: string;
+  urineEveningMl?: string;
+  waterIntakeMl?: string;
+  catheterChanged: boolean | null;
+  sleep: 'good' | 'average' | 'poor' | 'not_recorded';
+  generalRemarks?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AppointmentRecord {
@@ -108,8 +159,10 @@ export interface UserConsentPreferences {
 const STORAGE_KEYS = {
   CONSENT: 'sanjeevani_dpdp_consent',
   VITALS: 'sanjeevani_vitals_vault',
+  DAILY_CARE_LOGS: 'sanjeevani_daily_care_logs_vault',
   APPOINTMENTS: 'sanjeevani_appointments_vault',
   ZARIT: 'sanjeevani_zarit_vault',
+  FUNCTION_SCORES: 'sanjeevani_function_scores_vault',
   MODULE_PROGRESS: 'sanjeevani_module_sections_vault',
   USER_PROFILE: 'sanjeevani_user_profile',
   EMERGENCY_CONTACTS: 'sanjeevani_emergency_contacts',
@@ -343,6 +396,204 @@ export class HealthRepository {
     }
   }
 
+  // Vitals are an immutable clinical audit trail once synced to Firestore
+  // (firestore.rules explicitly forbids update/delete on the vitals
+  // subcollection — a doctor's view of the trend must not lose an entry the
+  // caregiver regrets). deleteVital above only removes this device's local
+  // cache copy; if the record already reached the cloud, a merge with
+  // getVitalsFor would otherwise resurrect it right back into view on the
+  // next load. This per-device "dismiss" list lets the caregiver hide an
+  // entry from their own history without erasing the clinical record.
+  static getDismissedVitalIds(): string[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('sanjeevani_dismissed_vital_ids');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Error reading dismissed vital ids:', e);
+      return [];
+    }
+  }
+
+  static dismissVital(id: string): void {
+    if (typeof window === 'undefined') return;
+    const ids = new Set(this.getDismissedVitalIds());
+    ids.add(id);
+    try {
+      localStorage.setItem('sanjeevani_dismissed_vital_ids', JSON.stringify(Array.from(ids)));
+    } catch (e) {
+      console.error('Error dismissing vital:', e);
+    }
+  }
+
+  static undismissVital(id: string): void {
+    if (typeof window === 'undefined') return;
+    const ids = new Set(this.getDismissedVitalIds());
+    ids.delete(id);
+    try {
+      localStorage.setItem('sanjeevani_dismissed_vital_ids', JSON.stringify(Array.from(ids)));
+    } catch (e) {
+      console.error('Error un-dismissing vital:', e);
+    }
+  }
+
+  // --- 2a. Vitals recorded on a patient's behalf (clinician/nurse "for" a
+  // dyad, keyed separately from this device's own vitals above so a granted
+  // clinician's local durability doesn't collide with their own account). ---
+
+  static getVitalsFor(patientUid: string): VitalRecord[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.VITALS}_${patientUid}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch (e) {
+      console.error(`Error reading vitals for ${patientUid}:`, e);
+      return [];
+    }
+  }
+
+  static saveVitalFor(patientUid: string, vital: VitalRecord): VitalRecord[] {
+    if (typeof window === 'undefined') return [];
+    const current = this.getVitalsFor(patientUid);
+    if (current.some((v) => v.id === vital.id)) return current;
+    const updated = [vital, ...current].slice(0, 200);
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.VITALS}_${patientUid}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error(`Error saving vital for ${patientUid}:`, e);
+    }
+    return updated;
+  }
+
+  /** Merges a signed-in user's cloud vitals into THIS device's own vitals
+   * cache (the plain, non-"For" list most pages read via getVitals()) — so
+   * a reading entered on another device shows up here too, not just in the
+   * clinician "for" cache. Cloud wins on id collision (Firestore is
+   * authoritative once signed in). */
+  static mergeVitals(cloudVitals: VitalRecord[]): VitalRecord[] {
+    if (typeof window === 'undefined') return [];
+    const local = this.getVitals();
+    const map = new Map<string, VitalRecord>();
+    for (const v of local) map.set(v.id, v);
+    for (const v of cloudVitals) map.set(v.id, v);
+    const merged = Array.from(map.values())
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 200);
+    try {
+      localStorage.setItem(STORAGE_KEYS.VITALS, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Error merging cloud vitals:', e);
+    }
+    return merged;
+  }
+
+  // --- 2b. Daily Bedside Care Logs ---
+
+  static getDailyCareLogs(): DailyCareLog[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DAILY_CARE_LOGS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return this.normalizeDailyCareLogs(parsed);
+    } catch (e) {
+      console.error('Error reading daily care logs:', e);
+      return [];
+    }
+  }
+
+  static saveDailyCareLog(log: DailyCareLog): DailyCareLog[] {
+    if (typeof window === 'undefined') return [];
+    const current = this.getDailyCareLogs();
+    const updatedLog = {
+      ...log,
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [
+      updatedLog,
+      ...current.filter((item) => item.id !== updatedLog.id)
+    ].slice(0, 365);
+    try {
+      localStorage.setItem(STORAGE_KEYS.DAILY_CARE_LOGS, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving daily care log:', e);
+    }
+    return updated;
+  }
+
+  static getDailyCareLogsFor(patientUid: string): DailyCareLog[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.DAILY_CARE_LOGS}_${patientUid}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return this.normalizeDailyCareLogs(parsed);
+    } catch (e) {
+      console.error(`Error reading daily care logs for ${patientUid}:`, e);
+      return [];
+    }
+  }
+
+  static saveDailyCareLogFor(patientUid: string, log: DailyCareLog): DailyCareLog[] {
+    if (typeof window === 'undefined') return [];
+    const current = this.getDailyCareLogsFor(patientUid);
+    const updatedLog = {
+      ...log,
+      patientUid,
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [
+      updatedLog,
+      ...current.filter((item) => item.id !== updatedLog.id)
+    ].slice(0, 365);
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.DAILY_CARE_LOGS}_${patientUid}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error(`Error saving daily care log for ${patientUid}:`, e);
+    }
+    return updated;
+  }
+
+  private static normalizeDailyCareLogs(items: unknown[]): DailyCareLog[] {
+    return items
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => {
+        const raw = item as Record<string, any>;
+        return {
+          id: String(raw.id || `daily_${raw.date || new Date().toISOString().slice(0, 10)}_${raw.shift || 'full_day'}`),
+          date: String(raw.date || new Date().toISOString().slice(0, 10)),
+          shift: raw.shift || 'full_day',
+          patientUid: raw.patientUid ?? null,
+          patientName: raw.patientName ?? null,
+          recordedByName: raw.recordedByName ?? null,
+          recordedByRole: raw.recordedByRole || 'unknown',
+          meals: raw.meals && typeof raw.meals === 'object' ? raw.meals : {},
+          monitoringRows: Array.isArray(raw.monitoringRows) ? raw.monitoringRows : [],
+          medications: Array.isArray(raw.medications) ? raw.medications : [],
+          stoolPassed: typeof raw.stoolPassed === 'boolean' ? raw.stoolPassed : null,
+          urineMorningMl: raw.urineMorningMl || undefined,
+          urineEveningMl: raw.urineEveningMl || undefined,
+          waterIntakeMl: raw.waterIntakeMl || undefined,
+          catheterChanged: typeof raw.catheterChanged === 'boolean' ? raw.catheterChanged : null,
+          sleep: raw.sleep || 'not_recorded',
+          generalRemarks: raw.generalRemarks || undefined,
+          createdAt: raw.createdAt || new Date().toISOString(),
+          updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString()
+        } as DailyCareLog;
+      })
+      .sort((a, b) => {
+        const dateDelta = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDelta !== 0) return dateDelta;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }
+
   // --- 3. Appointments Management ---
 
   static getAppointments(): AppointmentRecord[] {
@@ -491,6 +742,46 @@ export class HealthRepository {
     return [];
   }
 
+  private static normalizeZaritAssessment(item: unknown): ZaritEvaluationResult | null {
+    if (!item || typeof item !== 'object') return null;
+    const raw = item as Record<string, any>;
+    const classification =
+      typeof raw.classification === 'object' && raw.classification !== null
+        ? {
+            en: raw.classification.en || 'Standard Assessment',
+            hi: raw.classification.hi || raw.classification.en || 'मानक मूल्यांकन',
+            mr: raw.classification.mr || raw.classification.en || 'मानक मूल्यांकन'
+          }
+        : {
+            en: String(raw.classification || 'Standard Assessment'),
+            hi: String(raw.classification || 'मानक मूल्यांकन'),
+            mr: String(raw.classification || 'मानक मूल्यांकन')
+          };
+
+    return {
+      ...raw,
+      tier: raw.tier || 'ZBI22',
+      totalScore: Number(raw.totalScore ?? 0),
+      maxScore: Number(raw.maxScore ?? 88),
+      normalizedPercentage: Number(raw.normalizedPercentage ?? 0),
+      severityBand: raw.severityBand || 'normal',
+      classification,
+      domainCapacities: raw.domainCapacities || {
+        psychosocial: null,
+        resource: null,
+        physical: null,
+        safety: null,
+        cognitive_behavioral: null,
+        medical: null
+      },
+      factors: raw.factors || {},
+      redFlags: Array.isArray(raw.redFlags) ? raw.redFlags : [],
+      isCrisisTriggered: Boolean(raw.isCrisisTriggered),
+      prescriptions: Array.isArray(raw.prescriptions) ? raw.prescriptions : [],
+      completedAt: raw.completedAt || new Date().toISOString()
+    } as ZaritEvaluationResult;
+  }
+
   static saveZaritAssessment(result: ZaritEvaluationResult): ZaritEvaluationResult[] {
     const current = this.getZaritAssessments();
 
@@ -522,6 +813,92 @@ export class HealthRepository {
       localStorage.setItem(STORAGE_KEYS.ZARIT, JSON.stringify(updated));
     } catch (e) {
       console.error('Error saving Zarit assessment:', e);
+    }
+    return updated;
+  }
+
+  static getZaritAssessmentsFor(patientUid: string): ZaritEvaluationResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.ZARIT}_${patientUid}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item) => this.normalizeZaritAssessment(item))
+        .filter((item): item is ZaritEvaluationResult => item !== null)
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+    } catch (e) {
+      console.error(`Error reading Zarit history for ${patientUid}:`, e);
+      return [];
+    }
+  }
+
+  static saveZaritAssessmentFor(patientUid: string, result: ZaritEvaluationResult): ZaritEvaluationResult[] {
+    if (typeof window === 'undefined') return [];
+    const current = this.getZaritAssessmentsFor(patientUid);
+    const DUPLICATE_WINDOW_MS = 5000;
+    const isDuplicate = current.some(
+      (prev) =>
+        prev.tier === result.tier &&
+        prev.totalScore === result.totalScore &&
+        Math.abs(new Date(prev.completedAt).getTime() - new Date(result.completedAt).getTime()) <
+          DUPLICATE_WINDOW_MS
+    );
+    if (isDuplicate) return current;
+
+    const updated = [result, ...current].slice(0, 180);
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.ZARIT}_${patientUid}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error(`Error saving Zarit assessment for ${patientUid}:`, e);
+    }
+    return updated;
+  }
+
+  static getFunctionScoresFor(patientUid: string): FunctionEvaluationResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.FUNCTION_SCORES}_${patientUid}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => ({
+          ...item,
+          barthelScore: Number(item.barthelScore ?? 0),
+          barthelMax: Number(item.barthelMax ?? 100),
+          lawtonScore: Number(item.lawtonScore ?? 0),
+          lawtonMax: Number(item.lawtonMax ?? 8),
+          dependencyPercentage: Number(item.dependencyPercentage ?? 100),
+          recordedAt: item.recordedAt || new Date().toISOString()
+        }) as FunctionEvaluationResult)
+        .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+    } catch (e) {
+      console.error(`Error reading function scores for ${patientUid}:`, e);
+      return [];
+    }
+  }
+
+  static saveFunctionScoreFor(patientUid: string, result: FunctionEvaluationResult): FunctionEvaluationResult[] {
+    if (typeof window === 'undefined') return [];
+    const current = this.getFunctionScoresFor(patientUid);
+    const DUPLICATE_WINDOW_MS = 5000;
+    const isDuplicate = current.some(
+      (prev) =>
+        prev.barthelScore === result.barthelScore &&
+        prev.lawtonScore === result.lawtonScore &&
+        Math.abs(new Date(prev.recordedAt).getTime() - new Date(result.recordedAt).getTime()) <
+          DUPLICATE_WINDOW_MS
+    );
+    if (isDuplicate) return current;
+
+    const updated = [result, ...current].slice(0, 180);
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.FUNCTION_SCORES}_${patientUid}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error(`Error saving function score for ${patientUid}:`, e);
     }
     return updated;
   }
@@ -591,6 +968,31 @@ export class HealthRepository {
     }
   }
 
+  /** A clinician's own local durability cache for a patient's regimen, so a
+   * Firestore write failure doesn't lose the edit entirely (see saveMedicationsFor
+   * in clinical-sync.ts, which previously had no local fallback at all). */
+  static getMedicationsFor(patientUid: string): MedicationItem[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.MEDICATIONS}_${patientUid}`);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error(`Error reading medications for ${patientUid}:`, e);
+      return [];
+    }
+  }
+
+  static saveMedicationsFor(patientUid: string, meds: MedicationItem[]): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.MEDICATIONS}_${patientUid}`, JSON.stringify(meds));
+    } catch (e) {
+      console.error(`Error saving medications for ${patientUid}:`, e);
+    }
+  }
+
   static toggleMedicationTaken(
     medId: string,
     slot?: 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos'
@@ -626,6 +1028,34 @@ export class HealthRepository {
 
     this.saveMedications(updated);
     return updated;
+  }
+
+  // --- 7b. Nursing Procedures Checklist (per patient, per calendar date) ---
+  // Previously the nurse-shift dashboard's checklist was plain React state
+  // with no persistence at all — a page refresh silently discarded the
+  // shift's completed-procedure record. Keyed by date so it naturally
+  // resets each day, same convention as the daily reset in getMedications.
+
+  static getNursingProceduresFor(patientUid: string, date: string): Record<string, boolean> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem(`sanjeevani_nursing_procedures_${patientUid}_${date}`);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+      console.error(`Error reading nursing procedures for ${patientUid}/${date}:`, e);
+      return {};
+    }
+  }
+
+  static saveNursingProceduresFor(patientUid: string, date: string, procedures: Record<string, boolean>): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(`sanjeevani_nursing_procedures_${patientUid}_${date}`, JSON.stringify(procedures));
+    } catch (e) {
+      console.error(`Error saving nursing procedures for ${patientUid}/${date}:`, e);
+    }
   }
 
   // --- 8. Care Circle Members & Tasks ---
@@ -828,6 +1258,7 @@ export class HealthRepository {
     zaritAssessments: ZaritEvaluationResult[];
     emergencyContacts: EmergencyContact[];
     medications: MedicationItem[];
+    dailyCareLogs: DailyCareLog[];
     caregiverAttributes: CaregiverAttributes;
     patientProfile: PatientDependenceProfile;
     careGapEvaluation: CareGapEvaluationResult | null;
@@ -847,6 +1278,7 @@ export class HealthRepository {
       zaritAssessments: this.getZaritAssessments(),
       emergencyContacts: this.getEmergencyContacts(),
       medications: this.getMedications(),
+      dailyCareLogs: this.getDailyCareLogs(),
       caregiverAttributes: this.getCaregiverAttributes(),
       patientProfile: this.getPatientProfile(),
       careGapEvaluation: this.hasStoredDyadProfile() ? this.getCareGapEvaluation() : null,
@@ -1019,13 +1451,22 @@ export class HealthRepository {
       Object.values(STORAGE_KEYS).forEach((key) => {
         localStorage.removeItem(key);
       });
-      // Also remove dynamic per-patient keys
+      // Also remove dynamic per-patient keys.
+      const dynamicKeysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.startsWith(STORAGE_KEYS.PATIENT_PROFILE) || k.startsWith(STORAGE_KEYS.CAREGIVER_ATTRIBUTES))) {
-          localStorage.removeItem(k);
+        if (
+          k &&
+          (k.startsWith(STORAGE_KEYS.PATIENT_PROFILE) ||
+            k.startsWith(STORAGE_KEYS.CAREGIVER_ATTRIBUTES) ||
+            k.startsWith(STORAGE_KEYS.ZARIT) ||
+            k.startsWith(STORAGE_KEYS.DAILY_CARE_LOGS) ||
+            k.startsWith(STORAGE_KEYS.FUNCTION_SCORES))
+        ) {
+          dynamicKeysToRemove.push(k);
         }
       }
+      dynamicKeysToRemove.forEach((key) => localStorage.removeItem(key));
     } catch (e) {
       console.error('Error purging user health data:', e);
     }

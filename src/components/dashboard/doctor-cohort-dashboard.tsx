@@ -37,6 +37,7 @@ import { loadCohortRoster, summarizeCohort, RISK_BAND_STYLE, type CohortRow } fr
 import type { RiskBand } from '@/lib/analytics/trajectory';
 import { cn } from '@/lib/utils';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
+import { ClinicianQueryDashboard } from '@/components/clinician/clinician-query-dashboard';
 import { useToast } from '@/hooks/use-toast';
 import {
   requestReassessment,
@@ -52,7 +53,7 @@ const RISK_BAND_LABEL: Record<RiskBand, string> = {
   stable: 'Stable'
 };
 
-type FilterType = 'all' | 'critical' | 'care_gap' | 'bed_bound' | 'reassessment_due';
+type FilterType = 'all' | 'critical' | 'care_gap' | 'bed_bound' | 'reassessment_due' | 'respite' | 'daily_red_flags';
 
 export function DoctorCohortDashboard() {
   const [rows, setRows] = useState<CohortRow[] | null>(null);
@@ -75,8 +76,12 @@ export function DoctorCohortDashboard() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribeToReassessmentAlerts(setAlerts);
+    const unsubscribe = subscribeToReassessmentAlerts((nextAlerts) => {
+      setAlerts(nextAlerts);
+      void load();
+    });
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDismissAlert = async (alertId: string) => {
@@ -109,6 +114,12 @@ export function DoctorCohortDashboard() {
         title: 'Request Failed',
         description: err instanceof Error ? err.message : 'Please try again.'
       });
+    } finally {
+      // Previously only cleared on failure, so a SUCCESSFUL request left the
+      // button permanently disabled for that row until a full page reload —
+      // `requestingUids` is a transient in-flight flag, not a durable
+      // "already requested" record (that lives server-side in
+      // reassessmentRequests), so it must clear either way.
       setRequestingUids((prev) => {
         const updated = new Set(prev);
         updated.delete(patientUid);
@@ -138,6 +149,8 @@ export function DoctorCohortDashboard() {
     const bedBoundCount = rows.filter((r) => r.isBedBound).length;
     const highFallRisk = rows.filter((r) => (r.fallHistory || 0) >= 1).length;
     const soloCaregivers = rows.filter((r) => r.formalSupportHours === 0).length;
+    const respiteNeeded = rows.filter((r) => r.respitePrescription?.needed).length;
+    const dailyRedFlags = rows.filter((r) => (r.dailyLogSignals || []).some((signal) => signal.severity === 'urgent')).length;
     const dueForReassessment = rows.filter(
       (r) => r.latestAssessmentAgeDays !== null && r.latestAssessmentAgeDays >= 90
     ).length;
@@ -159,6 +172,8 @@ export function DoctorCohortDashboard() {
       bedBoundCount,
       highFallRisk,
       soloCaregivers,
+      respiteNeeded,
+      dailyRedFlags,
       dueForReassessment,
       avgBurden
     };
@@ -182,6 +197,8 @@ export function DoctorCohortDashboard() {
       if (activeFilter === 'critical') return row.riskBand === 'critical' || row.hasRedFlag;
       if (activeFilter === 'care_gap') return row.hasQocWarning;
       if (activeFilter === 'bed_bound') return row.isBedBound;
+      if (activeFilter === 'respite') return row.respitePrescription?.needed;
+      if (activeFilter === 'daily_red_flags') return (row.dailyLogSignals || []).some((signal) => signal.severity === 'urgent');
       if (activeFilter === 'reassessment_due')
         return row.latestAssessmentAgeDays !== null && row.latestAssessmentAgeDays >= 90;
       return true;
@@ -283,7 +300,7 @@ export function DoctorCohortDashboard() {
                 <span>{cohortMetrics.criticalCount} Critical</span>
                 <span className="text-border">•</span>
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span>{cohortMetrics.deterioratingCount} Deteriorating</span>
+                <span>{cohortMetrics.respiteNeeded} Respite</span>
               </div>
             </CardContent>
           </Card>
@@ -367,7 +384,7 @@ export function DoctorCohortDashboard() {
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/60 truncate">
-                {cohortMetrics.redFlags} active clinical red flag alerts
+                {cohortMetrics.dailyRedFlags} daily-log urgent flags, {cohortMetrics.redFlags} ZBI flags
               </p>
             </CardContent>
           </Card>
@@ -395,7 +412,7 @@ export function DoctorCohortDashboard() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="destructive" className="text-[9px] font-bold uppercase">
-                      Zarit Surge
+                      {alert.needsCaregiverRespite ? 'Respite Needed' : 'Zarit Surge'}
                     </Badge>
                     <span className="font-bold text-foreground">{alert.patientName}</span>
                     <span className="text-muted-foreground font-mono text-[11px]">
@@ -404,7 +421,10 @@ export function DoctorCohortDashboard() {
                   </div>
                   <p className="text-muted-foreground text-xs leading-relaxed">
                     Caregiver burden score escalated from <strong className="text-foreground">{alert.previousScore}%</strong> to{' '}
-                    <strong className="text-red-600 font-black">{alert.newScore}%</strong>. High risk of immediate caregiver collapse.
+                    <strong className="text-red-600 font-black">{alert.newScore}%</strong>.
+                    {alert.needsCaregiverRespite
+                      ? ` ${alert.reason || 'Arrange caregiver respite and review the monthly support matrix.'}`
+                      : ' High risk of immediate caregiver collapse.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -427,6 +447,8 @@ export function DoctorCohortDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <ClinicianQueryDashboard rows={rows} />
 
       {/* 4. ACTIVE CLINICAL PATIENT WORKLIST WITH LIVE FILTERING */}
       <Card className="border-border bg-card shadow-sm">
@@ -469,7 +491,8 @@ export function DoctorCohortDashboard() {
                   onClick={() => setActiveFilter('critical')}
                   className="h-8 text-xs px-2.5 font-bold"
                 >
-                  🚨 Critical ({summary.byRiskBand.critical})
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Critical ({summary.byRiskBand.critical})
                 </Button>
                 <Button
                   variant={activeFilter === 'care_gap' ? 'secondary' : 'outline'}
@@ -477,7 +500,8 @@ export function DoctorCohortDashboard() {
                   onClick={() => setActiveFilter('care_gap')}
                   className="h-8 text-xs px-2.5 font-bold"
                 >
-                  ⚠️ Gaps ({cohortMetrics?.qocWarnings || 0})
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  Gaps ({cohortMetrics?.qocWarnings || 0})
                 </Button>
                 <Button
                   variant={activeFilter === 'bed_bound' ? 'secondary' : 'outline'}
@@ -485,7 +509,26 @@ export function DoctorCohortDashboard() {
                   onClick={() => setActiveFilter('bed_bound')}
                   className="h-8 text-xs px-2.5 font-bold"
                 >
-                  🛌 Bed-Bound ({cohortMetrics?.bedBoundCount || 0})
+                  <Bed className="w-3.5 h-3.5" />
+                  Bed-Bound ({cohortMetrics?.bedBoundCount || 0})
+                </Button>
+                <Button
+                  variant={activeFilter === 'respite' ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveFilter('respite')}
+                  className="h-8 text-xs px-2.5 font-bold gap-1.5"
+                >
+                  <HeartHandshake className="w-3.5 h-3.5" />
+                  Respite ({cohortMetrics?.respiteNeeded || 0})
+                </Button>
+                <Button
+                  variant={activeFilter === 'daily_red_flags' ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveFilter('daily_red_flags')}
+                  className="h-8 text-xs px-2.5 font-bold gap-1.5"
+                >
+                  <BellRing className="w-3.5 h-3.5" />
+                  Daily Flags ({cohortMetrics?.dailyRedFlags || 0})
                 </Button>
               </div>
             </div>
@@ -528,6 +571,16 @@ export function DoctorCohortDashboard() {
                           {row.fallHistory} Falls (6m)
                         </Badge>
                       )}
+                      {row.respitePrescription?.needed && (
+                        <Badge variant="outline" className="text-[9px] font-bold text-red-700 dark:text-red-300 border-red-500/30 bg-red-500/10">
+                          Respite {row.respitePrescription.urgency}
+                        </Badge>
+                      )}
+                      {(row.dailyLogSignals || []).some((signal) => signal.severity === 'urgent') && (
+                        <Badge variant="outline" className="text-[9px] font-bold text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10">
+                          Daily Red Flag
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Conditions */}
@@ -561,6 +614,14 @@ export function DoctorCohortDashboard() {
                       <p className="text-xs text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1.5 pt-0.5">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                         <span>{row.latestAlertSnippet}</span>
+                      </p>
+                    )}
+                    {row.respitePrescription?.needed && (
+                      <p className="text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-1.5 pt-0.5">
+                        <Bed className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                        <span>
+                          Prescribe {row.respitePrescription.recommendedDaysPerMonth} respite days/month or {row.respitePrescription.recommendedHoursPerWeek} hrs/week.
+                        </span>
                       </p>
                     )}
                   </div>

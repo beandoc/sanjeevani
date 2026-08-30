@@ -10,7 +10,11 @@ import {
   syncCaregiverAttributes,
   syncZaritAssessment,
   syncVitals,
-  syncMedications
+  syncMedications,
+  recordZaritAssessmentFor,
+  recordFunctionScore,
+  getZaritAssessmentsFor,
+  getFunctionScoresFor
 } from '../src/lib/firebase/clinical-sync';
 
 // Mock in-memory localStorage for Node testing environment
@@ -206,6 +210,37 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
       const syncResult = await syncZaritAssessment(zbi);
       expect(syncResult).toHaveProperty('queued');
     });
+
+    it('should preserve multiple datewise clinician-entered assessments for one dyad in offline fallback storage', async () => {
+      const patientUid = 'dyad_DATEWISE';
+      const zbi1 = calculateZaritScore({ zbi_1: 1, zbi_2: 1, zbi_3: 1, zbi_22: 1 }, 'ZBI12');
+      zbi1.completedAt = '2026-06-01T10:00:00.000Z';
+      const zbi2 = calculateZaritScore({ zbi_1: 3, zbi_2: 3, zbi_3: 3, zbi_22: 3 }, 'ZBI12');
+      zbi2.completedAt = '2026-07-01T10:00:00.000Z';
+
+      const func1 = calculateFunctionScore({ bi_feeding: 10, bi_bathing: 5 }, { lawton_telephone: 1 });
+      func1.recordedAt = '2026-06-01T10:00:00.000Z';
+      const func2 = calculateFunctionScore({ bi_feeding: 5, bi_bathing: 0 }, { lawton_telephone: 0 });
+      func2.recordedAt = '2026-07-01T10:00:00.000Z';
+
+      await recordZaritAssessmentFor(patientUid, zbi1);
+      await recordZaritAssessmentFor(patientUid, zbi2);
+      await recordFunctionScore(patientUid, func1);
+      await recordFunctionScore(patientUid, func2);
+
+      const zbiHistory = await getZaritAssessmentsFor(patientUid);
+      const functionHistory = await getFunctionScoresFor(patientUid);
+      const trajectory = computeTrajectory(zbiHistory, functionHistory, new Date('2026-07-02T00:00:00.000Z'));
+
+      expect(zbiHistory).toHaveLength(2);
+      expect(zbiHistory[0].completedAt).toBe('2026-07-01T10:00:00.000Z');
+      expect(functionHistory).toHaveLength(2);
+      expect(functionHistory[0].recordedAt).toBe('2026-07-01T10:00:00.000Z');
+      expect(trajectory.burdenSeries.map((point) => point.date)).toEqual([
+        '2026-06-01T10:00:00.000Z',
+        '2026-07-01T10:00:00.000Z'
+      ]);
+    });
   });
 
   describe('3. Care Matrix (Caregiver Capacity & Formal Support) Persistence', () => {
@@ -372,6 +407,55 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
 
       const medResult = await syncMedications([]);
       expect(medResult).toHaveProperty('queued');
+    });
+
+    it('should save and update datewise daily bedside care logs', () => {
+      const first = HealthRepository.saveDailyCareLog({
+        id: 'daily_2026-08-30_full_day',
+        date: '2026-08-30',
+        shift: 'full_day',
+        patientUid: null,
+        patientName: 'Smt. Test Patient',
+        recordedByName: 'Nurse Vidya',
+        recordedByRole: 'nurse',
+        meals: {
+          breakfast: 'Tea and toast',
+          lunch: 'Roti sabji'
+        },
+        monitoringRows: [
+          {
+            id: 'before_breakfast',
+            timeLabel: 'Before Breakfast',
+            bloodSugar: '131',
+            bp: '113/57',
+            spo2: '97'
+          }
+        ],
+        medications: [
+          { id: 'metformin_morning', label: 'Metformin 500mg', slot: 'morning', given: true }
+        ],
+        stoolPassed: true,
+        urineMorningMl: '700',
+        urineEveningMl: '500',
+        waterIntakeMl: '1200',
+        catheterChanged: false,
+        sleep: 'average',
+        generalRemarks: 'Comfortable through day.',
+        createdAt: '2026-08-30T08:00:00.000Z',
+        updatedAt: '2026-08-30T08:00:00.000Z'
+      });
+
+      expect(first).toHaveLength(1);
+
+      const updated = HealthRepository.saveDailyCareLog({
+        ...first[0],
+        meals: { ...first[0].meals, dinner: 'Khichdi' },
+        updatedAt: '2026-08-30T20:00:00.000Z'
+      });
+
+      expect(updated).toHaveLength(1);
+      expect(updated[0].meals.dinner).toBe('Khichdi');
+      expect(updated[0].monitoringRows[0].bloodSugar).toBe('131');
     });
   });
 
