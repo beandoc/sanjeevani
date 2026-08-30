@@ -244,6 +244,7 @@ export interface LawtonIadlProfile {
 export interface PatientDependenceProfile {
   name: string;
   age: number;
+  homeCareAddress?: string;
   primaryConditions: string[];
   // Katz ADL: 6 Items (true = Independent / 1 pt, false = Dependent / 0 pt)
   katzAdl: {
@@ -398,6 +399,7 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
 export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
   name: 'Smt. Sarojini Devi',
   age: 81,
+  homeCareAddress: 'Bandra West, Mumbai, Maharashtra',
   primaryConditions: ['Hypertension', 'Mild Cognitive Decline', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
   katzAdl: {
     bathing: false,

@@ -23,7 +23,8 @@ import {
   Bed,
   Activity,
   Heart,
-  User
+  User,
+  MapPin
 } from 'lucide-react';
 import { useProfile, Role } from '@/context/role-context';
 import { HealthRepository } from '@/lib/db/health-repository';
@@ -787,6 +788,22 @@ export default function OnboardingIntakePage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-primary" />
+                  Home Nursing Address
+                </Label>
+                <Input
+                  value={patient.homeCareAddress || ''}
+                  onChange={(e) => setPatient({ ...patient, homeCareAddress: e.target.value })}
+                  placeholder="House / society, locality, city, state"
+                  className="h-9 text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Used as the emergency location setpoint for nearby pharmacy, hospital, ambulance, and medical supply searches.
+                </p>
               </div>
 
               {/* Katz 6-Item Assessment */}

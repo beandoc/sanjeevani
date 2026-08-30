@@ -745,6 +745,10 @@ export class HealthRepository {
           return {
             ...DEFAULT_PATIENT_PROFILE,
             ...parsed,
+            homeCareAddress:
+              typeof parsed.homeCareAddress === 'string'
+                ? parsed.homeCareAddress
+                : DEFAULT_PATIENT_PROFILE.homeCareAddress,
             katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(parsed.katzAdl || {}) },
             lawtonIadl: migratedIadl
           };
@@ -904,9 +908,24 @@ export class HealthRepository {
     if (typeof window === 'undefined') return null;
     try {
       const raw = localStorage.getItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${patientUid}`);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          ...DEFAULT_PATIENT_PROFILE,
+          ...parsed,
+          katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(parsed.katzAdl || {}) },
+          lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(parsed.lawtonIadl || {}) }
+        };
+      }
       const patient = this.getRegisteredPatient(patientUid);
-      if (patient?.patientProfile) return patient.patientProfile;
+      if (patient?.patientProfile) {
+        return {
+          ...DEFAULT_PATIENT_PROFILE,
+          ...patient.patientProfile,
+          katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(patient.patientProfile.katzAdl || {}) },
+          lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(patient.patientProfile.lawtonIadl || {}) }
+        };
+      }
     } catch (e) {
       console.error(`Error reading patient profile for ${patientUid}:`, e);
     }

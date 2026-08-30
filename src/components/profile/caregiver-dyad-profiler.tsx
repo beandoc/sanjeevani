@@ -29,7 +29,8 @@ import {
   TrendingUp,
   UserCheck,
   Building2,
-  Stethoscope
+  Stethoscope,
+  MapPin
 } from 'lucide-react';
 import {
   HealthRepository,
@@ -846,6 +847,22 @@ export function CaregiverDyadProfiler() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
+                Home Nursing Location Setpoint
+              </Label>
+              <Input
+                value={patient.homeCareAddress || ''}
+                onChange={(e) => setPatient({ ...patient, homeCareAddress: e.target.value })}
+                placeholder="House / society, locality, city, state"
+                className="h-9 text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Emergency support uses this address to open nearby medical stores, stockists, hospitals, and ambulance services in Google Maps.
+              </p>
+            </div>
+
             {/* Katz ADL 6-item Grid */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-primary uppercase tracking-wider">
