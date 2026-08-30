@@ -120,7 +120,10 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 3. Clinician Sharing (consent-gated dyad access for the clinician dashboard) */}
+      {/* 3. Emergency Contacts */}
+      <EmergencyContactsManager />
+
+      {/* 4. Clinician Sharing (consent-gated dyad access for the clinician dashboard) */}
       <ShareWithClinicianCard />
     </div>
   );
