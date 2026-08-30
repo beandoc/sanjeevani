@@ -27,6 +27,8 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { HealthRepository } from '@/lib/db/health-repository';
+import { syncBedsideRoutineChecklist } from '@/lib/firebase/clinical-sync';
 
 export interface BedsideTask {
   id: string;
@@ -192,16 +194,7 @@ export function DailyBedsideRoutine() {
   const [q2hTimerSeconds, setQ2hTimerSeconds] = useState<number>(7200); // 2 hours = 7200s
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sanjeevani_bedside_tasks_today');
-      if (saved) {
-        try {
-          setCompletedTasks(JSON.parse(saved));
-        } catch {
-          // ignore
-        }
-      }
-    }
+    setCompletedTasks(HealthRepository.getBedsideRoutineChecklist());
   }, []);
 
   // 2-hour countdown timer ticker
@@ -215,18 +208,14 @@ export function DailyBedsideRoutine() {
   const toggleTask = (id: string) => {
     setCompletedTasks((prev) => {
       const updated = { ...prev, [id]: !prev[id] };
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sanjeevani_bedside_tasks_today', JSON.stringify(updated));
-      }
+      void syncBedsideRoutineChecklist(updated);
       return updated;
     });
   };
 
   const handleResetDay = () => {
     setCompletedTasks({});
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('sanjeevani_bedside_tasks_today');
-    }
+    void syncBedsideRoutineChecklist({});
   };
 
   const resetQ2hTimer = () => {

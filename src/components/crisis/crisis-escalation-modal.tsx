@@ -181,14 +181,14 @@ export function CrisisEscalationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-destructive/30 shadow-2xl">
+      <DialogContent className="w-[94vw] max-w-2xl rounded-3xl p-0 overflow-hidden border-destructive/30 shadow-2xl">
         {/* Header Alert Strip */}
-        <div className="bg-destructive/10 border-b border-destructive/20 p-5 flex items-start gap-3.5">
-          <div className="p-2.5 rounded-2xl bg-destructive text-destructive-foreground shadow-md shrink-0 mt-0.5 animate-pulse">
-            <ShieldAlert className="w-6 h-6" />
+        <div className="bg-destructive/10 border-b border-destructive/20 p-4 sm:p-5 flex items-start gap-3 sm:gap-3.5">
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-destructive text-destructive-foreground shadow-md shrink-0 mt-0.5 animate-pulse">
+            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="destructive" className="text-[10px] font-bold uppercase tracking-wider">
                 Support Escalation
               </Badge>
@@ -198,7 +198,7 @@ export function CrisisEscalationModal({
                 </Badge>
               )}
             </div>
-            <DialogTitle className="text-lg sm:text-xl font-bold font-headline text-foreground">
+            <DialogTitle className="text-base sm:text-xl font-bold font-headline text-foreground leading-tight">
               Immediate Caregiver Support Options
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
@@ -207,7 +207,7 @@ export function CrisisEscalationModal({
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[75vh] sm:max-h-[80vh] overflow-y-auto">
           {/* Compassionate Clinical Note */}
           <div className="p-3.5 rounded-2xl bg-muted/50 border border-border text-xs text-foreground leading-relaxed flex items-start gap-2.5">
             <HeartHandshake className="w-4 h-4 text-primary shrink-0 mt-0.5" />

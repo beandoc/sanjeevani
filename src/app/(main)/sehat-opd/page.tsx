@@ -47,30 +47,30 @@ export default function TeleconsultationPage() {
       </div>
 
       {/* Service Selector Tabs */}
-      <div className="flex p-1.5 bg-muted/60 rounded-2xl border border-border/60 gap-2 max-w-xl">
+      <div className="flex flex-col sm:flex-row p-1.5 bg-muted/60 rounded-2xl border border-border/60 gap-2 max-w-xl">
         <button
           type="button"
           onClick={() => setActiveTab('esanjeevani')}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] ${
             activeTab === 'esanjeevani'
               ? 'bg-primary text-primary-foreground shadow-md'
-              : 'text-muted-foreground hover:text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
-          <Building2 className="w-4 h-4" />
-          <span>eSanjeevani (All Citizens)</span>
+          <Building2 className="w-4 h-4 shrink-0" />
+          <span>eSanjeevani <span className="text-[11px] opacity-85 font-normal">(All Citizens)</span></span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('sehat')}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] ${
             activeTab === 'sehat'
               ? 'bg-primary text-primary-foreground shadow-md'
-              : 'text-muted-foreground hover:text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
-          <ShieldCheck className="w-4 h-4" />
-          <span>SeHAT OPD (Defence & ECHS)</span>
+          <ShieldCheck className="w-4 h-4 shrink-0" />
+          <span>SeHAT OPD <span className="text-[11px] opacity-85 font-normal">(Defence & ECHS)</span></span>
         </button>
       </div>
 

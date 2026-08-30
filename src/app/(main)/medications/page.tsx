@@ -39,7 +39,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { HealthRepository, MedicationItem } from '@/lib/db/health-repository';
-import { syncMedications } from '@/lib/firebase/clinical-sync';
+import { syncMedications, getMedicationsFor } from '@/lib/firebase/clinical-sync';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { MedicationChecker, BeersWarning } from '@/lib/clinical/medication-checker';
 import { useToast } from '@/hooks/use-toast';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
@@ -73,11 +74,23 @@ export default function MedicationsPage() {
   const [instructions, setInstructions] = useState('');
   const [prescribedBy, setPrescribedBy] = useState('');
   const [detectedWarning, setDetectedWarning] = useState<BeersWarning | null>(null);
+  const { user } = useAuthUser();
 
+  // Firestore is authoritative once signed in — previously this page only
+  // ever read HealthRepository.getMedications() (this device's local
+  // cache), so a regimen entered on another device never showed up here
+  // until something else happened to hydrate the same local key first.
   useEffect(() => {
     const loaded = HealthRepository.getMedications();
     setMedications(loaded);
-  }, []);
+    if (!user?.uid) return;
+    void getMedicationsFor(user.uid).then((cloudMeds) => {
+      if (cloudMeds.length > 0) {
+        HealthRepository.saveMedications(cloudMeds);
+        setMedications(cloudMeds);
+      }
+    });
+  }, [user]);
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -408,7 +421,7 @@ export default function MedicationsPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">Scheduled Dose Times Today</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {TIME_SLOTS.map((slot) => {
                       const isSel = selectedSlots.includes(slot.key);
                       return (
@@ -418,7 +431,7 @@ export default function MedicationsPage() {
                           onClick={() => toggleSlotSelection(slot.key)}
                           aria-pressed={isSel}
                           aria-label={`${slot.label} dose time ${isSel ? 'selected' : 'not selected'}`}
-                          className={`p-2 rounded-xl text-center border transition-all text-xs font-medium ${
+                          className={`p-2.5 rounded-xl text-center border transition-all text-xs font-medium min-h-[40px] flex items-center justify-center ${
                             isSel
                               ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
                               : 'border-border bg-muted/40 text-muted-foreground hover:border-primary/40'

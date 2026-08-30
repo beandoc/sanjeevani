@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ShieldCheck, Download, Trash2, AlertTriangle, CheckCircle2, Lock, FileJson } from 'lucide-react';
 import { HealthRepository, UserConsentPreferences } from '@/lib/db/health-repository';
+import { syncConsent } from '@/lib/firebase/clinical-sync';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -41,6 +42,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
     });
     setConsent(updated);
     onConsentChange?.(updated);
+    void syncConsent(updated);
     toast({
       title: checked ? 'Vitals Consent Granted' : 'Vitals Consent Revoked',
       description: checked ? 'Health and vitals logging is now active.' : 'Vitals tracking has been paused.',
@@ -54,6 +56,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
     });
     setConsent(updated);
     onConsentChange?.(updated);
+    void syncConsent(updated);
     toast({
       title: checked ? 'Assessment Consent Granted' : 'Assessment Consent Revoked',
       description: checked ? 'Zarit burden scale tracking is now active.' : 'Assessment logging has been paused.',
@@ -68,6 +71,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
     });
     setConsent(updated);
     onConsentChange?.(updated);
+    void syncConsent(updated);
     toast({
       title: 'Consent Acknowledged',
       description: 'You have enabled health logging in accordance with DPDP Act 2023 guidelines.',

@@ -541,3 +541,128 @@ describe('careCircle — single current document, same access model as caregiver
   });
 });
 
+describe('newly cloud-backed collections — emergencyContacts, consent, bedsideRoutineChecklist, dischargeMilestones', () => {
+  const VALID_CONTACTS = { contacts: [{ id: 'c1', name: 'Dr. Sharma', relation: 'Physician', phone: '9820012345', isPrimary: true, notifyOnCrisis: true }], updatedAt: new Date().toISOString() };
+  const VALID_CONSENT = { hasConsented: true, vitalsTrackingConsent: true, psychometricConsent: true, consentTimestamp: new Date().toISOString(), dpdpNoticeVersion: '2026.1' };
+  const VALID_CHECKLIST = { completedTasks: { task1: true }, updatedAt: new Date().toISOString() };
+  const VALID_MILESTONES = { completedMilestones: { m1: true }, updatedAt: new Date().toISOString() };
+
+  it('the owning caregiver CAN write and read their own emergency contacts', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'emergencyContacts', 'current'), VALID_CONTACTS));
+    await assertSucceeds(getDoc(doc(caregiver, 'users', CAREGIVER_UID, 'emergencyContacts', 'current')));
+  });
+
+  it('a granted clinician CAN read but CANNOT write emergency contacts', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'emergencyContacts', 'current'), VALID_CONTACTS);
+    });
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current')));
+    await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current'), VALID_CONTACTS));
+  });
+
+  it('an ungranted clinician CANNOT read emergency contacts', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current')));
+  });
+
+  it('the owning caregiver CAN write and read their own consent record', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'consent', 'current'), VALID_CONSENT));
+    await assertSucceeds(getDoc(doc(caregiver, 'users', CAREGIVER_UID, 'consent', 'current')));
+  });
+
+  it('consent stays owner-only — even a granted clinician CANNOT read or write it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'consent', 'current'), VALID_CONSENT);
+    });
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'consent', 'current')));
+    await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'consent', 'current'), VALID_CONSENT));
+  });
+
+  it('the owning caregiver CAN write the bedside routine checklist, and a granted clinician CAN read/write it too', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current')));
+    await assertSucceeds(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
+  });
+
+  it('an ungranted clinician CANNOT read or write the bedside routine checklist', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current')));
+    await assertFails(setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
+  });
+
+  it('the owning caregiver CAN write discharge milestones, and a granted clinician CAN read them', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current'), VALID_MILESTONES));
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current')));
+  });
+
+  it('an ungranted clinician CANNOT read discharge milestones', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current')));
+  });
+});
+
+describe('users/{userId} — merging device-local UI preferences (preferredRole, onboardingCompleted)', () => {
+  it('the owner CAN merge preferredRole/onboardingCompleted without touching role or createdAt', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(caregiver, 'users', CAREGIVER_UID),
+        { preferredRole: 'nurse', onboardingCompleted: true },
+        { merge: true }
+      )
+    );
+  });
+
+  it('a stranger CANNOT merge preferences into another user\'s doc', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(
+      setDoc(
+        doc(stranger, 'users', CAREGIVER_UID),
+        { preferredRole: 'nurse', onboardingCompleted: true },
+        { merge: true }
+      )
+    );
+  });
+});
+
+describe('drafts — owner-only, no clinician access', () => {
+  const VALID_DRAFT = { data: { step: 2, systolic: '130' }, updatedAt: new Date().toISOString() };
+
+  it('the owner CAN write and read their own draft', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT));
+    await assertSucceeds(getDoc(doc(caregiver, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft')));
+  });
+
+  it('the owner CAN delete their own draft', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT);
+    });
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(deleteDoc(doc(caregiver, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft')));
+  });
+
+  it('even a granted clinician CANNOT read or write a caregiver\'s draft', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT);
+    });
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft')));
+    await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT));
+  });
+
+  it('a stranger CANNOT read or write another user\'s draft', async () => {
+    const stranger = testEnv.authenticatedContext(RANDOM_STRANGER_UID).firestore();
+    await assertFails(getDoc(doc(stranger, 'users', CAREGIVER_UID, 'drafts', 'onboardingDraft')));
+    await assertFails(setDoc(doc(stranger, 'users', CAREGIVER_UID, 'drafts', 'onboardingDraft'), VALID_DRAFT));
+  });
+});
+

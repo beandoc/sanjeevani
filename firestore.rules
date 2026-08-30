@@ -301,6 +301,60 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
 
+      // Document: emergency contact list. Read opened to a granted clinician
+      // (useful during an actual crisis call), write stays owner-only — this
+      // is the caregiver's own family/contact management, not something a
+      // clinician edits on their behalf. Previously local-storage-only with
+      // no Firestore mirror at all.
+      match /emergencyContacts/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if isOwner(userId)
+                              && request.resource.data.contacts is list
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Document: DPDP Act 2023 consent record. Owner-only in both
+      // directions — this is a legal consent artifact tied to the account
+      // holder, not a clinical record a clinician needs to read or edit.
+      match /consent/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Subcollection: in-progress form drafts (e.g. a partially-filled
+      // vitals entry, the multi-step onboarding wizard) — autosaved so nothing
+      // is lost if the tab closes mid-entry. Owner-only: this is unsaved,
+      // unsubmitted input, not a clinical record a clinician needs to see.
+      // One document per draft kind (docId is a fixed label like
+      // 'vitalsDraft', not a generated id), overwritten in place.
+      match /drafts/{draftId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Document: today's bedside routine checklist (sensory hygiene, skin
+      // checks, Q2H turns) tracked from the Domiciliary Care tab. Previously
+      // local-storage-only, bypassing HealthRepository entirely, with no
+      // Firestore mirror — a nurse's completed tasks were invisible to the
+      // doctor or the family checking in remotely.
+      match /bedsideRoutineChecklist/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.completedTasks is map
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
+      // Document: 14-day post-discharge pathway milestone checklist.
+      // Previously local-storage-only with no Firestore mirror — a doctor
+      // following up post-discharge had no visibility into pathway progress.
+      match /dischargeMilestones/{docId} {
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
+                              && request.resource.data.completedMilestones is map
+                              && request.resource.data.updatedAt is string;
+        allow delete: if isOwner(userId);
+      }
+
       // Subcollection: OPD encounters. The visit anchor that Zarit/function
       // readings and clinical prescriptions attach to.
       match /encounters/{encounterId} {

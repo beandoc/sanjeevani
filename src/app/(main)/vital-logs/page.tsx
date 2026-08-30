@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
-import { syncVitals, getVitalsFor } from '@/lib/firebase/clinical-sync';
+import { syncVitals, getVitalsFor, syncConsent, syncDraft, getDraftForCurrentUser, clearDraft } from '@/lib/firebase/clinical-sync';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { ConsentManager } from '@/components/privacy/consent-manager';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
@@ -117,54 +117,81 @@ export default function VitalLogsPage() {
     },
   });
 
-  // Draft Auto-Save: Restore draft on initial render
+  function applyDraft(parsed: Record<string, any>) {
+    form.reset({
+      date: parsed.date ? new Date(parsed.date) : new Date(),
+      systolic: parsed.systolic || '',
+      diastolic: parsed.diastolic || '',
+      pulse: parsed.pulse || '',
+      spo2: parsed.spo2 || '',
+      bloodSugar: parsed.bloodSugar || '',
+      weight: parsed.weight || '',
+      sleep: parsed.sleep || 'average',
+      notes: parsed.notes || '',
+    });
+  }
+
+  // Draft Auto-Save: Restore draft on initial render (this device's own
+  // local copy first, since it's synchronous and available immediately).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const savedDraft = localStorage.getItem('sanjeevani_vitals_draft');
-      if (savedDraft) {
-        const parsed = JSON.parse(savedDraft);
-        form.reset({
-          date: parsed.date ? new Date(parsed.date) : new Date(),
-          systolic: parsed.systolic || '',
-          diastolic: parsed.diastolic || '',
-          pulse: parsed.pulse || '',
-          spo2: parsed.spo2 || '',
-          bloodSugar: parsed.bloodSugar || '',
-          weight: parsed.weight || '',
-          sleep: parsed.sleep || 'average',
-          notes: parsed.notes || '',
-        });
-      }
+      if (savedDraft) applyDraft(JSON.parse(savedDraft));
     } catch {
       // ignore
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form]);
 
-  // Draft Auto-Save: Persist changes to localStorage
+  // Draft Auto-Save: once signed in, prefer the cloud copy if present — it
+  // survives a lost/cleared device, unlike localStorage alone. Only
+  // overrides if the cloud actually has a draft; an empty result leaves
+  // whatever was just restored from local storage above untouched.
+  useEffect(() => {
+    if (!user?.uid) return;
+    void getDraftForCurrentUser<Record<string, any>>('vitalsDraft').then((cloudDraft) => {
+      if (cloudDraft) applyDraft(cloudDraft);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Draft Auto-Save: persist changes locally on every change, and mirror to
+  // Firestore on a debounce (this fires on every keystroke — syncing each
+  // one would be wasteful and would blow through Firestore write quotas on
+  // a long note field).
   const formValues = form.watch();
+  const draftSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const hasContent =
+      formValues.systolic ||
+      formValues.diastolic ||
+      formValues.pulse ||
+      formValues.spo2 ||
+      formValues.bloodSugar ||
+      formValues.notes;
+    if (!hasContent) return;
     try {
-      const hasContent =
-        formValues.systolic ||
-        formValues.diastolic ||
-        formValues.pulse ||
-        formValues.spo2 ||
-        formValues.bloodSugar ||
-        formValues.notes;
-      if (hasContent) {
-        localStorage.setItem('sanjeevani_vitals_draft', JSON.stringify(formValues));
-      }
+      localStorage.setItem('sanjeevani_vitals_draft', JSON.stringify(formValues));
     } catch {
       // ignore
     }
+    if (draftSyncTimer.current) clearTimeout(draftSyncTimer.current);
+    draftSyncTimer.current = setTimeout(() => {
+      void syncDraft('vitalsDraft', formValues);
+    }, 1500);
+    return () => {
+      if (draftSyncTimer.current) clearTimeout(draftSyncTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formValues]);
 
   async function onSubmit(data: VitalLogFormValues) {
     const consent = HealthRepository.getConsent();
     if (!consent.hasConsented || !consent.vitalsTrackingConsent) {
-      HealthRepository.saveConsent({ hasConsented: true, vitalsTrackingConsent: true });
+      const updatedConsent = HealthRepository.saveConsent({ hasConsented: true, vitalsTrackingConsent: true });
+      void syncConsent(updatedConsent);
     }
 
     const bpString = data.systolic && data.diastolic
@@ -189,6 +216,8 @@ export default function VitalLogsPage() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('sanjeevani_vitals_draft');
     }
+    if (draftSyncTimer.current) clearTimeout(draftSyncTimer.current);
+    void clearDraft('vitalsDraft');
 
     void refreshLogs();
     form.reset({

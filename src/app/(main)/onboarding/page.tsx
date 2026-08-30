@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,9 @@ import {
   syncCaregiverAttributes,
   claimDyadInvite,
   updateDyadInviteDraft,
+  syncDraft,
+  getDraftForCurrentUser,
+  clearDraft,
   type DyadInvite
 } from '@/lib/firebase/clinical-sync';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
@@ -66,6 +69,7 @@ export default function OnboardingIntakePage() {
   const router = useRouter();
   const { role, setRole, completeOnboarding } = useProfile();
   const { toast } = useToast();
+  const { user } = useAuthUser();
 
   const [step, setStep] = useState<number>(() => {
     if (typeof window === 'undefined') return 1;
@@ -127,17 +131,60 @@ export default function OnboardingIntakePage() {
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
   const [caregiverLastName, setCaregiverLastName] = useState('');
 
+  const onboardingDraftSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasAppliedCloudDraft = useRef(false);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const draft = { step, selectedRole, patient, caregiver, updatedAt: new Date().toISOString() };
     try {
-      localStorage.setItem(
-        ONBOARDING_DRAFT_KEY,
-        JSON.stringify({ step, selectedRole, patient, caregiver, updatedAt: new Date().toISOString() })
-      );
+      localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
     } catch {
       // Draft persistence is a convenience; don't block the form.
     }
+    // Debounced cloud mirror — this effect fires on every field edit, and
+    // syncing each one would be wasteful. Lets the wizard resume on a
+    // different device if the tab closes mid-intake, not just this browser.
+    if (onboardingDraftSyncTimer.current) clearTimeout(onboardingDraftSyncTimer.current);
+    onboardingDraftSyncTimer.current = setTimeout(() => {
+      void syncDraft('onboardingDraft', draft);
+    }, 1500);
+    return () => {
+      if (onboardingDraftSyncTimer.current) clearTimeout(onboardingDraftSyncTimer.current);
+    };
   }, [step, selectedRole, patient, caregiver]);
+
+  // Once signed in, adopt the cloud draft if it's newer than whatever this
+  // device already restored from its own localStorage — lets the wizard
+  // resume on a different device without clobbering more recent local
+  // progress if the cloud copy happens to be stale.
+  useEffect(() => {
+    if (!user?.uid || hasAppliedCloudDraft.current) return;
+    hasAppliedCloudDraft.current = true;
+    void getDraftForCurrentUser<{
+      step: number;
+      selectedRole: Role;
+      patient: PatientDependenceProfile;
+      caregiver: CaregiverAttributes;
+      updatedAt: string;
+    }>('onboardingDraft').then((cloudDraft) => {
+      if (!cloudDraft) return;
+      let localUpdatedAt = '';
+      try {
+        const raw = typeof window !== 'undefined' ? localStorage.getItem(ONBOARDING_DRAFT_KEY) : null;
+        localUpdatedAt = raw ? JSON.parse(raw).updatedAt || '' : '';
+      } catch {
+        // Ignore malformed local drafts.
+      }
+      if (localUpdatedAt && new Date(localUpdatedAt).getTime() >= new Date(cloudDraft.updatedAt).getTime()) {
+        return;
+      }
+      setStep(cloudDraft.step || 1);
+      setSelectedRole(cloudDraft.selectedRole);
+      setPatient(cloudDraft.patient);
+      setCaregiver(cloudDraft.caregiver);
+    });
+  }, [user]);
 
   // Sync patient name to first/last inputs
   useEffect(() => {
@@ -259,7 +306,6 @@ export default function OnboardingIntakePage() {
   const [inviteCodeInput, setInviteCodeInput] = useState('');
   const [isClaimingInvite, setIsClaimingInvite] = useState(false);
   const [claimedInviteName, setClaimedInviteName] = useState<string | null>(null);
-  const { user } = useAuthUser();
 
   // Phone-number auto-claim (see autoClaimInviteByPhone/verifyCaregiverOtp)
   // already happened silently during sign-in, before this page even mounted
@@ -369,6 +415,8 @@ export default function OnboardingIntakePage() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(ONBOARDING_DRAFT_KEY);
     }
+    if (onboardingDraftSyncTimer.current) clearTimeout(onboardingDraftSyncTimer.current);
+    void clearDraft('onboardingDraft');
 
     toast({
       title: 'Patient Setup Complete',
@@ -411,7 +459,7 @@ export default function OnboardingIntakePage() {
           </div>
 
           {/* Stepper Dots */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {[1, 2, 3, 4].map((s) => (
               <button
                 key={s}
@@ -420,12 +468,12 @@ export default function OnboardingIntakePage() {
                 aria-label={`Go to setup step ${s}`}
                 aria-current={step === s ? 'step' : undefined}
                 className={cn(
-                  'w-7 h-7 rounded-full text-xs font-bold font-mono flex items-center justify-center transition-all',
+                  'w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-bold font-mono flex items-center justify-center transition-all min-h-[36px] min-w-[36px] focus-visible:ring-2 focus-visible:ring-primary',
                   step === s
-                    ? 'bg-primary text-primary-foreground shadow-md'
+                    ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-primary/30'
                     : step > s
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-muted text-muted-foreground'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 )}
               >
                 {step > s ? '✓' : s}

@@ -639,6 +639,23 @@ export class HealthRepository {
     }
   }
 
+  /** Merges a signed-in user's cloud appointments into this device's local
+   * cache — same reasoning as mergeVitals. Cloud wins on id collision. */
+  static mergeAppointments(cloudAppointments: AppointmentRecord[]): AppointmentRecord[] {
+    if (typeof window === 'undefined') return [];
+    const local = this.getAppointments();
+    const map = new Map<string, AppointmentRecord>();
+    for (const a of local) map.set(a.id, a);
+    for (const a of cloudAppointments) map.set(a.id, a);
+    const merged = Array.from(map.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    try {
+      localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Error merging cloud appointments:', e);
+    }
+    return merged;
+  }
+
   // --- 4. Module Progress (Section-Set Model) ---
 
   static getModuleProgressMap(): Record<string, ModuleSectionProgress> {
@@ -682,6 +699,34 @@ export class HealthRepository {
     }
 
     return updatedSections;
+  }
+
+  /** Merges a signed-in user's cloud module-progress map into this device's
+   * local cache. Per module, the union of completed sections wins (never
+   * regresses progress already recorded on either side), and the later
+   * lastAccessedAt is kept. */
+  static mergeModuleProgress(cloudMap: Record<string, ModuleSectionProgress>): Record<string, ModuleSectionProgress> {
+    if (typeof window === 'undefined') return {};
+    const local = this.getModuleProgressMap();
+    const merged: Record<string, ModuleSectionProgress> = { ...local };
+    for (const [moduleId, cloudEntry] of Object.entries(cloudMap)) {
+      const localEntry = local[moduleId];
+      const sectionSet = new Set([...(localEntry?.completedSections || []), ...(cloudEntry.completedSections || [])]);
+      merged[moduleId] = {
+        moduleId,
+        completedSections: Array.from(sectionSet),
+        lastAccessedAt:
+          !localEntry || new Date(cloudEntry.lastAccessedAt).getTime() > new Date(localEntry.lastAccessedAt).getTime()
+            ? cloudEntry.lastAccessedAt
+            : localEntry.lastAccessedAt
+      };
+    }
+    try {
+      localStorage.setItem(STORAGE_KEYS.MODULE_PROGRESS, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Error merging cloud module progress:', e);
+    }
+    return merged;
   }
 
   // --- 5. Zarit Assessments History ---
@@ -817,6 +862,25 @@ export class HealthRepository {
     return updated;
   }
 
+  /** Merges a signed-in user's cloud Zarit history into this device's local
+   * cache, keyed by completedAt (assessments have no separate id field). */
+  static mergeZaritAssessments(cloudAssessments: ZaritEvaluationResult[]): ZaritEvaluationResult[] {
+    if (typeof window === 'undefined') return [];
+    const local = this.getZaritAssessments();
+    const map = new Map<string, ZaritEvaluationResult>();
+    for (const z of local) map.set(z.completedAt, z);
+    for (const z of cloudAssessments) map.set(z.completedAt, z);
+    const merged = Array.from(map.values())
+      .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+      .slice(0, 180);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ZARIT, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Error merging cloud Zarit assessments:', e);
+    }
+    return merged;
+  }
+
   static getZaritAssessmentsFor(patientUid: string): ZaritEvaluationResult[] {
     if (typeof window === 'undefined') return [];
     try {
@@ -925,6 +989,54 @@ export class HealthRepository {
       localStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACTS, JSON.stringify(contacts));
     } catch (e) {
       console.error('Error saving emergency contacts:', e);
+    }
+  }
+
+  // --- 6b. Domiciliary Checklists (Bedside Routine & Discharge Pathway) ---
+  // Previously these bypassed HealthRepository entirely — raw
+  // localStorage.setItem calls in the component itself with no Firestore
+  // mirror at all, so progress was 100% device-local and invisible to the
+  // doctor or another family member's device.
+
+  static getBedsideRoutineChecklist(): Record<string, boolean> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem('sanjeevani_bedside_tasks_today');
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+      console.error('Error reading bedside routine checklist:', e);
+      return {};
+    }
+  }
+
+  static saveBedsideRoutineChecklist(completedTasks: Record<string, boolean>): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('sanjeevani_bedside_tasks_today', JSON.stringify(completedTasks));
+    } catch (e) {
+      console.error('Error saving bedside routine checklist:', e);
+    }
+  }
+
+  static getDischargeMilestones(): Record<string, boolean> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem('sanjeevani_discharge_milestones');
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+      console.error('Error reading discharge milestones:', e);
+      return {};
+    }
+  }
+
+  static saveDischargeMilestones(completedMilestones: Record<string, boolean>): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('sanjeevani_discharge_milestones', JSON.stringify(completedMilestones));
+    } catch (e) {
+      console.error('Error saving discharge milestones:', e);
     }
   }
 

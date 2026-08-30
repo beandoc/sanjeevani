@@ -540,14 +540,16 @@ export default function CareCirclePage() {
 
       {/* Main Tabs: Matrix & Roster Management vs Daily Tasks */}
       <Tabs defaultValue="matrix" className="space-y-6">
-        <TabsList className="grid grid-cols-2 max-w-md h-10 p-1 bg-muted rounded-2xl">
-          <TabsTrigger value="matrix" className="rounded-xl text-xs font-bold gap-1.5">
-            <Settings2 className="w-3.5 h-3.5 text-primary" />
-            <span>Family Rota & Infrastructure</span>
+        <TabsList className="grid grid-cols-2 max-w-md h-11 p-1 bg-muted rounded-2xl">
+          <TabsTrigger value="matrix" className="rounded-xl text-xs font-bold gap-1.5 min-h-[38px]">
+            <Settings2 className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="hidden sm:inline">Family Rota & Infrastructure</span>
+            <span className="sm:hidden">Family Rota</span>
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="rounded-xl text-xs font-bold gap-1.5">
-            <CalendarCheck className="w-3.5 h-3.5 text-primary" />
-            <span>Daily Delegated Tasks</span>
+          <TabsTrigger value="tasks" className="rounded-xl text-xs font-bold gap-1.5 min-h-[38px]">
+            <CalendarCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="hidden sm:inline">Daily Delegated Tasks</span>
+            <span className="sm:hidden">Daily Tasks</span>
           </TabsTrigger>
         </TabsList>
 

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { HealthRepository } from '@/lib/db/health-repository';
+import { syncDischargeMilestones } from '@/lib/firebase/clinical-sync';
 
 export interface PathwayPhase {
   phaseId: number;
@@ -143,24 +145,13 @@ export function DischargeOnboardingPathway() {
   const [completedMilestones, setCompletedMilestones] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sanjeevani_discharge_milestones');
-      if (saved) {
-        try {
-          setCompletedMilestones(JSON.parse(saved));
-        } catch {
-          // ignore
-        }
-      }
-    }
+    setCompletedMilestones(HealthRepository.getDischargeMilestones());
   }, []);
 
   const toggleMilestone = (id: string) => {
     setCompletedMilestones((prev) => {
       const updated = { ...prev, [id]: !prev[id] };
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sanjeevani_discharge_milestones', JSON.stringify(updated));
-      }
+      void syncDischargeMilestones(updated);
       return updated;
     });
   };

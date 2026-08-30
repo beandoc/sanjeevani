@@ -186,7 +186,7 @@ export function NurseShiftDashboard() {
           </CardHeader>
           <CardContent className="p-4 sm:p-5">
             <form onSubmit={handleLogShiftVitals} className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-muted-foreground">BP Systolic (mmHg)</label>
                   <Input
@@ -227,7 +227,7 @@ export function NurseShiftDashboard() {
                     className="h-9 text-xs font-mono"
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 col-span-2 sm:col-span-1">
                   <label className="text-[11px] font-semibold text-muted-foreground">SpO2 Oxygen (%)</label>
                   <Input
                     type="number"
@@ -240,7 +240,7 @@ export function NurseShiftDashboard() {
               </div>
 
               <div className="flex justify-end pt-2">
-                <Button type="submit" size="sm" className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button type="submit" size="sm" className="w-full sm:w-auto gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white min-h-[38px]">
                   <Save className="w-3.5 h-3.5" /> Save Shift Readings
                 </Button>
               </div>

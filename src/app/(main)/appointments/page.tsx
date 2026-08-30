@@ -34,7 +34,8 @@ import {
 import { CalendarDays, Clock, Trash2, User, Hospital, CalendarCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { HealthRepository, AppointmentRecord } from '@/lib/db/health-repository';
-import { syncAppointment } from '@/lib/firebase/clinical-sync';
+import { syncAppointment, getAppointmentsFor } from '@/lib/firebase/clinical-sync';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
 
 const appointmentSchema = z.object({
@@ -62,10 +63,20 @@ export default function AppointmentsPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const { toast } = useToast();
+  const { user } = useAuthUser();
 
+  // Firestore is authoritative once signed in — previously this page only
+  // ever read HealthRepository.getAppointments() (local-only), so an
+  // appointment scheduled from another device never appeared here.
   useEffect(() => {
     setAppointments(HealthRepository.getAppointments());
-  }, []);
+    if (!user?.uid) return;
+    void getAppointmentsFor(user.uid).then((cloudAppts: AppointmentRecord[]) => {
+      if (cloudAppts.length > 0) {
+        setAppointments(HealthRepository.mergeAppointments(cloudAppts));
+      }
+    });
+  }, [user]);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -76,7 +87,7 @@ export default function AppointmentsPage() {
     },
   });
 
-  function onSubmit(data: AppointmentFormValues) {
+  async function onSubmit(data: AppointmentFormValues) {
     if (!date) {
       toast({
         variant: 'destructive',
@@ -93,22 +104,24 @@ export default function AppointmentsPage() {
       notes: data.notes,
     });
 
-    void syncAppointment(newRecord);
+    const { queued } = await syncAppointment(newRecord);
 
     setAppointments(HealthRepository.getAppointments());
     form.reset();
     toast({
-      title: '✅ Appointment Scheduled',
-      description: `Appointment with ${data.doctor} (${data.department}) on ${format(date, 'PPP')} has been scheduled.`,
+      title: queued ? '☁️ Appointment Scheduled — Saved to Cloud' : '✅ Appointment Scheduled Locally',
+      description: queued
+        ? `Appointment with ${data.doctor} (${data.department}) on ${format(date, 'PPP')} backed up and visible to your care team.`
+        : `Appointment with ${data.doctor} (${data.department}) on ${format(date, 'PPP')} saved. Sign in to back it up to the cloud.`,
     });
   }
 
-  function deleteAppointment(id: string) {
+  async function deleteAppointment(id: string) {
     const appt = appointments.find((a) => a.id === id);
     if (!appt) return;
     HealthRepository.deleteAppointment(id);
     setAppointments(HealthRepository.getAppointments());
-    void syncAppointment({ ...appt, status: 'cancelled' });
+    await syncAppointment({ ...appt, status: 'cancelled' });
     toast({
       title: 'Appointment Cancelled',
       description: `${appt.doctor} on ${format(new Date(appt.date), 'dd MMM yyyy')} was removed.`,
@@ -117,7 +130,7 @@ export default function AppointmentsPage() {
           variant="outline"
           size="sm"
           className="h-7 px-2.5 text-xs font-bold border-primary/50 text-primary hover:bg-primary/10"
-          onClick={() => {
+          onClick={async () => {
             const restored = HealthRepository.addAppointment({
               date: appt.date,
               department: appt.department,
@@ -125,7 +138,7 @@ export default function AppointmentsPage() {
               notes: appt.notes,
             });
             setAppointments(HealthRepository.getAppointments());
-            void syncAppointment(restored);
+            await syncAppointment(restored);
             toast({
               title: 'Appointment Restored',
               description: `${appt.doctor} is back on your schedule.`,
