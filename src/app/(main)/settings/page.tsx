@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { useProfile, SkillLevel } from '@/context/role-context';
 import { ConsentManager } from '@/components/privacy/consent-manager';
+import { EmergencyContactsManager } from '@/components/profile/emergency-contacts-manager';
 import { CaregiverDyadProfiler } from '@/components/profile/caregiver-dyad-profiler';
 import { ShareWithClinicianCard } from '@/components/clinician/share-with-clinician-card';
 import { User, Settings as SettingsIcon, HeartPulse } from 'lucide-react';
