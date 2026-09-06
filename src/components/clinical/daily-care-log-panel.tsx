@@ -22,7 +22,9 @@ import {
   getDailyCareLogsFor,
   saveDailyCareLogFor,
   subscribeToDailyCareLogsFor,
-  syncDailyCareLog
+  syncDailyCareLog,
+  syncMedications,
+  saveMedicationsFor
 } from '@/lib/firebase/clinical-sync';
 import { cn } from '@/lib/utils';
 
@@ -187,6 +189,47 @@ export function DailyCareLogPanel({
         setLogs(updated);
         await syncDailyCareLog(log);
       }
+
+      // If saving for today, sync any medication doses ticked in the daily care log back to active regimen
+      if (date === todayKey()) {
+        const activeMeds = HealthRepository.getMedications();
+        let changed = false;
+        const updatedMeds = activeMeds.map((m) => {
+          let currentSlots = [...(m.takenSlots || [])];
+          for (const s of m.timeOfDay) {
+            const slotKey = s === 'afternoon' ? 'lunch' : s === 'bedtime' ? 'night' : s;
+            const match = logMeds.find(
+              (lm) => lm.id.startsWith(m.id) && (lm.id.includes(`_${s}_`) || lm.slot === slotKey)
+            );
+            if (match) {
+              if (match.given && !currentSlots.includes(s)) {
+                currentSlots.push(s);
+                changed = true;
+              } else if (!match.given && currentSlots.includes(s)) {
+                currentSlots = currentSlots.filter((x) => x !== s);
+                changed = true;
+              }
+            }
+          }
+          const isFullyTaken = m.timeOfDay.length > 0 && m.timeOfDay.every((s) => currentSlots.includes(s));
+          return {
+            ...m,
+            takenSlots: currentSlots,
+            takenToday: isFullyTaken,
+            lastTakenDate: now
+          };
+        });
+
+        if (changed) {
+          HealthRepository.saveMedications(updatedMeds);
+          if (patientUid) {
+            void saveMedicationsFor(patientUid, updatedMeds);
+          } else {
+            void syncMedications(updatedMeds);
+          }
+        }
+      }
+
       toast({
         title: 'Daily Update Saved',
         description: `${format(new Date(date), 'dd MMM yyyy')} ${SHIFT_LABEL[shift].toLowerCase()} sheet is available to the family and care team.`

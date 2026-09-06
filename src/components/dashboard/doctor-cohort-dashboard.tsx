@@ -53,7 +53,9 @@ const RISK_BAND_LABEL: Record<RiskBand, string> = {
   stable: 'Stable'
 };
 
-function formatFormalSupport(type: string | undefined, hours: number) {
+type FilterType = 'all' | 'critical' | 'care_gap' | 'bed_bound' | 'respite' | 'daily_red_flags' | 'reassessment_due';
+
+function formatFormalSupport(type: string | undefined, hours?: number) {
   if (!hours || hours === 0) return '0h Solo';
   const t = (type || '').toLowerCase();
   let role = 'Attendant';

@@ -87,7 +87,7 @@ export default function MedicationsPage() {
     void getMedicationsFor(user.uid).then((cloudMeds) => {
       if (cloudMeds.length > 0) {
         HealthRepository.saveMedications(cloudMeds);
-        setMedications(cloudMeds);
+        setMedications(HealthRepository.getMedications());
       }
     });
   }, [user]);

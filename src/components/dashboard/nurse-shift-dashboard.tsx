@@ -19,16 +19,24 @@ import {
   PhoneCall,
   Save,
   Droplet,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
-import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
-import { syncVitals, syncNursingProcedures, getNursingProceduresFor } from '@/lib/firebase/clinical-sync';
+import { HealthRepository, VitalRecord, type MedicationItem } from '@/lib/db/health-repository';
+import {
+  syncVitals,
+  syncNursingProcedures,
+  getNursingProceduresFor,
+  getMedicationsFor,
+  syncMedications
+} from '@/lib/firebase/clinical-sync';
 import { subscribeToAuthState } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
 import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
+import { MedicationChecker } from '@/lib/clinical/medication-checker';
 
 const DEFAULT_PROCEDURES = {
   morningBathSkinInspect: false,
@@ -83,6 +91,57 @@ export function NurseShiftDashboard() {
       cancelled = true;
     };
   }, [currentUid]);
+
+  const [medications, setMedications] = useState<MedicationItem[]>([]);
+
+  useEffect(() => {
+    const localMeds = HealthRepository.getMedications();
+    setMedications(localMeds);
+    if (!currentUid) return;
+    let cancelled = false;
+    void getMedicationsFor(currentUid).then((cloudMeds) => {
+      if (!cancelled && cloudMeds.length > 0) {
+        HealthRepository.saveMedications(cloudMeds);
+        setMedications(HealthRepository.getMedications());
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUid]);
+
+  const handleToggleMedSlot = async (
+    id: string,
+    slot: 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos'
+  ) => {
+    const updated = HealthRepository.toggleMedicationTaken(id, slot);
+    if (currentUid) {
+      void syncMedications(updated);
+    }
+    setMedications(updated);
+    const med = updated.find((m) => m.id === id);
+    const isTaken = med?.takenSlots?.includes(slot);
+    toast({
+      title: isTaken ? 'Dose Administered' : 'Dose Marked Untaken',
+      description: `${med?.name} (${slot}) ${isTaken ? 'recorded as given.' : 'reverted.'}`
+    });
+  };
+
+  const handleMarkAllTodayForMed = async (id: string) => {
+    const updated = HealthRepository.toggleMedicationTaken(id);
+    if (currentUid) {
+      void syncMedications(updated);
+    }
+    setMedications(updated);
+  };
+
+  const totalScheduledDoses = medications.reduce((sum, m) => sum + m.timeOfDay.length, 0);
+  const completedDoses = medications.reduce(
+    (sum, m) => sum + (m.takenSlots?.length || (m.takenToday ? m.timeOfDay.length : 0)),
+    0
+  );
+  const doseAdherencePercentage =
+    totalScheduledDoses > 0 ? Math.round((completedDoses / totalScheduledDoses) * 100) : 0;
 
   const toggleProcedure = (key: keyof typeof procedures) => {
     setProcedures((prev) => {
@@ -154,7 +213,13 @@ export function NurseShiftDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <Link href="/medications">
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10">
+                <Pill className="w-4 h-4 text-amber-600" />
+                <span>MAR / Meds ({completedDoses}/{totalScheduledDoses})</span>
+              </Button>
+            </Link>
             <Link href="/domiciliary">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
                 <Bed className="w-4 h-4" /> Bedside Companion
@@ -299,10 +364,160 @@ export function NurseShiftDashboard() {
         </Card>
       </div>
 
+      {/* Shift Medication Administration Record (MAR) & Dose Reminders */}
+      <Card className="border-border bg-card shadow-xs">
+        <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-amber-600" />
+                  Shift Medication Administration Record (MAR) & Dose Reminders
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] font-mono border-amber-500/30 text-amber-700 dark:text-amber-300">
+                  Real-Time Dyad Sync
+                </Badge>
+              </div>
+              <CardDescription className="text-xs mt-0.5">
+                {completedDoses} of {totalScheduledDoses} scheduled doses administered today. Cross-synced in real time with the family caregiver portal.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                {doseAdherencePercentage}% Completed
+              </span>
+              <Link href="/medications">
+                <Button variant="ghost" size="sm" className="h-8 text-xs font-semibold gap-1 text-primary hover:bg-primary/10">
+                  <span>Full Screen & Beers Alerts</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5 space-y-4">
+          {medications.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground border border-dashed rounded-2xl">
+              <Pill className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+              <p className="text-xs font-medium">No medications scheduled yet.</p>
+              <Link href="/medications" className="text-xs font-bold text-primary hover:underline mt-1 inline-block">
+                Add medicines on the Medication Schedule page →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {medications.map((med) => {
+                const warning = MedicationChecker.checkBeersCriteria(med.name);
+                const isAllTaken = med.takenToday;
+                return (
+                  <div
+                    key={med.id}
+                    className={cn(
+                      'p-3.5 rounded-2xl border flex flex-col justify-between gap-3 transition-all',
+                      isAllTaken ? 'border-border bg-muted/20 opacity-85' : 'border-border bg-card shadow-2xs hover:border-primary/40'
+                    )}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-foreground">{med.name}</span>
+                            {med.dosage && (
+                              <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
+                                {med.dosage}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                            {med.frequency} • {med.foodRelation === 'after' ? 'After food' : med.foodRelation === 'before' ? 'Before food' : 'With meals'}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={isAllTaken ? 'default' : 'outline'}
+                          className={cn(
+                            'text-[10px] shrink-0 font-semibold',
+                            isAllTaken ? 'bg-emerald-600 text-white' : 'text-amber-700 dark:text-amber-300 border-amber-500/40'
+                          )}
+                        >
+                          {med.takenSlots?.length || 0}/{med.timeOfDay.length} Taken
+                        </Badge>
+                      </div>
+
+                      {/* Dose Slot Buttons for Nurse */}
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Today&apos;s Dose Slots:</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {med.timeOfDay.map((slot) => {
+                            const isTaken = med.takenSlots?.includes(slot);
+                            return (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => handleToggleMedSlot(med.id, slot)}
+                                className={cn(
+                                  'px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1 transition-all',
+                                  isTaken
+                                    ? 'border-emerald-500/80 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+                                    : 'border-border bg-background hover:border-emerald-500/50 text-foreground'
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    'w-3 h-3 rounded-full border flex items-center justify-center',
+                                    isTaken ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-muted-foreground/50'
+                                  )}
+                                >
+                                  {isTaken && <CheckCircle2 className="w-2.5 h-2.5" />}
+                                </div>
+                                <span className="capitalize">{slot}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {med.instructions && (
+                        <p className="text-[10px] text-muted-foreground italic bg-muted/40 p-1.5 rounded-lg border border-border/40">
+                          <strong>Note:</strong> {med.instructions}
+                        </p>
+                      )}
+
+                      {warning && (
+                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-900 dark:text-amber-300 flex items-start gap-1.5">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                          <span className="leading-tight">{warning.drugClass}: {warning.recommendation}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {med.prescribedBy ? `Dr: ${med.prescribedBy}` : 'Daily Schedule'}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isAllTaken ? 'outline' : 'secondary'}
+                        onClick={() => handleMarkAllTodayForMed(med.id)}
+                        className="h-7 text-[10px] font-bold gap-1 px-2"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>{isAllTaken ? 'All Doses Given' : 'Mark All Today'}</span>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <DailyCareLogPanel
         patientUid={currentUid || undefined}
         patientName={patient.name}
         title="Nurse Daily Bedside Sheet"
+        medications={medications}
       />
 
       <CareIntelligencePanel
