@@ -41,13 +41,17 @@ interface ZaritResultsViewProps {
   onRetake: () => void;
   lang?: 'en' | 'hi' | 'mr';
   pastAssessments?: ZaritEvaluationResult[];
+  patientName?: string | null;
+  caregiverName?: string | null;
 }
 
 export function ZaritResultsView({
   result,
   onRetake,
   lang = 'en',
-  pastAssessments = []
+  pastAssessments = [],
+  patientName,
+  caregiverName
 }: ZaritResultsViewProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'factors' | 'prescriptions' | 'history'>('overview');
 
@@ -136,6 +140,11 @@ export function ZaritResultsView({
                 <Badge className={cn('font-bold text-xs px-3 py-1 shadow-sm', config.badgeBg)}>
                   {result?.tier || 'ZBI'} Assessment Complete
                 </Badge>
+                {patientName && (
+                  <Badge variant="outline" className="text-xs bg-background/80 font-medium text-foreground">
+                    {caregiverName ? `${caregiverName} caring for ${patientName}` : patientName}
+                  </Badge>
+                )}
                 <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.zaritScore} />
                 <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
                   <Clock className="w-3.5 h-3.5" />

@@ -32,9 +32,16 @@ import { cn } from '@/lib/utils';
 interface ZaritCalculatorProps {
   onComplete: (result: ZaritEvaluationResult) => void;
   lang?: 'en' | 'hi' | 'mr';
+  patientName?: string | null;
+  caregiverName?: string | null;
 }
 
-export function ZaritCalculator({ onComplete, lang = 'en' }: ZaritCalculatorProps) {
+export function ZaritCalculator({
+  onComplete,
+  lang = 'en',
+  patientName,
+  caregiverName
+}: ZaritCalculatorProps) {
   const [tier, setTier] = useState<ZbiTier>('ZBI22');
   const [items, setItems] = useState<ZbiItem[]>(() => getItemsForTier('ZBI22'));
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,7 +131,13 @@ export function ZaritCalculator({ onComplete, lang = 'en' }: ZaritCalculatorProp
               Zarit Caregiver Burden Scale (ZBI)
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Quantify caregiver fatigue, evaluate role strain, and generate targeted respite suggestions for review.
+              {caregiverName && patientName ? (
+                <span>
+                  Evaluating <strong className="text-foreground font-semibold">{caregiverName}</strong> caring for <strong className="text-foreground font-semibold">{patientName}</strong>. Quantify fatigue and generate targeted respite suggestions.
+                </span>
+              ) : (
+                'Quantify caregiver fatigue, evaluate role strain, and generate targeted respite suggestions for review.'
+              )}
             </p>
           </div>
 
