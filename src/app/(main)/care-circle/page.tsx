@@ -67,13 +67,20 @@ import {
   getPatientProfileFor,
   savePatientProfileFor,
   syncCareCircle,
-  getCareCircleFor
+  getCareCircleFor,
+  subscribeToDyadClinicalData
 } from '@/lib/firebase/clinical-sync';
 // Code-split: 2000+ lines, and this page's own "matrix" tab already covers
 // its own loading state visually (see the skeleton below).
 const CaregiverSupportMatrix = dynamic(() =>
   import('@/components/clinician/caregiver-support-matrix').then((m) => m.CaregiverSupportMatrix), {
-  loading: () => <div className="rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-96" />
+  ssr: false,
+  loading: () => (
+    <div className="space-y-4">
+      <div className="h-8 w-64 rounded bg-muted animate-pulse" />
+      <div className="h-48 w-full rounded-2xl bg-muted/40 animate-pulse" />
+    </div>
+  )
 });
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
 import { Stethoscope, FileSignature, AlertCircle, UserMinus } from 'lucide-react';
@@ -85,13 +92,12 @@ export default function CareCirclePage() {
   const { user } = useAuthUser();
   const { toast } = useToast();
 
-  // Care Matrix & Dyad State
   const [caregiverAttrs, setCaregiverAttrs] = useState<CaregiverAttributes>(() => HealthRepository.getCaregiverAttributes());
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile>(() => HealthRepository.getPatientProfile());
 
-  // Care Circle Members & Tasks State
-  const [members, setMembers] = useState<CareCircleMember[]>([]);
-  const [tasks, setTasks] = useState<CareCircleTask[]>([]);
+  const [tasks, setTasks] = useState<CareCircleTask[]>(() => HealthRepository.getCareCircleTasks());
+  const [members, setMembers] = useState<CareCircleMember[]>(() => HealthRepository.getCareCircleMembers());
+
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
@@ -111,28 +117,38 @@ export default function CareCirclePage() {
 
   const circleInviteCode = 'KUTUMBH-CIRCLE-789';
 
-  // Load dyad profile from Firestore if signed in, fallback to local repository
+  // Load dyad profile from Firestore if signed in, fallback to local repository.
+  // Subscribes to real-time Firestore updates so doctor prescriptions reflect instantly.
   useEffect(() => {
+    if (!user?.uid) return;
+    const uid = user.uid;
+
     async function loadDyadData() {
-      if (user?.uid) {
-        try {
-          const [remoteAttrs, remoteProfile] = await Promise.all([
-            getCaregiverAttributesFor(user.uid),
-            getPatientProfileFor(user.uid)
-          ]);
-          if (remoteAttrs) {
-            setCaregiverAttrs(remoteAttrs);
-            HealthRepository.saveCaregiverAttributes(remoteAttrs);
-          }
-          if (remoteProfile) {
-            setPatientProfile(remoteProfile);
-          }
-        } catch (err) {
-          console.warn('Could not sync remote care matrix:', err);
+      try {
+        const [remoteAttrs, remoteProfile] = await Promise.all([
+          getCaregiverAttributesFor(uid),
+          getPatientProfileFor(uid)
+        ]);
+        if (remoteAttrs) {
+          setCaregiverAttrs(remoteAttrs);
+          HealthRepository.saveCaregiverAttributes(remoteAttrs);
         }
+        if (remoteProfile) {
+          setPatientProfile(remoteProfile);
+        }
+      } catch (err) {
+        console.warn('Could not sync remote care matrix:', err);
       }
     }
+
     void loadDyadData();
+    const unsubscribe = subscribeToDyadClinicalData(uid, () => {
+      void loadDyadData();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [user]);
 
   // Load members & tasks. Previously local-storage-only with no Firestore
