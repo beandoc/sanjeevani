@@ -120,7 +120,8 @@ function getFirebaseFirestore(): Firestore | null {
       return initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
-        })
+        }),
+        ignoreUndefinedProperties: true
       });
     }
 

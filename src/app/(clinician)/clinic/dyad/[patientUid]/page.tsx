@@ -495,8 +495,18 @@ export default function DyadDetailPage() {
         return false;
       }
       setCaregiver(attrs);
-      if (devices && patientProfile) {
-        const updatedProfile = { ...patientProfile, assistiveDevices: devices };
+      if (devices) {
+        const base = patientProfile || {
+          name: displayName || 'Patient',
+          age: 75,
+          primaryConditions: [],
+          katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+          lawtonIadl: { telephone: true, shopping: true, mealPreparation: true, housekeeping: true, laundry: true, transportation: true, medicationManagement: true, finances: true },
+          cognitiveBehavioralLoad: 'none' as const,
+          fallHistoryLast6Months: 0,
+          isBedBound: false
+        };
+        const updatedProfile = { ...base, assistiveDevices: devices };
         await savePatientProfileFor(patientUid, updatedProfile);
         setPatientProfile(updatedProfile);
       }

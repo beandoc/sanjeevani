@@ -22,6 +22,14 @@ import type { SyncResult } from './types';
 import { getDyadInvite } from './dyad-invites';
 
 /**
+ * Strips undefined properties recursively so Firestore writes never fail with
+ * "Unsupported field value: undefined" errors.
+ */
+function cleanForFirestore<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/**
  * Mirrors the caregiver's own patient dependence profile (Katz ADL / Lawton
  * IADL / cognitive-behavioral load) to Firestore, so a granted clinician can
  * see and — via the onboarding wizard's doctor-mode patient picker — update
@@ -38,10 +46,10 @@ export async function syncPatientProfile(profile: PatientDependenceProfile): Pro
   if (!uid || !db) return { queued: false };
   try {
     const ref = doc(db, 'users', uid, 'patientProfile', 'current');
-    await setDoc(ref, { ...profile, updatedAt: new Date().toISOString() });
+    await setDoc(ref, cleanForFirestore({ ...profile, updatedAt: new Date().toISOString() }));
     return { queued: true };
   } catch (err) {
-    console.warn('Patient profile sync failed:', err);
+    console.error('Patient profile sync failed:', err);
     return { queued: false };
   }
 }
@@ -122,14 +130,15 @@ export async function savePatientProfileFor(
 
   if (!db) return;
   try {
+    const payload = cleanForFirestore({
+      ...profile,
+      updatedAt: new Date().toISOString()
+    });
     await withRetry(() =>
-      setDoc(doc(db!, 'users', patientUid, 'patientProfile', 'current'), {
-        ...profile,
-        updatedAt: new Date().toISOString()
-      })
+      setDoc(doc(db!, 'users', patientUid, 'patientProfile', 'current'), payload)
     );
   } catch (err) {
-    console.warn('Patient profile cloud sync notice (local backup active):', err);
+    console.error('Patient profile cloud sync error (local backup active):', err);
   }
 }
 
@@ -213,12 +222,13 @@ export async function saveCaregiverAttributesFor(
         }
 
         const updatedAt = new Date().toISOString();
-        tx.set(ref, { ...attrs, updatedAt });
+        const payload = cleanForFirestore({ ...attrs, updatedAt });
+        tx.set(ref, payload);
         return { saved: true, conflict: false, remoteUpdatedAt: updatedAt };
       })
     );
   } catch (err) {
-    console.warn('Caregiver attributes cloud sync notice (local backup active):', err);
+    console.error('Caregiver attributes cloud sync error (local backup active):', err);
     return { saved: false, conflict: false };
   }
 }
@@ -232,10 +242,10 @@ export async function syncCaregiverAttributes(attrs: CaregiverAttributes): Promi
   if (!uid || !db) return { queued: false };
   try {
     const ref = doc(db, 'users', uid, 'caregiverAttributes', 'current');
-    await setDoc(ref, { ...attrs, updatedAt: new Date().toISOString() });
+    await setDoc(ref, cleanForFirestore({ ...attrs, updatedAt: new Date().toISOString() }));
     return { queued: true };
   } catch (err) {
-    console.warn('Caregiver attributes sync failed:', err);
+    console.error('Caregiver attributes sync failed:', err);
     return { queued: false };
   }
 }
