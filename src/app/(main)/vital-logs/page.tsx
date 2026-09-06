@@ -57,6 +57,8 @@ const vitalLogSchema = z.object({
   diastolic: z.string().optional(),
   pulse: z.string().optional(),
   spo2: z.string().optional(),
+  temperatureC: z.string().optional(),
+  respiratoryRate: z.string().optional(),
   bloodSugar: z.string().optional(),
   weight: z.string().optional(),
   sleep: z.enum(['good', 'average', 'poor']),
@@ -110,6 +112,8 @@ export default function VitalLogsPage() {
       diastolic: '',
       pulse: '',
       spo2: '',
+      temperatureC: '',
+      respiratoryRate: '',
       bloodSugar: '',
       weight: '',
       sleep: 'average',
@@ -124,6 +128,8 @@ export default function VitalLogsPage() {
       diastolic: parsed.diastolic || '',
       pulse: parsed.pulse || '',
       spo2: parsed.spo2 || '',
+      temperatureC: parsed.temperatureC || '',
+      respiratoryRate: parsed.respiratoryRate || '',
       bloodSugar: parsed.bloodSugar || '',
       weight: parsed.weight || '',
       sleep: parsed.sleep || 'average',
@@ -169,6 +175,8 @@ export default function VitalLogsPage() {
       formValues.diastolic ||
       formValues.pulse ||
       formValues.spo2 ||
+      formValues.temperatureC ||
+      formValues.respiratoryRate ||
       formValues.bloodSugar ||
       formValues.notes;
     if (!hasContent) return;
@@ -205,6 +213,8 @@ export default function VitalLogsPage() {
       bp: bpString,
       pulse: data.pulse,
       spo2: data.spo2,
+      temperatureC: data.temperatureC,
+      respiratoryRate: data.respiratoryRate,
       bloodSugar: data.bloodSugar,
       weight: data.weight,
       sleep: data.sleep,
@@ -226,6 +236,8 @@ export default function VitalLogsPage() {
       diastolic: '',
       pulse: '',
       spo2: '',
+      temperatureC: '',
+      respiratoryRate: '',
       bloodSugar: '',
       weight: '',
       sleep: 'average',
@@ -288,7 +300,7 @@ export default function VitalLogsPage() {
         </div>
         <h1 className="text-3xl font-bold font-headline">Vital Signs & Parameters Log</h1>
         <p className="text-muted-foreground text-sm">
-          Track blood pressure, pulse, SpO2, glucose, and subjective sleep markers to share with your treating physician.
+          Track blood pressure, pulse, SpO2, temperature, respiratory rate, glucose, and sleep markers to share with your treating physician.
         </p>
       </div>
 
@@ -467,6 +479,15 @@ export default function VitalLogsPage() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={form.control} name="temperatureC" render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs font-semibold">Temperature (°C)</FormLabel><FormControl><Input placeholder="e.g. 37.2" type="number" step="0.1" min="30" max="45" className="h-9 text-xs font-mono" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="respiratoryRate" render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs font-semibold">Respiratory Rate (/min)</FormLabel><FormControl><Input placeholder="e.g. 18" type="number" min="5" max="60" className="h-9 text-xs font-mono" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="sleep"
@@ -537,6 +558,8 @@ export default function VitalLogsPage() {
                       <TableHead>BP (mmHg)</TableHead>
                       <TableHead>Pulse</TableHead>
                       <TableHead>SpO2</TableHead>
+                      <TableHead>Temp</TableHead>
+                      <TableHead>RR</TableHead>
                       <TableHead>Sugar</TableHead>
                       <TableHead>Weight</TableHead>
                       <TableHead>Sleep</TableHead>
@@ -551,6 +574,8 @@ export default function VitalLogsPage() {
                         <TableCell className="font-mono">{log.systolic && log.diastolic ? `${log.systolic}/${log.diastolic}` : log.bp || '—'}</TableCell>
                         <TableCell className="font-mono">{log.pulse ? `${log.pulse} bpm` : '—'}</TableCell>
                         <TableCell className="font-mono">{log.spo2 ? `${log.spo2}%` : '—'}</TableCell>
+                        <TableCell className="font-mono">{log.temperatureC ? `${log.temperatureC}°C` : '—'}</TableCell>
+                        <TableCell className="font-mono">{log.respiratoryRate ? `${log.respiratoryRate}/min` : '—'}</TableCell>
                         <TableCell className="font-mono">{log.bloodSugar ? `${log.bloodSugar} mg/dL` : '—'}</TableCell>
                         <TableCell className="font-mono">{log.weight ? `${log.weight} kg` : '—'}</TableCell>
                         <TableCell className="capitalize">{log.sleep}</TableCell>

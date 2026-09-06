@@ -59,7 +59,6 @@ import {
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useToast } from '@/hooks/use-toast';
-import { signInOrCreateDemoAccount } from '@/lib/firebase/auth';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -424,11 +423,6 @@ export default function OnboardingIntakePage() {
     });
 
     if (selectedRole === 'doctor') {
-      try {
-        await signInOrCreateDemoAccount('doctor');
-      } catch (err) {
-        console.warn('Auto demo sign-in on doctor onboarding finish:', err);
-      }
       router.push('/clinic/roster');
     } else {
       router.push('/dashboard');

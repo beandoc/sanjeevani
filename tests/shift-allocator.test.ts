@@ -86,16 +86,19 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
     const morningShifts = roster.blocks.morning_rush;
     const seniorAssignment = morningShifts.find((s) => s.assignedMemberId === 'sec_elder_1');
 
-    if (seniorAssignment) {
-      assert.ok(
-        !seniorAssignment.assignedTasks.includes('heavy_transfers'),
-        'Senior physically-limited member must not be assigned heavy transfers'
-      );
-      assert.ok(
-        !seniorAssignment.assignedTasks.includes('bathing'),
-        'Senior physically-limited member must not be assigned bathing'
-      );
-    }
+    // Unconditional: the original `if (seniorAssignment)` guard let this pass vacuously, which
+    // is why a fallback that handed ['feeding','medications'] to anyone merely present in the
+    // block went unnoticed. She is available and permitted for those, so she must be rostered —
+    // just never for lifting or bathing.
+    assert.ok(seniorAssignment, 'An available, permitted member must be rostered');
+    assert.ok(
+      !seniorAssignment!.assignedTasks.includes('heavy_transfers'),
+      'Senior physically-limited member must not be assigned heavy transfers'
+    );
+    assert.ok(
+      !seniorAssignment!.assignedTasks.includes('bathing'),
+      'Senior physically-limited member must not be assigned bathing'
+    );
   });
 
   test('Hard Constraints: Full-time working helper is not assigned morning rush tasks', () => {
@@ -129,7 +132,10 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
 
     assert.ok(icsString.startsWith('BEGIN:VCALENDAR'));
     assert.ok(icsString.includes('VERSION:2.0'));
-    assert.ok(icsString.includes('RRULE:FREQ=WEEKLY;COUNT=4'));
+    // Care shifts are daily commitments recurring for the length of the rota cycle (biweekly
+    // fixture => 14 days). They were previously emitted FREQ=WEEKLY, so a daily transfer showed
+    // up in the family's calendar four times a month.
+    assert.ok(icsString.includes('RRULE:FREQ=DAILY;COUNT=14'));
     assert.ok(icsString.includes('ATTENDEE;CN='));
     assert.ok(icsString.includes('DTSTART:'));
     assert.ok(icsString.includes('DTEND:'));

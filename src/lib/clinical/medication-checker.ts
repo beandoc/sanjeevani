@@ -37,7 +37,7 @@ export interface MedicationReviewInput {
   indication?: string;
   startDate?: string;
   duration?: string;
-  renalFunctionEgfr?: string;
+  renalFunctionEgfr?: number;
   riskHistory?: string[];
 }
 
@@ -217,7 +217,7 @@ export class MedicationChecker {
     const missingIndication = medications.filter((m) => !m.indication?.trim()).length;
     const missingDose = medications.filter((m) => !m.dosage?.trim()).length;
     const missingDuration = medications.filter((m) => !m.startDate?.trim() && !m.duration?.trim()).length;
-    const missingRenalContext = medications.filter((m) => !m.renalFunctionEgfr?.trim()).length;
+    const missingRenalContext = medications.filter((m) => !Number.isFinite(m.renalFunctionEgfr)).length;
 
     if (missingIndication > 0) {
       reviewGaps.push(`${missingIndication} medicine(s) lack a documented indication.`);

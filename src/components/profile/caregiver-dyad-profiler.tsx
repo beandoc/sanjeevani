@@ -57,6 +57,7 @@ import {
 import { auth } from '@/lib/firebase/client';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import { ClinicalSafetyAssessmentPanel } from '@/components/clinical/clinical-safety-assessment-panel';
 
 interface CaregiverDyadProfilerProps {
   defaultTab?: 'caregiver' | 'patient' | 'gap';
@@ -837,6 +838,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
 
       {/* TAB 3: Patient Functional Dependence (Katz ADL & Lawton IADL) */}
       {activeTab === 'patient' && (
+        <div className="space-y-6">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -986,6 +988,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
             </div>
           </CardContent>
         </Card>
+        <ClinicalSafetyAssessmentPanel patient={patient} onChange={setPatient} />
+        </div>
       )}
     </div>
   );

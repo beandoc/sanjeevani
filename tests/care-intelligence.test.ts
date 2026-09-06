@@ -30,6 +30,7 @@ const baseLog: DailyCareLog = {
       pulse: '122',
       spo2: '89',
       bloodSugar: '312',
+      acuteMentalStatusChange: true,
       remarks: 'Drowsy and confused after night.'
     }
   ],

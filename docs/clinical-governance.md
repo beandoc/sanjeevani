@@ -12,6 +12,13 @@ Every user-facing clinical output should carry one clear evidence label:
 - **Planning Estimate**: Sanjeevani local heuristic, such as care-gap hours, staffing ladder rank, or manual-handling risk score.
 - **User Entered**: Family, caregiver, nurse, or doctor-entered data that has not yet been independently verified.
 
+## Instrument Intake Policy
+
+- **Validated Scale:** 4AT, Braden, Clinical Frailty Scale, PAINAD, GDS-15, and MNA-SF must record the assessment date and source. A saved score is a documented screen, not a diagnosis or treatment order.
+- **4AT:** Caregiver observations may trigger the localized workflow, but an acute change or score requiring review must be clearly routed to same-day clinician assessment.
+- **Goals of care:** Record the patient priority, surrogate, date, escalation preference, and clinician-review status. Never infer a DNR, limit emergency care, or treat a blank field as a preference.
+- **Planning Estimate:** Care-gap, staffing, threshold combinations, and any risk-band aggregation remain local planning estimates even when their inputs include validated scales.
+
 ## Review Cadence
 
 - Review clinical policy values every 180 days.

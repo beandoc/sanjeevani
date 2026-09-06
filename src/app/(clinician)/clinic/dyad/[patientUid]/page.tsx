@@ -251,7 +251,18 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
 
   const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
     try {
-      await saveCaregiverAttributesFor(patientUid, attrs);
+      // The dyad document is shared with the family's own Care Circle screen, so pass the
+      // version this edit was based on: a newer save from the other side must not be clobbered.
+      const result = await saveCaregiverAttributesFor(patientUid, attrs, caregiver?.updatedAt);
+      if (result.conflict) {
+        await load();
+        toast({
+          variant: 'destructive',
+          title: 'Not Saved — Newer Version Exists',
+          description: 'The family updated this matrix while you were editing. Their version has been reloaded; reapply your changes on top of it.'
+        });
+        return;
+      }
       setCaregiver(attrs);
       if (devices && patientProfile) {
         const updatedProfile = { ...patientProfile, assistiveDevices: devices };
@@ -302,7 +313,16 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     };
 
     try {
-      await saveCaregiverAttributesFor(patientUid, updatedCaregiver);
+      const result = await saveCaregiverAttributesFor(patientUid, updatedCaregiver, caregiver?.updatedAt);
+      if (result.conflict) {
+        await load();
+        toast({
+          variant: 'destructive',
+          title: 'Blueprint Not Issued — Newer Version Exists',
+          description: 'The family updated this matrix while the blueprint was being drafted. Their version has been reloaded; re-issue on top of it.'
+        });
+        return;
+      }
       setCaregiver(updatedCaregiver);
       if (patientProfile) {
         const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
@@ -347,7 +367,7 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
         foodRelation: 'after',
         indication: medIndication.trim() || undefined,
         duration: medDuration.trim() || undefined,
-        renalFunctionEgfr: medRenalFunction.trim() || undefined
+        renalFunctionEgfr: medRenalFunction.trim() ? Number(medRenalFunction) : undefined
       };
       const updated = [...medications, newItem];
       await saveMedicationsFor(patientUid, updated);

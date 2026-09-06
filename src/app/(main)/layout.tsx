@@ -6,6 +6,7 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { MedicalDisclaimer } from '@/components/layout/medical-disclaimer';
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { ReactNode } from 'react';
+import { SessionGuard } from '@/components/auth/session-guard';
 
 function MainContentWrapper({ children }: { children: ReactNode }) {
   const { setOpenMobile, isMobile } = useSidebar();
@@ -33,10 +34,11 @@ function MainContentWrapper({ children }: { children: ReactNode }) {
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <MainContentWrapper>{children}</MainContentWrapper>
-    </SidebarProvider>
+    <SessionGuard>
+      <SidebarProvider>
+        <AppSidebar />
+        <MainContentWrapper>{children}</MainContentWrapper>
+      </SidebarProvider>
+    </SessionGuard>
   );
 }
-

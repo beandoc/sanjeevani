@@ -139,7 +139,7 @@ export function DailyCareLogPanel({
 
   const completeness = useMemo(() => {
     const mealCount = Object.values(meals).filter(Boolean).length;
-    const vitalsCount = monitoringRows.filter((row) => row.bp || row.bloodSugar || row.spo2 || row.pulse).length;
+    const vitalsCount = monitoringRows.filter((row) => row.bp || row.bloodSugar || row.spo2 || row.pulse || row.temperatureC || row.respiratoryRate).length;
     const medsGiven = logMeds.filter((med) => med.given).length;
     const outputCount = [stoolPassed !== null, urineMorningMl, urineEveningMl, waterIntakeMl, catheterChanged !== null, sleep !== 'not_recorded'].filter(Boolean).length;
     return Math.min(100, Math.round(((mealCount + vitalsCount + medsGiven + outputCount) / 18) * 100));
@@ -333,6 +333,9 @@ export function DailyCareLogPanel({
                       <th className="text-left p-2 font-bold">BP</th>
                       <th className="text-left p-2 font-bold">Pulse</th>
                       <th className="text-left p-2 font-bold">SpO2</th>
+                      <th className="text-left p-2 font-bold">Temp °C</th>
+                      <th className="text-left p-2 font-bold">RR/min</th>
+                      <th className="text-left p-2 font-bold">Acute change?</th>
                       <th className="text-left p-2 font-bold">Physio</th>
                       <th className="text-left p-2 font-bold">Exercise</th>
                       <th className="text-left p-2 font-bold">Remarks</th>
@@ -346,6 +349,9 @@ export function DailyCareLogPanel({
                         <td className="p-2"><Input value={row.bp || ''} onChange={(e) => updateMonitoringRow(row.id, { bp: e.target.value })} className="h-8 min-w-[78px] text-xs font-mono" /></td>
                         <td className="p-2"><Input value={row.pulse || ''} onChange={(e) => updateMonitoringRow(row.id, { pulse: e.target.value })} className="h-8 min-w-[64px] text-xs font-mono" /></td>
                         <td className="p-2"><Input value={row.spo2 || ''} onChange={(e) => updateMonitoringRow(row.id, { spo2: e.target.value })} className="h-8 min-w-[64px] text-xs font-mono" /></td>
+                        <td className="p-2"><Input value={row.temperatureC || ''} onChange={(e) => updateMonitoringRow(row.id, { temperatureC: e.target.value })} className="h-8 min-w-[64px] text-xs font-mono" /></td>
+                        <td className="p-2"><Input value={row.respiratoryRate || ''} onChange={(e) => updateMonitoringRow(row.id, { respiratoryRate: e.target.value })} className="h-8 min-w-[64px] text-xs font-mono" /></td>
+                        <td className="p-2"><Button type="button" variant={row.acuteMentalStatusChange ? 'destructive' : 'outline'} size="sm" onClick={() => updateMonitoringRow(row.id, { acuteMentalStatusChange: !row.acuteMentalStatusChange })} className="h-8 text-[10px]">{row.acuteMentalStatusChange ? 'Yes — 4AT' : 'No'}</Button></td>
                         <td className="p-2"><Input value={row.physiotherapy || ''} onChange={(e) => updateMonitoringRow(row.id, { physiotherapy: e.target.value })} className="h-8 min-w-[88px] text-xs" /></td>
                         <td className="p-2"><Input value={row.exercise || ''} onChange={(e) => updateMonitoringRow(row.id, { exercise: e.target.value })} className="h-8 min-w-[88px] text-xs" /></td>
                         <td className="p-2"><Input value={row.remarks || ''} onChange={(e) => updateMonitoringRow(row.id, { remarks: e.target.value })} className="h-8 min-w-[120px] text-xs" /></td>
@@ -418,7 +424,7 @@ export function DailyCareLogPanel({
           ) : (
             displayLogs.map((log) => {
               const medsGiven = log.medications.filter((med) => med.given).length;
-              const firstVitals = log.monitoringRows.find((row) => row.bp || row.bloodSugar || row.spo2 || row.pulse);
+              const firstVitals = log.monitoringRows.find((row) => row.bp || row.bloodSugar || row.spo2 || row.pulse || row.temperatureC || row.respiratoryRate);
               return (
                 <div key={log.id} className="rounded-xl border border-border/70 bg-background p-3 text-xs space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -433,7 +439,7 @@ export function DailyCareLogPanel({
                     </span>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                    <SummaryCell label="Vitals" value={firstVitals ? [firstVitals.bp, firstVitals.pulse && `${firstVitals.pulse} bpm`, firstVitals.spo2 && `${firstVitals.spo2}%`, firstVitals.bloodSugar && `${firstVitals.bloodSugar} sugar`].filter(Boolean).join(' | ') : 'Not logged'} />
+                    <SummaryCell label="Vitals" value={firstVitals ? [firstVitals.bp, firstVitals.pulse && `${firstVitals.pulse} bpm`, firstVitals.spo2 && `${firstVitals.spo2}%`, firstVitals.temperatureC && `${firstVitals.temperatureC}°C`, firstVitals.respiratoryRate && `RR ${firstVitals.respiratoryRate}`, firstVitals.bloodSugar && `${firstVitals.bloodSugar} sugar`].filter(Boolean).join(' | ') : 'Not logged'} />
                     <SummaryCell label="Feeds" value={[log.meals.breakfast, log.meals.lunch, log.meals.eveningSnack, log.meals.dinner].filter(Boolean).join(' | ') || 'Not logged'} />
                     <SummaryCell label="Meds" value={`${medsGiven}/${log.medications.length} given`} />
                     <SummaryCell label="Output" value={`Stool: ${log.stoolPassed === null ? 'n/a' : log.stoolPassed ? 'yes' : 'no'} | Urine: ${[log.urineMorningMl, log.urineEveningMl].filter(Boolean).join('+') || 'n/a'}`} />

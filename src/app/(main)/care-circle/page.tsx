@@ -42,7 +42,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HealthRepository, CareCircleMember, CareCircleTask } from '@/lib/db/health-repository';
+import {
+  HealthRepository,
+  CareCircleMember,
+  CareCircleTask,
+  UNASSIGNED_CARE_TASK_OWNER
+} from '@/lib/db/health-repository';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import {
@@ -59,12 +64,13 @@ import {
   getCaregiverAttributesFor,
   saveCaregiverAttributesFor,
   getPatientProfileFor,
+  savePatientProfileFor,
   syncCareCircle,
   getCareCircleFor
 } from '@/lib/firebase/clinical-sync';
 import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
-import { Stethoscope, FileSignature, AlertCircle } from 'lucide-react';
+import { Stethoscope, FileSignature, AlertCircle, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
@@ -89,6 +95,7 @@ export default function CareCirclePage() {
   const [assignedTo, setAssignedTo] = useState('');
   const [taskTime, setTaskTime] = useState('09:00 AM');
   const [taskCategory, setTaskCategory] = useState<'meds' | 'physio' | 'hygiene' | 'appointment' | 'general'>('general');
+  const [taskRecurrence, setTaskRecurrence] = useState<'once' | 'daily'>('daily');
 
   // Invite Form State
   const [newMemberFirstName, setNewMemberFirstName] = useState('');
@@ -129,23 +136,38 @@ export default function CareCirclePage() {
   // once signed in, mirroring the pattern used for caregiverAttributes above.
   useEffect(() => {
     let cancelled = false;
+    // Tasks are rolled forward to today and re-pointed at the current roster before they are
+    // shown. Without this a daily task kept yesterday's due date and yesterday's tick, and a task
+    // whose owner had been renamed or removed still displayed the old name as responsible.
+    const normalise = (rawMembers: CareCircleMember[], rawTasks: CareCircleTask[]) => {
+      const reconciled = HealthRepository.reconcileCareCircleTasks(
+        HealthRepository.rolloverCareCircleTasks(rawTasks),
+        rawMembers
+      );
+      return { members: rawMembers, tasks: reconciled };
+    };
+
     async function loadCircle() {
-      const localMembers = HealthRepository.getCareCircleMembers();
-      const localTasks = HealthRepository.getCareCircleTasks();
+      const local = normalise(
+        HealthRepository.getCareCircleMembers(),
+        HealthRepository.getCareCircleTasks()
+      );
       if (!cancelled) {
-        setMembers(localMembers);
-        setTasks(localTasks);
-        if (localMembers.length > 0 && !assignedTo) setAssignedTo(localMembers[0].name);
+        HealthRepository.saveCareCircleTasks(local.tasks);
+        setMembers(local.members);
+        setTasks(local.tasks);
+        if (local.members.length > 0 && !assignedTo) setAssignedTo(local.members[0].id);
       }
       if (!user?.uid) return;
       try {
         const remote = await getCareCircleFor(user.uid);
         if (remote && !cancelled) {
-          HealthRepository.saveCareCircleMembers(remote.members);
-          HealthRepository.saveCareCircleTasks(remote.tasks);
-          setMembers(remote.members);
-          setTasks(remote.tasks);
-          if (remote.members.length > 0 && !assignedTo) setAssignedTo(remote.members[0].name);
+          const merged = normalise(remote.members, remote.tasks);
+          HealthRepository.saveCareCircleMembers(merged.members);
+          HealthRepository.saveCareCircleTasks(merged.tasks);
+          setMembers(merged.members);
+          setTasks(merged.tasks);
+          if (merged.members.length > 0 && !assignedTo) setAssignedTo(merged.members[0].id);
         }
       } catch (err) {
         console.warn('Could not sync remote care circle:', err);
@@ -170,30 +192,58 @@ export default function CareCirclePage() {
       HealthRepository.saveCaregiverAttributes(mergedAttrs);
       setCaregiverAttrs(mergedAttrs);
 
-      // 2. Save to Firestore so Hospital Doctor / Clinic Roster sees real-time changes
+      // 2. Save to Firestore so Hospital Doctor / Clinic Roster sees real-time changes.
+      //    The clinician edits the same document, so a newer version from their side must not be
+      //    overwritten silently.
       if (user?.uid) {
-        await saveCaregiverAttributesFor(user.uid, mergedAttrs);
+        const result = await saveCaregiverAttributesFor(user.uid, mergedAttrs, caregiverAttrs.updatedAt);
+        if (result.conflict) {
+          const fresh = await getCaregiverAttributesFor(user.uid);
+          if (fresh) {
+            setCaregiverAttrs(fresh);
+            HealthRepository.saveCaregiverAttributes(fresh);
+          }
+          toast({
+            variant: 'destructive',
+            title: 'Not Saved — Your Doctor Updated This Plan',
+            description: 'Their version has been loaded. Reapply your changes on top of it.'
+          });
+          return;
+        }
       }
 
-      // 3. Keep members list in sync with secondary family members
-      if (mergedAttrs.secondaryMembers && mergedAttrs.secondaryMembers.length > 0) {
-        const currentMembers = HealthRepository.getCareCircleMembers();
-        const newMembersList = [...currentMembers];
-        mergedAttrs.secondaryMembers.forEach((sec) => {
-          if (!newMembersList.some((m) => m.name.toLowerCase() === sec.name.toLowerCase())) {
-            newMembersList.push({
-              id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-              name: sec.name,
-              role: 'Family Member',
-              phone: '+91 98000 00000',
-              avatarColor: 'bg-indigo-600',
-              isSelf: false
-            });
-          }
+      // 3. Assistive devices belong to the patient profile — that is the only place
+      //    CareGapEngine reads them from. Storing them solely on caregiverAttributes meant the
+      //    ergonomic injury discount never moved and the checkboxes reverted on reload.
+      if (devices) {
+        const updatedProfile: PatientDependenceProfile = { ...patientProfile, assistiveDevices: devices };
+        HealthRepository.savePatientProfile(updatedProfile);
+        setPatientProfile(updatedProfile);
+        if (user?.uid) {
+          await savePatientProfileFor(user.uid, updatedProfile);
+        }
+      }
+
+      // 4. Reconcile the circle with the matrix: additions, renames and removals all propagate,
+      //    and tasks owned by someone who left the matrix are re-pointed rather than orphaned.
+      const reconciledMembers = HealthRepository.reconcileCareCircleMembers(
+        HealthRepository.getCareCircleMembers(),
+        mergedAttrs.secondaryMembers || []
+      );
+      const reconciledTasks = HealthRepository.reconcileCareCircleTasks(tasks, reconciledMembers);
+      HealthRepository.saveCareCircleMembers(reconciledMembers);
+      HealthRepository.saveCareCircleTasks(reconciledTasks);
+      setMembers(reconciledMembers);
+      setTasks(reconciledTasks);
+      void syncCareCircle(reconciledMembers, reconciledTasks);
+
+      const orphaned = reconciledTasks.filter((t) => t.assignedToName === UNASSIGNED_CARE_TASK_OWNER).length;
+      if (orphaned > 0) {
+        toast({
+          variant: 'destructive',
+          title: `${orphaned} Task${orphaned === 1 ? '' : 's'} Need a New Owner`,
+          description: 'Someone was removed from the matrix. Reassign their tasks in the Daily Tasks tab.'
         });
-        HealthRepository.saveCareCircleMembers(newMembersList);
-        setMembers(newMembersList);
-        void syncCareCircle(newMembersList, tasks);
       }
 
       toast({
@@ -228,14 +278,17 @@ export default function CareCirclePage() {
     if (!taskTitle.trim()) return;
 
     const currentTasks = HealthRepository.getCareCircleTasks();
+    const owner = members.find((m) => m.id === assignedTo);
     const newTask: CareCircleTask = {
       id: `task_${Date.now()}`,
       title: taskTitle.trim(),
-      assignedToName: assignedTo || 'Caregiver',
-      dueDate: new Date().toISOString().slice(0, 10),
+      assignedToId: owner?.id,
+      assignedToName: owner?.name || UNASSIGNED_CARE_TASK_OWNER,
+      dueDate: HealthRepository.careCircleToday(),
       time: taskTime || '10:00 AM',
       category: taskCategory,
       isCompleted: false,
+      recurrence: taskRecurrence,
     };
 
     const updatedTasks = [newTask, ...currentTasks];
@@ -272,6 +325,7 @@ export default function CareCirclePage() {
     HealthRepository.saveCareCircleMembers(updatedMembers);
     setMembers(updatedMembers);
     void syncCareCircle(updatedMembers, tasks);
+    if (!assignedTo) setAssignedTo(newMember.id);
     setNewMemberFirstName('');
     setNewMemberLastName('');
     setNewMemberPhone('');
@@ -280,6 +334,39 @@ export default function CareCirclePage() {
       title: 'Member Added to Circle',
       description: `${newMember.name} is now part of the collaborative care circle.`,
     });
+  };
+
+  const handleRemoveMember = (memberId: string) => {
+    const member = members.find((m) => m.id === memberId);
+    const updatedMembers = members.filter((m) => m.id !== memberId);
+    // Tasks they owned become explicitly unassigned rather than silently keeping their name.
+    const updatedTasks = HealthRepository.reconcileCareCircleTasks(tasks, updatedMembers);
+    HealthRepository.saveCareCircleMembers(updatedMembers);
+    HealthRepository.saveCareCircleTasks(updatedTasks);
+    setMembers(updatedMembers);
+    setTasks(updatedTasks);
+    if (assignedTo === memberId) setAssignedTo(updatedMembers[0]?.id || '');
+    void syncCareCircle(updatedMembers, updatedTasks);
+
+    const orphaned = updatedTasks.filter((t) => t.assignedToName === UNASSIGNED_CARE_TASK_OWNER).length;
+    toast({
+      title: 'Removed from Circle',
+      description: orphaned > 0
+        ? `${member?.name || 'Member'} removed. ${orphaned} task${orphaned === 1 ? '' : 's'} now need a new owner.`
+        : `${member?.name || 'Member'} is no longer part of the care circle.`
+    });
+  };
+
+  const handleReassignTask = (taskId: string, memberId: string) => {
+    const owner = members.find((m) => m.id === memberId);
+    const updated = tasks.map((t) =>
+      t.id === taskId
+        ? { ...t, assignedToId: owner?.id, assignedToName: owner?.name || UNASSIGNED_CARE_TASK_OWNER }
+        : t
+    );
+    HealthRepository.saveCareCircleTasks(updated);
+    setTasks(updated);
+    void syncCareCircle(members, updated);
   };
 
   const copyInviteLink = () => {
@@ -365,7 +452,20 @@ export default function CareCirclePage() {
     HealthRepository.saveCaregiverAttributes(updatedAttrs);
     setCaregiverAttrs(updatedAttrs);
     if (user?.uid) {
-      await saveCaregiverAttributesFor(user.uid, updatedAttrs);
+      const result = await saveCaregiverAttributesFor(user.uid, updatedAttrs, caregiverAttrs.updatedAt);
+      if (result.conflict) {
+        const fresh = await getCaregiverAttributesFor(user.uid);
+        if (fresh) {
+          setCaregiverAttrs(fresh);
+          HealthRepository.saveCaregiverAttributes(fresh);
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Not Applied — Plan Changed',
+          description: 'Your doctor revised this plan just now. The latest version has been loaded; review and apply again.'
+        });
+        return;
+      }
     }
     toast({
       title: 'Clinician Recommendation Applied',
@@ -1020,7 +1120,7 @@ export default function CareCirclePage() {
                             </SelectTrigger>
                             <SelectContent>
                               {members.map((m) => (
-                                <SelectItem key={m.id} value={m.name} className="text-xs">
+                                <SelectItem key={m.id} value={m.id} className="text-xs">
                                   {m.name}
                                 </SelectItem>
                               ))}
@@ -1054,6 +1154,18 @@ export default function CareCirclePage() {
                             <SelectItem value="general" className="text-xs">General Support</SelectItem>
                           </SelectContent>
                         </Select>
+                        <div className="space-y-1.5 pt-2">
+                          <Label className="text-xs font-semibold">Repeats</Label>
+                          <Select value={taskRecurrence} onValueChange={(v: any) => setTaskRecurrence(v)}>
+                            <SelectTrigger className="h-9 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="daily" className="text-xs">Every day (rolls over each morning)</SelectItem>
+                              <SelectItem value="once" className="text-xs">One-off (today only)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 
@@ -1111,11 +1223,26 @@ export default function CareCirclePage() {
                         </div>
                       </div>
 
-                      <a href={`tel:${member.phone}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-lg">
-                          <PhoneCall className="w-3.5 h-3.5" />
-                        </Button>
-                      </a>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {member.phone && (
+                          <a href={`tel:${member.phone}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-lg">
+                              <PhoneCall className="w-3.5 h-3.5" />
+                            </Button>
+                          </a>
+                        )}
+                        {!member.isSelf && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveMember(member.id)}
+                            title={`Remove ${member.name} from the care circle`}
+                            className="h-8 w-8 text-red-500 hover:bg-red-500/10 rounded-lg"
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </CardContent>
@@ -1174,7 +1301,27 @@ export default function CareCirclePage() {
                                 <Clock className="w-3 h-3 text-primary" /> {task.time}
                               </span>
                               <span>•</span>
-                              <span className="font-medium text-foreground/80">Assigned: {task.assignedToName}</span>
+                              {task.assignedToId ? (
+                                <span className="font-medium text-foreground/80">Assigned: {task.assignedToName}</span>
+                              ) : (
+                                <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> Needs an owner
+                                </span>
+                              )}
+                              <span>•</span>
+                              <select
+                                value={task.assignedToId || ''}
+                                onChange={(e) => handleReassignTask(task.id, e.target.value)}
+                                aria-label={`Reassign ${task.title}`}
+                                className="h-6 rounded border border-input bg-background px-1 text-[11px]"
+                              >
+                                <option value="">Reassign…</option>
+                                {members.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name}
+                                  </option>
+                                ))}
+                              </select>
                               <span>•</span>
                               <Badge variant="outline" className="text-[10px] capitalize py-0 px-1.5">
                                 {task.category}

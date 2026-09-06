@@ -71,14 +71,25 @@ export function assessClinicalDataQuality(
   if (!patient.currentMedications) {
     limitations.push('Medication list pending documentation; risk screening incomplete.');
   }
+  if (!Number.isFinite(patient.renalFunctionEgfr)) {
+    limitations.push('eGFR unrecorded; renal-sensitive medication review is incomplete.');
+  }
+  if (!patient.goalsOfCare?.whatMattersMost || !patient.goalsOfCare?.escalationPreference || patient.goalsOfCare.escalationPreference === 'not_documented') {
+    limitations.push('Goals of care and escalation preference are undocumented; confirm before issuing a patient-specific plan.');
+  }
+  if (!patient.clinicalAssessments?.fourAt) limitations.push('Delirium screen (4AT) not documented.');
+  if (patient.isBedBound && !patient.clinicalAssessments?.braden) limitations.push('Pressure-injury risk (Braden) not documented for bed-bound care.');
+  if (!patient.clinicalAssessments?.clinicalFrailtyScale) limitations.push('Clinical Frailty Scale not documented.');
+  if (!patient.clinicalAssessments?.mnaSf) limitations.push('Nutrition screen (MNA-SF) not documented.');
+  if (!patient.clinicalAssessments?.painad && patient.cognitiveBehavioralLoad !== 'none') limitations.push('Pain assessment (PAINAD or clinician alternative) not documented for cognitive impairment.');
+  if (patient.isBedBound && !patient.skinIntegrity?.lastSkinCheckAt) limitations.push('Skin inspection and wound/pressure-injury status are not documented for bed-bound care.');
+  if (!patient.nutritionMonitoring?.dysphagiaRisk || patient.nutritionMonitoring.dysphagiaRisk === 'not_screened') limitations.push('Swallow safety screening is not documented.');
   if (!patient.weightKg && !patient.heightCm && !patient.katzAdl?.transferring) {
     limitations.push('Height/weight unrecorded; transfer-load estimates have reduced precision.');
   }
   if (metadata?.source === 'caregiver_reported') {
-    limitations.push('Caregiver-reported score; confirm clinically before escalation.');
+    limitations.push('caregiver-reported score; confirm clinically before escalation.');
   }
-  limitations.push('Confirm core CGA domains (cognition, mood, mobility, meds, nutrition, social) before plan adoption.');
-
   const completeness = missingFields.length > 0 ? 'insufficient' : limitations.length > 0 ? 'partial' : 'complete';
   const status: ClinicalDecisionSupportStatus = missingFields.length > 0
     ? 'requires_data_completion'

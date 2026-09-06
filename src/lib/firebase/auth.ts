@@ -27,22 +27,23 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './client';
+import { clearSession } from './session';
 import { autoClaimInviteByPhone, type DyadInvite } from './clinical-sync';
 import type { Role } from '@/context/role-context';
 
 export type { User, ConfirmationResult };
 
 /**
- * Create the users/{uid} profile document if it does not already exist.
- * Never overwrites an existing role — a returning user's role is decided
- * once at first sign-up, not silently changed by a later sign-in.
+ * Create a caregiver profile if it does not already exist. Clinician roles
+ * are provisioned only by trusted server administration with a matching
+ * Firebase custom claim; a browser must never assign a privileged role.
  */
 async function ensureUserProfile(uid: string, role: Role, extra?: Record<string, unknown>) {
   if (!db) return;
   try {
     const ref = doc(db, 'users', uid);
     const existing = await getDoc(ref);
-    const canonicalRole = (role === 'doctor' || role === 'professional') ? 'professional' : role === 'nurse' ? 'nurse' : 'caregiver';
+    const canonicalRole = 'caregiver';
 
     if (!existing.exists()) {
       await setDoc(ref, {
@@ -50,11 +51,6 @@ async function ensureUserProfile(uid: string, role: Role, extra?: Record<string,
         createdAt: serverTimestamp(),
         ...extra
       });
-    } else {
-      const currentRole = existing.data()?.role;
-      if (currentRole !== canonicalRole) {
-        await setDoc(ref, { role: canonicalRole }, { merge: true });
-      }
     }
   } catch (err) {
     console.warn('Could not save profile to Firestore:', err);
@@ -107,75 +103,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
   await ensureUserProfile(cred.user.uid, inferredRole, { email, displayName });
   return cred.user;
-}
-
-/**
- * Demo/local-development convenience: signs into a fixed account
- * for the given role, creating it on first use.
- */
-export const DEMO_CREDENTIALS: Record<'caregiver' | 'nurse' | 'doctor', { email: string; password: string }> = {
-  caregiver: { email: 'caregiver@kutumbh.com', password: 'test1234' },
-  nurse: { email: 'nurse@kutumbh.com', password: 'test1234' },
-  doctor: { email: 'doctor@kutumbh.com', password: 'test1234' }
-};
-
-export async function signInOrCreateDemoAccount(role: Role): Promise<User> {
-  const credentialKey = role === 'professional' ? 'doctor' : role === 'nurse' ? 'nurse' : role === 'doctor' ? 'doctor' : 'caregiver';
-  const { email, password } = DEMO_CREDENTIALS[credentialKey];
-  const roleName = role === 'doctor' || role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Sister Anjali' : 'Suresh Kumar (Kutumbh Caregiver)';
-
-  if (!auth) {
-    return {
-      uid: `demo-${role}-offline-uid`,
-      email,
-      displayName: roleName,
-      emailVerified: true,
-      isAnonymous: false,
-      metadata: {},
-      providerData: [],
-      refreshToken: '',
-      tenantId: null,
-      delete: async () => {},
-      getIdToken: async () => 'demo-token',
-      getIdTokenResult: async () => ({} as any),
-      reload: async () => {},
-      toJSON: () => ({}),
-      phoneNumber: null,
-      photoURL: null,
-      providerId: 'demo'
-    } as unknown as User;
-  }
-
-  try {
-    const user = await signInWithEmail(email, password);
-    await ensureUserProfile(user.uid, role, { displayName: roleName, email });
-    return user;
-  } catch {
-    try {
-      const user = await signUpWithEmail(email, password, role, roleName);
-      return user;
-    } catch {
-      return {
-        uid: `demo-${role}-offline-uid`,
-        email,
-        displayName: roleName,
-        emailVerified: true,
-        isAnonymous: false,
-        metadata: {},
-        providerData: [],
-        refreshToken: '',
-        tenantId: null,
-        delete: async () => {},
-        getIdToken: async () => 'demo-token',
-        getIdTokenResult: async () => ({} as any),
-        reload: async () => {},
-        toJSON: () => ({}),
-        phoneNumber: null,
-        photoURL: null,
-        providerId: 'demo'
-      } as unknown as User;
-    }
-  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -233,8 +160,8 @@ export async function verifyCaregiverOtp(
  * ------------------------------------------------------------------ */
 
 export async function signOutUser(): Promise<void> {
-  if (!auth) return;
-  await firebaseSignOut(auth);
+  await clearSession();
+  if (auth) await firebaseSignOut(auth);
 }
 
 export function subscribeToAuthState(callback: (user: User | null) => void): () => void {

@@ -144,7 +144,7 @@ export default function MedicationsPage() {
       indication: indication.trim() || undefined,
       startDate: startDate || undefined,
       duration: duration.trim() || undefined,
-      renalFunctionEgfr: renalFunctionEgfr.trim() || undefined,
+      renalFunctionEgfr: renalFunctionEgfr.trim() ? Number(renalFunctionEgfr) : undefined,
       riskHistory,
       instructions: instructions.trim() || undefined,
       prescribedBy: prescribedBy.trim() || undefined,
@@ -379,10 +379,12 @@ export default function MedicationsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="med-egfr" className="text-xs font-semibold">Kidney Function / eGFR</Label>
+                  <Label htmlFor="med-egfr" className="text-xs font-semibold">Latest eGFR (mL/min/1.73m²)</Label>
                   <Input
                     id="med-egfr"
-                    placeholder="e.g. eGFR 42, normal last month, unknown"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 42"
                     value={renalFunctionEgfr}
                     onChange={(e) => setRenalFunctionEgfr(e.target.value)}
                     className="h-9 text-xs"

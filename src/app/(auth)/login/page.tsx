@@ -18,7 +18,6 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  Sparkles,
   Stethoscope,
   HeartPulse,
   Users,
@@ -38,11 +37,10 @@ import {
   signUpWithEmail,
   sendCaregiverOtp,
   verifyCaregiverOtp,
-  signInOrCreateDemoAccount,
   getUserRole,
-  DEMO_CREDENTIALS,
   type ConfirmationResult
 } from '@/lib/firebase/auth';
+import { createSession } from '@/lib/firebase/session';
 
 const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';
 
@@ -66,22 +64,12 @@ export default function LoginPage() {
   const [abhaId, setAbhaId] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-  const fillDemoCredentials = (roleKey: 'doctor' | 'nurse' | 'caregiver') => {
-    const creds = DEMO_CREDENTIALS[roleKey];
-    setEmail(creds.email);
-    setPassword(creds.password);
-    setSelectedRole(roleKey === 'doctor' ? 'professional' : roleKey);
-    setAuthMethod('email');
-    toast({
-      title: 'Demo Credentials Loaded',
-      description: `Loaded ${creds.email} with password ${creds.password}`
-    });
-  };
-
   /** Routes by the account's actual stored role, not the login toggle — a
    * returning user's role is authoritative in Firestore, so this can't be
    * fooled by whichever tab they happened to leave selected. */
-  const completeSignIn = async (uid: string, fallbackRole: Role) => {
+  const completeSignIn = async (user: import('firebase/auth').User, fallbackRole: Role) => {
+    await createSession(user);
+    const uid = user.uid;
     let actualRole = fallbackRole;
     try {
       const fetchedRole = await getUserRole(uid);
@@ -119,58 +107,9 @@ export default function LoginPage() {
     try {
       if (authMethod === 'email') {
         let user: any;
-        const isKnownDemoEmail =
-          cleanEmail.toLowerCase() === 'doctor@kutumbh.com' ||
-          cleanEmail.toLowerCase() === 'nurse@kutumbh.com' ||
-          cleanEmail.toLowerCase() === 'caregiver@kutumbh.com' ||
-          cleanEmail.toLowerCase() === 'doctor@sanjeevani.com' ||
-          cleanEmail.toLowerCase() === 'nurse@sanjeevani.com' ||
-          cleanEmail.toLowerCase() === 'caregiver@sanjeevani.com' ||
-          cleanEmail.toLowerCase() === 'vidya@sanjeevani.com' ||
-          cleanEmail.toLowerCase() === 'sudhir@sanjeevani.com' ||
-          cleanEmail.toLowerCase().includes('doctor') ||
-          cleanEmail.toLowerCase().includes('nurse') ||
-          cleanEmail.toLowerCase().includes('caregiver');
-
-        try {
-          if (isSignUp) {
-            user = await signUpWithEmail(cleanEmail, cleanPassword, selectedRole);
-          } else {
-            try {
-              user = await signInWithEmail(cleanEmail, cleanPassword);
-            } catch (signInErr: any) {
-              // If account is not found, auto-provision
-              try {
-                let roleName = 'Suresh Kumar (Kutumbh Caregiver)';
-                if (cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')) {
-                  roleName = 'Dr. Vivek';
-                } else if (cleanEmail.toLowerCase().includes('vidya')) {
-                  roleName = 'Nurse Vidya';
-                } else if (cleanEmail.toLowerCase().includes('sudhir')) {
-                  roleName = 'Sudhir Kumar (Kutumbh)';
-                } else if (cleanEmail.toLowerCase().includes('nurse')) {
-                  roleName = 'Nurse Sister Anjali';
-                }
-                user = await signUpWithEmail(cleanEmail, cleanPassword, selectedRole, roleName);
-              } catch {
-                throw signInErr;
-              }
-            }
-          }
-        } catch (authErr: any) {
-          // If live Firebase auth fails (offline mode, network error, or demo credentials), seamlessly authenticate session
-          if (isKnownDemoEmail || cleanPassword === 'test1234' || cleanPassword.length >= 6) {
-            const roleKey =
-              cleanEmail.toLowerCase().includes('doctor') || selectedRole === 'doctor' || selectedRole === 'professional'
-                ? 'doctor'
-                : cleanEmail.toLowerCase().includes('nurse') || selectedRole === 'nurse'
-                  ? 'nurse'
-                  : 'caregiver';
-            user = await signInOrCreateDemoAccount(roleKey);
-          } else {
-            throw authErr;
-          }
-        }
+        user = isSignUp
+          ? await signUpWithEmail(cleanEmail, cleanPassword, selectedRole)
+          : await signInWithEmail(cleanEmail, cleanPassword);
 
         const effectiveRole: Role =
           cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
@@ -179,7 +118,7 @@ export default function LoginPage() {
               ? 'nurse'
               : selectedRole;
 
-        await completeSignIn(user.uid, effectiveRole);
+        await completeSignIn(user, effectiveRole);
       } else if (authMethod === 'mobile') {
         if (!confirmationResult) {
           toast({ variant: 'destructive', title: 'Send an OTP first', description: 'Request a verification code before submitting.' });
@@ -192,7 +131,7 @@ export default function LoginPage() {
             description: `${linkedInvite.patientName}'s details are ready — no invite code needed.`
           });
         }
-        await completeSignIn(user.uid, 'caregiver');
+        await completeSignIn(user, 'caregiver');
       } else {
         toast({
           title: 'ABDM Gateway Not Connected in This Environment',
@@ -202,7 +141,7 @@ export default function LoginPage() {
     } catch (err: any) {
       const errMsg =
         err?.code === 'auth/user-not-found'
-          ? 'No account found with this email. Click "New here? Create account" or use the Instant Demo buttons below.'
+          ? 'No account found with this email. Create an account to continue.'
           : err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential'
             ? 'Incorrect email or password. Please verify your credentials.'
             : err instanceof Error
@@ -242,27 +181,6 @@ export default function LoginPage() {
         title: 'Could Not Send OTP',
         description: err instanceof Error ? err.message : 'Please try again.'
       });
-    }
-  };
-
-  const handleDemoLogin = async (demoRole: Role) => {
-    setIsLoading(true);
-    try {
-      const user = await signInOrCreateDemoAccount(demoRole);
-      await completeSignIn(user.uid, demoRole);
-    } catch (err) {
-      setRole(demoRole);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sanjeevani_user_role', demoRole);
-      }
-      const roleLabel = demoRole === 'doctor' || demoRole === 'professional' ? 'Doctor Portal (Dr. Vivek)' : demoRole === 'nurse' ? 'Nurse Portal (Sister Anjali)' : 'Kutumbh Family Caregiver Hub';
-      toast({
-        title: 'Demo Session Activated',
-        description: `Signed in as ${roleLabel}.`
-      });
-      router.push('/dashboard');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -483,38 +401,6 @@ export default function LoginPage() {
                     {isSignUp ? 'Have an account? Sign in' : 'New here? Create account'}
                   </button>
                 </div>
-                {/* Quick Fill Demo Credentials Bar */}
-                <div className="p-2.5 rounded-2xl bg-muted/60 border border-border/70 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-primary" /> Demo Logins (Password: <code className="font-mono text-primary font-bold">test1234</code>)
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => fillDemoCredentials('doctor')}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-bold hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
-                    >
-                      <Stethoscope className="w-3 h-3" /> doctor@kutumbh.com
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillDemoCredentials('nurse')}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-mono font-bold hover:bg-amber-500/20 transition-all flex items-center gap-1.5"
-                    >
-                      <Bed className="w-3 h-3" /> nurse@kutumbh.com
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fillDemoCredentials('caregiver')}
-                      className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/30 text-[11px] font-mono font-bold hover:bg-primary/20 transition-all flex items-center gap-1.5"
-                    >
-                      <Users className="w-3 h-3" /> caregiver@kutumbh.com
-                    </button>
-                  </div>
-                </div>
-
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-semibold">Institutional / Account Email</Label>
                   <div className="relative">
@@ -658,44 +544,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick 1-Click Instant Demo Login Triggers */}
-          <div className="mt-5 pt-4 border-t border-border/60 space-y-2">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground block text-center">
-              Explore Instant Clinical Demo Portals
-            </span>
-            <div className="grid grid-cols-3 gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemoLogin('caregiver')}
-                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
-              >
-                <Users className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="truncate">Kutumbh Family</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemoLogin('nurse')}
-                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
-              >
-                <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span className="truncate">Sister Anjali</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemoLogin('professional')}
-                className="h-9 px-2 text-[11px] font-semibold gap-1 hover:bg-primary/5 truncate"
-              >
-                <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">Dr. Vivek</span>
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Footer Security & Helplines Note */}

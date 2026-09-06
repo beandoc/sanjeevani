@@ -37,12 +37,11 @@ service cloud.firestore {
       return tier == 'ZBI22' ? 88 : (tier == 'ZBI12' ? 48 : 16);
     }
 
-    // Clinician dashboard: a user account is professional/clinical-verified,
-    // and has been actively granted access to this specific patient's dyad.
+    // Clinician status is an Admin SDK-issued custom claim. A writable
+    // profile field is display metadata only and must never confer access.
     function isProfessional(uid) {
       return isAuthenticated()
-          && exists(/databases/$(database)/documents/users/$(uid))
-          && get(/databases/$(database)/documents/users/$(uid)).data.role in ['professional', 'doctor', 'nurse'];
+          && request.auth.token.clinician == true;
     }
 
     function hasActiveGrant(userId) {
@@ -63,13 +62,12 @@ service cloud.firestore {
     // 1. User Profiles & Role Mapping
     match /users/{userId} {
       allow read: if isOwner(userId) || hasActiveGrant(userId);
-      allow create: if (isOwner(userId) || (isAuthenticated() && isProfessional(request.auth.uid)))
-                    && request.resource.data.role in ['caregiver', 'professional', 'doctor', 'nurse']
+      allow create: if (isOwner(userId) && request.resource.data.role == 'caregiver')
                     && request.resource.data.keys().hasAll(['role', 'createdAt'])
                     && request.resource.data.createdAt is timestamp;
       allow update: if isOwner(userId)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'userId']))
-                    && (request.resource.data.role in ['caregiver', 'professional', 'doctor', 'nurse']);
+                    && request.resource.data.role == resource.data.role;
       allow delete: if isOwner(userId);
 
       // Subcollection: Care Recipients (Elderly profiles under caregiver management)
@@ -371,7 +369,7 @@ service cloud.firestore {
       // The grantee may read their own grant document to check its status.
       match /clinicianGrants/{clinicianUid} {
         allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid);
-        allow create: if (isOwner(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && request.auth.uid == clinicianUid))
+        allow create: if isOwner(userId)
                       && request.resource.data.clinicianUid == clinicianUid
                       && request.resource.data.grantedAt is string
                       && request.resource.data.revokedAt == null;

@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuthUser } from '@/hooks/use-auth-user';
-import { signOutUser, signInOrCreateDemoAccount } from '@/lib/firebase/auth';
+import { signOutUser } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/client';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
@@ -44,10 +44,18 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !user && auth) {
-      void signInOrCreateDemoAccount('doctor');
+    if (isLoading) return;
+    if (!user) {
+      router.replace('/login?next=/clinic/roster');
+      return;
     }
-  }, [user, isLoading]);
+    void fetch('/api/auth/session', { cache: 'no-store' })
+      .then(async (response) => ({ ok: response.ok, body: await response.json() }))
+      .then(({ ok, body }) => {
+        if (!ok || body.clinician !== true) router.replace('/dashboard');
+      })
+      .catch(() => router.replace('/login?next=/clinic/roster'));
+  }, [user, isLoading, router]);
 
   const clinicCode = user?.uid ? `${user.uid.slice(0, 10)}…` : 'DEMO-CLINIC-2026';
 
@@ -247,4 +255,3 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
-

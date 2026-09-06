@@ -50,7 +50,8 @@ import {
   serverTimestamp,
   Timestamp,
   onSnapshot,
-  deleteDoc
+  deleteDoc,
+  runTransaction
 } from 'firebase/firestore';
 import { auth, db } from './client';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
@@ -542,23 +543,52 @@ export async function getCaregiverAttributesFor(
 }
 
 /** Clinician or caregiver saves the caregiver capacity & formal support matrix. */
+/**
+ * Result of a caregiver-matrix write. `conflict` means another editor (typically the treating
+ * clinician and a family member working at the same time) saved a newer version of the shared
+ * document; the caller should reload and re-apply rather than assume the write landed.
+ */
+export interface CaregiverAttributesWriteResult {
+  saved: boolean;
+  conflict: boolean;
+  remoteUpdatedAt?: string;
+}
+
 export async function saveCaregiverAttributesFor(
   patientUid: string,
-  attrs: CaregiverAttributes
-): Promise<void> {
+  attrs: CaregiverAttributes,
+  /** `updatedAt` of the version this edit was based on, when the caller has it. */
+  baseUpdatedAt?: string
+): Promise<CaregiverAttributesWriteResult> {
   // Always persist locally
   HealthRepository.saveCaregiverAttributesFor(patientUid, attrs);
 
-  if (!db) return;
+  if (!db) return { saved: true, conflict: false };
+
+  const ref = doc(db, 'users', patientUid, 'caregiverAttributes', 'current');
+
   try {
-    await withRetry(() =>
-      setDoc(doc(db!, 'users', patientUid, 'caregiverAttributes', 'current'), {
-        ...attrs,
-        updatedAt: new Date().toISOString()
+    // The document is written as a full overwrite (removals of secondary members must
+    // propagate), so a blind write is last-writer-wins: a clinician and a family member editing
+    // the same dyad in the same hour silently clobbered each other. The transaction refuses to
+    // overwrite a strictly newer version and reports the conflict instead.
+    return await withRetry(() =>
+      runTransaction(db!, async (tx) => {
+        const snap = await tx.get(ref);
+        const remoteUpdatedAt = snap.exists() ? (snap.data() as { updatedAt?: string }).updatedAt : undefined;
+
+        if (baseUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > baseUpdatedAt) {
+          return { saved: false, conflict: true, remoteUpdatedAt };
+        }
+
+        const updatedAt = new Date().toISOString();
+        tx.set(ref, { ...attrs, updatedAt });
+        return { saved: true, conflict: false, remoteUpdatedAt: updatedAt };
       })
     );
   } catch (err) {
     console.warn('Caregiver attributes cloud sync notice (local backup active):', err);
+    return { saved: false, conflict: false };
   }
 }
 

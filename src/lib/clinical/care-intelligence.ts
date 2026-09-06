@@ -134,6 +134,8 @@ export function analyzeDailyCareLogs(logs: DailyCareLog[], now: Date = new Date(
     const sugar = toNumber(row.bloodSugar);
     const spo2 = toNumber(row.spo2);
     const pulse = toNumber(row.pulse);
+    const temperature = toNumber(row.temperatureC);
+    const respiratoryRate = toNumber(row.respiratoryRate);
     const remark = `${row.remarks || ''} ${log.generalRemarks || ''}`.toLowerCase();
 
     if ((systolic !== null && systolic >= 180) || (diastolic !== null && diastolic >= 110)) {
@@ -155,6 +157,36 @@ export function analyzeDailyCareLogs(logs: DailyCareLog[], now: Date = new Date(
         detail: `${row.timeLabel}: BP ${row.bp}. Review medication timing and repeat readings.`,
         source: 'daily_log',
         date: log.date
+      });
+    }
+
+    if ((systolic !== null && systolic < 90) || (diastolic !== null && diastolic < 60)) {
+      signals.push({
+        id: `bp_low_${log.id}_${row.id}`,
+        category: 'vitals', severity: systolic !== null && systolic < 80 ? 'urgent' : 'watch',
+        title: 'Low blood pressure',
+        detail: `${row.timeLabel}: BP ${row.bp}. Recheck lying and standing if safe; seek same-day clinical advice, especially with dizziness, reduced urine, fever, or a fall.`,
+        source: 'daily_log', date: log.date
+      });
+    }
+
+    if (temperature !== null && (temperature >= 38 || temperature < 35)) {
+      signals.push({
+        id: `temperature_${log.id}_${row.id}`,
+        category: 'vitals', severity: temperature >= 39 || temperature < 35 ? 'urgent' : 'watch',
+        title: temperature < 35 ? 'Low body temperature' : 'Fever recorded',
+        detail: `${row.timeLabel}: temperature ${temperature}°C. Recheck with a reliable thermometer and follow the clinician’s infection/escalation plan.`,
+        source: 'daily_log', date: log.date
+      });
+    }
+
+    if (respiratoryRate !== null && (respiratoryRate < 10 || respiratoryRate > 22)) {
+      signals.push({
+        id: `rr_${log.id}_${row.id}`,
+        category: 'vitals', severity: respiratoryRate < 8 || respiratoryRate > 30 ? 'urgent' : 'watch',
+        title: 'Respiratory rate outside expected range',
+        detail: `${row.timeLabel}: respiratory rate ${respiratoryRate}/min. Observe work of breathing and contact the clinical team.`,
+        source: 'daily_log', date: log.date
       });
     }
 
@@ -194,13 +226,13 @@ export function analyzeDailyCareLogs(logs: DailyCareLog[], now: Date = new Date(
       });
     }
 
-    if (/(confus|deliri|drows|sleepy|agitat|hallucinat|not recogn|disorient|sundown)/.test(remark)) {
+    if (row.acuteMentalStatusChange === true) {
       signals.push({
         id: `delirium_${log.id}_${row.id}`,
         category: 'delirium',
         severity: 'urgent',
         title: 'Possible delirium or acute behavior change',
-        detail: 'Daily notes mention confusion, drowsiness, agitation, or disorientation. Screen for infection, dehydration, pain, constipation, urinary retention, hypoxia, and medication effects.',
+        detail: 'A structured acute change was recorded. Complete the localized 4AT workflow and seek same-day clinical review; consider infection, dehydration, pain, constipation, retention, hypoxia, and medicine effects.',
         source: 'daily_log',
         date: log.date
       });
@@ -275,8 +307,8 @@ export function buildFamilyDailyDigest(logs: DailyCareLog[], now: Date = new Dat
   }
 
   const vitals = latest.monitoringRows
-    .filter((row) => row.bp || row.pulse || row.spo2 || row.bloodSugar)
-    .map((row) => [row.bp && `BP ${row.bp}`, row.pulse && `pulse ${row.pulse}`, row.spo2 && `SpO2 ${row.spo2}%`, row.bloodSugar && `sugar ${row.bloodSugar}`].filter(Boolean).join(', '))
+    .filter((row) => row.bp || row.pulse || row.spo2 || row.bloodSugar || row.temperatureC || row.respiratoryRate)
+    .map((row) => [row.bp && `BP ${row.bp}`, row.pulse && `pulse ${row.pulse}`, row.spo2 && `SpO2 ${row.spo2}%`, row.temperatureC && `temp ${row.temperatureC}°C`, row.respiratoryRate && `RR ${row.respiratoryRate}/min`, row.bloodSugar && `sugar ${row.bloodSugar}`].filter(Boolean).join(', '))
     .filter(Boolean);
   const medsGiven = latest.medications.filter((med) => med.given).length;
   const urgentCount = signals.filter((signal) => signal.severity === 'urgent').length;

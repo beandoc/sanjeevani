@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +69,8 @@ import {
   generateWhatsAppCareDigest,
   generateCareRosterIcs
 } from '@/lib/clinical/care-gap-engine';
+import { ShiftAllocator, DIURNAL_BLOCK_META, type CareShiftRoster } from '@/lib/clinical/shift-allocator';
+import { buildFormalSupport, resolveSupportTypes, toggleSupportType } from '@/lib/clinical/formal-support';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
@@ -80,6 +82,76 @@ interface CaregiverSupportMatrixProps {
   patient: PatientDependenceProfile | null;
   onSave: (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => Promise<void>;
 }
+
+/**
+ * Neutral stand-ins used only so the engine has a well-formed object to evaluate before a real
+ * dyad has been documented. They deliberately describe a fully independent patient and an
+ * unburdened caregiver: the surface gates every clinical number behind `hasPatientProfile` /
+ * `hasCaregiverProfile`, and a populated demo profile here would defeat that gate by making the
+ * engine's own data-quality check report nothing missing.
+ */
+const PLACEHOLDER_PATIENT: PatientDependenceProfile = {
+  name: '',
+  age: 0,
+  primaryConditions: [],
+  katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+  lawtonIadl: {
+    telephone: true,
+    shopping: true,
+    mealPreparation: true,
+    housekeeping: true,
+    laundry: true,
+    transportation: true,
+    medicationManagement: true,
+    finances: true
+  },
+  cognitiveBehavioralLoad: 'none',
+  fallHistoryLast6Months: 0,
+  isBedBound: false,
+  assistiveDevices: DEFAULT_ASSISTIVE_DEVICES
+};
+
+const PLACEHOLDER_CAREGIVER: CaregiverAttributes = {
+  name: '',
+  age: 0,
+  gender: 'female',
+  kinship: 'spouse',
+  coResidence: 'lives_together',
+  education: 'graduate',
+  employment: 'homemaker',
+  caregiverHealth: {
+    hasBackPain: false,
+    hasHypertension: false,
+    hasArthritis: false,
+    hasDiabetes: false,
+    hasInsomnia: false
+  },
+  dailyHoursCommitted: 0,
+  monthlyOutOfPocketBurden: 'manageable',
+  formalTrainingReceived: false,
+  secondaryMembers: [],
+  rotationPolicy: {
+    rotationInterval: 'biweekly',
+    primaryCaregiverRespiteDaysPerMonth: 4,
+    nightShiftArrangement: 'primary_solo'
+  },
+  formalSupport: {
+    type: 'none',
+    types: [],
+    hoursPerDay: 0,
+    handlesHeavyTransfers: false,
+    handlesMedicationWoundCare: false
+  }
+};
+
+const FORMAL_SUPPORT_OPTIONS: Array<{ id: FormalSupportType; label: string }> = [
+  { id: 'paid_attendant_12h', label: 'Paid Day Attendant (10–12 h/day)' },
+  { id: 'paid_attendant_24h', label: 'Full 24h Live-in Attendant' },
+  { id: 'trained_nurse_12h', label: 'Trained Nurse (12h wound / meds / transfers)' },
+  { id: 'trained_nurse_24h', label: 'Trained Nurse (24h intensive clinical)' },
+  { id: 'medical_assistant', label: 'Medical Assistant / Physio Aide' },
+  { id: 'multi_family_rotation', label: 'Formal Multi-Family Shift Rota' }
+];
 
 const AVAILABLE_TASKS: Array<{ id: CareTask; label: string; icon: string; desc: string }> = [
   { id: 'heavy_transfers', label: 'Heavy Transfers', icon: '💪', desc: 'Bed-to-chair lifts & wheelchair transfers' },
@@ -182,8 +254,13 @@ export function CaregiverSupportMatrix({
     caregiver?.emergencyLogistics?.ambulanceContact || '108 / 102 (National Helpline)'
   );
 
-  // Formal Support Form State
-  const [supportType, setSupportType] = useState<FormalSupportType>(caregiver?.formalSupport?.type || 'none');
+  // Formal Support Form State. Stored as a list so this surface round-trips the same
+  // multi-select the onboarding and dyad-profiler screens write. Reading only `.type` here used
+  // to silently collapse a combined team (attendant + medical assistant) down to one hire on
+  // every save, because the document is written as a full overwrite.
+  const [supportTypes, setSupportTypes] = useState<FormalSupportType[]>(
+    () => resolveSupportTypes(caregiver?.formalSupport)
+  );
   const [supportHours, setSupportHours] = useState(caregiver?.formalSupport?.hoursPerDay || 0);
   const [handlesTransfers, setHandlesTransfers] = useState(caregiver?.formalSupport?.handlesHeavyTransfers || false);
   const [handlesMeds, setHandlesMeds] = useState(caregiver?.formalSupport?.handlesMedicationWoundCare || false);
@@ -211,77 +288,20 @@ export function CaregiverSupportMatrix({
     patient?.assistiveDevices?.transferAids || false
   );
 
-  // Current Saved Caregiver & Evaluation
-  const currentCaregiver: CaregiverAttributes = caregiver || {
-    name: 'Primary Caregiver',
-    age: 54,
-    gender: 'female',
-    kinship: 'spouse',
-    coResidence: 'lives_together',
-    education: 'graduate',
-    employment: 'homemaker',
-    caregiverHealth: {
-      hasBackPain: false,
-      hasHypertension: false,
-      hasArthritis: false,
-      hasDiabetes: false,
-      hasInsomnia: false
-    },
-    dailyHoursCommitted: 8,
-    monthlyOutOfPocketBurden: 'manageable',
-    formalTrainingReceived: false,
-    secondaryMembers: [],
-    emergencyLogistics: {
-      hospitalDistanceKm: 4.5,
-      travelTimeMinutes: 15,
-      fourWheelerAvailableAtHome: true,
-      vehicleDetails: 'Sedan (Parked at Home)',
-      designatedEmergencyDriver: 'Son Rahul',
-      preferredHospitalName: 'AIIMS Geriatric Center',
-      ambulanceContact: '108'
-    },
-    rotationPolicy: {
-      rotationInterval: 'biweekly',
-      primaryCaregiverRespiteDaysPerMonth: 4,
-      weekendShiftLeader: 'Son Rahul',
-      nightShiftArrangement: 'family_rotation'
-    },
-    formalSupport: {
-      type: 'none',
-      hoursPerDay: 0,
-      handlesHeavyTransfers: false,
-      handlesMedicationWoundCare: false
-    }
-  };
+  // Current Saved Caregiver & Evaluation.
+  //
+  // These fall back to neutral placeholders, never to a populated demo dyad. A fabricated
+  // profile here would flow straight into CareGapEngine.evaluate() and render a care-demand
+  // figure, NIOSH lifting index and burnout tier that look real to a clinician — while the
+  // engine's own dataQuality check stays silent, because the fake profile is complete.
+  const hasCaregiverProfile = !!caregiver;
+  const hasPatientProfile = !!patient;
+  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile;
 
-  const currentPatient: PatientDependenceProfile = patient || {
-    name: 'Smt. Sarojini Devi',
-    age: 81,
-    primaryConditions: ['Hypertension', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
-    katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: true, feeding: true },
-    lawtonIadl: {
-      telephone: false,
-      shopping: false,
-      mealPreparation: false,
-      housekeeping: false,
-      laundry: false,
-      transportation: false,
-      medicationManagement: false,
-      finances: false
-    },
-    cognitiveBehavioralLoad: 'wandering_agitation',
-    fallHistoryLast6Months: 1,
-    isBedBound: false,
-    weightKg: 62,
-    heightCm: 155,
-    assistiveDevices: {
-      hospitalBed,
-      airWaterMattress,
-      wheelchair,
-      suctionApparatus,
-      transferAids
-    }
-  };
+  const currentCaregiver: CaregiverAttributes = caregiver || PLACEHOLDER_CAREGIVER;
+  const currentPatient: PatientDependenceProfile = patient
+    ? { ...patient, assistiveDevices: patient.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES }
+    : PLACEHOLDER_PATIENT;
 
   const currentEval = useMemo(
     () => CareGapEngine.evaluate(currentCaregiver, currentPatient),
@@ -326,7 +346,9 @@ export function CaregiverSupportMatrix({
       hasInsomnia
     },
     formalSupport: {
-      type: supportType,
+      // buildFormalSupport keeps `type` and `types[]` consistent with each other; the explicit
+      // hours and scope toggles below are the clinician's overrides on top of the type defaults.
+      ...buildFormalSupport(supportTypes),
       hoursPerDay: Number(supportHours) || 0,
       handlesHeavyTransfers: handlesTransfers,
       handlesMedicationWoundCare: handlesMeds
@@ -372,7 +394,7 @@ export function CaregiverSupportMatrix({
       hasHypertension,
       hasArthritis,
       hasInsomnia,
-      supportType,
+      supportTypes,
       supportHours,
       handlesTransfers,
       handlesMeds,
@@ -384,42 +406,99 @@ export function CaregiverSupportMatrix({
     ]
   );
 
-  const handleSupportTypeChange = (type: FormalSupportType) => {
-    setSupportType(type);
-    if (type === 'paid_attendant_12h') {
-      setSupportHours(12);
-      setHandlesTransfers(true);
-    } else if (type === 'paid_attendant_24h') {
-      setSupportHours(20);
-      setHandlesTransfers(true);
-      setHandlesMeds(true);
-    } else if (type === 'trained_nurse_12h') {
-      setSupportHours(12);
-      setHandlesMeds(true);
-      setHandlesTransfers(true);
-    } else if (type === 'trained_nurse_24h') {
-      setSupportHours(20);
-      setHandlesMeds(true);
-      setHandlesTransfers(true);
-    } else if (type === 'none') {
-      setSupportHours(0);
-      setHandlesTransfers(false);
-      setHandlesMeds(false);
-    }
+  /**
+   * Re-seeds every form field from freshly loaded props.
+   *
+   * `caregiver` and `patient` arrive asynchronously, but this dialog's fields were seeded by
+   * `useState` initializers that only ever run on the first render. The clinician workspace
+   * mounts this component with `caregiver === null`, so the form held blank/default values while
+   * the card behind it showed the real record — and because `simulatedCaregiver` overwrites
+   * name, kinship, hours, secondaryMembers, rotation policy and emergency logistics from that
+   * form state, saving after editing a single unrelated field wiped the family's whole roster.
+   * The write is a full document overwrite, so there was nothing to recover.
+   */
+  const applyLoadedProfile = (cg: CaregiverAttributes | null, pt: PatientDependenceProfile | null) => {
+    const parts = (cg?.name || '').trim().split(/\s+/).filter(Boolean);
+    setFirstName(parts[0] || '');
+    setLastName(parts.slice(1).join(' '));
+    setAge(cg?.age ?? 54);
+    setKinship(cg?.kinship || 'spouse');
+    setCoResidence(cg?.coResidence || 'lives_together');
+    setEmployment(cg?.employment || 'homemaker');
+    setCommittedHours(cg?.dailyHoursCommitted ?? 8);
+    setSecondaryMembers(cg?.secondaryMembers ? [...cg.secondaryMembers] : []);
+
+    setRotationInterval(cg?.rotationPolicy?.rotationInterval || 'biweekly');
+    setRespiteDaysPerMonth(cg?.rotationPolicy?.primaryCaregiverRespiteDaysPerMonth ?? 4);
+    setWeekendLeader(cg?.rotationPolicy?.weekendShiftLeader || '');
+    setNightArrangement(cg?.rotationPolicy?.nightShiftArrangement || 'primary_solo');
+
+    setHospitalDistanceKm(cg?.emergencyLogistics?.hospitalDistanceKm ?? 0);
+    setTravelTimeMinutes(cg?.emergencyLogistics?.travelTimeMinutes ?? 0);
+    setFourWheelerAvailable(cg?.emergencyLogistics?.fourWheelerAvailableAtHome ?? false);
+    setVehicleDetails(cg?.emergencyLogistics?.vehicleDetails || '');
+    setEmergencyDriver(cg?.emergencyLogistics?.designatedEmergencyDriver || '');
+    setPreferredHospital(cg?.emergencyLogistics?.preferredHospitalName || '');
+    setAmbulanceContact(cg?.emergencyLogistics?.ambulanceContact || '108');
+
+    setSupportTypes(resolveSupportTypes(cg?.formalSupport));
+    setSupportHours(cg?.formalSupport?.hoursPerDay ?? 0);
+    setHandlesTransfers(cg?.formalSupport?.handlesHeavyTransfers ?? false);
+    setHandlesMeds(cg?.formalSupport?.handlesMedicationWoundCare ?? false);
+
+    setHasBackPain(cg?.caregiverHealth?.hasBackPain ?? false);
+    setHasHypertension(cg?.caregiverHealth?.hasHypertension ?? false);
+    setHasArthritis(cg?.caregiverHealth?.hasArthritis ?? false);
+    setHasInsomnia(cg?.caregiverHealth?.hasInsomnia ?? false);
+
+    const devices = pt?.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES;
+    setHospitalBed(devices.hospitalBed);
+    setAirWaterMattress(devices.airWaterMattress);
+    setWheelchair(devices.wheelchair);
+    setSuctionApparatus(devices.suctionApparatus);
+    setTransferAids(devices.transferAids);
+  };
+
+  const syncedSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Never clobber an edit in progress: only re-seed while the dialog is closed.
+    if (open) return;
+    const signature = JSON.stringify({ c: caregiver, d: patient?.assistiveDevices ?? null });
+    if (signature === syncedSignatureRef.current) return;
+    syncedSignatureRef.current = signature;
+    applyLoadedProfile(caregiver, patient);
+    // applyLoadedProfile only calls setters; re-running on its identity would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caregiver, patient, open]);
+
+  const handleToggleSupportType = (type: FormalSupportType) => {
+    const next = toggleSupportType(supportTypes, type);
+    setSupportTypes(next);
+
+    // Keep the derived hours and scope in step with the selection, so the clinician sees a
+    // self-consistent team without having to re-enter the defaults by hand.
+    const derived = buildFormalSupport(next);
+    setSupportHours(derived.hoursPerDay);
+    setHandlesTransfers(derived.handlesHeavyTransfers);
+    setHandlesMeds(derived.handlesMedicationWoundCare);
   };
 
   const handleAddSecondaryMember = () => {
+    // Seeded blank rather than with a sample schedule. The old default of 'Mon-Fri 10am-5pm'
+    // matched the allocator's daytime-employment heuristic, so every member added here was
+    // silently barred from morning and midday shifts and raised a false schedule conflict.
     const newMember: SecondaryFamilyMember = {
       id: `sec_${Date.now()}`,
-      name: `Family Helper #${secondaryMembers.length + 1}`,
+      name: '',
       relationship: 'daughter_in_law',
-      age: 26,
-      occupation: 'Working Professional',
-      workCommitmentSchedule: 'Mon-Fri 10am-5pm',
-      careRestrictions: 'Available early morning & night',
+      age: 30,
+      occupation: '',
+      workCommitmentSchedule: '',
+      careRestrictions: '',
       functionalStatus: 'independent',
       hoursPerDay: 2.0,
-      assignedTasks: ['medications', 'bathing'],
+      assignedTasks: [],
       hasPhysicalLimitation: false,
       availableTimeBlocks: ['morning_rush', 'evening']
     };
@@ -461,6 +540,16 @@ export function CaregiverSupportMatrix({
     );
   };
 
+  /**
+   * Distributes the patient's actual outstanding responsibilities across the family pool.
+   *
+   * The previous implementation was a two-branch age test that ignored the patient entirely: it
+   * gave heavy transfers to every member under 50 with no load balancing, could never assign
+   * bathing or night care, and overwrote manual mappings with the same two tasks for everyone.
+   * This version starts from what the patient actually needs, skips what formal staff already
+   * cover, respects each member's declared availability windows and physical limits, and
+   * balances the remaining work by committed hours.
+   */
   const handleAutoOptimizeTasks = () => {
     if (secondaryMembers.length === 0) {
       toast({
@@ -470,24 +559,99 @@ export function CaregiverSupportMatrix({
       return;
     }
 
-    const updated = secondaryMembers.map((m) => {
-      const isYounger = m.age < 50 && !m.hasPhysicalLimitation;
-      const tasks: CareTask[] = [];
+    if (!hasPatientProfile) {
+      toast({
+        variant: 'destructive',
+        title: 'Patient Profile Required',
+        description: 'Auto-distribution schedules the patient’s real ADL/IADL deficits. Document the profile first.'
+      });
+      return;
+    }
 
-      if (isYounger) {
-        tasks.push('heavy_transfers');
-        tasks.push('logistics_errands');
-      } else {
-        tasks.push('medications');
-        tasks.push('feeding');
+    // 1. What the patient actually needs, and in which window.
+    const needed: Array<{ task: CareTask; blocks: DiurnalTimeBlock[] }> = [];
+    if (!currentPatient.katzAdl.bathing) needed.push({ task: 'bathing', blocks: ['morning_rush'] });
+    if (!currentPatient.katzAdl.transferring) needed.push({ task: 'heavy_transfers', blocks: ['morning_rush', 'evening'] });
+    if (!currentPatient.katzAdl.feeding) needed.push({ task: 'feeding', blocks: ['morning_rush', 'afternoon', 'evening'] });
+    if (!currentPatient.lawtonIadl.medicationManagement) needed.push({ task: 'medications', blocks: ['morning_rush', 'evening'] });
+    if (
+      !currentPatient.lawtonIadl.shopping ||
+      !currentPatient.lawtonIadl.transportation ||
+      !currentPatient.lawtonIadl.mealPreparation
+    ) {
+      needed.push({ task: 'logistics_errands', blocks: ['afternoon'] });
+    }
+    if (
+      currentPatient.isBedBound ||
+      !currentPatient.katzAdl.continence ||
+      currentPatient.cognitiveBehavioralLoad === 'severe_sundowning'
+    ) {
+      needed.push({ task: 'night_care', blocks: ['night_watch'] });
+    }
+
+    if (needed.length === 0) {
+      toast({
+        title: 'Nothing to Distribute',
+        description: 'The recorded ADL/IADL profile shows no delegable care tasks yet.'
+      });
+      return;
+    }
+
+    // 2. Tasks the paid team already owns are not the family's to carry.
+    const staffTypes = supportTypes;
+    const staffCovers = (task: CareTask): boolean => {
+      if (staffTypes.length === 0) return false;
+      const around = staffTypes.some((t) => t.includes('24h'));
+      const daytime = staffTypes.some((t) => t.includes('12h') || t.includes('24h'));
+      if (task === 'night_care') return around;
+      if (task === 'heavy_transfers') return handlesTransfers && daytime;
+      if (task === 'medications') return handlesMeds && (daytime || staffTypes.includes('medical_assistant'));
+      if (task === 'bathing') return daytime;
+      return false;
+    };
+
+    // 3. Load-balanced assignment over members who are actually free in the right window.
+    const load = new Map<string, number>(secondaryMembers.map((m) => [m.id, 0]));
+    const nextTasks = new Map<string, CareTask[]>(secondaryMembers.map((m) => [m.id, []]));
+    const unassignable: CareTask[] = [];
+
+    for (const { task, blocks } of needed) {
+      if (staffCovers(task)) continue;
+
+      const eligible = secondaryMembers.filter((m) => {
+        const windows = m.availableTimeBlocks && m.availableTimeBlocks.length > 0 ? m.availableTimeBlocks : ['morning_rush', 'evening'];
+        if (!blocks.some((b) => windows.includes(b))) return false;
+        return ShiftAllocator.isMemberEligible(m, task).eligible;
+      });
+
+      if (eligible.length === 0) {
+        unassignable.push(task);
+        continue;
       }
-      return { ...m, assignedTasks: tasks };
-    });
 
-    setSecondaryMembers(updated);
+      // Prefer whoever is carrying least so far, then whoever committed the most hours.
+      eligible.sort((a, b) => {
+        const byLoad = (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0);
+        if (byLoad !== 0) return byLoad;
+        const byHours = (b.hoursPerDay || 0) - (a.hoursPerDay || 0);
+        if (byHours !== 0) return byHours;
+        return a.id.localeCompare(b.id);
+      });
+
+      const chosen = eligible[0];
+      nextTasks.get(chosen.id)!.push(task);
+      // Heavy transfers and night care carry more weight than a med round.
+      load.set(chosen.id, (load.get(chosen.id) ?? 0) + (task === 'heavy_transfers' || task === 'night_care' ? 2 : 1));
+    }
+
+    setSecondaryMembers(secondaryMembers.map((m) => ({ ...m, assignedTasks: nextTasks.get(m.id) || [] })));
+
+    const placed = Array.from(nextTasks.values()).reduce((sum, list) => sum + list.length, 0);
     toast({
-      title: 'Tasks Intelligently Optimized',
-      description: 'Heavy lifts assigned to younger capable members to protect primary caregiver lumbar spine.'
+      title: placed > 0 ? `Distributed ${placed} Responsibilit${placed === 1 ? 'y' : 'ies'}` : 'Nothing Left to Distribute',
+      description: unassignable.length > 0
+        ? `No eligible family member for: ${unassignable.map((t) => t.replace(/_/g, ' ')).join(', ')}. These stay with the primary caregiver or need paid cover.`
+        : 'Balanced by availability window, physical limits, and committed hours. Review before saving.'
     });
   };
 
@@ -511,8 +675,20 @@ export function CaregiverSupportMatrix({
     }
   };
 
+  // Allocated roster for the saved matrix. Previously the allocator was only reachable through
+  // the WhatsApp and .ics exports, so the schedule the app generated could never be reviewed or
+  // corrected on screen before it went out to the family.
+  const roster: CareShiftRoster | null = useMemo(
+    () => (isDyadDocumented ? ShiftAllocator.allocate(currentCaregiver, currentPatient, currentEval) : null),
+    [isDyadDocumented, currentCaregiver, currentPatient, currentEval]
+  );
+
+  const rosterBlockOrder: DiurnalTimeBlock[] = ['morning_rush', 'afternoon', 'evening', 'night_watch'];
+
   // WhatsApp Digest Share Handler
-  const whatsAppText = generateWhatsAppCareDigest(currentCaregiver, currentPatient, currentEval);
+  const whatsAppText = isDyadDocumented
+    ? generateWhatsAppCareDigest(currentCaregiver, currentPatient, currentEval)
+    : 'Document the patient profile and caregiver matrix before sharing a care plan. This keeps placeholder data from being sent to the family as a real roster.';
 
   const handleCopyWhatsAppText = () => {
     navigator.clipboard.writeText(whatsAppText);
@@ -529,6 +705,14 @@ export function CaregiverSupportMatrix({
 
   // ICS Calendar Download Handler
   const handleDownloadIcs = () => {
+    if (!isDyadDocumented) {
+      toast({
+        variant: 'destructive',
+        title: 'Dyad Not Documented Yet',
+        description: 'A roster export needs a real patient profile and caregiver matrix on file.'
+      });
+      return;
+    }
     const icsContent = generateCareRosterIcs(currentCaregiver, currentPatient, currentEval);
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -580,7 +764,9 @@ export function CaregiverSupportMatrix({
             size="sm"
             variant="outline"
             onClick={() => setIsWhatsAppOpen(true)}
-            className="h-8 text-xs gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-50"
+            disabled={!isDyadDocumented}
+            title={isDyadDocumented ? undefined : 'Document the dyad before sharing a care plan'}
+            className="h-8 text-xs gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-50 disabled:opacity-50"
           >
             <Share2 className="w-3.5 h-3.5" /> WhatsApp Digest
           </Button>
@@ -589,7 +775,9 @@ export function CaregiverSupportMatrix({
             size="sm"
             variant="outline"
             onClick={handleDownloadIcs}
-            className="h-8 text-xs gap-1.5 font-bold text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-50"
+            disabled={!isDyadDocumented}
+            title={isDyadDocumented ? undefined : 'Document the dyad before exporting a roster'}
+            className="h-8 text-xs gap-1.5 font-bold text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-50 disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" /> Sync Calendar (.ics)
           </Button>
@@ -598,7 +786,9 @@ export function CaregiverSupportMatrix({
             size="sm"
             variant="outline"
             onClick={() => setIsPrintSheetOpen(true)}
-            className="h-8 text-xs gap-1.5 font-bold hover:bg-muted"
+            disabled={!isDyadDocumented}
+            title={isDyadDocumented ? undefined : 'Document the dyad before printing a bedside sheet'}
+            className="h-8 text-xs gap-1.5 font-bold hover:bg-muted disabled:opacity-50"
           >
             <Printer className="w-3.5 h-3.5" /> Bedside Wall Sheet
           </Button>
@@ -957,6 +1147,66 @@ export function CaregiverSupportMatrix({
                               </div>
                             </div>
 
+                            {/* Occupational & Physical Constraints.
+                                These drive the allocator's hard constraints. Without inputs they
+                                were frozen at the seeded defaults, so a sample work schedule
+                                silently disqualified every member from daytime shifts. */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-border/40">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground font-semibold">
+                                  Work Commitment (free text)
+                                </Label>
+                                <Input
+                                  value={member.workCommitmentSchedule || ''}
+                                  onChange={(e) =>
+                                    handleUpdateSecondaryMember(member.id, { workCommitmentSchedule: e.target.value })
+                                  }
+                                  placeholder="e.g. Mon-Fri 9am-6pm, WFH Wed"
+                                  className="h-7 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground font-semibold">
+                                  Care Restrictions
+                                </Label>
+                                <Input
+                                  value={member.careRestrictions || ''}
+                                  onChange={(e) =>
+                                    handleUpdateSecondaryMember(member.id, { careRestrictions: e.target.value })
+                                  }
+                                  placeholder="e.g. no lifting, not trained for medication"
+                                  className="h-7 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 pt-0.5">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={member.hasPhysicalLimitation}
+                                  onChange={(e) =>
+                                    handleUpdateSecondaryMember(member.id, { hasPhysicalLimitation: e.target.checked })
+                                  }
+                                  className="rounded text-primary"
+                                />
+                                <span className="text-[11px]">Has a physical limitation (no transfers or bathing)</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={member.functionalStatus === 'has_limitations'}
+                                  onChange={(e) =>
+                                    handleUpdateSecondaryMember(member.id, {
+                                      functionalStatus: e.target.checked ? 'has_limitations' : 'independent'
+                                    })
+                                  }
+                                  className="rounded text-primary"
+                                />
+                                <span className="text-[11px]">Frail / not fully independent</span>
+                              </label>
+                            </div>
+
                             {/* Task Assignment Pills */}
                             <div className="space-y-1 pt-1">
                               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
@@ -1014,21 +1264,45 @@ export function CaregiverSupportMatrix({
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Support Category</Label>
-                      <select
-                        value={supportType}
-                        onChange={(e) => handleSupportTypeChange(e.target.value as FormalSupportType)}
-                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
-                      >
-                        <option value="none">None (100% Family Burden)</option>
-                        <option value="paid_attendant_12h">Paid Day Attendant (10–12 Hours/Day)</option>
-                        <option value="paid_attendant_24h">Full 24h Live-in Attendant</option>
-                        <option value="trained_nurse_12h">Trained Nurse (12h Wound/Meds/Transfers)</option>
-                        <option value="trained_nurse_24h">Trained Nurse (24h Intensive Clinical)</option>
-                        <option value="medical_assistant">Medical Assistant / Physio Aide</option>
-                        <option value="multi_family_rotation">Formal Multi-Family Shift Rota</option>
-                      </select>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs font-semibold">
+                        Support Team{' '}
+                        <span className="font-normal text-muted-foreground">
+                          (select every hire — a combined team is common)
+                        </span>
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {FORMAL_SUPPORT_OPTIONS.map((opt) => {
+                          const isOn = supportTypes.includes(opt.id);
+                          return (
+                            <button
+                              type="button"
+                              key={opt.id}
+                              onClick={() => handleToggleSupportType(opt.id)}
+                              className={cn(
+                                'px-2 py-1 rounded-md text-[11px] font-semibold transition-all border',
+                                isOn
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                                  : 'bg-card text-muted-foreground border-border/70 hover:bg-muted'
+                              )}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSupportType('none')}
+                          className={cn(
+                            'px-2 py-1 rounded-md text-[11px] font-semibold transition-all border',
+                            supportTypes.length === 0
+                              ? 'bg-foreground text-background border-foreground shadow-xs'
+                              : 'bg-card text-muted-foreground border-border/70 hover:bg-muted'
+                          )}
+                        >
+                          None (100% Family Burden)
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-1">
@@ -1100,6 +1374,22 @@ export function CaregiverSupportMatrix({
                         placeholder="e.g. Son Rahul"
                         className="h-8 text-xs"
                       />
+                    </div>
+                    <div className="space-y-1 sm:col-span-3">
+                      <Label className="text-xs">Night Watch Arrangement</Label>
+                      <select
+                        value={nightArrangement}
+                        onChange={(e) => setNightArrangement(e.target.value as MonthlyRotationPolicy['nightShiftArrangement'])}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      >
+                        <option value="primary_solo">Primary caregiver alone (highest burnout risk)</option>
+                        <option value="family_rotation">Family members rotate the night watch</option>
+                        <option value="formal_night_nurse">Paid night nurse</option>
+                        <option value="formal_24h_staff">24h live-in staff cover the night</option>
+                      </select>
+                      <p className="text-[10px] text-muted-foreground">
+                        Sets who the roster puts on the 22:00–06:00 block first.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1192,6 +1482,27 @@ export function CaregiverSupportMatrix({
       </CardHeader>
 
       <CardContent className="p-5 sm:p-6 space-y-6">
+        {/* DATA PROVENANCE GATE.
+            Clinical figures below are computed from the stored dyad. Until both records exist
+            they would be derived from neutral placeholders, so say so plainly rather than
+            rendering a demand figure and lifting index a clinician could act on. */}
+        {!isDyadDocumented && (
+          <div className="p-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 space-y-1">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Dyad not documented yet — figures below are not clinical
+            </p>
+            <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
+              {!hasPatientProfile && !hasCaregiverProfile
+                ? 'No patient profile and no caregiver matrix are on file for this dyad.'
+                : !hasPatientProfile
+                ? 'No patient ADL/IADL profile is on file, so care demand cannot be estimated.'
+                : 'No caregiver matrix is on file, so capacity and burnout risk cannot be estimated.'}{' '}
+              Use <strong>Configure Matrix</strong> to record it. Roster exports stay disabled until then.
+            </p>
+          </div>
+        )}
+
         {/* ROW 1: FOUR GENEROUSLY-SPACED KEY METRIC CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Primary Caregiver */}
@@ -1329,6 +1640,108 @@ export function CaregiverSupportMatrix({
             </div>
           </div>
         </div>
+
+        {/* ROW 1b: ALLOCATED SHIFT ROSTER */}
+        {roster && (
+          <div className="p-5 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                Allocated Shift Roster ({roster.cycleDays}-day rotation)
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Generated from designated responsibilities, availability windows and committed hours.
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              {rosterBlockOrder.map((blockKey) => {
+                const meta = DIURNAL_BLOCK_META[blockKey];
+                const shifts = roster.blocks[blockKey];
+                const gaps = roster.uncoveredGaps.filter((g) => g.block === blockKey);
+                return (
+                  <div key={blockKey} className="p-3 rounded-xl bg-card border border-border/60 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <span aria-hidden>{meta.icon}</span> {meta.label}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{meta.timeRange}</span>
+                    </div>
+
+                    {shifts.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground italic">No one rostered.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {shifts.map((shift, i) => (
+                          <li key={`${shift.assignedMemberId}-${i}`} className="space-y-0.5">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-[11px] font-semibold text-foreground truncate">
+                                {shift.assignedMemberName || 'Unnamed member'}
+                              </span>
+                              <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                                {shift.hoursAllocated}h
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground capitalize">
+                              {shift.role.replace(/_/g, ' ')} ·{' '}
+                              {shift.assignedTasks.length > 0
+                                ? shift.assignedTasks.map((t) => t.replace(/_/g, ' ')).join(', ')
+                                : 'supervision & presence'}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {gaps.length > 0 && (
+                      <div className="pt-1.5 border-t border-border/50 space-y-1">
+                        {gaps.map((g, i) => (
+                          <p
+                            key={`${g.task}-${i}`}
+                            className="text-[10px] text-red-600 dark:text-red-400 font-semibold flex items-start gap-1"
+                          >
+                            <AlertTriangle className="w-3 h-3 mt-px shrink-0" />
+                            <span className="capitalize">
+                              {g.kind === 'unowned_task'
+                                ? `${g.task.replace(/_/g, ' ')} — no eligible owner (${g.unmetHours}h)`
+                                : `${g.unmetHours}h beyond the team's committed hours`}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {roster.memberLoadSummary.length > 0 && (
+              <div className="pt-1 flex flex-wrap gap-1.5">
+                {roster.memberLoadSummary.map((m) => (
+                  <Badge
+                    key={m.memberId}
+                    variant="outline"
+                    className="text-[10px] font-semibold gap-1"
+                    title={m.peakLiftingRisk}
+                  >
+                    {m.name || 'Unnamed'} · {m.dailyHours}h/day · {m.assignedBlocks.length} block
+                    {m.assignedBlocks.length === 1 ? '' : 's'}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {roster.respiteOrders.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                <strong className="text-foreground">Respite:</strong> {roster.respiteOrders.length} relief day
+                {roster.respiteOrders.length === 1 ? '' : 's'} per month on day
+                {roster.respiteOrders.length === 1 ? ' ' : 's '}
+                {roster.respiteOrders.map((r) => r.dayNumber).join(', ')} ·{' '}
+                {DIURNAL_BLOCK_META[roster.respiteOrders[0].block].label}.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ROW 2: VISUAL STACKED ALLOCATION BAR */}
         <div className="p-5 rounded-2xl bg-muted/30 border border-border/70 space-y-3">

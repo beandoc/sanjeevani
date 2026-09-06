@@ -27,6 +27,8 @@ export interface VitalRecord {
   systolic?: string;
   diastolic?: string;
   spo2?: string;
+  temperatureC?: string;
+  respiratoryRate?: string;
   bloodSugar?: string;
   sleep: 'good' | 'average' | 'poor';
   notes?: string;
@@ -42,6 +44,10 @@ export interface DailyCareLogVitalsRow {
   bp?: string;
   pulse?: string;
   spo2?: string;
+  temperatureC?: string;
+  respiratoryRate?: string;
+  /** Structured caregiver/clinician observation; never inferred from free text. */
+  acuteMentalStatusChange?: boolean;
   physiotherapy?: string;
   exercise?: string;
   remarks?: string;
@@ -119,7 +125,7 @@ export interface MedicationItem {
   indication?: string;
   startDate?: string;
   duration?: string;
-  renalFunctionEgfr?: string;
+  renalFunctionEgfr?: number;
   riskHistory?: string[];
   instructions?: string;
   prescribedBy?: string;
@@ -138,14 +144,34 @@ export interface CareCircleMember {
   avatarColor: string;
 }
 
+/** Display name used when a task's owner is no longer in the circle. */
+export const UNASSIGNED_CARE_TASK_OWNER = 'Unassigned';
+
+/** Prefix marking a circle member that mirrors a caregiver-matrix secondary member. */
+export const MATRIX_MEMBER_PREFIX = 'matrix_';
+
+/** Stable circle-member id for a given caregiver-matrix secondary member. */
+export function matrixLinkedMemberId(secondaryMemberId: string): string {
+  return `${MATRIX_MEMBER_PREFIX}${secondaryMemberId}`;
+}
+
 export interface CareCircleTask {
   id: string;
   title: string;
+  /**
+   * Stable link to the CareCircleMember who owns this task. Tasks used to bind by display name
+   * alone, so renaming or removing a caregiver silently orphaned every task assigned to them
+   * while still showing the old name as the responsible person.
+   */
+  assignedToId?: string;
+  /** Denormalised for display; reconciled against `assignedToId` on every load. */
   assignedToName: string;
   category: 'meds' | 'physio' | 'hygiene' | 'appointment' | 'general';
   time: string;
   isCompleted: boolean;
   dueDate: string;
+  /** Daily tasks roll forward to the current date instead of piling up as stale history. */
+  recurrence?: 'once' | 'daily';
 }
 
 export interface UserConsentPreferences {
@@ -1223,6 +1249,107 @@ export class HealthRepository {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t));
     this.saveCareCircleTasks(updated);
     return updated;
+  }
+
+  /** Today, in the same `YYYY-MM-DD` shape task due dates are stored in. */
+  static careCircleToday(now: Date = new Date()): string {
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  /**
+   * Rolls the task list forward to `today`.
+   *
+   * Daily tasks move to today and un-tick, so the list shows today's state rather than
+   * yesterday's ticks. One-off tasks stay on their own date. Completed one-offs older than a
+   * fortnight are dropped so the list stops growing without bound.
+   */
+  static rolloverCareCircleTasks(tasks: CareCircleTask[], now: Date = new Date()): CareCircleTask[] {
+    const today = this.careCircleToday(now);
+    const cutoff = this.careCircleToday(new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000));
+
+    return tasks
+      .filter((t) => !(t.recurrence !== 'daily' && t.isCompleted && (t.dueDate || today) < cutoff))
+      .map((t) => {
+        if (t.recurrence !== 'daily') return t;
+        if (t.dueDate === today) return t;
+        return { ...t, dueDate: today, isCompleted: false };
+      });
+  }
+
+  /**
+   * Re-points tasks at the current member roster: renames follow the member id, and tasks whose
+   * owner has left the circle are flagged as unassigned rather than silently keeping a stale name.
+   */
+  static reconcileCareCircleTasks(
+    tasks: CareCircleTask[],
+    members: CareCircleMember[]
+  ): CareCircleTask[] {
+    const byId = new Map(members.map((m) => [m.id, m]));
+    const byName = new Map(members.map((m) => [m.name.trim().toLowerCase(), m]));
+
+    return tasks.map((task) => {
+      // Backfill the link for tasks written before ids existed.
+      if (!task.assignedToId) {
+        const matched = byName.get((task.assignedToName || '').trim().toLowerCase());
+        if (matched) return { ...task, assignedToId: matched.id, assignedToName: matched.name };
+        return task.assignedToName === UNASSIGNED_CARE_TASK_OWNER
+          ? task
+          : { ...task, assignedToName: UNASSIGNED_CARE_TASK_OWNER };
+      }
+
+      const owner = byId.get(task.assignedToId);
+      if (!owner) {
+        return { ...task, assignedToId: undefined, assignedToName: UNASSIGNED_CARE_TASK_OWNER };
+      }
+      return owner.name === task.assignedToName ? task : { ...task, assignedToName: owner.name };
+    });
+  }
+
+  /**
+   * Mirrors the caregiver matrix's secondary members into the care circle: adds new people,
+   * follows renames via the linked member id, and removes people who have left the matrix.
+   * Previously this only ever appended, so a member deleted from the matrix stayed in the circle
+   * forever and a rename produced a duplicate person.
+   */
+  static reconcileCareCircleMembers(
+    existing: CareCircleMember[],
+    secondaryMembers: Array<{ id: string; name: string }>
+  ): CareCircleMember[] {
+    const colorList = ['bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-rose-600', 'bg-amber-600'];
+    const linkedIds = new Set(secondaryMembers.map((m) => matrixLinkedMemberId(m.id)));
+
+    // Keep everyone who was added directly to the circle; drop matrix-linked people who are gone.
+    const kept = existing.filter((m) => !m.id.startsWith(MATRIX_MEMBER_PREFIX) || linkedIds.has(m.id));
+    const byId = new Map(kept.map((m) => [m.id, m]));
+
+    const result = [...kept];
+    secondaryMembers.forEach((sec, index) => {
+      const linkedId = matrixLinkedMemberId(sec.id);
+      const name = (sec.name || '').trim() || `Family Helper ${index + 1}`;
+      const found = byId.get(linkedId);
+      if (found) {
+        if (found.name !== name) {
+          result[result.indexOf(found)] = { ...found, name };
+        }
+        return;
+      }
+      // Someone already in the circle under the same name — adopt them rather than duplicating.
+      const sameName = result.find(
+        (m) => !m.id.startsWith(MATRIX_MEMBER_PREFIX) && m.name.trim().toLowerCase() === name.toLowerCase()
+      );
+      if (sameName) return;
+
+      result.push({
+        id: linkedId,
+        name,
+        role: 'Family Member',
+        phone: '',
+        avatarColor: colorList[index % colorList.length],
+        isSelf: false
+      });
+    });
+
+    return result;
   }
 
   // --- 9. Caregiver Dyad Profiling & Care Gap Estimation ---

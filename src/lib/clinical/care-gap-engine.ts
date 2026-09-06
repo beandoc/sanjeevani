@@ -217,6 +217,12 @@ export interface CaregiverAttributes {
   careBlueprint?: ClinicalCareBlueprint;
   assessmentMetadata?: ClinicalAssessmentMetadata;
   notes?: string;
+  /**
+   * ISO timestamp stamped by the persistence layer on every write. Carried on the record so an
+   * editor can prove which version their edit was based on and a concurrent save can be detected
+   * rather than silently clobbering the other side.
+   */
+  updatedAt?: string;
 }
 
 export const CARE_GAP_MODEL_PARAMS = {
@@ -262,6 +268,33 @@ export interface PatientDependenceProfile {
   isBedBound: boolean;
   weightKg?: number;
   heightCm?: number;
+  renalFunctionEgfr?: number;
+  goalsOfCare?: {
+    whatMattersMost?: string;
+    escalationPreference?: 'full_escalation' | 'hospital_review_before_transfer' | 'comfort_focused' | 'not_documented';
+    surrogateName?: string;
+    surrogatePhone?: string;
+    documentedAt?: string;
+    clinicianReviewedAt?: string;
+  };
+  clinicalAssessments?: {
+    fourAt?: { score: number; assessedAt: string; source: 'caregiver_observation' | 'clinician_assisted' };
+    braden?: { score: number; assessedAt: string; source: 'caregiver_observation' | 'clinician_assisted' };
+    clinicalFrailtyScale?: { score: number; assessedAt: string; source: 'caregiver_observation' | 'clinician_assisted' };
+    painad?: { score: number; assessedAt: string; source: 'caregiver_observation' | 'clinician_assisted' };
+    gds15?: { score: number; assessedAt: string; source: 'self_report' | 'clinician_assisted' };
+    mnaSf?: { score: number; assessedAt: string; source: 'caregiver_observation' | 'clinician_assisted' };
+  };
+  skinIntegrity?: {
+    lastSkinCheckAt?: string;
+    wounds?: Array<{ location: string; stage: 'none' | '1' | '2' | '3' | '4' | 'unstageable' | 'deep_tissue'; lengthCm?: number; widthCm?: number; exudate?: 'none' | 'low' | 'moderate' | 'high'; clinicianReviewedAt?: string }>;
+  };
+  nutritionMonitoring?: {
+    dysphagiaRisk?: 'not_screened' | 'none_reported' | 'possible_risk' | 'clinician_confirmed';
+    intakePercentLast24h?: number;
+    baselineWeightKg?: number;
+    baselineWeightDate?: string;
+  };
   assistiveDevices?: AssistiveDeviceInventory;
   currentMedications?: Array<{ name: string; genericName?: string }>;
   assessmentMetadata?: ClinicalAssessmentMetadata;
@@ -434,6 +467,8 @@ export interface EngineVitalRecord {
   systolic?: string;
   diastolic?: string;
   spo2?: string;
+  temperatureC?: string;
+  respiratoryRate?: string;
   bloodSugar?: string;
   sleep: 'good' | 'average' | 'poor';
 }
@@ -924,7 +959,22 @@ export class CareGapEngine {
       ) / 10;
     }
 
-    // Distribute Supply across Blocks
+    // Distribute Supply across Blocks.
+    //
+    // Two invariants matter here and were previously violated:
+    //   1. The sum of what everybody contributes must equal what the model says was actually
+    //      absorbed. Capping each person against the *pooled* total instead of dividing it let
+    //      N members each claim the whole pool, inflating supply N-fold.
+    //   2. Nobody can supply more hours inside a block than the block is long. A member with a
+    //      12h commitment and one available window used to have all 12h credited to a 3h evening,
+    //      marking the block covered when it was not.
+    const BLOCK_LENGTH_HOURS: Record<DiurnalTimeBlock, number> = {
+      morning_rush: 3,
+      afternoon: 3,
+      evening: 3,
+      night_watch: 8
+    };
+
     const blockSupplies: Record<DiurnalTimeBlock, { hours: number; contributors: string[] }> = {
       morning_rush: { hours: 0, contributors: [] },
       afternoon: { hours: 0, contributors: [] },
@@ -932,69 +982,64 @@ export class CareGapEngine {
       night_watch: { hours: 0, contributors: [] }
     };
 
+    /** Credits one contributor to one block, never above that block's wall-clock length. */
+    const creditBlock = (block: DiurnalTimeBlock, hours: number, contributor: string) => {
+      const credited = Math.max(0, Math.min(hours, BLOCK_LENGTH_HOURS[block]));
+      if (credited <= 0) return;
+      blockSupplies[block].hours += credited;
+      blockSupplies[block].contributors.push(contributor);
+    };
+
+    /** Spreads one person's absorbed hours over the blocks they cover, capping each block. */
+    const spreadAcrossBlocks = (blocks: DiurnalTimeBlock[], totalHours: number, contributor: string) => {
+      if (blocks.length === 0 || totalHours <= 0) return;
+      const perBlock = totalHours / blocks.length;
+      blocks.forEach((b) => creditBlock(b, perBlock, contributor));
+    };
+
     // Formal Staff Supply
     if (formalSupportAbsorbedHours > 0) {
       if (safeCaregiver.rotationPolicy?.nightShiftArrangement === 'formal_night_nurse') {
         const nightPortion = Math.min(blockDemands.night_watch, formalSupportAbsorbedHours * 0.75);
         const remaining = formalSupportAbsorbedHours - nightPortion;
-        blockSupplies.night_watch.hours += nightPortion;
-        blockSupplies.night_watch.contributors.push('Formal Night Staff');
-        blockSupplies.evening.hours += remaining;
-        blockSupplies.evening.contributors.push('Formal Night Staff');
+        creditBlock('night_watch', nightPortion, 'Formal Night Staff');
+        creditBlock('evening', remaining, 'Formal Night Staff');
       } else if (selectedTypes.some((t) => t.includes('24h'))) {
-        const perBlock = formalSupportAbsorbedHours / 4;
-        (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]).forEach((b) => {
-          blockSupplies[b].hours += perBlock;
-          blockSupplies[b].contributors.push('Formal 24h Staff');
-        });
+        spreadAcrossBlocks(
+          ['morning_rush', 'afternoon', 'evening', 'night_watch'],
+          formalSupportAbsorbedHours,
+          'Formal 24h Staff'
+        );
       } else if (selectedTypes.some((t) => t.includes('12h') || t === 'multi_family_rotation')) {
-        const perBlock = formalSupportAbsorbedHours / 3;
-        (['morning_rush', 'afternoon', 'evening'] as DiurnalTimeBlock[]).forEach((b) => {
-          blockSupplies[b].hours += perBlock;
-          blockSupplies[b].contributors.push('Formal Day Staff');
-        });
+        spreadAcrossBlocks(['morning_rush', 'afternoon', 'evening'], formalSupportAbsorbedHours, 'Formal Day Staff');
       } else if (selectedTypes.some((t) => t === 'medical_assistant')) {
-        const perBlock = formalSupportAbsorbedHours / 2;
-        (['morning_rush', 'afternoon'] as DiurnalTimeBlock[]).forEach((b) => {
-          blockSupplies[b].hours += perBlock;
-          blockSupplies[b].contributors.push('Medical Assistant');
-        });
+        spreadAcrossBlocks(['morning_rush', 'afternoon'], formalSupportAbsorbedHours, 'Medical Assistant');
       }
     }
 
-    // Secondary Family Supply
-    for (const member of secondaryMembers) {
-      const mHours = Math.max(0, member.hoursPerDay || 0);
-      if (mHours > 0) {
+    // Secondary Family Supply — each member's share of the pooled absorbed hours is proportional
+    // to what they committed, so the block totals reconcile with familySupportAbsorbedHours.
+    if (rawFamilyHours > 0 && familySupportAbsorbedHours > 0 && secondaryMembers.length > 0) {
+      const absorbedShare = Math.min(1, familySupportAbsorbedHours / rawFamilyHours);
+      for (const member of secondaryMembers) {
+        const mHours = Math.max(0, member.hoursPerDay || 0);
+        if (mHours <= 0) continue;
         const blocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
           ? member.availableTimeBlocks
           : (['morning_rush', 'evening'] as DiurnalTimeBlock[]);
-        const perBlock = Math.min(mHours, familySupportAbsorbedHours) / blocks.length;
-        blocks.forEach((b) => {
-          blockSupplies[b].hours += perBlock;
-          blockSupplies[b].contributors.push(`${member.name || member.relationship} (${mHours}h)`);
-        });
+        spreadAcrossBlocks(blocks, mHours * absorbedShare, `${member.name || member.relationship} (${mHours}h)`);
       }
     }
     if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0 && familySupportAbsorbedHours > 0) {
-      const perBlock = familySupportAbsorbedHours / 2;
-      blockSupplies.morning_rush.hours += perBlock;
-      blockSupplies.morning_rush.contributors.push('Family Network');
-      blockSupplies.evening.hours += perBlock;
-      blockSupplies.evening.contributors.push('Family Network');
+      spreadAcrossBlocks(['morning_rush', 'evening'], familySupportAbsorbedHours, 'Family Network');
     }
 
     // Primary Caregiver Safe Capacity Supply
     if (caregiverSafeCapacityHours > 0) {
-      let primaryBlocks: DiurnalTimeBlock[] = ['morning_rush', 'afternoon', 'evening', 'night_watch'];
-      if (safeCaregiver.employment === 'full_time') {
-        primaryBlocks = ['morning_rush', 'evening', 'night_watch'];
-      }
-      const primaryPerBlock = caregiverSafeCapacityHours / primaryBlocks.length;
-      primaryBlocks.forEach((b) => {
-        blockSupplies[b].hours += primaryPerBlock;
-        blockSupplies[b].contributors.push('Primary Caregiver');
-      });
+      const primaryBlocks: DiurnalTimeBlock[] = safeCaregiver.employment === 'full_time'
+        ? ['morning_rush', 'evening', 'night_watch']
+        : ['morning_rush', 'afternoon', 'evening', 'night_watch'];
+      spreadAcrossBlocks(primaryBlocks, caregiverSafeCapacityHours, 'Primary Caregiver');
     }
 
     // Calculate Per-Block Gaps: gap_b = max(0, demand_b - supply_b)
