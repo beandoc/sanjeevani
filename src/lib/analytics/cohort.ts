@@ -21,6 +21,7 @@ import {
   getAppointmentsFor,
   getDailyCareLogsFor
 } from '@/lib/firebase/clinical-sync';
+import { HealthRepository } from '@/lib/db/health-repository';
 import { computeTrajectory, type RiskBand } from './trajectory';
 import { isReassessmentDue, type ZbiTier } from '@/lib/zarit-scale';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
@@ -203,94 +204,138 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
   }
 ];
 
+let cachedCohortRows: CohortRow[] | null = null;
+let cacheExpiry = 0;
+let inFlightCohortPromise: Promise<CohortRow[]> | null = null;
+
+export function invalidateCohortCache(): void {
+  cachedCohortRows = null;
+  cacheExpiry = 0;
+  inFlightCohortPromise = null;
+}
+
 /**
  * Every active patient on the signed-in clinician's roster, with trajectory
  * risk already computed, sorted worst-first. Falls back to a fixed demo
  * cohort when there are zero real grants AND zero pre-registered invites.
+ * Includes in-flight deduplication and 15s short-term memory caching to
+ * prevent network flood storms.
  */
-export async function loadCohortRoster(): Promise<CohortRow[]> {
+export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[]> {
+  const now = Date.now();
+  if (!forceRefresh && cachedCohortRows && now < cacheExpiry) {
+    return cachedCohortRows;
+  }
+  if (!forceRefresh && inFlightCohortPromise) {
+    return inFlightCohortPromise;
+  }
+
+  const archived = new Set(HealthRepository.getArchivedDyads());
+  const isNotArchived = (uid: string) =>
+    !archived.has(uid) &&
+    !archived.has(uid.replace('dyad_', '')) &&
+    !archived.has(`dyad_${uid}`);
+
+  const fetchPromise = (async () => {
+    try {
+      const [rawRoster, rawInvites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
+      const roster = rawRoster.filter((r) => isNotArchived(r.patientUid));
+      const invites = rawInvites.filter(
+        (inv) => isNotArchived(inv.inviteCode) && (!inv.dyadUid || isNotArchived(inv.dyadUid))
+      );
+
+      if (roster.length === 0 && invites.length === 0) {
+        return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));
+      }
+
+      const inviteMap = new Map<string, (typeof invites)[number]>();
+      for (const inv of invites) {
+        if (inv.dyadUid) inviteMap.set(inv.dyadUid, inv);
+        inviteMap.set(`dyad_${inv.inviteCode}`, inv);
+      }
+
+      const rows = await Promise.all(
+        roster.map(async ({ patientUid }) => {
+          try {
+            const matchedInvite = inviteMap.get(patientUid);
+            const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments, dailyLogs] = await Promise.all([
+              getZaritAssessmentsFor(patientUid),
+              getFunctionScoresFor(patientUid),
+              getPatientDisplayName(patientUid),
+              getCaregiverAttributesFor(patientUid).catch(() => null),
+              getPatientProfileFor(patientUid).catch(() => null),
+              getVitalsFor(patientUid).catch(() => []),
+              getAppointmentsFor(patientUid).catch(() => []),
+              getDailyCareLogsFor(patientUid).catch(() => [])
+            ]);
+            const trajectory = computeTrajectory(assessments, functionScores);
+            const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
+            const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
+            const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
+            const latestVital = vitals?.[0];
+            const dailyLogSignals = analyzeDailyCareLogs(dailyLogs);
+            const respitePrescription = prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile);
+            return {
+              patientUid,
+              displayName,
+              riskBand: trajectory.riskBand,
+              burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
+              latestBurdenPct: latest?.normalizedPercentage ?? null,
+              hasRedFlag: latest?.hasRedFlag ?? false,
+              latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
+              latestTier: latest?.tier ?? null,
+              latestCompletedAt: latest?.date ?? null,
+              hasQocWarning,
+              conditions: patientProfile?.primaryConditions || [],
+              caregiverName: caregiver?.name || matchedInvite?.caregiverName || null,
+              caregiverKinship: caregiver?.kinship || null,
+              caregiverPhone: matchedInvite?.caregiverPhone || null,
+              formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
+              formalSupportType: caregiver?.formalSupport?.type || 'None',
+              isBedBound: patientProfile?.isBedBound || false,
+              fallHistory: patientProfile?.fallHistoryLast6Months || 0,
+              lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
+              lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
+              latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap.qualityOfCareWarnings[0] : null),
+              dailyLogCount: dailyLogs.length,
+              lastDailyLogDate: dailyLogs[0]?.date || null,
+              dailyLogSignals,
+              respitePrescription
+            } satisfies CohortRow;
+          } catch {
+            return {
+              patientUid,
+              displayName: `Patient ${patientUid.slice(0, 8)}`,
+              riskBand: 'insufficient-data',
+              burdenTrendPerMonth: null,
+              latestBurdenPct: null,
+              hasRedFlag: false,
+              latestAssessmentAgeDays: null,
+              latestTier: null,
+              latestCompletedAt: null,
+              hasQocWarning: false
+            } satisfies CohortRow;
+          }
+        })
+      );
+
+      const validRows = rows.filter((r) => isNotArchived(r.patientUid));
+      validRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+      return validRows;
+    } catch (err) {
+      console.warn('Could not load cohort roster, falling back to demo cohort:', err);
+      return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));
+    }
+  })();
+
+  inFlightCohortPromise = fetchPromise;
   try {
-    const [roster, invites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
-    if (roster.length === 0 && invites.length === 0) {
-      return DEMO_COHORT_ROWS;
-    }
-
-    const inviteMap = new Map<string, (typeof invites)[number]>();
-    for (const inv of invites) {
-      if (inv.dyadUid) inviteMap.set(inv.dyadUid, inv);
-      inviteMap.set(`dyad_${inv.inviteCode}`, inv);
-    }
-
-    const rows = await Promise.all(
-      roster.map(async ({ patientUid }) => {
-        try {
-          const matchedInvite = inviteMap.get(patientUid);
-          const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments, dailyLogs] = await Promise.all([
-            getZaritAssessmentsFor(patientUid),
-            getFunctionScoresFor(patientUid),
-            getPatientDisplayName(patientUid),
-            getCaregiverAttributesFor(patientUid).catch(() => null),
-            getPatientProfileFor(patientUid).catch(() => null),
-            getVitalsFor(patientUid).catch(() => []),
-            getAppointmentsFor(patientUid).catch(() => []),
-            getDailyCareLogsFor(patientUid).catch(() => [])
-          ]);
-          const trajectory = computeTrajectory(assessments, functionScores);
-          const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
-          const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
-          const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
-          const latestVital = vitals?.[0];
-          const dailyLogSignals = analyzeDailyCareLogs(dailyLogs);
-          const respitePrescription = prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile);
-          return {
-            patientUid,
-            displayName,
-            riskBand: trajectory.riskBand,
-            burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
-            latestBurdenPct: latest?.normalizedPercentage ?? null,
-            hasRedFlag: latest?.hasRedFlag ?? false,
-            latestAssessmentAgeDays: trajectory.latestAssessmentAgeDays,
-            latestTier: latest?.tier ?? null,
-            latestCompletedAt: latest?.date ?? null,
-            hasQocWarning,
-            conditions: patientProfile?.primaryConditions || [],
-            caregiverName: caregiver?.name || matchedInvite?.caregiverName || null,
-            caregiverKinship: caregiver?.kinship || null,
-            caregiverPhone: matchedInvite?.caregiverPhone || null,
-            formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
-            formalSupportType: caregiver?.formalSupport?.type || 'None',
-            isBedBound: patientProfile?.isBedBound || false,
-            fallHistory: patientProfile?.fallHistoryLast6Months || 0,
-            lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
-            lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
-            latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap.qualityOfCareWarnings[0] : null),
-            dailyLogCount: dailyLogs.length,
-            lastDailyLogDate: dailyLogs[0]?.date || null,
-            dailyLogSignals,
-            respitePrescription
-          } satisfies CohortRow;
-        } catch {
-          return {
-            patientUid,
-            displayName: `Patient ${patientUid.slice(0, 8)}`,
-            riskBand: 'insufficient-data',
-            burdenTrendPerMonth: null,
-            latestBurdenPct: null,
-            hasRedFlag: false,
-            latestAssessmentAgeDays: null,
-            latestTier: null,
-            latestCompletedAt: null,
-            hasQocWarning: false
-          } satisfies CohortRow;
-        }
-      })
-    );
-
-    rows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
-    return rows;
-  } catch (err) {
-    console.warn('Could not load cohort roster, falling back to demo cohort:', err);
-    return DEMO_COHORT_ROWS;
+    const result = await fetchPromise;
+    cachedCohortRows = result;
+    cacheExpiry = Date.now() + 15000; // 15 seconds in-memory cache
+    return result;
+  } finally {
+    inFlightCohortPromise = null;
   }
 }
 

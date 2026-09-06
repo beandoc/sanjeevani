@@ -19,4 +19,10 @@ function adminApp() {
   return initializeApp(projectId ? { projectId } : undefined);
 }
 
+export function hasAdminCredentials(): boolean {
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  return Boolean(projectId && clientEmail && privateKey);
+}
+
 export const adminAuth = () => getAuth(adminApp());

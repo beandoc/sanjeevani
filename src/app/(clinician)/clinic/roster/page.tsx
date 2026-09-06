@@ -20,12 +20,29 @@ import {
   Calendar,
   ChevronRight,
   Activity,
-  Database
+  Database,
+  UserMinus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { loadCohortRoster, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
-import { listMyDyadInvites, seedRealDyadsToFirestore, type DyadInvite } from '@/lib/firebase/clinical-sync';
+import {
+  listMyDyadInvites,
+  seedRealDyadsToFirestore,
+  dischargeOrDeletePatientDyad,
+  type DyadInvite
+} from '@/lib/firebase/clinical-sync';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/context/role-context';

@@ -39,6 +39,91 @@ export function getRegisteredPatient(patientUid: string): RegisteredPatientRecor
   return list.find((p) => p.patientUid === patientUid || p.inviteCode === patientUid.replace('dyad_', '')) || null;
 }
 
+export function removeRegisteredPatient(patientUid: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const existing = getRegisteredPatients();
+    const updated = existing.filter(
+      (p) => p.patientUid !== patientUid && p.inviteCode !== patientUid.replace('dyad_', '')
+    );
+    localStorage.setItem(STORAGE_KEYS.CLINICIAN_PATIENTS, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Error removing clinician patient:', e);
+  }
+}
+
+export function getArchivedDyads(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ARCHIVED_DYADS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error reading archived dyads:', e);
+    return [];
+  }
+}
+
+export function archiveDyad(patientUid: string): void {
+  if (typeof window === 'undefined' || !patientUid) return;
+  try {
+    const existing = getArchivedDyads();
+    const cleanId = patientUid.trim();
+    const toAdd = new Set<string>(existing);
+    toAdd.add(cleanId);
+    if (cleanId.startsWith('dyad_')) {
+      toAdd.add(cleanId.replace('dyad_', ''));
+    } else {
+      toAdd.add(`dyad_${cleanId}`);
+    }
+    localStorage.setItem(STORAGE_KEYS.ARCHIVED_DYADS, JSON.stringify(Array.from(toAdd)));
+
+    // Clean up from registered patients
+    removeRegisteredPatient(cleanId);
+
+    // Clean up invites
+    const rawInvites = localStorage.getItem(STORAGE_KEYS.DYAD_INVITES);
+    if (rawInvites) {
+      try {
+        const invites = JSON.parse(rawInvites);
+        if (Array.isArray(invites)) {
+          const filteredInvites = invites.filter(
+            (inv: any) =>
+              inv.dyadUid !== cleanId &&
+              inv.inviteCode !== cleanId &&
+              inv.inviteCode !== cleanId.replace('dyad_', '')
+          );
+          localStorage.setItem(STORAGE_KEYS.DYAD_INVITES, JSON.stringify(filteredInvites));
+        }
+      } catch {}
+    }
+
+    // Clean up per-dyad local stores
+    localStorage.removeItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${cleanId}`);
+    localStorage.removeItem(`${STORAGE_KEYS.CAREGIVER_ATTRIBUTES}_${cleanId}`);
+    localStorage.removeItem(`${STORAGE_KEYS.ZARIT}_${cleanId}`);
+    localStorage.removeItem(`${STORAGE_KEYS.VITALS}_${cleanId}`);
+    localStorage.removeItem(`${STORAGE_KEYS.MEDICATIONS}_${cleanId}`);
+    localStorage.removeItem(`${STORAGE_KEYS.DAILY_CARE_LOGS}_${cleanId}`);
+  } catch (e) {
+    console.error(`Error archiving dyad ${patientUid}:`, e);
+  }
+}
+
+export function unarchiveDyad(patientUid: string): void {
+  if (typeof window === 'undefined' || !patientUid) return;
+  try {
+    const existing = getArchivedDyads();
+    const updated = existing.filter(
+      (id) => id !== patientUid && id !== `dyad_${patientUid}` && id !== patientUid.replace('dyad_', '')
+    );
+    localStorage.setItem(STORAGE_KEYS.ARCHIVED_DYADS, JSON.stringify(updated));
+  } catch (e) {
+    console.error(`Error unarchiving dyad ${patientUid}:`, e);
+  }
+}
+
 export function savePatientProfileFor(patientUid: string, profile: PatientDependenceProfile): void {
   if (typeof window === 'undefined') return;
   try {

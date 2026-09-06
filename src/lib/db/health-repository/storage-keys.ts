@@ -20,5 +20,6 @@ export const STORAGE_KEYS = {
   PATIENT_PROFILE: 'sanjeevani_patient_dependence_profile',
   CARE_GAP_EVALUATION: 'sanjeevani_care_gap_evaluation',
   CLINICIAN_PATIENTS: 'sanjeevani_clinician_patients',
-  DYAD_INVITES: 'sanjeevani_dyad_invites'
+  DYAD_INVITES: 'sanjeevani_dyad_invites',
+  ARCHIVED_DYADS: 'sanjeevani_archived_dyads'
 };

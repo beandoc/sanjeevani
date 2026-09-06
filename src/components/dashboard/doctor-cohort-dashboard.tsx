@@ -103,8 +103,13 @@ export function DoctorCohortDashboard() {
   }, []);
 
   useEffect(() => {
+    let initialFired = false;
     const unsubscribe = subscribeToReassessmentAlerts((nextAlerts) => {
       setAlerts(nextAlerts);
+      if (!initialFired) {
+        initialFired = true;
+        return;
+      }
       void load();
     });
     return () => unsubscribe();

@@ -108,7 +108,9 @@ export default function LoginPage() {
    * returning user's role is authoritative in Firestore, so this can't be
    * fooled by whichever tab they happened to leave selected. */
   const completeSignIn = async (user: import('firebase/auth').User, fallbackRole: Role) => {
+    // 1. Establish session without blocking on long network hangs
     await createSession(user);
+
     const uid = user.uid;
     let actualRole = fallbackRole;
     try {
@@ -118,11 +120,8 @@ export default function LoginPage() {
       // Fallback safely to selected persona
     }
 
-    try {
-      await provisionDemoPersonaAccess(user.email);
-    } catch (e) {
-      // Best-effort demo linkage; never block a real sign-in on it.
-    }
+    // Provision demo persona in background so network latency never blocks login
+    void provisionDemoPersonaAccess(user.email).catch(() => {});
 
     setRole(actualRole);
     if (typeof window !== 'undefined') {
@@ -141,7 +140,9 @@ export default function LoginPage() {
       description: `Welcome to Kutumbh (${roleName}).`
     });
 
-    router.push('/dashboard');
+    const nextUrl = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
+    const destination = nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//') ? nextUrl : '/dashboard';
+    router.push(destination);
   };
 
   const handleLogin = async (e: React.FormEvent) => {

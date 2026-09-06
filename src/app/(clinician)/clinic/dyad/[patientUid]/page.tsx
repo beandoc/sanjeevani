@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,17 @@ import {
   DialogFooter,
   DialogTrigger
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import {
   ArrowLeft,
   User,
@@ -46,7 +57,9 @@ import {
   Ambulance,
   FileCheck2,
   Printer,
-  ExternalLink
+  ExternalLink,
+  UserMinus,
+  Trash2
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -63,9 +76,10 @@ import {
   getPatientProfileFor,
   savePatientProfileFor,
   getAppointmentsFor,
-  subscribeToDyadClinicalData
+  subscribeToDyadClinicalData,
+  dischargeOrDeletePatientDyad
 } from '@/lib/firebase/clinical-sync';
-import type { MedicationItem, VitalRecord } from '@/lib/db/health-repository';
+import { HealthRepository, type MedicationItem, type VitalRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory } from '@/lib/clinical/care-gap-engine';
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
@@ -138,6 +152,7 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
 type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'dailyLogs' | 'modules' | 'emergency';
 
 export default function DyadDetailPage({ params }: { params?: Promise<{ patientUid: string }> }) {
+  const router = useRouter();
   const routeParams = useParams();
   const rawUid = (routeParams?.patientUid as string | undefined) ?? '';
   const patientUid = (Array.isArray(rawUid) ? rawUid[0] : rawUid) || '';
@@ -146,6 +161,8 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
   const clinicianLabel = user?.displayName || 'Your Doctor';
 
   const [isMounted, setIsMounted] = useState(false);
+  const [isDischarging, setIsDischarging] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
   const [activeTab, setActiveTab] = useState<DyadTab>('matrix');
   const [displayName, setDisplayName] = useState<string>('');
   const [trajectory, setTrajectory] = useState<TrajectoryResult | null>(null);
@@ -176,7 +193,13 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    if (typeof window !== 'undefined' && patientUid) {
+      const archived = HealthRepository.getArchivedDyads();
+      if (archived.includes(patientUid) || archived.includes(patientUid.replace('dyad_', ''))) {
+        setIsArchived(true);
+      }
+    }
+  }, [patientUid]);
 
   const load = async () => {
     if (!patientUid) return;
@@ -636,6 +659,37 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
   const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
   const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${(patientUid || '').replace('demo-', '').toUpperCase()}`;
+
+  const handleDischargeDyad = async () => {
+    setIsDischarging(true);
+    try {
+      await dischargeOrDeletePatientDyad(patientUid);
+      setIsArchived(true);
+      toast({
+        title: 'Patient Dyad Discharged',
+        description: `${cleanPatientName} has been discharged and removed from active clinical surveillance.`
+      });
+      router.push('/clinic/roster');
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Discharge Failed',
+        description: err instanceof Error ? err.message : 'Could not discharge dyad.'
+      });
+    } finally {
+      setIsDischarging(false);
+    }
+  };
+
+  const handleRestoreDyad = () => {
+    HealthRepository.unarchiveDyad(patientUid);
+    setIsArchived(false);
+    toast({
+      title: 'Dyad Restored',
+      description: `${cleanPatientName} has been restored to active clinical cohort surveillance.`
+    });
+  };
+
   // PatientDependenceProfile does not (yet) declare `gender` in its TS type, but the
   // underlying record may carry one — read defensively rather than hardcoding a value.
   const rawPatientGender = (patientProfile as (PatientDependenceProfile & { gender?: 'female' | 'male' | 'other' }) | null)?.gender;
@@ -670,10 +724,17 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Active Care Surveillance
-            </span>
+            {isArchived ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200/80 dark:border-rose-800/80 shadow-2xs">
+                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                Discharged / Inactive Dyad
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Active Care Surveillance
+              </span>
+            )}
           </div>
         </div>
 
@@ -791,10 +852,83 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
                   <span className="hidden sm:inline">Print Brief</span>
                 </Button>
               </Link>
+
+              {isArchived ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRestoreDyad}
+                  className="h-9 text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 bg-background/80"
+                  title="Restore this patient dyad to active clinical surveillance"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Restore Dyad</span>
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 text-xs font-semibold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 bg-background/80"
+                      title="Discharge or remove this patient dyad from active clinical surveillance"
+                    >
+                      <UserMinus className="w-3.5 h-3.5 text-rose-500" />
+                      <span className="hidden sm:inline">Discharge Dyad</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="max-w-md">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                        <AlertTriangle className="w-5 h-5 text-rose-500" />
+                        Discharge Patient Dyad
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-sm text-foreground/85 space-y-2 pt-1">
+                        <p>
+                          Are you sure you want to discharge or remove <strong>{cleanPatientName}</strong> ({patientUid}) from active clinical surveillance?
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          This action revokes active surveillance, cleans up clinician grants and pending invite tokens in Firestore, and removes this dyad from your cohort roster.
+                        </p>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDischargeDyad}
+                        disabled={isDischarging}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                      >
+                        {isDischarging ? 'Discharging...' : 'Yes, Discharge Dyad'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Discharged Dyad Advisory Banner */}
+      {isArchived && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-950/20 p-3 sm:px-4 text-xs shadow-2xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span>
+              <strong>Discharged Dyad:</strong> This patient dyad was discharged from active clinical surveillance and is excluded from your cohort roster.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRestoreDyad}
+            className="h-7 text-xs font-semibold shrink-0 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+          >
+            Re-admit / Restore Dyad
+          </Button>
+        </div>
+      )}
 
       {/* Quality of Care Warning Banner / Compact CDSS Advisory Bar */}
       {careGapResult.qualityOfCareWarnings.length > 0 && (() => {

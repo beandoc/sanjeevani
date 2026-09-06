@@ -7,6 +7,7 @@ import {
   collection,
   doc,
   setDoc,
+  deleteDoc,
   getDocs,
   getDoc,
   query,
@@ -293,5 +294,42 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
     }
   }
 
-  return entries;
+  const archived = new Set(HealthRepository.getArchivedDyads());
+  return entries.filter((e) => !archived.has(e.patientUid) && !archived.has(e.patientUid.replace('dyad_', '')));
+}
+
+/**
+ * Doctor discharges or permanently deletes a patient dyad from their roster.
+ * Revokes active care surveillance, deletes or revokes the clinician grant in Firestore,
+ * removes any pending invite, and archives the local dyad data.
+ */
+export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<void> {
+  const uid = currentUid();
+  const cleanId = patientUid.trim();
+
+  // 1. Durably archive in HealthRepository and clear local storage keys
+  HealthRepository.archiveDyad(cleanId);
+
+  // 2. Cloud cleanup if Firestore is active
+  if (db) {
+    try {
+      if (uid) {
+        // Revoke grant doc
+        const grantRef = doc(db, 'users', cleanId, 'clinicianGrants', uid);
+        await setDoc(grantRef, { revokedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+        await deleteDoc(grantRef).catch(() => {});
+      }
+
+      // If it's an invite or code, clean up dyadInvites
+      const code = cleanId.replace('dyad_', '');
+      if (code) {
+        await deleteDoc(doc(db, 'dyadInvites', code)).catch(() => {});
+        if (uid) {
+          await deleteDoc(doc(db, 'users', uid, 'dyadInvites', code)).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn(`Discharge dyad cloud notice for ${cleanId}:`, err);
+    }
+  }
 }
