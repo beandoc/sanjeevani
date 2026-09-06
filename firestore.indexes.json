@@ -9,13 +9,6 @@
       ]
     },
     {
-      "collectionGroup": "clinicianGrants",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "assignedEmail", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "dyadInvites",
       "queryScope": "COLLECTION",
       "fields": [
