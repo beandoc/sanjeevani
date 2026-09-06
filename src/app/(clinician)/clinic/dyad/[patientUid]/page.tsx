@@ -698,7 +698,7 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
                     {dyadTag}
                   </Badge>
                   <Badge variant="secondary" className="text-xs font-normal">
-                    {patientProfile?.age || 78} Yrs • {patientGenderLabel}
+                    {patientProfile?.age || 80} Yrs{rawPatientGender ? ` • ${patientGenderLabel}` : ''}
                   </Badge>
                 </div>
 
@@ -783,50 +783,91 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
       </div>
 
       {/* Quality of Care Warning Banner / Compact CDSS Advisory Bar */}
-      {careGapResult.qualityOfCareWarnings.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-2.5 sm:px-4 text-xs shadow-2xs">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span className="font-bold text-amber-800 dark:text-amber-300 text-[11px] uppercase tracking-wider shrink-0">
-                CDSS Advisory ({careGapResult.qualityOfCareWarnings.length}):
-              </span>
-              <p className="text-foreground/80 truncate text-xs">
-                {careGapResult.qualityOfCareWarnings[0].replace(/^Decision-support limitation:\s*/i, '')}
-                {careGapResult.qualityOfCareWarnings.length > 1 && (
-                  <span className="text-muted-foreground ml-1">
-                    (+{careGapResult.qualityOfCareWarnings.length - 1} more items)
-                  </span>
-                )}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCdssDetails(!showCdssDetails)}
-              className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0 pl-2 cursor-pointer"
-            >
-              {showCdssDetails ? 'Collapse' : 'Show Details'}
-            </button>
-          </div>
+      {careGapResult.qualityOfCareWarnings.length > 0 && (() => {
+        const clinicalAlerts = careGapResult.qualityOfCareWarnings.filter(
+          (w) => !/^Decision-support limitation:\s*/i.test(w)
+        );
+        const dataLimitations = careGapResult.qualityOfCareWarnings.filter(
+          (w) => /^Decision-support limitation:\s*/i.test(w)
+        );
+        const primaryWarning = clinicalAlerts[0] || dataLimitations[0] || '';
+        const cleanPrimary = primaryWarning.replace(/^Decision-support limitation:\s*/i, '');
 
-          {showCdssDetails && (
-            <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 space-y-1.5 animate-in fade-in duration-200">
-              {careGapResult.qualityOfCareWarnings.map((warning, index) => {
-                const cleanWarning = warning.replace(/^Decision-support limitation:\s*/i, '');
-                return (
-                  <div
-                    key={index}
-                    className="p-2 rounded-xl border border-amber-200/70 dark:border-amber-800/60 bg-white/90 dark:bg-zinc-900/90 flex items-start gap-2 text-xs shadow-2xs"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                    <p className="text-foreground/90 leading-relaxed">{cleanWarning}</p>
-                  </div>
-                );
-              })}
+        return (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-2.5 sm:px-4 text-xs shadow-2xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="font-bold text-amber-800 dark:text-amber-300 text-[11px] uppercase tracking-wider shrink-0">
+                  {clinicalAlerts.length > 0
+                    ? `CDSS Clinical Alerts (${clinicalAlerts.length}):`
+                    : `Data Documentation Notes (${dataLimitations.length}):`}
+                </span>
+                <p className="text-foreground/80 truncate text-xs">
+                  {cleanPrimary}
+                  {careGapResult.qualityOfCareWarnings.length > 1 && (
+                    <span className="text-muted-foreground ml-1">
+                      (+{careGapResult.qualityOfCareWarnings.length - 1} more items)
+                    </span>
+                  )}
+                </p>
+                {dataLimitations.length > 0 && clinicalAlerts.length > 0 && (
+                  <Badge variant="outline" className="text-[9px] font-medium text-muted-foreground hidden md:inline-flex shrink-0">
+                    {dataLimitations.length} intake items pending
+                  </Badge>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCdssDetails(!showCdssDetails)}
+                className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0 pl-2 cursor-pointer"
+              >
+                {showCdssDetails ? 'Collapse' : 'Show Details'}
+              </button>
             </div>
-          )}
-        </div>
-      )}
+
+            {showCdssDetails && (
+              <div className="mt-2.5 pt-2.5 border-t border-amber-500/20 space-y-2 animate-in fade-in duration-200">
+                {clinicalAlerts.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
+                      Active Clinical Precautions ({clinicalAlerts.length})
+                    </p>
+                    {clinicalAlerts.map((warning, index) => (
+                      <div
+                        key={`clin-${index}`}
+                        className="p-2 rounded-xl border border-red-200/70 dark:border-red-800/60 bg-red-50/50 dark:bg-red-950/20 flex items-start gap-2 text-xs shadow-2xs"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0 mt-1.5" />
+                        <p className="text-foreground/90 leading-relaxed font-medium">{warning}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {dataLimitations.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Decision-Support Documentation Gaps ({dataLimitations.length})
+                    </p>
+                    {dataLimitations.map((warning, index) => (
+                      <div
+                        key={`data-${index}`}
+                        className="p-2 rounded-xl border border-amber-200/50 dark:border-amber-900/40 bg-muted/40 flex items-start gap-2 text-xs shadow-2xs"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5" />
+                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                          {warning.replace(/^Decision-support limitation:\s*/i, '')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* HORIZONTAL WORKSPACE NAVIGATION TABS */}
       <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-touch border-b border-border/60">
@@ -859,8 +900,8 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
         >
           <TrendingUp className="w-4 h-4" />
           <span>Trajectory & Scissors Chart</span>
-          <Badge variant="outline" className="text-[9px] ml-1">
-            {trajectory.riskBand}
+          <Badge variant="outline" className="text-[9px] ml-1 capitalize">
+            {trajectory.riskBand.replace(/-/g, ' ')}
           </Badge>
         </button>
 
@@ -1322,8 +1363,10 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
                   <div className="p-4 rounded-2xl bg-card border border-border/70 space-y-1">
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Emergency Driver</span>
                     <p className="text-base font-bold text-foreground">
-                      {caregiver?.emergencyLogistics?.designatedEmergencyDriver || (
-                        <span className="text-muted-foreground italic font-normal text-sm">Not configured</span>
+                      {caregiver?.emergencyLogistics?.designatedEmergencyDriver?.trim() || (
+                        <span className="text-muted-foreground font-normal text-sm">
+                          {caregiver?.name ? `${caregiver.name} (Primary Caregiver)` : 'Not configured'}
+                        </span>
                       )}
                     </p>
                     <p className="text-[11px] text-muted-foreground">Designated key holder for rapid triage transit</p>

@@ -225,7 +225,7 @@ export function CaregiverSupportMatrix({
     caregiver?.rotationPolicy?.primaryCaregiverRespiteDaysPerMonth || 4
   );
   const [weekendLeader, setWeekendLeader] = useState(
-    caregiver?.rotationPolicy?.weekendShiftLeader || 'Son Rahul'
+    caregiver?.rotationPolicy?.weekendShiftLeader || caregiver?.name || 'Primary Caregiver'
   );
   const [nightArrangement, setNightArrangement] = useState<MonthlyRotationPolicy['nightShiftArrangement']>(
     caregiver?.rotationPolicy?.nightShiftArrangement || 'family_rotation'
@@ -245,7 +245,7 @@ export function CaregiverSupportMatrix({
     caregiver?.emergencyLogistics?.vehicleDetails || 'Sedan (Parked at Home)'
   );
   const [emergencyDriver, setEmergencyDriver] = useState(
-    caregiver?.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'
+    caregiver?.emergencyLogistics?.designatedEmergencyDriver || caregiver?.name || ''
   );
   const [preferredHospital, setPreferredHospital] = useState(
     caregiver?.emergencyLogistics?.preferredHospitalName || 'AIIMS Geriatric Emergency Wing'
@@ -1057,7 +1057,7 @@ export function CaregiverSupportMatrix({
                                   <Input
                                     value={member.name}
                                     onChange={(e) => handleUpdateSecondaryMember(member.id, { name: e.target.value })}
-                                    placeholder="Name (e.g. Son Rahul)"
+                                    placeholder="Name (e.g. Relative or Helper)"
                                     className="h-7 text-xs font-semibold"
                                   />
                                 </div>
@@ -1371,7 +1371,7 @@ export function CaregiverSupportMatrix({
                       <Input
                         value={weekendLeader}
                         onChange={(e) => setWeekendLeader(e.target.value)}
-                        placeholder="e.g. Son Rahul"
+                        placeholder="e.g. Primary Caregiver or Relative"
                         className="h-8 text-xs"
                       />
                     </div>
@@ -1441,7 +1441,7 @@ export function CaregiverSupportMatrix({
                       <Input
                         value={emergencyDriver}
                         onChange={(e) => setEmergencyDriver(e.target.value)}
-                        placeholder="e.g. Son Rahul (Key holder)"
+                        placeholder="e.g. Caregiver or Key Holder"
                         className="h-8 text-xs"
                       />
                     </div>
@@ -1552,22 +1552,26 @@ export function CaregiverSupportMatrix({
             <div>
               <p className="text-base font-bold text-foreground">
                 {(currentCaregiver.secondaryMembers?.length ?? 0) > 0
-                  ? `${currentCaregiver.secondaryMembers?.length} Helpers Pooled`
+                  ? `${currentCaregiver.secondaryMembers?.length} ${currentCaregiver.secondaryMembers?.length === 1 ? 'Helper' : 'Helpers'} Pooled`
                   : currentCaregiver.otherFamilyMembersCount
-                  ? `${currentCaregiver.otherFamilyMembersCount} Helpers`
+                  ? `${currentCaregiver.otherFamilyMembersCount} ${currentCaregiver.otherFamilyMembersCount === 1 ? 'Family Helper' : 'Family Helpers'}`
                   : 'Solo Caregiver (0 Helpers)'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Estimated relief: <strong className="text-foreground">{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong>
               </p>
             </div>
-            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/50">
               {currentCaregiver.secondaryMembers && currentCaregiver.secondaryMembers.length > 0 ? (
                 currentCaregiver.secondaryMembers.map((m) => (
                   <Badge key={m.id} variant="secondary" className="text-[10px] font-semibold">
                     {m.name || m.relationship}: {m.hoursPerDay}h
                   </Badge>
                 ))
+              ) : currentCaregiver.otherFamilyMembersCount && currentCaregiver.otherFamilyMembersCount > 0 ? (
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {currentCaregiver.otherFamilyMembersCount} informal {currentCaregiver.otherFamilyMembersCount === 1 ? 'member' : 'members'} (shift unallocated)
+                </span>
               ) : (
                 <span className="text-[11px] text-amber-600 font-semibold">No helpers pooled</span>
               )}
@@ -1588,7 +1592,14 @@ export function CaregiverSupportMatrix({
                   : 'Standard Bed'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Manual-handling relief estimate: <strong className="text-indigo-600 dark:text-indigo-400">-{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}%</strong>
+                Manual-handling relief estimate:{' '}
+                {currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent > 0 ? (
+                  <strong className="text-indigo-600 dark:text-indigo-400">
+                    -{currentEval.assistiveDeviceStatus.ergonomicInjuryDiscountPercent}%
+                  </strong>
+                ) : (
+                  <span className="text-muted-foreground font-medium">0% (Standard gear)</span>
+                )}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-indigo-500/20">
@@ -1704,7 +1715,7 @@ export function CaregiverSupportMatrix({
                             <span className="capitalize">
                               {g.kind === 'unowned_task'
                                 ? `${g.task.replace(/_/g, ' ')} — no eligible owner (${g.unmetHours}h)`
-                                : `${g.unmetHours}h beyond the team's committed hours`}
+                                : `${g.unmetHours}h uncovered care deficit`}
                             </span>
                           </p>
                         ))}
@@ -1755,8 +1766,8 @@ export function CaregiverSupportMatrix({
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} />
-            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} label="Care Demand Heuristic" />
+            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} label="Staffing Model" />
             {currentEval.dataQuality.status !== 'ready_for_clinician_review' && (
               <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-700 dark:text-amber-300">
                 {currentEval.dataQuality.status.replace(/_/g, ' ')}
@@ -1943,7 +1954,8 @@ export function CaregiverSupportMatrix({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Emergency Driver:</span>
                 <span className="text-xs font-bold text-foreground">
-                  {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'}
+                  {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() ||
+                    (currentCaregiver.name ? `${currentCaregiver.name} (Caregiver)` : 'Not designated')}
                 </span>
               </div>
             </div>
@@ -2013,7 +2025,7 @@ export function CaregiverSupportMatrix({
                 <span className="font-normal text-slate-700"> ({currentCaregiver.emergencyLogistics?.hospitalDistanceKm} km / {currentCaregiver.emergencyLogistics?.travelTimeMinutes} mins)</span>
               </div>
               <div>
-                <span>DRIVER: {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver || 'Son Rahul'}</span>
+                <span>DRIVER: {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() || currentCaregiver.name || 'Not designated'}</span>
               </div>
             </div>
 
