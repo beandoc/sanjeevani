@@ -58,13 +58,19 @@ service cloud.firestore {
 
     function isDoctorTier(uid) {
       return isAuthenticated()
-          && (request.auth.token.clinician == true || isDoctorEmail(request.auth.token.email));
+          && (
+            request.auth.token.clinician == true
+            || request.auth.token.role == 'doctor'
+            || request.auth.token.role == 'professional'
+            || isDoctorEmail(request.auth.token.email)
+          );
     }
 
     function isProfessional(uid) {
       return isAuthenticated()
           && (
             request.auth.token.clinician == true
+            || request.auth.token.role in ['doctor', 'nurse', 'professional']
             || isDoctorEmail(request.auth.token.email)
             || isNurseEmail(request.auth.token.email)
           );
@@ -519,6 +525,12 @@ service cloud.firestore {
                        && request.resource.data.claimedByUid == null)
                     );
       allow delete: if isAuthenticated() && resource.data.clinicianUid == request.auth.uid;
+    }
+
+    // Materialized Cohort Summaries (BFF / single-read aggregation)
+    match /cohortSummaries/{dyadId} {
+      allow read: if isAuthenticated() && isProfessional(request.auth.uid);
+      allow write: if isAuthenticated() && (isProfessional(request.auth.uid) || isOwner(dyadId));
     }
 
     // 2. Care Circles (Multi-caregiver team collaboration)

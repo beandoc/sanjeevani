@@ -12,7 +12,9 @@ import {
   getDocs,
   getDoc,
   serverTimestamp,
-  onSnapshot
+  onSnapshot,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { type ZaritEvaluationResult } from '@/lib/zarit-scale';
@@ -189,7 +191,8 @@ export async function getZaritAssessmentsFor(patientUid: string): Promise<ZaritE
   const local = HealthRepository.getZaritAssessmentsFor(patientUid);
   if (!db) return local;
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'zaritAssessments'));
+    const q = query(collection(db, 'users', patientUid, 'zaritAssessments'), limit(10));
+    const snap = await getDocs(q);
     const cloud = snap.docs
       .map((d) => {
         const data = d.data();
@@ -207,7 +210,8 @@ export async function getFunctionScoresFor(patientUid: string): Promise<Function
   const local = HealthRepository.getFunctionScoresFor(patientUid);
   if (!db) return local;
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'functionScores'));
+    const q = query(collection(db, 'users', patientUid, 'functionScores'), limit(10));
+    const snap = await getDocs(q);
     const cloud = snap.docs
       .map((d) => {
         const data = d.data();

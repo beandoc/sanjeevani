@@ -85,6 +85,20 @@ import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInve
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
 import { RiskHeader } from '@/components/clinician/risk-header';
+import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
+import { useToast } from '@/hooks/use-toast';
+import { useAuthUser } from '@/hooks/use-auth-user';
+import { cn } from '@/lib/utils';
+import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+
+function PanelSkeleton({ className }: { className?: string }) {
+  return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
+}
+
+function ButtonSkeleton() {
+  return <div className="h-9 w-28 rounded-xl bg-muted/70 animate-pulse" />;
+}
 
 // Code-split: each of these only ever mounts once its own dialog is opened or
 // its own workspace tab is selected (see `activeTab` below), so bundling them
@@ -126,20 +140,6 @@ const ScissorsChart = dynamic(() =>
   loading: () => <PanelSkeleton className="h-64" />
 });
 
-function PanelSkeleton({ className }: { className?: string }) {
-  return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
-}
-
-function ButtonSkeleton() {
-  return <div className="h-9 w-28 rounded-xl bg-muted/70 animate-pulse" />;
-}
-import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
-import { useToast } from '@/hooks/use-toast';
-import { useAuthUser } from '@/hooks/use-auth-user';
-import { cn } from '@/lib/utils';
-import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
-import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
-
 const FACTOR_LABELS: Record<ZbiFactor, string> = {
   personal_strain: 'Personal Strain',
   role_strain: 'Role Strain',
@@ -151,7 +151,7 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
 
 type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'dailyLogs' | 'modules' | 'emergency';
 
-export default function DyadDetailPage({ params }: { params?: Promise<{ patientUid: string }> }) {
+export default function DyadDetailPage() {
   const router = useRouter();
   const routeParams = useParams();
   const rawUid = (routeParams?.patientUid as string | undefined) ?? '';
@@ -205,9 +205,9 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
     if (!patientUid) return;
     try {
       const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult] = await Promise.all([
-        getZaritAssessmentsFor(patientUid),
-        getFunctionScoresFor(patientUid),
-        getPatientDisplayName(patientUid),
+        getZaritAssessmentsFor(patientUid).catch(() => []),
+        getFunctionScoresFor(patientUid).catch(() => []),
+        getPatientDisplayName(patientUid).catch(() => 'Patient Dyad'),
         getMedicationsFor(patientUid).catch(() => []),
         getVitalsFor(patientUid).catch(() => []),
         getCaregiverAttributesFor(patientUid).catch(() => null),

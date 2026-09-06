@@ -5,7 +5,9 @@ import {
   doc,
   setDoc,
   addDoc,
-  getDocs
+  getDocs,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { HealthRepository, type VitalRecord } from '@/lib/db/health-repository';
@@ -64,7 +66,8 @@ export async function getVitalsFor(patientUid: string): Promise<VitalRecord[]> {
   const local = HealthRepository.getVitalsFor(patientUid);
   if (!db) return local;
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'vitals'));
+    const q = query(collection(db, 'users', patientUid, 'vitals'), limit(10));
+    const snap = await getDocs(q);
     const cloud = snap.docs.map((d) => d.data() as VitalRecord);
     const map = new Map<string, VitalRecord>();
     for (const item of [...local, ...cloud]) map.set(item.id, item);

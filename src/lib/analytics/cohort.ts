@@ -237,6 +237,25 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
     !archived.has(`dyad_${uid}`);
 
   const fetchPromise = (async () => {
+    // 1. Fast path: Attempt BFF aggregation endpoint first
+    if (typeof window !== 'undefined' && !forceRefresh) {
+      try {
+        const bffRes = await fetch('/api/clinic/cohort', {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (bffRes.ok) {
+          const data = await bffRes.json();
+          if (Array.isArray(data?.rows) && data.rows.length > 0) {
+            const bffRows = (data.rows as CohortRow[]).filter((r) => isNotArchived(r.patientUid));
+            bffRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+            return bffRows;
+          }
+        }
+      } catch {
+        // Fall through to resilient client-side aggregation
+      }
+    }
+
     try {
       const [rawRoster, rawInvites] = await Promise.all([listMyRoster(), listMyDyadInvites()]);
       const roster = rawRoster.filter((r) => isNotArchived(r.patientUid));
@@ -332,7 +351,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
   try {
     const result = await fetchPromise;
     cachedCohortRows = result;
-    cacheExpiry = Date.now() + 15000; // 15 seconds in-memory cache
+    cacheExpiry = Date.now() + 30000; // 30 seconds in-memory cache
     return result;
   } finally {
     inFlightCohortPromise = null;

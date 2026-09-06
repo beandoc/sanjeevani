@@ -9,7 +9,9 @@ import {
   setDoc,
   getDocs,
   getDoc,
-  onSnapshot
+  onSnapshot,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { HealthRepository, type DailyCareLog } from '@/lib/db/health-repository';
@@ -60,7 +62,8 @@ export async function getDailyCareLogsFor(patientUid: string): Promise<DailyCare
   );
   if (!db) return local;
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'dailyCareLogs'));
+    const q = query(collection(db, 'users', patientUid, 'dailyCareLogs'), limit(10));
+    const snap = await getDocs(q);
     const cloud = snap.docs.map((d) => d.data() as DailyCareLog);
     return mergeDailyCareLogs(local, cloud);
   } catch {

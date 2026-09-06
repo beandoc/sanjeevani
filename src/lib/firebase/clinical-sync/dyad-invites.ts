@@ -12,7 +12,8 @@ import {
   getDoc,
   query,
   where,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../client';
 import {
@@ -165,39 +166,49 @@ export async function createDyadInvite(input: {
   HealthRepository.savePatientProfileFor(dyadUid, initialPatientProfile);
   HealthRepository.saveCaregiverAttributesFor(dyadUid, initialCaregiverAttrs);
 
-  // 2. Best-effort direct sync to Firestore if backend is reachable
+  // 2. Atomic sync to Firestore if backend is reachable
   if (db) {
     try {
-      await withRetry(() => setDoc(doc(db!, 'dyadInvites', invite.inviteCode), invite));
-      await withRetry(() =>
-        setDoc(doc(db!, 'users', dyadUid), {
-          role: 'caregiver',
-          displayName: `${input.patientName}${input.caregiverName ? ` (Caregiver: ${input.caregiverName})` : ''}`,
-          createdAt: serverTimestamp()
-        })
-      );
-      await withRetry(() =>
-        setDoc(doc(db!, 'users', dyadUid, 'patientProfile', 'current'), {
-          ...initialPatientProfile,
-          updatedAt: new Date().toISOString()
-        })
-      );
-      await withRetry(() =>
-        setDoc(doc(db!, 'users', dyadUid, 'caregiverAttributes', 'current'), {
-          ...initialCaregiverAttrs,
-          updatedAt: new Date().toISOString()
-        })
-      );
-      await withRetry(() =>
-        setDoc(doc(db!, 'users', dyadUid, 'clinicianGrants', uid), {
-          clinicianUid: uid,
-          clinicianLabel: input.clinicianLabel ?? 'Dr. Vivek',
-          grantedAt: new Date().toISOString(),
-          revokedAt: null
-        })
-      );
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'dyadInvites', invite.inviteCode), invite);
+      batch.set(doc(db, 'users', dyadUid), {
+        role: 'caregiver',
+        displayName: `${input.patientName}${input.caregiverName ? ` (Caregiver: ${input.caregiverName})` : ''}`,
+        createdAt: serverTimestamp()
+      });
+      batch.set(doc(db, 'users', dyadUid, 'patientProfile', 'current'), {
+        ...initialPatientProfile,
+        updatedAt: new Date().toISOString()
+      });
+      batch.set(doc(db, 'users', dyadUid, 'caregiverAttributes', 'current'), {
+        ...initialCaregiverAttrs,
+        updatedAt: new Date().toISOString()
+      });
+      batch.set(doc(db, 'users', dyadUid, 'clinicianGrants', uid), {
+        clinicianUid: uid,
+        clinicianLabel: input.clinicianLabel ?? 'Dr. Vivek',
+        grantedAt: new Date().toISOString(),
+        revokedAt: null
+      });
+      // Initial materialized cohort summary document for instant single-read loading
+      batch.set(doc(db, 'cohortSummaries', dyadUid), {
+        patientUid: dyadUid,
+        displayName: input.patientName,
+        clinicianUid: uid,
+        riskBand: 'insufficient-data',
+        riskBandOrder: 3,
+        burdenTrendPerMonth: null,
+        latestBurdenPct: null,
+        hasRedFlag: false,
+        hasQocWarning: false,
+        conditions: input.primaryConditions || [],
+        caregiverName: input.caregiverName ?? null,
+        caregiverPhone: normalizePhoneNumber(input.caregiverPhone),
+        updatedAt: new Date().toISOString()
+      });
+      await withRetry(() => batch.commit());
     } catch (cloudErr) {
-      console.warn('Dyad cloud sync notice (local backup active):', cloudErr);
+      console.warn('Dyad cloud batch sync notice (local backup active):', cloudErr);
     }
   }
 
@@ -298,16 +309,6 @@ async function applyInviteClaim(
   const claimedAt = new Date().toISOString();
   const dyadDocId = invite.dyadUid || `dyad_${invite.inviteCode}`;
 
-  await withRetry(() => setDoc(inviteRef, { claimedAt, claimedByUid: uid }, { merge: true }));
-  await withRetry(() =>
-    setDoc(doc(db!, 'users', uid, 'clinicianGrants', invite.clinicianUid), {
-      clinicianUid: invite.clinicianUid,
-      clinicianLabel: invite.clinicianLabel ?? null,
-      grantedAt: claimedAt,
-      revokedAt: null
-    })
-  );
-
   const defaultProfile = {
     name: invite.patientName,
     age: invite.patientAge,
@@ -343,12 +344,26 @@ async function applyInviteClaim(
     if (invite.patientProfileDraft) profileToSave = invite.patientProfileDraft as unknown as Record<string, unknown>;
   }
 
-  await withRetry(() =>
-    setDoc(doc(db!, 'users', uid, 'patientProfile', 'current'), {
-      ...profileToSave,
-      updatedAt: claimedAt
-    })
-  );
+  // Atomic batch commit for core invite claim + clinician grant + patient profile
+  const claimBatch = writeBatch(db);
+  claimBatch.set(inviteRef, { claimedAt, claimedByUid: uid }, { merge: true });
+  claimBatch.set(doc(db, 'users', uid, 'clinicianGrants', invite.clinicianUid), {
+    clinicianUid: invite.clinicianUid,
+    clinicianLabel: invite.clinicianLabel ?? null,
+    grantedAt: claimedAt,
+    revokedAt: null
+  });
+  claimBatch.set(doc(db, 'users', uid, 'patientProfile', 'current'), {
+    ...profileToSave,
+    updatedAt: claimedAt
+  });
+  claimBatch.set(doc(db, 'cohortSummaries', uid), {
+    patientUid: uid,
+    displayName: invite.patientName,
+    clinicianUid: invite.clinicianUid,
+    updatedAt: claimedAt
+  }, { merge: true });
+  await withRetry(() => claimBatch.commit());
 
   // Migrate every other pre-claim clinical record. Each is independently
   // best-effort — a failure on one (e.g. no medications were ever recorded)

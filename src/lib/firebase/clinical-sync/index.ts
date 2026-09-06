@@ -59,4 +59,5 @@ export * from './alerts';
 export * from './dyad-invites';
 export * from './access';
 export * from './dyad-subscriptions';
+export * from './cohort-summary';
 export * from './seed';
