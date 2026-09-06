@@ -94,9 +94,15 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         }
         await hydrateLocalCacheFromCloud(user.uid);
         try {
+          const idTokenResult = await user.getIdTokenResult();
+          const claimRole = idTokenResult.claims.role as Role | undefined;
           const prefs = await getUserPreferencesForCurrentUser();
-          if (prefs?.preferredRole && typeof window !== 'undefined') {
-            localStorage.setItem('sanjeevani_user_role', prefs.preferredRole);
+          const effectiveRole = claimRole || (prefs?.preferredRole as Role | undefined);
+          if (effectiveRole) {
+            setRoleState(effectiveRole);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sanjeevani_user_role', effectiveRole);
+            }
           }
           if (prefs?.onboardingCompleted && typeof window !== 'undefined') {
             localStorage.setItem('sanjeevani_onboarding_done', 'true');
