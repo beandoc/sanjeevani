@@ -45,9 +45,11 @@ import {
   PhoneCall,
   Bed,
   UserCheck,
-  Building2
+  Building2,
+  Clock
 } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { allModules } from '@/lib/modules';
@@ -123,6 +125,16 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Rheumatic Disorders': Bone,
   'Foot Care': Footprints,
 };
+
+function getConditionMatchLabel(moduleId: string): string {
+  const id = moduleId.toLowerCase();
+  if (id.includes('hypertension')) return 'Matches: Hypertension & BP Safety';
+  if (id.includes('alzheimer') || id.includes('dementia')) return 'Matches: Dementia / Alzheimer\'s Care';
+  if (id.includes('bed-bound') || id.includes('bedmaking')) return 'Matches: Bedbound Mobility & Ulcer Care';
+  if (id.includes('fall')) return 'Matches: High Fall Risk Vigilance';
+  if (id.includes('medication')) return 'Matches: Medication Administration & Beers Safety';
+  return 'Condition-Tailored Protocol';
+}
 
 export default function DashboardClient() {
   const { role, setRole, skillLevel, caregivingScenario, moduleProgress } = useProfile();
@@ -268,6 +280,10 @@ export default function DashboardClient() {
     }
   ];
 
+  const completedActionsCount = todayActionItems.filter((item) => item.status === 'Done').length;
+  const totalActionsCount = todayActionItems.length;
+  const actionProgressPercent = Math.round((completedActionsCount / totalActionsCount) * 100);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Render Role-Specific Views */}
@@ -304,45 +320,106 @@ export default function DashboardClient() {
               </CardContent>
             </Card>
           )}
-          {/* 1. Today Dashboard */}
-          <Card className="border-border bg-card shadow-sm overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/20 pb-4">
+
+          {/* 1. Today Dashboard Command Station */}
+          <Card className="border-border/80 bg-card shadow-sm overflow-hidden rounded-2xl sm:rounded-3xl border">
+            <CardHeader className="border-b border-border/50 bg-gradient-to-r from-emerald-500/[0.05] via-transparent to-transparent pb-4 pt-5 px-5 sm:px-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="font-headline text-xl">Today</CardTitle>
-                  <CardDescription className="text-sm">
-                    The next care actions that usually matter most today.
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="font-headline text-lg sm:text-xl font-black tracking-tight text-foreground">
+                      Today&apos;s Care Station
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-xs font-mono font-bold px-2.5 py-0.5 rounded-full',
+                        completedActionsCount === totalActionsCount
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                          : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20'
+                      )}
+                    >
+                      {completedActionsCount} of {totalActionsCount} Complete ({actionProgressPercent}%)
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+                    Core daily bedside routines, medication administration, and safety surveillance for {patientProfile?.name || HealthRepository.getPatientProfile().name}.
                   </CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm" className="text-sm font-semibold gap-1.5 w-full sm:w-auto">
-                  <Link href="/domiciliary">
-                    <Bed className="w-4 h-4" />
-                    Bedside Care
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button asChild variant="outline" size="sm" className="text-xs font-semibold gap-1.5 border-emerald-600/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 w-full sm:w-auto h-8 shadow-xs">
+                    <Link href="/domiciliary">
+                      <Bed className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Bedside Companion</span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Action Progress Bar */}
+              <div className="w-full bg-muted/60 rounded-full h-1.5 overflow-hidden mt-3.5">
+                <div
+                  className="bg-gradient-to-r from-emerald-600 to-teal-500 h-1.5 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${actionProgressPercent}%` }}
+                />
               </div>
             </CardHeader>
-            <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <CardContent className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {todayActionItems.map((item) => {
                 const Icon = item.icon;
+                const isDone = item.status === 'Done';
+                const isDue = item.status === 'Due';
+                const isPlanned = item.status === 'Planned';
+
                 return (
                   <Link
                     key={item.title}
                     href={item.href}
-                    className="group flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                    className="group flex items-start justify-between gap-3.5 rounded-2xl border border-border/80 bg-background/80 hover:bg-emerald-500/[0.03] hover:border-emerald-500/40 p-4 transition-all duration-200 shadow-xs hover:shadow-sm"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <div className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors',
+                        isDone
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : isDue
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          : 'bg-primary/10 text-primary'
+                      )}>
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
                       <div className="min-w-0 space-y-1">
-                        <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{item.detail}</p>
+                        <h3 className="text-sm font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {item.detail}
+                        </p>
                       </div>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold ${item.tone}`}>
-                      {item.status}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isDone ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Done</span>
+                        </span>
+                      ) : isDue ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Due</span>
+                        </span>
+                      ) : isPlanned ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30">
+                          <CalendarCheck className="w-3.5 h-3.5" />
+                          <span>Planned</span>
+                        </span>
+                      ) : (
+                        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${item.tone}`}>
+                          {item.status}
+                        </span>
+                      )}
+                      <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-1 transition-all hidden sm:inline-block" />
+                    </div>
                   </Link>
                 );
               })}
@@ -369,130 +446,136 @@ export default function DashboardClient() {
 
           {/* 2. Quick KPI Cards Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Zarit Burden Gauge Metric */}
-        <Link href="/stress-calculator" className="group">
-          <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
-                  Stress Check
-                </span>
-                <HeartPulse className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                {latestZarit ? (
-                  <>
-                    <span className="text-2xl font-black text-foreground">
-                      {latestZarit.totalScore ?? 0}
+            {/* Zarit Burden Gauge Metric */}
+            <Link href="/stress-calculator" className="group">
+              <Card className="border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all h-full rounded-2xl">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                      Stress Check
                     </span>
-                    <span className="text-xs text-muted-foreground font-mono">/ {latestZarit.maxScore ?? 88}</span>
-                    <Badge variant={latestZarit.severityBand === 'critical_red' ? 'destructive' : 'secondary'} className="text-xs ml-auto font-mono">
-                      {latestZarit.normalizedPercentage ?? 0}%
+                    <HeartPulse className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    {latestZarit ? (
+                      <>
+                        <span className="text-2xl font-black text-foreground">
+                          {latestZarit.totalScore ?? 0}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-mono">/ {latestZarit.maxScore ?? 88}</span>
+                        <Badge variant={latestZarit.severityBand === 'critical_red' ? 'destructive' : 'secondary'} className="text-xs ml-auto font-mono font-bold">
+                          {latestZarit.normalizedPercentage ?? 0}%
+                        </Badge>
+                      </>
+                    ) : (
+                      <span className="text-sm font-bold text-primary">Take Check</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {latestZarit
+                      ? (typeof latestZarit.classification === 'string'
+                          ? latestZarit.classification
+                          : (latestZarit.classification?.en || 'Burden Assessment'))
+                      : 'Establish clinical baseline'}
+                  </p>
+                  <div className="pt-1 flex items-center justify-between">
+                    <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.zaritScore} className="w-fit" />
+                    {latestZarit && isReassessmentDue(latestZarit) && (
+                      <Badge variant="outline" className="text-[10px] font-bold text-amber-600 border-amber-500/40">
+                        Due again
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Medication Schedule Metric */}
+            <Link href="/medications" className="group">
+              <Card className="border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all h-full rounded-2xl">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                      Medicines & Beers
+                    </span>
+                    <Pill className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-foreground">
+                      {completedDoses} / {totalScheduledDoses}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-semibold">Doses Taken</span>
+                    <Badge variant="outline" className="text-xs ml-auto font-mono font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
+                      {doseAdherencePercentage}%
                     </Badge>
-                  </>
-                ) : (
-                  <span className="text-sm font-bold text-primary">Take Check</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {latestZarit
-                  ? (typeof latestZarit.classification === 'string'
-                      ? latestZarit.classification
-                      : (latestZarit.classification?.en || 'Burden Assessment'))
-                  : 'Establish clinical baseline'}
-              </p>
-              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.zaritScore} className="w-fit" />
-              {/* Nothing else in the product ever prompts a retake, so without
-                  this a caregiver typically never accumulates the 3+
-                  assessments the longitudinal trend engine needs. */}
-              {latestZarit && isReassessmentDue(latestZarit) && (
-                <Badge variant="outline" className="text-xs font-semibold text-amber-600 border-amber-500/40 w-fit">
-                  Due again
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {medications.length} active medicine{medications.length === 1 ? '' : 's'} tracked
+                  </p>
+                  <div className="pt-1">
+                    <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} className="w-fit" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
 
-        {/* Medication Schedule Metric */}
-        <Link href="/medications" className="group">
-          <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
-                  Medicines
-                </span>
-                <Pill className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-foreground">
-                  {completedDoses} / {totalScheduledDoses}
-                </span>
-                <span className="text-xs text-muted-foreground font-semibold">Doses Taken</span>
-                <Badge variant="outline" className="text-xs ml-auto font-mono">
-                  {doseAdherencePercentage}%
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {medications.length} active medicines tracked
-              </p>
-              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.beersStoppScreen} className="w-fit" />
-            </CardContent>
-          </Card>
-        </Link>
+            {/* Care Gap Metric */}
+            <Link href="/settings" className="group">
+              <Card className="border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all h-full rounded-2xl">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                      Care Support Gap
+                    </span>
+                    <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-2xl font-black ${careGap && careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-foreground'}`}>
+                      {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : 'Setup'}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-semibold">Estimate</span>
+                    <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase font-bold">
+                      {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Needed'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {careGap
+                      ? `Demand: ${careGap.patientCareDemandHours}h vs Cap: ${careGap.caregiverSafeCapacityHours}h`
+                      : 'Complete patient and caregiver setup first'}
+                  </p>
+                  <div className="pt-1">
+                    <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} className="w-fit" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
 
-        {/* Care Gap Metric */}
-        <Link href="/settings" className="group">
-          <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
-                  Care Support Gap
-                </span>
-                <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className={`text-2xl font-black ${careGap && careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-foreground'}`}>
-                  {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : 'Setup'}
-                </span>
-                <span className="text-xs text-muted-foreground font-semibold">Estimate</span>
-                <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase">
-                  {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Needed'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {careGap
-                  ? `Demand: ${careGap.patientCareDemandHours}h vs Cap: ${careGap.caregiverSafeCapacityHours}h`
-                  : 'Complete patient and caregiver setup first'}
-              </p>
-              <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} className="w-fit" />
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Government Telemedicine Hub */}
-        <Link href="/sehat-opd" className="group">
-          <Card className="border-border bg-card hover:border-primary/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
-                  Doctor Visits
-                </span>
-                <Building2 className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-base font-bold text-foreground">
-                  Online OPD
-                </span>
-              </div>
-              <p className="text-xs text-primary font-semibold flex items-center gap-1">
-                <span>Open consultation options</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+            {/* Government Telemedicine Hub */}
+            <Link href="/sehat-opd" className="group">
+              <Card className="border-border/80 bg-card hover:border-emerald-500/50 hover:shadow-md transition-all h-full rounded-2xl">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">
+                      Doctor Visits
+                    </span>
+                    <Building2 className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-black text-foreground">
+                      Online OPD
+                    </span>
+                    <Badge variant="outline" className="text-xs ml-auto font-mono text-emerald-700 dark:text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
+                      SEHAT
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-primary font-semibold flex items-center gap-1 pt-1">
+                    <span>Tele-consultation options</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
 
       {/* 2. Main 2-Column Grid */}
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-3">
@@ -570,75 +653,98 @@ export default function DashboardClient() {
           </Card>
 
           {/* Clinical Learning & Recommendations */}
-          <Card className="border-border bg-card shadow-sm overflow-hidden">
-            <CardHeader className="border-b border-border/40 bg-muted/20 pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+          <Card className="border-border/80 bg-card shadow-sm overflow-hidden rounded-2xl sm:rounded-3xl border">
+            <CardHeader className="border-b border-border/50 bg-gradient-to-r from-emerald-500/[0.04] via-transparent to-transparent pb-4 pt-5 px-5 sm:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
                     <Sparkles className="w-5 h-5" />
                   </div>
-                  <div>
-                    <CardTitle className="font-headline text-lg sm:text-xl">Learning Path</CardTitle>
-                    <CardDescription className="text-xs">
-                      Lessons recommended for <strong>{caregivingScenario}</strong> ({skillLevel} level).
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="font-headline text-lg sm:text-xl font-black tracking-tight text-foreground">
+                        Personalized Care Curriculum
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs font-mono font-bold border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                        Condition-Matched
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+                      Clinically aligned for <strong>{caregivingScenario}</strong> &bull; Tailored to Vishal Gaurav&apos;s diagnoses &amp; mobility.
                     </CardDescription>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-xs font-mono border-primary/30 text-primary hidden sm:inline-flex">
-                  Recommended
-                </Badge>
+                <Button asChild variant="outline" size="sm" className="text-xs font-semibold gap-1.5 border-emerald-600/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shrink-0 h-8 shadow-xs">
+                  <Link href="/modules">
+                    <BookOpenCheck className="w-3.5 h-3.5" />
+                    <span>All Lessons</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </Button>
               </div>
               {personalizedPath?.reasoning && (
-                <p className="text-xs text-muted-foreground pt-2 leading-relaxed">
+                <p className="text-xs text-muted-foreground pt-2.5 leading-relaxed">
                   {personalizedPath.reasoning}
                 </p>
               )}
             </CardHeader>
 
-            <CardContent className="space-y-3 pt-4">
+            <CardContent className="space-y-3 p-4 sm:p-5">
               <div className="grid gap-3">
                 {personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.category] || BookOpenCheck;
+                  const progress = moduleProgress[module.id] || 0;
+                  const matchLabel = getConditionMatchLabel(module.id);
+
                   return (
                     <Link
                       key={module.id}
                       href={`/modules/${module.id}`}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all gap-3"
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-border/80 bg-background/70 hover:bg-emerald-500/[0.03] hover:border-emerald-500/40 hover:shadow-md transition-all duration-200 gap-3.5"
                     >
-                      <div className="flex items-start gap-3.5">
-                        <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors mt-0.5">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors mt-0.5 shadow-xs">
                           <Icon className="h-5 w-5" />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                            <h3 className="font-bold text-sm text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
                               {module.title}
                             </h3>
-                            <Badge variant="secondary" className="text-xs capitalize">
-                              {module.category}
+                            <Badge variant="outline" className="text-[10px] font-bold border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                              {matchLabel}
                             </Badge>
                             {module.urgency === 'critical' && (
-                              <Badge variant="destructive" className="text-xs">
+                              <Badge variant="destructive" className="text-[10px] font-bold">
                                 Priority
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
+                          <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">
                             {module.description}
                           </p>
                           {module.clinicalRationale && module.clinicalRationale.length > 0 && (
-                            <p className="text-xs text-primary/90 font-medium">
-                              {module.clinicalRationale[0]}
+                            <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                              &bull; {module.clinicalRationale[0]}
                             </p>
+                          )}
+                          {progress > 0 && (
+                            <div className="pt-1 w-full max-w-xs space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                                <span>Progress</span>
+                                <span className="text-emerald-600 font-bold">{progress}%</span>
+                              </div>
+                              <Progress value={progress} className="h-1 bg-muted" />
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 shrink-0">
-                        <span className="text-xs font-mono font-bold text-muted-foreground">
+                      <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-center">
+                        <span className="text-xs font-mono font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full border border-border/60">
                           {module.matchScore}% Match
                         </span>
-                        <ArrowRight className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
+                        <ArrowRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </Link>
                   );
