@@ -45,17 +45,19 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      router.replace('/login?next=/clinic/roster');
-      return;
-    }
+    // The server-side session cookie (checked below) is the source of truth
+    // for whether this request is authenticated — it's set on login even for
+    // the local-dev "mock user" fallback in lib/firebase/auth.ts, which never
+    // fires Firebase's own onAuthStateChanged. Gating on the client SDK's
+    // `user` here would bounce that session straight back to /login.
     void fetch('/api/auth/session', { cache: 'no-store' })
       .then(async (response) => ({ ok: response.ok, body: await response.json() }))
       .then(({ ok, body }) => {
-        if (!ok || body.clinician !== true) router.replace('/dashboard');
+        if (!ok) { router.replace('/login?next=/clinic/roster'); return; }
+        if (body.clinician !== true) router.replace('/dashboard');
       })
       .catch(() => router.replace('/login?next=/clinic/roster'));
-  }, [user, isLoading, router]);
+  }, [isLoading, router]);
 
   const clinicCode = user?.uid ? `${user.uid.slice(0, 10)}…` : 'DEMO-CLINIC-2026';
 
