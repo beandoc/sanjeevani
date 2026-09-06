@@ -1008,11 +1008,45 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
 
               <Card className="rounded-3xl shadow-xs">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Longitudinal Scissors Trajectory</CardTitle>
-                  <CardDescription className="text-xs">
-                    Rising lines are worse on both series — a widening gap between them signals care demand
-                    outstripping caregiver capacity.
-                  </CardDescription>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="text-base">Longitudinal Scissors Trajectory</CardTitle>
+                      <CardDescription className="text-xs">
+                        Rising lines are worse on both series — a widening gap between them signals care demand
+                        outstripping caregiver capacity.
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AssistedZaritAssessmentForm
+                        patientName={cleanPatientName}
+                        caregiverName={caregiver?.name}
+                        onComplete={handleZaritAssessmentSaved}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-semibold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 bg-background/80 shadow-2xs"
+                          >
+                            <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
+                            <span>+ Log ZBI Burden</span>
+                          </Button>
+                        }
+                      />
+                      <FunctionAssessmentForm
+                        onComplete={handleFunctionAssessmentSaved}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-semibold gap-1.5 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 bg-background/80 shadow-2xs"
+                          >
+                            <Activity className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>+ Log ADL Function</span>
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ScissorsChart trajectory={trajectory} />
