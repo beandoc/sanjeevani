@@ -215,9 +215,16 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
       return DEMO_COHORT_ROWS;
     }
 
+    const inviteMap = new Map<string, (typeof invites)[number]>();
+    for (const inv of invites) {
+      if (inv.dyadUid) inviteMap.set(inv.dyadUid, inv);
+      inviteMap.set(`dyad_${inv.inviteCode}`, inv);
+    }
+
     const rows = await Promise.all(
       roster.map(async ({ patientUid }) => {
         try {
+          const matchedInvite = inviteMap.get(patientUid);
           const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments, dailyLogs] = await Promise.all([
             getZaritAssessmentsFor(patientUid),
             getFunctionScoresFor(patientUid),
@@ -247,9 +254,9 @@ export async function loadCohortRoster(): Promise<CohortRow[]> {
             latestCompletedAt: latest?.date ?? null,
             hasQocWarning,
             conditions: patientProfile?.primaryConditions || [],
-            caregiverName: caregiver?.name || null,
+            caregiverName: caregiver?.name || matchedInvite?.caregiverName || null,
             caregiverKinship: caregiver?.kinship || null,
-            caregiverPhone: null,
+            caregiverPhone: matchedInvite?.caregiverPhone || null,
             formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
             formalSupportType: caregiver?.formalSupport?.type || 'None',
             isBedBound: patientProfile?.isBedBound || false,

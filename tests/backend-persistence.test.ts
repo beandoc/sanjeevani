@@ -14,7 +14,14 @@ import {
   recordZaritAssessmentFor,
   recordFunctionScore,
   getZaritAssessmentsFor,
-  getFunctionScoresFor
+  getFunctionScoresFor,
+  seedRealDyadsToFirestore,
+  recordVitalFor,
+  getVitalsFor,
+  getPatientProfileFor,
+  getCaregiverAttributesFor,
+  getMedicationsFor,
+  getDailyCareLogsFor
 } from '../src/lib/firebase/clinical-sync';
 
 // Mock in-memory localStorage for Node testing environment
@@ -484,6 +491,72 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
 
       HealthRepository.deleteAllUserData();
       expect(HealthRepository.getVitals()).toHaveLength(0);
+    });
+  });
+
+  describe('6. Real Patient-Caregiver Dyads Baseline & Longitudinal Persistence', () => {
+    it('should seed and persist real clinical dyads with full baseline and longitudinal records', async () => {
+      const seedResult = await seedRealDyadsToFirestore();
+      expect(seedResult.success).toBe(true);
+      expect(seedResult.dyadCount).toBe(2);
+      expect(seedResult.dyadUids).toContain('dyad_sarojini_devi');
+      expect(seedResult.dyadUids).toContain('dyad_ramesh_chand');
+
+      // 1. Verify Dyad 1 (Smt. Sarojini Devi) Baseline Profile
+      const sProfile = await getPatientProfileFor('dyad_sarojini_devi');
+      expect(sProfile).not.toBeNull();
+      expect(sProfile?.name).toBe('Smt. Sarojini Devi');
+      expect(sProfile?.isBedBound).toBe(true);
+      expect(sProfile?.fallHistoryLast6Months).toBe(2);
+      expect(sProfile?.katzAdl.bathing).toBe(false);
+      expect(sProfile?.katzAdl.feeding).toBe(true);
+
+      // 2. Verify Dyad 1 Caregiver Matrix
+      const sCaregiver = await getCaregiverAttributesFor('dyad_sarojini_devi');
+      expect(sCaregiver).not.toBeNull();
+      expect(sCaregiver?.name).toBe('Suresh Kumar');
+      expect(sCaregiver?.kinship).toBe('spouse');
+      expect(sCaregiver?.formalSupport?.hoursPerDay).toBe(12);
+
+      // 3. Verify Dyad 1 Longitudinal Vitals
+      const sVitals = await getVitalsFor('dyad_sarojini_devi');
+      expect(sVitals.length).toBeGreaterThanOrEqual(5);
+      expect(sVitals[0].bp).toBe('136/84');
+
+      // 4. Verify Dyad 1 Longitudinal Zarit Burden Assessments
+      const sZarit = await getZaritAssessmentsFor('dyad_sarojini_devi');
+      expect(sZarit.length).toBeGreaterThanOrEqual(2);
+      expect(sZarit[0].tier).toBe('ZBI22');
+      expect(sZarit[0].normalizedPercentage).toBeGreaterThanOrEqual(20);
+
+      // 5. Verify Dyad 1 Longitudinal Function Evaluations
+      const sFunc = await getFunctionScoresFor('dyad_sarojini_devi');
+      expect(sFunc.length).toBeGreaterThanOrEqual(2);
+      expect(sFunc[0].barthelScore).toBeDefined();
+
+      // 6. Verify Dyad 1 Medications
+      const sMeds = await getMedicationsFor('dyad_sarojini_devi');
+      expect(sMeds.length).toBeGreaterThanOrEqual(4);
+      expect(sMeds.some((m) => m.name === 'Amlodipine')).toBe(true);
+
+      // 7. Verify Dyad 1 Bedside Care Sheet
+      const sLogs = await getDailyCareLogsFor('dyad_sarojini_devi');
+      expect(sLogs.length).toBeGreaterThanOrEqual(1);
+      expect(sLogs[0].meals.breakfast).toBeDefined();
+
+      // 8. Test Appending New Longitudinal Observation
+      await recordVitalFor('dyad_sarojini_devi', {
+        id: 'v_new_test',
+        date: new Date().toISOString(),
+        bp: '130/82',
+        pulse: '72',
+        bloodSugar: '120',
+        sleep: 'good',
+        createdAt: new Date().toISOString()
+      });
+
+      const updatedVitals = await getVitalsFor('dyad_sarojini_devi');
+      expect(updatedVitals[0].bp).toBe('130/82');
     });
   });
 });

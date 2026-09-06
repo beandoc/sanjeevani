@@ -30,9 +30,21 @@ import {
   Info,
   Users2,
   Stethoscope,
-  ArrowRight
+  ArrowRight,
+  Activity,
+  Bed
 } from 'lucide-react';
-import { createDyadInvite, saveCaregiverAttributesFor, type DyadInvite } from '@/lib/firebase/clinical-sync';
+import {
+  createDyadInvite,
+  saveCaregiverAttributesFor,
+  savePatientProfileFor,
+  recordVitalFor,
+  recordFunctionScore,
+  recordZaritAssessmentFor,
+  type DyadInvite
+} from '@/lib/firebase/clinical-sync';
+import { calculateFunctionScore } from '@/lib/clinical/function-scale';
+import { calculateZaritScore } from '@/lib/zarit-scale';
 import { CaregiverAttributes, DEFAULT_CAREGIVER_ATTRIBUTES, FormalSupportType } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/client';
@@ -86,6 +98,16 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [formalSupportType, setFormalSupportType] = useState<FormalSupportType>('none');
   const [formalSupportHours, setFormalSupportHours] = useState<string>('0');
 
+  // Baseline Clinical Intake State
+  const [baselineBp, setBaselineBp] = useState('');
+  const [baselinePulse, setBaselinePulse] = useState('');
+  const [baselineSpo2, setBaselineSpo2] = useState('');
+  const [baselineSugar, setBaselineSugar] = useState('');
+  const [isBedBound, setIsBedBound] = useState(false);
+  const [fallCount, setFallCount] = useState<number>(0);
+  const [baselineAdlScore, setBaselineAdlScore] = useState<number>(6);
+  const [baselineStrainTier, setBaselineStrainTier] = useState<'low' | 'moderate' | 'high' | 'severe'>('moderate');
+
   const resetForm = () => {
     setPatientFirstName('');
     setPatientLastName('');
@@ -101,6 +123,14 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     setSecondaryFamily(0);
     setFormalSupportType('none');
     setFormalSupportHours('0');
+    setBaselineBp('');
+    setBaselinePulse('');
+    setBaselineSpo2('');
+    setBaselineSugar('');
+    setIsBedBound(false);
+    setFallCount(0);
+    setBaselineAdlScore(6);
+    setBaselineStrainTier('moderate');
     setIssuedInvite(null);
     setCopiedCode(false);
     setCopiedMsg(false);
@@ -172,7 +202,9 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
 
       // Persist the caregiver capacity & formal support matrix
       const hoursNum = Number(formalSupportHours) || 0;
-      await saveCaregiverAttributesFor(`dyad_${invite.inviteCode}`, {
+      const dyadUid = `dyad_${invite.inviteCode}`;
+
+      await saveCaregiverAttributesFor(dyadUid, {
         ...DEFAULT_CAREGIVER_ATTRIBUTES,
         name: caregiverName.trim() || 'Primary Caregiver',
         kinship: caregiverKinship,
@@ -185,11 +217,97 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         }
       });
 
+      // 1. Update baseline patient profile with Katz ADL & Bedbound status
+      await savePatientProfileFor(dyadUid, {
+        name: patientName.trim(),
+        age: ageNum || 0,
+        primaryConditions: selectedConditions,
+        katzAdl: {
+          bathing: baselineAdlScore >= 1,
+          dressing: baselineAdlScore >= 2,
+          toileting: baselineAdlScore >= 3,
+          transferring: !isBedBound && baselineAdlScore >= 4,
+          continence: baselineAdlScore >= 5,
+          feeding: baselineAdlScore >= 6
+        },
+        lawtonIadl: {
+          telephone: baselineAdlScore >= 4,
+          shopping: baselineAdlScore >= 5,
+          mealPreparation: baselineAdlScore >= 5,
+          housekeeping: baselineAdlScore >= 4,
+          laundry: baselineAdlScore >= 4,
+          transportation: baselineAdlScore >= 5,
+          medicationManagement: baselineAdlScore >= 5,
+          finances: baselineAdlScore >= 5
+        },
+        cognitiveBehavioralLoad: selectedConditions.some((c) =>
+          c.toLowerCase().includes('dementia') || c.toLowerCase().includes('cognitive')
+        )
+          ? 'wandering_agitation'
+          : 'none',
+        fallHistoryLast6Months: Number(fallCount) || 0,
+        isBedBound,
+        weightKg: patientWeight ? Number(patientWeight) : undefined,
+        heightCm: patientHeight ? Number(patientHeight) : undefined
+      });
+
+      // 2. Persist initial baseline vitals if entered
+      if (baselineBp.trim() || baselinePulse.trim() || baselineSpo2.trim() || baselineSugar.trim()) {
+        await recordVitalFor(dyadUid, {
+          id: `vital_${Date.now()}`,
+          date: new Date().toISOString(),
+          bp: baselineBp.trim() || undefined,
+          pulse: baselinePulse.trim() || undefined,
+          spo2: baselineSpo2.trim() || undefined,
+          bloodSugar: baselineSugar.trim() || undefined,
+          sleep: 'good',
+          notes: 'Baseline intake vitals recorded at patient registration.',
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // 3. Persist initial functional baseline using standard calculation
+      const funcEval = calculateFunctionScore(
+        {
+          bi_feeding: baselineAdlScore >= 6 ? 10 : 5,
+          bi_bathing: baselineAdlScore >= 1 ? 5 : 0,
+          bi_grooming: baselineAdlScore >= 2 ? 5 : 0,
+          bi_dressing: baselineAdlScore >= 2 ? 10 : 0,
+          bi_bowels: baselineAdlScore >= 5 ? 10 : 5,
+          bi_bladder: baselineAdlScore >= 5 ? 10 : 5,
+          bi_toilet: baselineAdlScore >= 3 ? 10 : 0,
+          bi_transfers: !isBedBound && baselineAdlScore >= 4 ? 15 : 0,
+          bi_mobility: !isBedBound && baselineAdlScore >= 4 ? 15 : 0,
+          bi_stairs: !isBedBound && baselineAdlScore >= 5 ? 10 : 0
+        },
+        {
+          li_telephone: baselineAdlScore >= 4 ? 1 : 0,
+          li_shopping: baselineAdlScore >= 5 ? 1 : 0,
+          li_food: baselineAdlScore >= 5 ? 1 : 0,
+          li_housekeeping: baselineAdlScore >= 4 ? 1 : 0,
+          li_laundry: baselineAdlScore >= 4 ? 1 : 0,
+          li_transport: baselineAdlScore >= 5 ? 1 : 0,
+          li_meds: baselineAdlScore >= 5 ? 1 : 0,
+          li_finances: baselineAdlScore >= 5 ? 1 : 0
+        }
+      );
+      await recordFunctionScore(dyadUid, funcEval);
+
+      // 4. Persist initial baseline caregiver burden estimate
+      const zbiResponses = {
+        low: { zbi_1: 1, zbi_2: 1, zbi_3: 1, zbi_7: 1, zbi_8: 1, zbi_14: 1, zbi_22: 1 },
+        moderate: { zbi_1: 2, zbi_2: 2, zbi_3: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 2 },
+        high: { zbi_1: 3, zbi_2: 3, zbi_3: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3, zbi_22: 3 },
+        severe: { zbi_1: 4, zbi_2: 4, zbi_3: 4, zbi_7: 4, zbi_8: 4, zbi_14: 4, zbi_22: 4 }
+      }[baselineStrainTier];
+      const zaritEval = calculateZaritScore(zbiResponses, baselineStrainTier === 'low' ? 'ZBI12' : 'ZBI22');
+      await recordZaritAssessmentFor(dyadUid, zaritEval);
+
       setIssuedInvite(invite);
       onRegistered?.(invite);
       toast({
         title: '✅ Patient & Caregiver Registered',
-        description: `${invite.patientName} is now saved to your active clinical roster.`
+        description: `${invite.patientName} baseline & dyad profile saved to Cloud Firestore backend.`
       });
     } catch (err) {
       toast({
@@ -609,6 +727,100 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                       onChange={(e) => setFormalSupportHours(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: Baseline Clinical Intake & Vitals */}
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>4. Baseline Intake Vitals & Functional Score</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    Persists to Firestore
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">BP (mmHg)</Label>
+                    <Input
+                      placeholder="e.g. 130/80"
+                      value={baselineBp}
+                      onChange={(e) => setBaselineBp(e.target.value)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Pulse (bpm)</Label>
+                    <Input
+                      placeholder="e.g. 74"
+                      value={baselinePulse}
+                      onChange={(e) => setBaselinePulse(e.target.value)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">SpO2 (%)</Label>
+                    <Input
+                      placeholder="e.g. 98"
+                      value={baselineSpo2}
+                      onChange={(e) => setBaselineSpo2(e.target.value)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Sugar (mg/dL)</Label>
+                    <Input
+                      placeholder="e.g. 120"
+                      value={baselineSugar}
+                      onChange={(e) => setBaselineSugar(e.target.value)}
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Mobility Status</Label>
+                    <select
+                      value={isBedBound ? 'yes' : 'no'}
+                      onChange={(e) => setIsBedBound(e.target.value === 'yes')}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                    >
+                      <option value="no">Ambulatory / Mobilized</option>
+                      <option value="yes">Bed-Bound (High Ulcer Risk)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Falls (Last 6 Months)</Label>
+                    <select
+                      value={fallCount}
+                      onChange={(e) => setFallCount(Number(e.target.value))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                      <option value={0}>0 Falls</option>
+                      <option value={1}>1 Fall</option>
+                      <option value={2}>2 Falls (High Risk)</option>
+                      <option value={3}>3+ Falls (Critical)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-semibold">Initial Caregiver Burden</Label>
+                    <select
+                      value={baselineStrainTier}
+                      onChange={(e) => setBaselineStrainTier(e.target.value as any)}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                      <option value="low">Low Burden (ZBI &lt; 20%)</option>
+                      <option value="moderate">Moderate Strain (ZBI ~35%)</option>
+                      <option value="high">High Strain (ZBI ~60%)</option>
+                      <option value="severe">Severe Burnout (ZBI &gt; 75%)</option>
+                    </select>
                   </div>
                 </div>
               </div>

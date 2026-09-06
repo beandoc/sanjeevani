@@ -19,12 +19,13 @@ import {
   ShieldAlert,
   Calendar,
   ChevronRight,
-  Activity
+  Activity,
+  Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { loadCohortRoster, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
-import { listMyDyadInvites, type DyadInvite } from '@/lib/firebase/clinical-sync';
+import { listMyDyadInvites, seedRealDyadsToFirestore, type DyadInvite } from '@/lib/firebase/clinical-sync';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/context/role-context';
@@ -42,6 +43,7 @@ export default function ClinicianRosterPage() {
   const [rows, setRows] = useState<RosterRow[] | null>(null);
   const [invites, setInvites] = useState<DyadInvite[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Search & Filter State
@@ -66,6 +68,34 @@ export default function ClinicianRosterPage() {
       setInvites([]);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleSeedDyads = async () => {
+    setIsSeeding(true);
+    try {
+      const res = await seedRealDyadsToFirestore();
+      if (res.success) {
+        toast({
+          title: 'Cloud Firestore Synced',
+          description: `Saved ${res.dyadCount} clinical dyads with baseline & longitudinal records to Firestore backend.`
+        });
+        await load();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Sync Notice',
+          description: res.message
+        });
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Sync Failed',
+        description: err instanceof Error ? err.message : 'Error syncing dyads.'
+      });
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -200,9 +230,20 @@ export default function ClinicianRosterPage() {
             size="sm"
             className="gap-1.5 text-xs font-semibold h-9 bg-card/80 hover:bg-muted"
             onClick={() => void load()}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isSeeding}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs font-semibold h-9 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+            onClick={handleSeedDyads}
+            disabled={isSeeding || isRefreshing}
+            title="Seed real baseline & longitudinal dyads directly to Cloud Firestore backend"
+          >
+            <Database className={cn('w-3.5 h-3.5 text-blue-600', isSeeding && 'animate-spin')} />
+            <span>{isSeeding ? 'Saving...' : 'Sync Dyads to Firestore'}</span>
           </Button>
           <RegisterPatientDialog onRegistered={() => void load()} />
         </div>
@@ -320,9 +361,20 @@ export default function ClinicianRosterPage() {
                   Try clearing the search query or switching the category filter above to see all patients.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setSearchQuery(''); setFilter('all'); }}>
-                Clear Filters
-              </Button>
+              <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => { setSearchQuery(''); setFilter('all'); }}>
+                  Clear Filters
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleSeedDyads}
+                  disabled={isSeeding}
+                >
+                  <Database className={cn('w-3.5 h-3.5', isSeeding && 'animate-spin')} />
+                  <span>{isSeeding ? 'Saving to Firestore...' : 'Seed Real Dyads to Firestore'}</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
