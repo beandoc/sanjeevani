@@ -472,7 +472,7 @@ export default function DyadDetailPage() {
     }
   };
 
-  const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
+  const handleSaveCaregiverMatrix = async (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory): Promise<boolean> => {
     try {
       // The dyad document is shared with the family's own Care Circle screen, so pass the
       // version this edit was based on: a newer save from the other side must not be clobbered.
@@ -484,7 +484,15 @@ export default function DyadDetailPage() {
           title: 'Not Saved — Newer Version Exists',
           description: 'The family updated this matrix while you were editing. Their version has been reloaded; reapply your changes on top of it.'
         });
-        return;
+        return false;
+      }
+      if (!result.saved) {
+        toast({
+          variant: 'destructive',
+          title: 'Not Saved — Cloud Write Failed',
+          description: 'The update was rejected by the server (your session may have expired). Please sign out, sign back in, and try again.'
+        });
+        return false;
       }
       setCaregiver(attrs);
       if (devices && patientProfile) {
@@ -493,12 +501,14 @@ export default function DyadDetailPage() {
         setPatientProfile(updatedProfile);
       }
       await load();
+      return true;
     } catch (err) {
       toast({
         variant: 'destructive',
         title: 'Saved Locally — Cloud Sync Failed',
         description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Please retry when back online.'}`
       });
+      return false;
     }
   };
 
@@ -543,6 +553,14 @@ export default function DyadDetailPage() {
           variant: 'destructive',
           title: 'Blueprint Not Issued — Newer Version Exists',
           description: 'The family updated this matrix while the blueprint was being drafted. Their version has been reloaded; re-issue on top of it.'
+        });
+        return;
+      }
+      if (!result.saved) {
+        toast({
+          variant: 'destructive',
+          title: 'Blueprint Not Issued — Cloud Write Failed',
+          description: 'The update was rejected by the server (your session may have expired). Please sign out, sign back in, and try again.'
         });
         return;
       }
@@ -700,7 +718,24 @@ export default function DyadDetailPage() {
         emergencyLogistics: updatedLogistics
       };
 
-      await saveCaregiverAttributesFor(patientUid, updatedCaregiver, caregiver?.updatedAt);
+      const emergResult = await saveCaregiverAttributesFor(patientUid, updatedCaregiver, caregiver?.updatedAt);
+      if (emergResult.conflict) {
+        await load();
+        toast({
+          variant: 'destructive',
+          title: 'Not Saved — Newer Version Exists',
+          description: 'This record was updated by another editor while you were editing. Reloaded; reapply your emergency logistics on top.'
+        });
+        return;
+      }
+      if (!emergResult.saved) {
+        toast({
+          variant: 'destructive',
+          title: 'Not Saved — Cloud Write Failed',
+          description: 'The update was rejected by the server (your session may have expired). Please sign out, sign back in, and try again.'
+        });
+        return;
+      }
       setCaregiver(updatedCaregiver);
 
       if (patientProfile || emerAddress.trim()) {

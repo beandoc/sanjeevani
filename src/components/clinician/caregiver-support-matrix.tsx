@@ -65,7 +65,7 @@ interface CaregiverSupportMatrixProps {
   patientUid: string;
   caregiver: CaregiverAttributes | null;
   patient: PatientDependenceProfile | null;
-  onSave: (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => Promise<void>;
+  onSave: (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => Promise<boolean>;
 }
 
 /**
@@ -668,12 +668,16 @@ export function CaregiverSupportMatrix({
   const handleSaveModal = async () => {
     setIsSaving(true);
     try {
-      await onSave(simulatedCaregiver, simulatedPatient.assistiveDevices);
-      setOpen(false);
-      toast({
-        title: 'Monthly Care Support Matrix Saved',
-        description: 'Multi-caregiver team plan, assistive devices, shift rotation rota, and emergency readiness updated.'
-      });
+      const ok = await onSave(simulatedCaregiver, simulatedPatient.assistiveDevices);
+      // The caller handles its own error toasts and returns false on any failure.
+      // Only close the dialog and fire the success toast when the cloud write actually landed.
+      if (ok) {
+        setOpen(false);
+        toast({
+          title: 'Monthly Care Support Matrix Saved',
+          description: 'Multi-caregiver team plan, assistive devices, shift rotation rota, and emergency readiness updated.'
+        });
+      }
     } catch (err) {
       toast({
         variant: 'destructive',
@@ -996,9 +1000,16 @@ export function CaregiverSupportMatrix({
                     <p className="font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                       <Bed className="w-4 h-4 text-indigo-600" /> 2. Assistive Devices & Ergonomic Bedside Equipment
                     </p>
-                    <Badge variant="outline" className="text-[9px] text-indigo-600 border-indigo-500/30">
-                      Ergonomic Discount Active
-                    </Badge>
+                    {/* Mirrors the exact discountPct > 0 condition in biomechanical-load.ts's
+                        final strain-tally discount — not simulatedEval's ergonomicMechanisms list,
+                        which is narrower (e.g. airWaterMattress alone, or wheelchair for a patient
+                        with few daily transfers, contribute a real discount but are never pushed
+                        into that array). */}
+                    {(hospitalBed !== 'none' || transferAids || wheelchair || airWaterMattress) && (
+                      <Badge variant="outline" className="text-[9px] text-indigo-600 border-indigo-500/30">
+                        Ergonomic Discount Active
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

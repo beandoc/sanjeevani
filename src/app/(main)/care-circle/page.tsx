@@ -202,7 +202,7 @@ export default function CareCirclePage() {
   }, [user]);
 
   // Handle Save from the interactive CaregiverSupportMatrix builder
-  const handleSaveMatrix = async (updatedAttrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => {
+  const handleSaveMatrix = async (updatedAttrs: CaregiverAttributes, devices?: AssistiveDeviceInventory): Promise<boolean> => {
     try {
       const mergedAttrs: CaregiverAttributes = {
         ...updatedAttrs,
@@ -229,7 +229,15 @@ export default function CareCirclePage() {
             title: 'Not Saved — Your Doctor Updated This Plan',
             description: 'Their version has been loaded. Reapply your changes on top of it.'
           });
-          return;
+          return false;
+        }
+        if (!result.saved) {
+          toast({
+            variant: 'destructive',
+            title: 'Not Saved — Cloud Write Failed',
+            description: 'The update was rejected by the server (your session may have expired). Please sign out, sign back in, and try again.'
+          });
+          return false;
         }
       }
 
@@ -271,6 +279,7 @@ export default function CareCirclePage() {
         title: 'Care Matrix Saved',
         description: 'Your changes are saved. Clinician-facing updates remain decision support until reviewed.',
       });
+      return true;
     } catch (err) {
       console.error('Failed to save care matrix:', err);
       toast({
@@ -278,6 +287,7 @@ export default function CareCirclePage() {
         title: 'Save Failed',
         description: 'Could not sync matrix updates. Changes kept on your device.'
       });
+      return false;
     }
   };
 
