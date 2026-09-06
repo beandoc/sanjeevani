@@ -1,0 +1,35 @@
+// ============================================================================
+// ROLLBACK ONLY — DO NOT DEPLOY EXCEPT TO RECOVER A BROKEN CUTOVER
+// ============================================================================
+// This is the wide-open default test-mode ruleset that was live on
+// kutumbh-45485 as of 2026-09-06, saved verbatim so it can be re-pasted into
+// the Firebase Console (Firestore Database -> Rules -> Publish) if publishing
+// the real `firestore.rules` breaks the app mid-cutover.
+//
+// It allows ANY caller to read and write ALL data, and it STOPS WORKING
+// ENTIRELY on 2026-09-26 (see the timestamp below), at which point every
+// client request is denied. It is a debugging fallback with a hard expiry,
+// not a state to stay in.
+//
+// Delete this file once the real ruleset is published and verified.
+// ============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // This rule allows anyone with your Firestore database reference to view, edit,
+    // and delete all data in your Firestore database. It is useful for getting
+    // started, but it is configured to expire after 30 days because it
+    // leaves your app open to attackers. At that time, all client
+    // requests to your Firestore database will be denied.
+    //
+    // Make sure to write security rules for your app before that time, or else
+    // all client requests to your Firestore database will be denied until you Update
+    // your rules
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 9, 26);
+    }
+  }
+}

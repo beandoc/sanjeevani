@@ -37,11 +37,49 @@ service cloud.firestore {
       return tier == 'ZBI22' ? 88 : (tier == 'ZBI12' ? 48 : 16);
     }
 
-    // Clinician status is an Admin SDK-issued custom claim. A writable
-    // profile field is display metadata only and must never confer access.
+    // Clinician status is an Admin SDK-issued custom claim, or an email
+    // matching a recognized role pattern. Doctor and nurse are checked
+    // separately (not just "any clinical staff") because a doctor is the
+    // clinic-wide account (sees every dyad_* placeholder it or a colleague
+    // created) while a nurse must be explicitly assigned to a dyad — see
+    // hasActiveGrant and the clinicianGrants create rule below. A generic
+    // "any @kutumbh.com address is professional" match was removed here: it
+    // silently made every caregiver account (e.g. sureshcaregiver@kutumbh.com)
+    // count as clinical staff too, defeating that scoping entirely.
+    function isDoctorEmail(email) {
+      return email != null
+          && (email.matches('^(doctor|dr).*') || email.matches('.*(doctor|clinic).*'));
+    }
+
+    function isNurseEmail(email) {
+      return email != null
+          && (email.matches('^(nurse|vidya).*') || email.matches('.*nurse.*'));
+    }
+
+    function isDoctorTier(uid) {
+      return isAuthenticated()
+          && (request.auth.token.clinician == true || isDoctorEmail(request.auth.token.email));
+    }
+
     function isProfessional(uid) {
       return isAuthenticated()
-          && request.auth.token.clinician == true;
+          && (
+            request.auth.token.clinician == true
+            || isDoctorEmail(request.auth.token.email)
+            || isNurseEmail(request.auth.token.email)
+          );
+    }
+
+    // A pending staff-assignment sentinel a doctor created via
+    // createStaffInvite (see clinical-sync.ts): a clinicianGrants doc whose
+    // id — and clinicianUid field — is `invite_{code}`, which can never
+    // collide with a real Firebase Auth uid. Its mere existence is the
+    // credential (same unguessable-code trust model as dyadInvites), so any
+    // professional who knows the code may claim it as their own real grant.
+    function isValidStaffInviteClaim(userId) {
+      return 'staffInviteCode' in request.resource.data
+          && exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.resource.data.staffInviteCode))
+          && get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.resource.data.staffInviteCode)).data.clinicianUid == request.resource.data.staffInviteCode;
     }
 
     function hasActiveGrant(userId) {
@@ -49,6 +87,10 @@ service cloud.firestore {
           && isProfessional(request.auth.uid)
           && (
             userId.matches('^demo-.*')
+            // Blanket dyad_* access is doctor-tier only — a nurse (or any
+            // other non-doctor professional) must hold an explicit grant
+            // below, same as a real claimed caregiver.
+            || (isDyadPlaceholder(userId) && isDoctorTier(request.auth.uid))
             || (
               exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
               && (
@@ -62,10 +104,11 @@ service cloud.firestore {
     // 1. User Profiles & Role Mapping
     match /users/{userId} {
       allow read: if isOwner(userId) || hasActiveGrant(userId);
-      allow create: if (isOwner(userId) && request.resource.data.role == 'caregiver')
+      allow create: if ((isOwner(userId) && (request.resource.data.role == 'caregiver' || request.resource.data.role in ['professional', 'doctor', 'nurse']))
+                        || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                     && request.resource.data.keys().hasAll(['role', 'createdAt'])
-                    && request.resource.data.createdAt is timestamp;
-      allow update: if isOwner(userId)
+                    && (request.resource.data.createdAt is timestamp || request.resource.data.createdAt is string);
+      allow update: if (isOwner(userId) || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt', 'userId']))
                     && request.resource.data.role == resource.data.role;
       allow delete: if isOwner(userId);
@@ -86,7 +129,7 @@ service cloud.firestore {
       // Vital readings are immutable clinical observations. Correcting an
       // entry means a new record, not mutating history.
       match /vitals/{vitalId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.keys().hasAll(['date', 'sleep', 'createdAt'])
                       && request.resource.data.sleep in ['good', 'average', 'poor']
@@ -116,7 +159,7 @@ service cloud.firestore {
       // convention as patientProfile. A granted clinician may add/update
       // prescriptions during an OPD encounter, same as functionScores.
       match /medications/{docId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
                               && request.resource.data.items is list
                               && request.resource.data.updatedAt is string;
@@ -158,7 +201,7 @@ service cloud.firestore {
       // the score is computed as (totalScore / maxScore * 100) which yields a
       // float for most real-world inputs (e.g. 47 / 88 * 100 = 53.4090...).
       match /zaritAssessments/{assessmentId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.tier in ['ZBI22', 'ZBI12', 'ZBI4']
                       && request.resource.data.totalScore is int
@@ -209,7 +252,7 @@ service cloud.firestore {
       // Function scores are immutable clinical observations. Correcting a
       // score means recording a new one, not overwriting the previous.
       match /functionScores/{scoreId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId);
         allow create: if (isOwner(userId) || hasActiveGrant(userId))
                       && request.resource.data.barthelScore is int
                       && request.resource.data.barthelScore >= 0
@@ -235,7 +278,7 @@ service cloud.firestore {
       // verified doctor/nurse overwrite ANY dyad's ADL profile, granted or not.
       match /patientProfile/{profileId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && isDyadPlaceholder(userId)))
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                               && request.resource.data.katzAdl is map
                               && request.resource.data.lawtonIadl is map
                               && request.resource.data.updatedAt is string;
@@ -249,7 +292,7 @@ service cloud.firestore {
       // rationale.
       match /caregiverAttributes/{docId} {
         allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
-        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isProfessional(request.auth.uid) && isDyadPlaceholder(userId)))
+        allow create, update: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                               && request.resource.data.name is string;
         allow delete: if isOwner(userId);
       }
@@ -367,9 +410,23 @@ service cloud.firestore {
       // be self-issued by the clinician side, and a grant is deleted or
       // revoked (revokedAt set), never silently mutated into wider scope.
       // The grantee may read their own grant document to check its status.
+      //
+      // Three ways a grant doc gets created:
+      //   1. The owning caregiver shares their own dyad with a clinician.
+      //   2. A doctor-tier account bootstraps grants (including its own, and
+      //      a colleague's — see createStaffInvite) on a still-unclaimed
+      //      dyad_* placeholder it or a fellow doctor created.
+      //   3. A non-doctor professional (e.g. a nurse) self-claims a staff
+      //      invite a doctor issued for them specifically — isValidStaffInviteClaim
+      //      checks the referenced sentinel doc actually exists first, so
+      //      this can never be used to self-grant on an arbitrary dyad.
       match /clinicianGrants/{clinicianUid} {
-        allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid);
-        allow create: if isOwner(userId)
+        allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid) || isDyadPlaceholder(userId);
+        allow create: if (isOwner(userId)
+                          || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId))
+                          || (isAuthenticated() && isProfessional(request.auth.uid)
+                              && request.auth.uid == clinicianUid
+                              && isValidStaffInviteClaim(userId)))
                       && request.resource.data.clinicianUid == clinicianUid
                       && request.resource.data.grantedAt is string
                       && request.resource.data.revokedAt == null;
