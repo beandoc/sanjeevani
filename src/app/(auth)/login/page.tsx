@@ -35,7 +35,7 @@ import {
   type ConfirmationResult
 } from '@/lib/firebase/auth';
 import { createSession } from '@/lib/firebase/session';
-import { provisionDemoPersonaAccess } from '@/lib/firebase/clinical-sync';
+import { provisionDemoPersonaAccess, hydrateLocalCacheFromCloud } from '@/lib/firebase/clinical-sync';
 
 const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';
 
@@ -75,8 +75,13 @@ export default function LoginPage() {
       // Fallback safely to selected persona
     }
 
-    // Provision demo persona in background so network latency never blocks login
-    void provisionDemoPersonaAccess(user.email).catch(() => {});
+    // Provision demo persona and hydrate local cache so the dashboard immediately sees linked patient data
+    try {
+      await provisionDemoPersonaAccess(user.email);
+      await hydrateLocalCacheFromCloud(uid);
+    } catch (e) {
+      console.warn('Persona provisioning/hydration notice:', e);
+    }
 
     setRole(actualRole);
     if (typeof window !== 'undefined') {

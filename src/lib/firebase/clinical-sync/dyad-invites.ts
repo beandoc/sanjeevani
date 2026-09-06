@@ -19,6 +19,7 @@ import {
 import { db } from '../client';
 import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
+  DEFAULT_PATIENT_PROFILE,
   type PatientDependenceProfile,
   type CaregiverAttributes
 } from '@/lib/clinical/care-gap-engine';
@@ -338,6 +339,7 @@ async function applyInviteClaim(
   };
 
   let effectiveInvite: DyadInvite = invite;
+  let profileToSave: Record<string, unknown> = defaultProfile;
 
   // Run transactional read-and-claim to prevent double-claiming race conditions
   await runTransaction(db, async (txn) => {
@@ -350,8 +352,6 @@ async function applyInviteClaim(
       throw new Error('This invite code has already been used.');
     }
     effectiveInvite = currentInvite;
-
-    let profileToSave: Record<string, unknown> = defaultProfile;
     try {
       const dyadProfileSnap = await txn.get(doc(db!, 'users', dyadDocId, 'patientProfile', 'current'));
       if (dyadProfileSnap.exists()) {
@@ -384,19 +384,30 @@ async function applyInviteClaim(
     }, { merge: true });
   });
 
+  // Save immediately to local repository cache
+  if (typeof window !== 'undefined') {
+    HealthRepository.savePatientProfile((profileToSave as unknown) as PatientDependenceProfile);
+    if (effectiveInvite.caregiverName) {
+      HealthRepository.saveCaregiverAttributes({
+        ...HealthRepository.getCaregiverAttributes(),
+        name: effectiveInvite.caregiverName
+      });
+    }
+  }
+
   // Migrate every other pre-claim clinical record. Each is independently
   // best-effort — a failure on one (e.g. no medications were ever recorded)
   // must not block the others or the claim itself.
   try {
     const dyadAttrsSnap = await getDoc(doc(db!, 'users', dyadDocId, 'caregiverAttributes', 'current'));
-    if (dyadAttrsSnap.exists()) {
-      await withRetry(() =>
-        setDoc(doc(db!, 'users', uid, 'caregiverAttributes', 'current'), {
-          ...dyadAttrsSnap.data(),
-          updatedAt: claimedAt
-        })
-      );
-    }
+    const baseAttrs = dyadAttrsSnap.exists() ? dyadAttrsSnap.data() : DEFAULT_CAREGIVER_ATTRIBUTES;
+    await withRetry(() =>
+      setDoc(doc(db!, 'users', uid, 'caregiverAttributes', 'current'), {
+        ...baseAttrs,
+        name: effectiveInvite.caregiverName || (dyadAttrsSnap.exists() ? dyadAttrsSnap.data()?.name : null) || 'Primary Caregiver',
+        updatedAt: claimedAt
+      }, { merge: true })
+    );
   } catch (attrsErr) {
     console.warn('Dyad caregiverAttributes migration notice:', attrsErr);
   }
@@ -509,16 +520,48 @@ export async function autoClaimInviteByPhone(phoneNumber: string | null): Promis
 export async function autoClaimInviteByEmail(email: string | null): Promise<DyadInvite | null> {
   const uid = currentUid();
   if (!uid || !db || !email) return null;
+  const cleanEmail = email.trim().toLowerCase();
   try {
     const q = query(
       collection(db, 'dyadInvites'),
-      where('caregiverEmail', '==', email.trim().toLowerCase()),
+      where('caregiverEmail', '==', cleanEmail),
       where('claimedAt', '==', null)
     );
     const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const matched = snap.docs[0];
-    return await applyInviteClaim(matched.ref, matched.data() as DyadInvite, uid);
+    if (!snap.empty) {
+      const matched = snap.docs[0];
+      return await applyInviteClaim(matched.ref, matched.data() as DyadInvite, uid);
+    }
+
+    // Fallback: If this invite was already claimed by this user account, ensure local caches are populated
+    const qClaimed = query(
+      collection(db, 'dyadInvites'),
+      where('caregiverEmail', '==', cleanEmail),
+      where('claimedByUid', '==', uid)
+    );
+    const snapClaimed = await getDocs(qClaimed);
+    if (!snapClaimed.empty) {
+      const inv = snapClaimed.docs[0].data() as DyadInvite;
+      if (typeof window !== 'undefined') {
+        const currentPt = HealthRepository.getPatientProfile();
+        if ((!currentPt || currentPt.name === DEFAULT_PATIENT_PROFILE.name) && inv.patientName) {
+          HealthRepository.savePatientProfile({
+            ...DEFAULT_PATIENT_PROFILE,
+            name: inv.patientName,
+            age: inv.patientAge || DEFAULT_PATIENT_PROFILE.age,
+            primaryConditions: inv.primaryConditions || DEFAULT_PATIENT_PROFILE.primaryConditions
+          });
+        }
+        if (inv.caregiverName) {
+          HealthRepository.saveCaregiverAttributes({
+            ...HealthRepository.getCaregiverAttributes(),
+            name: inv.caregiverName
+          });
+        }
+      }
+      return inv;
+    }
+    return null;
   } catch (err) {
     console.warn('Auto-claim by email skipped:', err);
     return null;

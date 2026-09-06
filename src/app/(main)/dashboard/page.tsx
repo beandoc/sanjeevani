@@ -1,20 +1,58 @@
 'use client';
 
-
-
+import { useState, useEffect } from 'react';
 import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
+import { auth } from '@/lib/firebase/client';
+import { HealthRepository } from '@/lib/db/health-repository';
 import { Shield, Sparkles, HeartPulse, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { role, caregivingScenario } = useProfile();
+  const [caregiverName, setCaregiverName] = useState<string>('');
+  const [patientName, setPatientName] = useState<string>('');
+
+  useEffect(() => {
+    const updateNames = () => {
+      const cg = HealthRepository.getCaregiverAttributes();
+      const pt = HealthRepository.getPatientProfile();
+
+      if (cg?.name && !cg.name.includes('(You)') && cg.name !== 'Suresh Kumar') {
+        setCaregiverName(cg.name);
+      } else if (auth?.currentUser?.displayName) {
+        setCaregiverName(auth.currentUser.displayName);
+      } else if (auth?.currentUser?.email?.includes('caregiver')) {
+        const prefix = auth.currentUser.email.split('@')[0].replace('caregiver', '');
+        if (prefix) {
+          setCaregiverName(prefix.charAt(0).toUpperCase() + prefix.slice(1));
+        }
+      } else if (cg?.name) {
+        setCaregiverName(cg.name.replace(' (You)', ''));
+      }
+
+      if (pt?.name) {
+        setPatientName(pt.name);
+      }
+    };
+
+    updateNames();
+    const unsub = auth?.onAuthStateChanged(() => updateNames());
+    const interval = setInterval(updateNames, 1500);
+    return () => {
+      unsub?.();
+      clearInterval(interval);
+    };
+  }, []);
+
   const welcomeTitle =
     role === 'doctor' || role === 'professional'
       ? 'Welcome, Dr. Vivek!'
       : role === 'nurse'
       ? 'Welcome, Nurse Sister Anjali!'
-      : 'Welcome, Suresh Kumar!';
+      : caregiverName
+      ? `Welcome, ${caregiverName}!`
+      : 'Welcome, Family Caregiver!';
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-10">
@@ -35,7 +73,13 @@ export default function DashboardPage() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
-            Your daily care plan, medicine reminders, vitals, and doctor-ready notes in one place.
+            {role === 'caregiver' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
+              <>
+                Caring for <span className="font-bold text-white">{patientName}</span> • Your daily care plan, medicine reminders, and vitals in one place.
+              </>
+            ) : (
+              'Your daily care plan, medicine reminders, vitals, and doctor-ready notes in one place.'
+            )}
           </p>
 
           <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">

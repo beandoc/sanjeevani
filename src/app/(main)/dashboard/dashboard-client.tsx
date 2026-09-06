@@ -61,7 +61,7 @@ import {
   AppointmentRecord
 } from '@/lib/db/health-repository';
 import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
-import { subscribeToReassessmentRequest } from '@/lib/firebase/clinical-sync';
+import { subscribeToReassessmentRequest, hydrateLocalCacheFromCloud } from '@/lib/firebase/clinical-sync';
 
 // Code-split by persona: the nurse, doctor, and family views below are
 // mutually exclusive (see the `role ===` branch), so a caregiver was
@@ -150,7 +150,32 @@ export default function DashboardClient() {
     const unsub = subscribeToReassessmentRequest(currentUserUid, (req) => {
       setReassessmentRequest(req);
     });
-    return () => unsub();
+
+    let isMounted = true;
+    void (async () => {
+      try {
+        await hydrateLocalCacheFromCloud(currentUserUid);
+        if (isMounted) {
+          setPatientProfile(HealthRepository.getPatientProfile());
+          setCaregiver(HealthRepository.getCaregiverAttributes());
+          setMedications(HealthRepository.getMedications());
+          setVitals(HealthRepository.getVitals());
+          setAppointments(HealthRepository.getAppointments());
+          setCareGap(
+            HealthRepository.hasStoredDyadProfile()
+              ? HealthRepository.getCareGapEvaluation()
+              : null
+          );
+        }
+      } catch (err) {
+        console.warn('Dashboard cloud hydration notice:', err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, [currentUserUid]);
 
   useEffect(() => {

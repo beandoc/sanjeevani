@@ -28,6 +28,8 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { HeaderControls } from './header-controls';
+import { HealthRepository } from '@/lib/db/health-repository';
+import { auth } from '@/lib/firebase/client';
 import { LanguageSwitcher } from '../language-switcher';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
@@ -219,7 +221,18 @@ export function Header() {
               >
                 <Avatar className="h-full w-full rounded-none">
                   <AvatarFallback className="rounded-none bg-primary/15 text-primary text-xs font-bold">
-                    {role === 'doctor' || role === 'professional' ? 'DV' : role === 'nurse' ? 'NA' : 'SK'}
+                    {role === 'doctor' || role === 'professional'
+                      ? 'DV'
+                      : role === 'nurse'
+                      ? 'NA'
+                      : (() => {
+                          const cgName = typeof window !== 'undefined' ? HealthRepository.getCaregiverAttributes()?.name : null;
+                          if (cgName && !cgName.includes('(You)') && cgName !== 'Suresh Kumar') {
+                            return cgName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+                          }
+                          if (auth?.currentUser?.email?.includes('abhishek')) return 'AB';
+                          return 'CG';
+                        })()}
                   </AvatarFallback>
                 </Avatar>
               </Button>
