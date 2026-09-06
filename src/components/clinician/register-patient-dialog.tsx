@@ -114,6 +114,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
   const [caregiverLastName, setCaregiverLastName] = useState('');
   const [caregiverPhone, setCaregiverPhone] = useState('');
+  const [caregiverAge, setCaregiverAge] = useState('');
   const [nurseFirstName, setNurseFirstName] = useState('');
   const [nurseLastName, setNurseLastName] = useState('');
   const [generatedLogins, setGeneratedLogins] = useState<{ caregiverEmail: string | null; nurseEmail: string | null }>({
@@ -147,6 +148,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     setCaregiverFirstName('');
     setCaregiverLastName('');
     setCaregiverPhone('');
+    setCaregiverAge('');
     setNurseFirstName('');
     setNurseLastName('');
     setGeneratedLogins({ caregiverEmail: null, nurseEmail: null });
@@ -248,9 +250,12 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
       const hoursNum = Number(formalSupportHours) || 0;
       const dyadUid = `dyad_${invite.inviteCode}`;
 
+      const caregiverAgeNum = Number(caregiverAge);
+
       await saveCaregiverAttributesFor(dyadUid, {
         ...DEFAULT_CAREGIVER_ATTRIBUTES,
         name: caregiverName.trim() || 'Primary Caregiver',
+        age: caregiverAgeNum > 0 ? caregiverAgeNum : DEFAULT_CAREGIVER_ATTRIBUTES.age,
         kinship: caregiverKinship,
         otherFamilyMembersCount: secondaryFamily,
         formalSupport: {
@@ -720,6 +725,20 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                         value={caregiverPhone.replace(/\D/g, '').slice(-10)}
                         onChange={(e) => setCaregiverPhone(e.target.value)}
                         className="pl-10 h-9 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Caregiver Age</Label>
+                      <Input
+                        type="number"
+                        min={12}
+                        max={110}
+                        placeholder="e.g. 42"
+                        value={caregiverAge}
+                        onChange={(e) => setCaregiverAge(e.target.value)}
+                        className="h-9 text-xs"
                       />
                     </div>
                   </div>

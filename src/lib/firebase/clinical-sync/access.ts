@@ -293,14 +293,5 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
     }
   }
 
-  // A dyad_* placeholder whose invite has since been claimed is stale
-  // scratch space — its clinicianGrant to this clinician was never revoked
-  // at claim time, so step 1 above can surface it as a *second*, orphaned
-  // entry alongside the claimant's real uid for the same patient. Drop it.
-  const claimedPlaceholders = new Set(
-    invites
-      .filter((inv) => inv.claimedByUid)
-      .map((inv) => inv.dyadUid || `dyad_${inv.inviteCode}`)
-  );
-  return entries.filter((e) => !claimedPlaceholders.has(e.patientUid));
+  return entries;
 }
