@@ -90,39 +90,45 @@ function StressCalculatorContent() {
           riskBand: primaryZarit[0]?.severityBand
         };
 
-        const cohortRows = await loadCohortRoster().catch(() => []);
-        const registered = HealthRepository.getRegisteredPatients();
-
-        const registeredOptions: DyadOption[] = registered.map((reg) => ({
-          id: reg.patientUid,
-          patientName: reg.patientName,
-          patientAge: reg.patientAge,
-          caregiverName: reg.caregiverName || reg.caregiverAttributes?.name || 'Primary Caregiver',
-          caregiverKinship: reg.caregiverAttributes?.kinship || 'family',
-          dyadTag: `#DYAD_${reg.patientUid.slice(0, 8).toUpperCase()}`,
-          lastScore: null,
-          lastCompletedAt: null
-        }));
-
-        const cohortOptions: DyadOption[] = cohortRows
-          .filter((row) => row.patientUid !== 'primary' && !registered.some((r) => r.patientUid === row.patientUid))
-          .map((row) => ({
-            id: row.patientUid,
-            patientName: row.displayName.replace(/\s*\(Dyad\s*#\w+\)/i, ''),
-            caregiverName: row.caregiverName || 'Primary Caregiver',
-            caregiverKinship: row.caregiverKinship || 'family',
-            dyadTag: row.patientUid.startsWith('demo-')
-              ? `Dyad #${row.patientUid.replace('demo-', '').toUpperCase()}`
-              : `#DYAD_${row.patientUid.slice(0, 8).toUpperCase()}`,
-            lastScore: row.latestBurdenPct !== null ? Math.round((row.latestBurdenPct / 100) * 88) : null,
-            lastCompletedAt: row.latestCompletedAt,
-            riskBand: row.riskBand
-          }));
+        const isClinician = role === 'doctor' || role === 'professional';
 
         const combinedMap = new Map<string, DyadOption>();
         combinedMap.set('primary', primaryOption);
-        registeredOptions.forEach((o) => combinedMap.set(o.id, o));
-        cohortOptions.forEach((o) => combinedMap.set(o.id, o));
+
+        // Caregivers ONLY have their own patient dyad — never load dummy demo cohort for caregivers
+        if (isClinician) {
+          const cohortRows = await loadCohortRoster().catch(() => []);
+          const registered = HealthRepository.getRegisteredPatients();
+
+          const registeredOptions: DyadOption[] = registered.map((reg) => ({
+            id: reg.patientUid,
+            patientName: reg.patientName,
+            patientAge: reg.patientAge,
+            caregiverName: reg.caregiverName || reg.caregiverAttributes?.name || 'Primary Caregiver',
+            caregiverKinship: reg.caregiverAttributes?.kinship || 'family',
+            dyadTag: `#DYAD_${reg.patientUid.slice(0, 8).toUpperCase()}`,
+            lastScore: null,
+            lastCompletedAt: null
+          }));
+
+          const cohortOptions: DyadOption[] = cohortRows
+            .filter((row) => row.patientUid !== 'primary' && !registered.some((r) => r.patientUid === row.patientUid))
+            .map((row) => ({
+              id: row.patientUid,
+              patientName: row.displayName.replace(/\s*\(Dyad\s*#\w+\)/i, ''),
+              caregiverName: row.caregiverName || 'Primary Caregiver',
+              caregiverKinship: row.caregiverKinship || 'family',
+              dyadTag: row.patientUid.startsWith('demo-')
+                ? `Dyad #${row.patientUid.replace('demo-', '').toUpperCase()}`
+                : `#DYAD_${row.patientUid.slice(0, 8).toUpperCase()}`,
+              lastScore: row.latestBurdenPct !== null ? Math.round((row.latestBurdenPct / 100) * 88) : null,
+              lastCompletedAt: row.latestCompletedAt,
+              riskBand: row.riskBand
+            }));
+
+          registeredOptions.forEach((o) => combinedMap.set(o.id, o));
+          cohortOptions.forEach((o) => combinedMap.set(o.id, o));
+        }
 
         // If a specific patientUid was requested via query parameter that wasn't in roster yet
         if (urlPatientUid && !combinedMap.has(urlPatientUid)) {
@@ -366,32 +372,34 @@ function StressCalculatorContent() {
               </div>
             </div>
 
-            {/* Right: Dyad Selector Dropdown */}
+            {/* Right: Dyad Selector Dropdown (Only for Doctors/Clinicians managing multiple patients) */}
             <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-              <div className="w-full sm:w-72">
-                <label htmlFor="dyad-switcher" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">
-                  Switch Person / Dyad
-                </label>
-                <Select value={selectedDyadId} onValueChange={handleSwitchDyad} disabled={isLoadingDyads}>
-                  <SelectTrigger id="dyad-switcher" className="h-9 text-xs font-semibold bg-background">
-                    <SelectValue placeholder={isLoadingDyads ? 'Loading dyads…' : 'Select patient dyad'} />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-xs sm:max-w-sm">
-                    {dyads.map((dyad) => (
-                      <SelectItem key={dyad.id} value={dyad.id} className="text-xs">
-                        <div className="space-y-0.5">
-                          <div className="font-bold text-foreground">
-                            {dyad.patientName} {dyad.patientAge ? `(${dyad.patientAge}y)` : ''}
+              {(role === 'doctor' || role === 'professional') && dyads.length > 1 && (
+                <div className="w-full sm:w-72">
+                  <label htmlFor="dyad-switcher" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">
+                    Switch Patient / Dyad
+                  </label>
+                  <Select value={selectedDyadId} onValueChange={handleSwitchDyad} disabled={isLoadingDyads}>
+                    <SelectTrigger id="dyad-switcher" className="h-9 text-xs font-semibold bg-background">
+                      <SelectValue placeholder={isLoadingDyads ? 'Loading dyads…' : 'Select patient dyad'} />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-xs sm:max-w-sm">
+                      {dyads.map((dyad) => (
+                        <SelectItem key={dyad.id} value={dyad.id} className="text-xs">
+                          <div className="space-y-0.5">
+                            <div className="font-bold text-foreground">
+                              {dyad.patientName} {dyad.patientAge ? `(${dyad.patientAge}y)` : ''}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              Caregiver: {dyad.caregiverName} ({dyad.caregiverKinship})
+                            </div>
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Caregiver: {dyad.caregiverName} ({dyad.caregiverKinship})
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {history.length > 0 && !currentResult && (
                 <Button
