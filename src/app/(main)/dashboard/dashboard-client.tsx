@@ -270,45 +270,6 @@ export default function DashboardClient() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Role Switcher & Onboarding Bridge (Only for non-doctor portals) */}
-      {role !== 'doctor' && role !== 'professional' && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-muted/40 rounded-2xl border border-border/60">
-          <div className="flex items-center gap-1.5 p-1 bg-background rounded-xl border border-border/60">
-            <button
-              type="button"
-              onClick={() => setRole('caregiver')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                role === 'caregiver'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <HeartPulse className="w-3.5 h-3.5" />
-              <span>Family</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('nurse')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                role === 'nurse'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Nurse</span>
-            </button>
-          </div>
-
-          <Link href="/onboarding">
-            <Button variant="ghost" size="sm" className="h-8 text-xs font-semibold gap-1 text-primary hover:bg-primary/10">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Patient Setup</span>
-            </Button>
-          </Link>
-        </div>
-      )}
-
       {/* Render Role-Specific Views */}
       {role === 'nurse' ? (
         <NurseShiftDashboard />

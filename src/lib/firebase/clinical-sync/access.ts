@@ -123,7 +123,8 @@ const DEMO_CAREGIVER_INVITE_CLAIMS: Record<string, string> = {
 };
 
 const DEMO_STAFF_INVITE_CLAIMS: Record<string, Array<{ dyadUid: string; code: string }>> = {
-  'vidyanurse@kutumbh.com': [{ dyadUid: 'dyad_sarojini_devi', code: 'NURSEVIDYA' }]
+  'vidyanurse@kutumbh.com': [{ dyadUid: 'dyad_sarojini_devi', code: 'NURSEVIDYA' }],
+  'vishalnurse@kutumbh.com': [{ dyadUid: 'c4WgNrxHbxZSlWSaCTQZAceTIt33', code: 'NURSEVISHAL' }]
 };
 
 /**

@@ -16,6 +16,7 @@ import {
   Computer,
   Bed,
   Activity,
+  LogOut,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -30,6 +31,8 @@ import Link from 'next/link';
 import { HeaderControls } from './header-controls';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { auth } from '@/lib/firebase/client';
+import { signOutUser } from '@/lib/firebase/auth';
+import { cn } from '@/lib/utils';
 import { LanguageSwitcher } from '../language-switcher';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
@@ -238,27 +241,63 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 mt-2 rounded-2xl p-2 shadow-2xl border-border/60">
+              <div className="px-3 py-2 border-b border-border/40">
+                <p className="text-xs font-bold text-foreground truncate">
+                  {auth?.currentUser?.displayName || auth?.currentUser?.email || (isDoctor ? 'Dr. Vivek' : isNurse ? 'Sister Shilpa (Nurse)' : 'Abhishek Rai')}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge variant="outline" className={cn(
+                    'text-[9px] font-extrabold uppercase tracking-wider',
+                    isDoctor ? 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10' :
+                    isNurse ? 'text-amber-600 border-amber-500/30 bg-amber-500/10' :
+                    'text-primary border-primary/30 bg-primary/10'
+                  )}>
+                    {isDoctor ? 'Doctor' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
+                  </Badge>
+                </div>
+              </div>
+
               <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Switch View
+                Workspace
               </DropdownMenuLabel>
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
-                <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Family Today</span>
-                  <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Kutumbh</Badge>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
-                <Link href="/clinic/roster" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Doctor Patients</span>
-                  <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-500/30">Doctor</Badge>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
-                <Link href="/domiciliary" className="flex items-center justify-between w-full text-xs font-semibold">
-                  <span>Nurse Today</span>
-                  <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Nurse</Badge>
-                </Link>
-              </DropdownMenuItem>
+              {isDoctor ? (
+                <>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/clinic/roster" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>Doctor Patients</span>
+                      <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-500/30">Roster</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/sehat-opd" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>OPD Consults</span>
+                      <Badge variant="outline" className="text-[9px] text-blue-600 border-blue-500/30">SeHAT</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              ) : isNurse ? (
+                <>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>Nurse Shift MAR</span>
+                      <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Active Shift</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/domiciliary" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>Bedside Companion</span>
+                      <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Procedures</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                  <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
+                    <span>Family Care Dashboard</span>
+                    <Badge variant="outline" className="text-[9px] text-primary border-primary/30">Home</Badge>
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuSeparator className="bg-border/40 my-1" />
               <DropdownMenuLabel className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -277,11 +316,17 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/40 my-1" />
-              <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
-                <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-primary">
-                  <User className="h-4 w-4 text-primary" />
-                  <span>Sign In / Switch</span>
-                </Link>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await signOutUser();
+                  } catch {}
+                  window.location.href = '/login';
+                }}
+                className="rounded-xl px-3 py-2 cursor-pointer focus:bg-destructive/10 text-destructive text-xs font-bold flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out / Switch</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setIsCrisisOpen(true)}

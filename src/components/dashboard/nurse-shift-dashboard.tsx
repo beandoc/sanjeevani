@@ -21,11 +21,14 @@ import {
 import { HealthRepository, type MedicationItem } from '@/lib/db/health-repository';
 import {
   syncVitals,
+  recordVitalFor,
   syncNursingProcedures,
   getNursingProceduresFor,
   getMedicationsFor,
-  syncMedications,
-  getPatientProfileFor
+  saveMedicationsFor,
+  getPatientProfileFor,
+  listMyRoster,
+  hydrateLocalCacheFromCloud
 } from '@/lib/firebase/clinical-sync';
 import { subscribeToAuthState } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -57,69 +60,72 @@ export function NurseShiftDashboard() {
   const [bloodSugar, setBloodSugar] = useState('');
   const [spO2, setSpO2] = useState('');
 
-  // Signed-in dyad uid — resolves so the nurse's shift readings and daily
-  // sheet write to the SAME `users/{uid}/...` tree the family caregiver's
-  // dashboard reads (see dashboard-client.tsx), not a device-only silo.
+  // Signed-in account uid & the active patient dyad uid resolved from clinician grants
   const [currentUid, setCurrentUid] = useState<string>('');
+  const [activeDyadUid, setActiveDyadUid] = useState<string>('');
 
-  // Nursing Procedures Checklist. Previously plain React state with no
-  // persistence at all — a page refresh silently discarded the whole shift's
-  // completed-procedure record, and it was never visible to the doctor or
-  // family. Now backed by HealthRepository (survives refresh) and mirrored
-  // to Firestore once signed in, keyed by today's date so it resets daily.
+  // Nursing Procedures Checklist
   const [procedures, setProcedures] = useState<typeof DEFAULT_PROCEDURES>(DEFAULT_PROCEDURES);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthState((user) => {
-      setCurrentUid(user?.uid || '');
+      const uid = user?.uid || '';
+      setCurrentUid(uid);
+      if (uid) {
+        void listMyRoster().then((roster) => {
+          const dyad = roster[0]?.patientUid || uid;
+          setActiveDyadUid(dyad);
+        });
+      }
     });
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (!currentUid) return;
-    setPatient(HealthRepository.getPatientProfile());
-    let cancelled = false;
-    void getPatientProfileFor(currentUid).then((cloudPt) => {
-      if (!cancelled && cloudPt) {
-        setPatient(cloudPt);
-      }
-    });
-    void getNursingProceduresFor(currentUid, todayStr()).then((saved) => {
-      if (!cancelled && Object.keys(saved).length > 0) {
-        setProcedures((prev) => ({ ...prev, ...saved }));
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUid]);
+  const targetDyadUid = activeDyadUid || currentUid;
 
   const [medications, setMedications] = useState<MedicationItem[]>([]);
 
   useEffect(() => {
     const localMeds = HealthRepository.getMedications();
     setMedications(localMeds);
-    if (!currentUid) return;
+    if (!targetDyadUid) return;
+
     let cancelled = false;
-    void getMedicationsFor(currentUid).then((cloudMeds) => {
+    void (async () => {
+      try {
+        await hydrateLocalCacheFromCloud(targetDyadUid);
+      } catch {}
+
+      const cloudPt = await getPatientProfileFor(targetDyadUid);
+      if (!cancelled && cloudPt) {
+        HealthRepository.savePatientProfile(cloudPt);
+        setPatient(cloudPt);
+      }
+
+      const cloudMeds = await getMedicationsFor(targetDyadUid);
       if (!cancelled && cloudMeds.length > 0) {
         HealthRepository.saveMedications(cloudMeds);
         setMedications(HealthRepository.getMedications());
       }
-    });
+
+      const savedProcs = await getNursingProceduresFor(targetDyadUid, todayStr());
+      if (!cancelled && Object.keys(savedProcs).length > 0) {
+        setProcedures((prev) => ({ ...prev, ...savedProcs }));
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [currentUid]);
+  }, [targetDyadUid]);
 
   const handleToggleMedSlot = async (
     id: string,
     slot: 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'sos'
   ) => {
     const updated = HealthRepository.toggleMedicationTaken(id, slot);
-    if (currentUid) {
-      void syncMedications(updated);
+    if (targetDyadUid) {
+      void saveMedicationsFor(targetDyadUid, updated);
     }
     setMedications(updated);
     const med = updated.find((m) => m.id === id);
@@ -132,8 +138,8 @@ export function NurseShiftDashboard() {
 
   const handleMarkAllTodayForMed = async (id: string) => {
     const updated = HealthRepository.toggleMedicationTaken(id);
-    if (currentUid) {
-      void syncMedications(updated);
+    if (targetDyadUid) {
+      void saveMedicationsFor(targetDyadUid, updated);
     }
     setMedications(updated);
   };
@@ -149,7 +155,7 @@ export function NurseShiftDashboard() {
   const toggleProcedure = (key: keyof typeof procedures) => {
     setProcedures((prev) => {
       const updated = { ...prev, [key]: !prev[key] };
-      if (currentUid) void syncNursingProcedures(currentUid, todayStr(), updated);
+      if (targetDyadUid) void syncNursingProcedures(targetDyadUid, todayStr(), updated);
       return updated;
     });
   };
@@ -172,13 +178,16 @@ export function NurseShiftDashboard() {
       sleep: 'average',
       notes: `Logged by Shift Nurse (${shiftType.replace('_', ' ')})`
     });
-    const { queued } = await syncVitals(saved);
+
+    if (targetDyadUid) {
+      await recordVitalFor(targetDyadUid, saved);
+    } else {
+      await syncVitals(saved);
+    }
 
     toast({
-      title: queued ? '☁️ Shift Vitals Recorded — Saved to Cloud' : 'Shift Vitals Recorded',
-      description: queued
-        ? 'Logged and backed up to the patient trajectory record.'
-        : 'Logged to permanent patient trajectory record.'
+      title: '☁️ Shift Vitals Recorded — Saved to Cloud',
+      description: `Logged and backed up to ${patient.name}'s trajectory record.`
     });
 
     setSystolic('');
@@ -534,7 +543,7 @@ export function NurseShiftDashboard() {
       </Card>
 
       <DailyCareLogPanel
-        patientUid={currentUid || undefined}
+        patientUid={targetDyadUid || currentUid || undefined}
         patientName={patient.name}
         title="Nurse Daily Bedside Sheet"
         medications={medications}

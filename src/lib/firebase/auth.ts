@@ -170,7 +170,6 @@ export async function getUserRole(uid: string): Promise<Role | null> {
     } catch {}
   }
 
-  // 2. Fall back to users/{uid} profile document
   if (!db) return null;
   try {
     const snap = await getDoc(doc(db, 'users', uid));

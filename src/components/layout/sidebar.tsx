@@ -73,12 +73,17 @@ export function AppSidebar() {
       const email = user?.email || '';
       setUserEmail(email);
 
-      // Auto-correct active role if it's doctor/professional but the user is not a doctor
+      // Auto-correct active role strictly by account persona so sessions never leak or mix up
       if (email) {
         const isEmailDoctor = email.toLowerCase().includes('doctor') || email.toLowerCase().includes('clinic');
-        if (!isEmailDoctor && (role === 'doctor' || role === 'professional')) {
+        const isEmailNurse = email.toLowerCase().includes('nurse');
+        const isEmailCaregiver = email.toLowerCase().includes('caregiver');
+
+        if (isEmailCaregiver && role !== 'caregiver') {
           setRole('caregiver');
-        } else if (isEmailDoctor && (role === 'caregiver' || role === 'nurse')) {
+        } else if (isEmailNurse && role !== 'nurse') {
+          setRole('nurse');
+        } else if (isEmailDoctor && role !== 'doctor' && role !== 'professional') {
           setRole('doctor');
         }
       }
@@ -424,53 +429,6 @@ export function AppSidebar() {
                 >
                   {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
                 </Badge>
-              </div>
-              <div className="flex items-center gap-1.5 pt-0.5 w-full">
-                {!isUserDoctor && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setRole('caregiver')}
-                      aria-pressed={role === 'caregiver'}
-                      className={cn(
-                        'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
-                        role === 'caregiver'
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                          : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
-                      )}
-                    >
-                      Caregiver
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole('nurse')}
-                      aria-pressed={role === 'nurse'}
-                      className={cn(
-                        'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
-                        role === 'nurse'
-                          ? 'bg-amber-600 text-white border-amber-500 shadow-xs'
-                          : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
-                      )}
-                    >
-                      Nurse
-                    </button>
-                  </>
-                )}
-                {isUserDoctor && (
-                  <button
-                    type="button"
-                    onClick={() => setRole('doctor')}
-                    aria-pressed={isDoctor}
-                    className={cn(
-                      'text-xs font-bold px-2 py-1.5 rounded-lg transition-all flex-1 text-center border',
-                      isDoctor
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
-                        : 'text-slate-300 bg-slate-800/80 hover:bg-slate-750 hover:text-white border-slate-700/70'
-                    )}
-                  >
-                    Doctor
-                  </button>
-                )}
               </div>
             </div>
           </SidebarGroupContent>
