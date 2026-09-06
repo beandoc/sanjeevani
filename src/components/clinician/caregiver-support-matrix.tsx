@@ -269,7 +269,9 @@ export function CaregiverSupportMatrix({
   const [hasBackPain, setHasBackPain] = useState(caregiver?.caregiverHealth?.hasBackPain || false);
   const [hasHypertension, setHasHypertension] = useState(caregiver?.caregiverHealth?.hasHypertension || false);
   const [hasArthritis, setHasArthritis] = useState(caregiver?.caregiverHealth?.hasArthritis || false);
+  const [hasDiabetes, setHasDiabetes] = useState(caregiver?.caregiverHealth?.hasDiabetes || false);
   const [hasInsomnia, setHasInsomnia] = useState(caregiver?.caregiverHealth?.hasInsomnia || false);
+  const [notes, setNotes] = useState(caregiver?.notes || '');
 
   // Assistive Equipment State
   const [hospitalBed, setHospitalBed] = useState<AssistiveDeviceInventory['hospitalBed']>(
@@ -342,9 +344,10 @@ export function CaregiverSupportMatrix({
       hasBackPain,
       hasHypertension,
       hasArthritis,
-      hasDiabetes: false,
+      hasDiabetes,
       hasInsomnia
     },
+    notes: notes.trim() || undefined,
     formalSupport: {
       // buildFormalSupport keeps `type` and `types[]` consistent with each other; the explicit
       // hours and scope toggles below are the clinician's overrides on top of the type defaults.
@@ -393,7 +396,9 @@ export function CaregiverSupportMatrix({
       hasBackPain,
       hasHypertension,
       hasArthritis,
+      hasDiabetes,
       hasInsomnia,
+      notes,
       supportTypes,
       supportHours,
       handlesTransfers,
@@ -449,7 +454,9 @@ export function CaregiverSupportMatrix({
     setHasBackPain(cg?.caregiverHealth?.hasBackPain ?? false);
     setHasHypertension(cg?.caregiverHealth?.hasHypertension ?? false);
     setHasArthritis(cg?.caregiverHealth?.hasArthritis ?? false);
+    setHasDiabetes(cg?.caregiverHealth?.hasDiabetes ?? false);
     setHasInsomnia(cg?.caregiverHealth?.hasInsomnia ?? false);
+    setNotes(cg?.notes || '');
 
     const devices = pt?.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES;
     setHospitalBed(devices.hospitalBed);
@@ -944,11 +951,11 @@ export function CaregiverSupportMatrix({
                   </div>
 
                   {/* Primary Caregiver Physical Health Constraints */}
-                  <div className="pt-2 border-t border-border/50">
-                    <Label className="text-xs font-semibold text-muted-foreground block mb-1.5">
-                      Primary Caregiver Physical Health Constraints (Lumbar / Spine Strain)
+                  <div className="pt-2 border-t border-border/50 space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground block">
+                      Primary Caregiver Physical Health Constraints & Medical Diagnoses
                     </Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 cursor-pointer hover:bg-muted/40">
                         <input type="checkbox" checked={hasBackPain} onChange={(e) => setHasBackPain(e.target.checked)} className="rounded text-primary" />
                         <span className="text-xs">Back Pain / Spine</span>
@@ -962,9 +969,25 @@ export function CaregiverSupportMatrix({
                         <span className="text-xs">Hypertension</span>
                       </label>
                       <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 cursor-pointer hover:bg-muted/40">
+                        <input type="checkbox" checked={hasDiabetes} onChange={(e) => setHasDiabetes(e.target.checked)} className="rounded text-primary" />
+                        <span className="text-xs">Diabetes T2</span>
+                      </label>
+                      <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 cursor-pointer hover:bg-muted/40">
                         <input type="checkbox" checked={hasInsomnia} onChange={(e) => setHasInsomnia(e.target.checked)} className="rounded text-primary" />
                         <span className="text-xs">Sleep Strain</span>
                       </label>
+                    </div>
+
+                    <div className="pt-1">
+                      <Label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                        Caregiver Medical Notes & Lifting / Health Restrictions
+                      </Label>
+                      <Input
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="e.g. Lumbar disc herniation (L4-L5), takes antihypertensives, avoid heavy transfers solo"
+                        className="h-8 text-xs"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1511,16 +1534,28 @@ export function CaregiverSupportMatrix({
               <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
                 <UserCheck className="w-4 h-4 text-primary" /> Primary Caregiver
               </span>
-              <Badge variant="outline" className="text-[10px] font-mono capitalize">
-                {currentCaregiver.kinship.replace('_', ' ')}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] font-mono capitalize">
+                  {currentCaregiver.kinship.replace('_', ' ')}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setOpen(true)}
+                  className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                  title="Edit Caregiver Personal & Medical Details"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span className="sr-only">Edit Caregiver</span>
+                </Button>
+              </div>
             </div>
             <div>
               <p className="text-base font-bold text-foreground">
                 {currentCaregiver.name}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {currentCaregiver.age} yrs • {currentCaregiver.coResidence.replace('_', ' ')}
+                {currentCaregiver.age} yrs • {currentCaregiver.coResidence.replace('_', ' ')} • {currentCaregiver.dailyHoursCommitted}h/day committed
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
@@ -1534,11 +1569,40 @@ export function CaregiverSupportMatrix({
                   Sleep Strain
                 </Badge>
               )}
+              {currentCaregiver.caregiverHealth.hasHypertension && (
+                <Badge variant="outline" className="text-[10px] font-bold text-rose-700 dark:text-rose-300 border-rose-500/30 bg-rose-500/10">
+                  Hypertension
+                </Badge>
+              )}
+              {currentCaregiver.caregiverHealth.hasArthritis && (
+                <Badge variant="outline" className="text-[10px] font-bold text-orange-700 dark:text-orange-300 border-orange-500/30 bg-orange-500/10">
+                  Arthritis
+                </Badge>
+              )}
+              {currentCaregiver.caregiverHealth.hasDiabetes && (
+                <Badge variant="outline" className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300 border-cyan-500/30 bg-cyan-500/10">
+                  Diabetes T2
+                </Badge>
+              )}
               {currentCaregiver.employment === 'full_time' && (
                 <Badge variant="outline" className="text-[10px] font-bold text-blue-700 dark:text-blue-300 border-blue-500/30 bg-blue-500/10">
                   Full-Time Job
                 </Badge>
               )}
+            </div>
+            {currentCaregiver.notes && (
+              <p className="text-[11px] text-muted-foreground italic bg-muted/40 px-2.5 py-1.5 rounded-lg border border-border/40 line-clamp-2" title={currentCaregiver.notes}>
+                &ldquo;{currentCaregiver.notes}&rdquo;
+              </p>
+            )}
+            <div className="pt-0.5">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3 h-3" /> Edit Personal & Medical Details
+              </button>
             </div>
           </div>
 
