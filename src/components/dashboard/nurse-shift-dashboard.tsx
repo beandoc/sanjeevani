@@ -203,15 +203,15 @@ export function NurseShiftDashboard() {
   return (
     <div className="space-y-6">
       {/* Nurse Shift Header */}
-      <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-sm">
+      <Card className="border-rose-900/40 bg-gradient-to-r from-rose-950/20 via-rose-900/5 to-background shadow-sm">
         <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-600/10 text-emerald-600 shrink-0 mt-0.5">
+            <div className="p-2.5 rounded-xl bg-rose-600/15 text-rose-700 dark:text-rose-400 shrink-0 mt-0.5">
               <UserCheck className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px] font-bold text-emerald-600 border-emerald-500/30 uppercase">
+                <Badge variant="outline" className="text-[10px] font-bold text-rose-700 dark:text-rose-300 border-rose-500/40 bg-rose-500/10 uppercase">
                   Trained Nurse / Medical Attendant Portal
                 </Badge>
                 <span className="text-xs text-muted-foreground font-mono">Shift Active</span>
@@ -227,18 +227,18 @@ export function NurseShiftDashboard() {
 
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <Link href="/medications">
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10">
-                <Pill className="w-4 h-4 text-amber-600" />
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10">
+                <Pill className="w-4 h-4 text-rose-600" />
                 <span>MAR / Meds ({completedDoses}/{totalScheduledDoses})</span>
               </Button>
             </Link>
             <Link href="/domiciliary">
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10">
                 <Bed className="w-4 h-4" /> Bedside Companion
               </Button>
             </Link>
             <Link href="/vital-logs">
-              <Button size="sm" className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Button size="sm" className="gap-1.5 text-xs font-bold bg-rose-700 hover:bg-rose-800 text-white shadow-xs">
                 <Activity className="w-4 h-4" /> Vitals History
               </Button>
             </Link>
@@ -253,12 +253,12 @@ export function NurseShiftDashboard() {
           <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-emerald-600" />
+                <HeartPulse className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                 Shift Vital Signs Log (MAR Entry)
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Select value={shiftType} onValueChange={(value) => setShiftType(value as typeof shiftType)}>
-                  <SelectTrigger id="nurse-shift-type" className="h-7 w-auto text-[10px] font-mono gap-1.5">
+                  <SelectTrigger id="nurse-shift-type" className="h-7 w-auto text-[10px] font-mono gap-1.5 border-rose-500/30">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -267,7 +267,7 @@ export function NurseShiftDashboard() {
                     <SelectItem value="live_in_24h">Live-in (24h)</SelectItem>
                   </SelectContent>
                 </Select>
-                <Badge variant="outline" className="text-[10px] font-mono">
+                <Badge variant="outline" className="text-[10px] font-mono border-rose-500/30 text-rose-700 dark:text-rose-300">
                   Real-Time
                 </Badge>
               </div>
@@ -334,7 +334,7 @@ export function NurseShiftDashboard() {
               </div>
 
               <div className="flex justify-end pt-2">
-                <Button type="submit" size="sm" className="w-full sm:w-auto gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white min-h-[38px]">
+                <Button type="submit" size="sm" className="w-full sm:w-auto gap-1.5 text-xs font-bold bg-rose-700 hover:bg-rose-800 text-white min-h-[38px] shadow-xs">
                   <Save className="w-3.5 h-3.5" /> Save Shift Readings
                 </Button>
               </div>
@@ -347,7 +347,7 @@ export function NurseShiftDashboard() {
           <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Stethoscope className="w-4 h-4 text-emerald-600" />
+                <Stethoscope className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                 Shift Nursing Duties & Care Plan
               </CardTitle>
               <Badge variant="secondary" className="text-[10px] font-mono">
@@ -373,8 +373,8 @@ export function NurseShiftDashboard() {
                   className={cn(
                     'w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all',
                     isChecked
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-foreground'
-                      : 'border-border/60 bg-muted/20 hover:border-emerald-500/40 text-muted-foreground'
+                      ? 'border-rose-500/50 bg-rose-500/10 text-foreground'
+                      : 'border-border/60 bg-muted/20 hover:border-rose-500/40 text-muted-foreground'
                   )}
                 >
                   <div className="space-y-0.5">
@@ -383,7 +383,7 @@ export function NurseShiftDashboard() {
                     </span>
                     <span className="text-[10px] text-muted-foreground">{task.desc}</span>
                   </div>
-                  <div className={cn('w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ml-2', isChecked ? 'bg-emerald-600 text-white border-emerald-600' : 'border-border')}>
+                  <div className={cn('w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ml-2', isChecked ? 'bg-rose-700 text-white border-rose-700' : 'border-border')}>
                     {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
                   </div>
                 </button>
@@ -465,7 +465,7 @@ export function NurseShiftDashboard() {
                           variant={isAllTaken ? 'default' : 'outline'}
                           className={cn(
                             'text-[10px] shrink-0 font-semibold',
-                            isAllTaken ? 'bg-emerald-600 text-white' : 'text-amber-700 dark:text-amber-300 border-amber-500/40'
+                            isAllTaken ? 'bg-rose-700 text-white' : 'text-amber-700 dark:text-amber-300 border-amber-500/40'
                           )}
                         >
                           {med.takenSlots?.length || 0}/{med.timeOfDay.length} Taken
@@ -486,14 +486,14 @@ export function NurseShiftDashboard() {
                                 className={cn(
                                   'px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1 transition-all',
                                   isTaken
-                                    ? 'border-emerald-500/80 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
-                                    : 'border-border bg-background hover:border-emerald-500/50 text-foreground'
+                                    ? 'border-rose-500/80 bg-rose-500/15 text-rose-800 dark:text-rose-200'
+                                    : 'border-border bg-background hover:border-rose-500/50 text-foreground'
                                 )}
                               >
                                 <div
                                   className={cn(
                                     'w-3 h-3 rounded-full border flex items-center justify-center',
-                                    isTaken ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-muted-foreground/50'
+                                    isTaken ? 'bg-rose-700 border-rose-700 text-white' : 'border-muted-foreground/50'
                                   )}
                                 >
                                   {isTaken && <CheckCircle2 className="w-2.5 h-2.5" />}

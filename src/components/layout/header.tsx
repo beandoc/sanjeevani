@@ -260,7 +260,15 @@ export function Header() {
                 className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-xl p-0 overflow-hidden border border-border/50 shadow-xs hover:scale-105 active:scale-95 transition-all"
               >
                 <Avatar className="h-full w-full rounded-none">
-                  <AvatarFallback className="rounded-none bg-primary/15 text-primary text-xs font-bold" suppressHydrationWarning>
+                  <AvatarFallback
+                    className={cn(
+                      'rounded-none text-xs font-bold',
+                      isDoctor ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
+                      isNurse ? 'bg-rose-600/15 text-rose-700 dark:text-rose-300' :
+                      'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300'
+                    )}
+                    suppressHydrationWarning
+                  >
                     {mounted ? initials : 'AR'}
                   </AvatarFallback>
                 </Avatar>
@@ -274,11 +282,11 @@ export function Header() {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge variant="outline" className={cn(
                     'text-[9px] font-extrabold uppercase tracking-wider',
-                    isDoctor ? 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10' :
-                    isNurse ? 'text-amber-600 border-amber-500/30 bg-amber-500/10' :
-                    'text-primary border-primary/30 bg-primary/10'
+                    isDoctor ? 'text-blue-600 dark:text-blue-400 border-blue-500/40 bg-blue-500/10' :
+                    isNurse ? 'text-rose-700 dark:text-rose-300 border-rose-600/40 bg-rose-500/15' :
+                    'text-emerald-700 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
                   )}>
-                    {isDoctor ? 'Doctor' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
+                    {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
                   </Badge>
                 </div>
               </div>

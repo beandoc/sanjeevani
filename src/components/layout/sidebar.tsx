@@ -428,9 +428,9 @@ export function AppSidebar() {
                   variant="outline"
                   className={cn(
                     'text-[10px] font-extrabold uppercase tracking-wider',
-                    isDoctor ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/15' :
-                      isNurse ? 'border-amber-500/50 text-amber-400 bg-amber-500/15' :
-                        'border-sky-500/50 text-sky-400 bg-sky-500/15'
+                    isDoctor ? 'border-blue-500/50 text-blue-400 bg-blue-500/15' :
+                      isNurse ? 'border-rose-600/60 text-rose-300 bg-rose-950/70' :
+                        'border-emerald-500/50 text-emerald-400 bg-emerald-500/15'
                   )}
                 >
                   {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
@@ -445,17 +445,17 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  tooltip={{ children: 'Search System (⌘K)' }}
                   onClick={() => setIsSearchOpen(true)}
-                  tooltip={{ children: 'Quick Search (⌘K)' }}
-                  className="h-9 px-3 rounded-xl bg-slate-900/85 hover:bg-slate-800 text-slate-200 hover:text-white font-semibold text-xs border border-slate-700/80 hover:border-slate-600 transition-all flex items-center justify-between shadow-xs"
+                  className="h-9 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-between text-xs transition-colors"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Search className="h-4 w-4 shrink-0 text-sky-400" />
-                    <span className="truncate text-slate-200 group-data-[collapsible=icon]:hidden">Search</span>
+                  <div className="flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Search</span>
                   </div>
-                  <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 group-data-[collapsible=icon]:hidden">
+                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border border-slate-700 bg-slate-800 px-1 font-mono text-[9px] font-medium text-slate-400">
                     ⌘K
-                  </span>
+                  </kbd>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -473,6 +473,18 @@ export function AppSidebar() {
               <SidebarMenu className="gap-1">
                 {section.items.map((link) => {
                   const active = isActive(link.href);
+                  const activeStyle = isDoctor
+                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/50 border border-blue-400/40'
+                    : isNurse
+                    ? 'bg-rose-800 text-white font-bold shadow-md shadow-rose-950/60 border border-rose-500/50'
+                    : 'bg-emerald-700 text-white font-bold shadow-md shadow-emerald-950/50 border border-emerald-400/40';
+
+                  const highlightStyle = isDoctor
+                    ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 hover:text-white border border-blue-500/30'
+                    : isNurse
+                    ? 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 hover:text-white border border-rose-500/30'
+                    : 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-white border border-emerald-500/30';
+
                   return (
                     <SidebarMenuItem key={link.href}>
                       <SidebarMenuButton
@@ -482,9 +494,9 @@ export function AppSidebar() {
                         className={cn(
                           'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-semibold',
                           active
-                            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/40 border border-blue-400/30'
+                            ? activeStyle
                             : link.isHighlighted
-                              ? 'bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 hover:text-white border border-sky-500/30 font-semibold'
+                              ? highlightStyle
                               : 'text-slate-200 hover:text-white hover:bg-slate-800/90'
                         )}
                       >
@@ -496,7 +508,7 @@ export function AppSidebar() {
                                 active
                                   ? 'scale-110 text-white'
                                   : link.isHighlighted
-                                    ? 'text-sky-300'
+                                    ? isNurse ? 'text-rose-300' : isDoctor ? 'text-blue-300' : 'text-emerald-300'
                                     : 'text-slate-300 group-hover:text-white'
                               )}
                             />
@@ -510,7 +522,7 @@ export function AppSidebar() {
                                 active
                                   ? 'bg-white/20 text-white border-white/30'
                                   : link.isHighlighted
-                                    ? 'bg-sky-500 text-white border-sky-400'
+                                    ? isNurse ? 'bg-rose-600 text-white border-rose-500' : isDoctor ? 'bg-blue-600 text-white border-blue-500' : 'bg-emerald-600 text-white border-emerald-500'
                                     : 'bg-slate-800 text-slate-200 border-slate-700/80 shadow-2xs'
                               )}
                             >
