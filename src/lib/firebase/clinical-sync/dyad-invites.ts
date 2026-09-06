@@ -376,13 +376,19 @@ async function applyInviteClaim(
       ...profileToSave,
       updatedAt: claimedAt
     });
-    txn.set(doc(db!, 'cohortSummaries', uid), {
+  });
+
+  // Best-effort cohort summary touch (non-blocking for caregiver client)
+  try {
+    await setDoc(doc(db!, 'cohortSummaries', uid), {
       patientUid: uid,
-      displayName: currentInvite.patientName,
-      clinicianUid: currentInvite.clinicianUid,
+      displayName: effectiveInvite.patientName,
+      clinicianUid: effectiveInvite.clinicianUid,
       updatedAt: claimedAt
     }, { merge: true });
-  });
+  } catch {
+    // cohortSummaries is a server/doctor view, never blocks caregiver claim
+  }
 
   // Save immediately to local repository cache
   if (typeof window !== 'undefined') {
