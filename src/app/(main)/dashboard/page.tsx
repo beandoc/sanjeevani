@@ -5,7 +5,9 @@ import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { HealthRepository } from '@/lib/db/health-repository';
-import { Shield, Sparkles, HeartPulse, Stethoscope } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Shield, Sparkles, HeartPulse, Stethoscope, Bed, Activity, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -91,125 +93,138 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-10">
-      {/* Dynamic Hero Section - Role-Specific Themed */}
-      <section className={`relative overflow-hidden rounded-3xl bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 md:px-12 md:py-12 text-white shadow-xl border ${themeConfig.border}`}>
-        <div className={`absolute inset-0 bg-gradient-to-br ${themeConfig.bgGradient} animate-gradient`} />
-        <div className={`absolute -right-16 -top-16 h-64 w-64 rounded-full ${themeConfig.glow1} blur-3xl pointer-events-none`} />
-        <div className={`absolute -bottom-16 -left-16 h-64 w-64 rounded-full ${themeConfig.glow2} blur-3xl pointer-events-none`} />
-
-        <div className="relative z-10 max-w-3xl space-y-3 sm:space-y-4">
-          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-md border ${themeConfig.badgeBg}`}>
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{themeConfig.badgeLabel}</span>
+      {/* Nurse-Specific Patient HUD OR Doctor/Caregiver Hero Section */}
+      {isNurse ? (
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#2c0814] via-[#3d0b1d] to-[#120207] p-4 sm:p-5 text-white shadow-xl border border-rose-900/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-rose-500/15 via-transparent to-transparent pointer-events-none" />
+          <div className="relative z-10 flex items-center gap-3.5 min-w-0">
+            <div className="relative h-12 w-12 rounded-xl bg-rose-600/25 border border-rose-500/50 flex items-center justify-center font-black text-rose-200 text-lg shrink-0 shadow-inner">
+              VG
+            </div>
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-base sm:text-xl text-white tracking-tight">
+                  {patientName || 'Vishal gaurav'}
+                </span>
+                <Badge variant="outline" className="text-[10px] font-mono border-rose-400/50 text-rose-200 bg-rose-500/20">
+                  80 Yrs · Male
+                </Badge>
+                <Badge variant="outline" className="text-[10px] font-mono border-amber-500/50 text-amber-300 bg-amber-500/15">
+                  Bedbound
+                </Badge>
+                <Badge variant="outline" className="text-[10px] font-mono border-red-500/50 text-red-300 bg-red-500/15">
+                  High Fall Risk (2 / 6mo)
+                </Badge>
+              </div>
+              <p className="text-xs text-rose-200/80 truncate">
+                Nurse Station · Primary Conditions: Hypertension, Dementia / Alzheimer&apos;s · Tab Amlodipine 5mg OD Active
+              </p>
+            </div>
           </div>
 
-          <h1 className="font-headline text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
-            {welcomeTitle}
-          </h1>
-
-          <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
-            {role === 'nurse' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
-              <>
-                Bedside shift tasks, vitals tracking, and medication administration (MAR) for{' '}
-                <span className="font-bold text-white">{patientName}</span>.
-              </>
-            ) : role === 'caregiver' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
-              <>
-                Caring for <span className="font-bold text-white">{patientName}</span> • Your daily care plan, medicine reminders, and vitals in one place.
-              </>
-            ) : isDoctor ? (
-              'Comprehensive longitudinal geriatric cohort management, acute care gaps, and dyad risk surveillance.'
-            ) : (
-              'Your daily care plan, medicine reminders, vitals, and doctor-ready notes in one place.'
-            )}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">
-            {isNurse ? (
-              <>
-                <Link
-                  href="/medications"
-                  title="Shift Medication Administration Record"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500"
-                >
-                  <Shield className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
-                  <span>MAR / Meds</span>
-                </Link>
-                <Link
-                  href="/domiciliary"
-                  title="Bedside Companion & Q2H Clock"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500"
-                >
-                  <HeartPulse className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
-                  <span>Bedside Companion</span>
-                </Link>
-                <Link
-                  href="/vital-logs"
-                  title="Patient Vitals Trajectory"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500"
-                >
-                  <Stethoscope className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
-                  <span>Vitals History</span>
-                </Link>
-              </>
-            ) : isDoctor ? (
-              <>
-                <Link
-                  href="/clinic/roster"
-                  title="Clinical Cohort Roster"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <Stethoscope className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
-                  <span>Cohort Roster</span>
-                </Link>
-                <Link
-                  href="/clinic/trajectory"
-                  title="Scissors Trajectory Analytics"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <HeartPulse className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
-                  <span>Scissors Trajectory</span>
-                </Link>
-                <Link
-                  href="/simulations"
-                  title="Clinical Simulations"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <Shield className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
-                  <span>Case Simulations</span>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/stress-calculator"
-                  title="Zarit Burden Interview (ZBI-22) — Assess caregiver fatigue and burnout risk"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
-                >
-                  <HeartPulse className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
-                  <span>Stress Check</span>
-                </Link>
-                <Link
-                  href="/medications"
-                  title="Geriatric Medication Regimen & Beers Criteria Safety Warnings"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
-                >
-                  <Shield className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-                  <span>Medicines</span>
-                </Link>
-                <Link
-                  href="/domiciliary"
-                  title="Bedside Companion"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
-                >
-                  <Stethoscope className="w-3.5 h-3.5 text-teal-400" aria-hidden="true" />
-                  <span>Bedside Care</span>
-                </Link>
-              </>
-            )}
+          <div className="relative z-10 flex items-center gap-2 shrink-0 flex-wrap">
+            <Link href="/domiciliary">
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold border-rose-500/40 text-rose-200 hover:bg-rose-500/20 bg-rose-950/40">
+                <Bed className="w-3.5 h-3.5 text-rose-400" />
+                <span>Bedside Companion</span>
+              </Button>
+            </Link>
+            <Link href="/vital-logs">
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs font-bold border-rose-500/40 text-rose-200 hover:bg-rose-500/20 bg-rose-950/40">
+                <Activity className="w-3.5 h-3.5 text-rose-400" />
+                <span>Vitals History</span>
+              </Button>
+            </Link>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className={`relative overflow-hidden rounded-3xl bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 md:px-12 md:py-12 text-white shadow-xl border ${themeConfig.border}`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${themeConfig.bgGradient} animate-gradient`} />
+          <div className={`absolute -right-16 -top-16 h-64 w-64 rounded-full ${themeConfig.glow1} blur-3xl pointer-events-none`} />
+          <div className={`absolute -bottom-16 -left-16 h-64 w-64 rounded-full ${themeConfig.glow2} blur-3xl pointer-events-none`} />
+
+          <div className="relative z-10 max-w-3xl space-y-3 sm:space-y-4">
+            <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-md border ${themeConfig.badgeBg}`}>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{themeConfig.badgeLabel}</span>
+            </div>
+
+            <h1 className="font-headline text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
+              {welcomeTitle}
+            </h1>
+
+            <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
+              {role === 'caregiver' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
+                <>
+                  Caring for <span className="font-bold text-white">{patientName}</span> • Your daily care plan, medicine reminders, and vitals in one place.
+                </>
+              ) : isDoctor ? (
+                'Comprehensive longitudinal geriatric cohort management, acute care gaps, and dyad risk surveillance.'
+              ) : (
+                'Your daily care plan, medicine reminders, vitals, and doctor-ready notes in one place.'
+              )}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-3">
+              {isDoctor ? (
+                <>
+                  <Link
+                    href="/clinic/roster"
+                    title="Clinical Cohort Roster"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <Stethoscope className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
+                    <span>Cohort Roster</span>
+                  </Link>
+                  <Link
+                    href="/clinic/trajectory"
+                    title="Scissors Trajectory Analytics"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <HeartPulse className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
+                    <span>Scissors Trajectory</span>
+                  </Link>
+                  <Link
+                    href="/simulations"
+                    title="Clinical Simulations"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-cyan-400" aria-hidden="true" />
+                    <span>Case Simulations</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/stress-calculator"
+                    title="Zarit Burden Interview (ZBI-22) — Assess caregiver fatigue and burnout risk"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <HeartPulse className="w-3.5 h-3.5 text-rose-400" aria-hidden="true" />
+                    <span>Stress Check</span>
+                  </Link>
+                  <Link
+                    href="/medications"
+                    title="Geriatric Medication Regimen & Beers Criteria Safety Warnings"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                    <span>Medicines</span>
+                  </Link>
+                  <Link
+                    href="/domiciliary"
+                    title="Bedside Companion"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md border border-white/15 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <Stethoscope className="w-3.5 h-3.5 text-teal-400" aria-hidden="true" />
+                    <span>Bedside Care</span>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Main Content Area */}
       <div className="w-full">
