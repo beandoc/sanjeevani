@@ -44,10 +44,46 @@ export function Header() {
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [userLabel, setUserLabel] = useState('Abhishek Rai');
+  const [initials, setInitials] = useState('AR');
 
   const isDoctor = role === 'doctor' || role === 'professional';
   const isNurse = role === 'nurse';
   const isCaregiver = !isDoctor && !isNurse;
+
+  useEffect(() => {
+    setMounted(true);
+    const updateIdentity = () => {
+      if (role === 'doctor' || role === 'professional') {
+        setInitials('DV');
+        setUserLabel('Dr. Vivek');
+        return;
+      }
+      if (role === 'nurse') {
+        setInitials('NS');
+        setUserLabel('Sister Shilpa (Nurse)');
+        return;
+      }
+      const cg = HealthRepository.getCaregiverAttributes();
+      if (cg?.name && !cg.name.includes('(You)') && cg.name !== 'Suresh Kumar') {
+        setUserLabel(cg.name);
+        setInitials(cg.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase());
+      } else if (auth?.currentUser?.displayName) {
+        setUserLabel(auth.currentUser.displayName);
+        setInitials(auth.currentUser.displayName.slice(0, 2).toUpperCase());
+      } else if (auth?.currentUser?.email?.includes('abhishek')) {
+        setUserLabel('Abhishek Rai');
+        setInitials('AR');
+      } else {
+        setUserLabel('Abhishek Rai');
+        setInitials('AR');
+      }
+    };
+    updateIdentity();
+    const unsub = auth?.onAuthStateChanged(() => updateIdentity());
+    return () => unsub?.();
+  }, [role]);
 
   // Global Cmd+K / Ctrl+K keyboard shortcut listener
   useEffect(() => {
@@ -223,27 +259,16 @@ export function Header() {
                 className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-xl p-0 overflow-hidden border border-border/50 shadow-xs hover:scale-105 active:scale-95 transition-all"
               >
                 <Avatar className="h-full w-full rounded-none">
-                  <AvatarFallback className="rounded-none bg-primary/15 text-primary text-xs font-bold">
-                    {role === 'doctor' || role === 'professional'
-                      ? 'DV'
-                      : role === 'nurse'
-                      ? 'NA'
-                      : (() => {
-                          const cgName = typeof window !== 'undefined' ? HealthRepository.getCaregiverAttributes()?.name : null;
-                          if (cgName && !cgName.includes('(You)') && cgName !== 'Suresh Kumar') {
-                            return cgName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-                          }
-                          if (auth?.currentUser?.email?.includes('abhishek')) return 'AB';
-                          return 'CG';
-                        })()}
+                  <AvatarFallback className="rounded-none bg-primary/15 text-primary text-xs font-bold" suppressHydrationWarning>
+                    {mounted ? initials : 'AR'}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 mt-2 rounded-2xl p-2 shadow-2xl border-border/60">
               <div className="px-3 py-2 border-b border-border/40">
-                <p className="text-xs font-bold text-foreground truncate">
-                  {auth?.currentUser?.displayName || auth?.currentUser?.email || (isDoctor ? 'Dr. Vivek' : isNurse ? 'Sister Shilpa (Nurse)' : 'Abhishek Rai')}
+                <p className="text-xs font-bold text-foreground truncate" suppressHydrationWarning>
+                  {mounted ? userLabel : 'Abhishek Rai'}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Badge variant="outline" className={cn(
