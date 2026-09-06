@@ -1,27 +1,91 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Printer, Download, FileText, ArrowLeft, HeartPulse } from 'lucide-react';
+import { Printer, FileText, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import { HealthRepository, VitalRecord, MedicationItem } from '@/lib/db/health-repository';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
+import {
+  CaregiverAttributes,
+  PatientDependenceProfile
+} from '@/lib/clinical/care-gap-engine';
+import {
+  getCaregiverAttributesFor,
+  getPatientProfileFor,
+  getZaritAssessmentsFor,
+  getVitalsFor,
+  getMedicationsFor
+} from '@/lib/firebase/clinical-sync';
 import { ClinicalSummaryPrint } from '@/components/reports/clinical-summary-print';
 
-export default function ReportsPage() {
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const { user } = useAuthUser();
+
   const [zaritResult, setZaritResult] = useState<ZaritEvaluationResult | null>(null);
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
+  const [caregiverAttrs, setCaregiverAttrs] = useState<CaregiverAttributes | null>(null);
+  const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const patientUid = searchParams.get('patientUid') || user?.uid || null;
 
   useEffect(() => {
-    const assessments = HealthRepository.getZaritAssessments();
-    if (assessments.length > 0) {
-      setZaritResult(assessments[0]);
+    async function loadReportData() {
+      setIsLoading(true);
+      try {
+        if (patientUid) {
+          const [remoteCg, remotePt, remoteZarit, remoteVitals, remoteMeds] = await Promise.all([
+            getCaregiverAttributesFor(patientUid),
+            getPatientProfileFor(patientUid),
+            getZaritAssessmentsFor(patientUid),
+            getVitalsFor(patientUid),
+            getMedicationsFor(patientUid)
+          ]);
+
+          if (remoteCg) setCaregiverAttrs(remoteCg);
+          else if (HealthRepository.hasStoredDyadProfile()) setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
+
+          if (remotePt) setPatientProfile(remotePt);
+          else if (HealthRepository.hasStoredDyadProfile()) setPatientProfile(HealthRepository.getPatientProfile());
+
+          if (remoteZarit && remoteZarit.length > 0) setZaritResult(remoteZarit[0]);
+          else {
+            const localZarit = HealthRepository.getZaritAssessments();
+            if (localZarit.length > 0) setZaritResult(localZarit[0]);
+          }
+
+          if (remoteVitals && remoteVitals.length > 0) setVitals(remoteVitals);
+          else setVitals(HealthRepository.getVitals());
+
+          if (remoteMeds && remoteMeds.length > 0) setMedications(remoteMeds);
+          else setMedications(HealthRepository.getMedications());
+        } else {
+          // Fallback to local repository
+          const assessments = HealthRepository.getZaritAssessments();
+          if (assessments.length > 0) {
+            setZaritResult(assessments[0]);
+          }
+          setVitals(HealthRepository.getVitals());
+          setMedications(HealthRepository.getMedications());
+          if (HealthRepository.hasStoredDyadProfile()) {
+            setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
+            setPatientProfile(HealthRepository.getPatientProfile());
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load remote report data:', err);
+      } finally {
+        setIsLoading(false);
+      }
     }
-    setVitals(HealthRepository.getVitals());
-    setMedications(HealthRepository.getMedications());
-  }, []);
+
+    void loadReportData();
+  }, [patientUid]);
 
   const handlePrint = () => {
     window.print();
@@ -56,12 +120,35 @@ export default function ReportsPage() {
 
       {/* Report Container */}
       <div className="border border-border rounded-3xl overflow-hidden shadow-sm bg-white print:border-none print:shadow-none">
-        <ClinicalSummaryPrint
-          zaritResult={zaritResult}
-          vitals={vitals}
-          medications={medications}
-        />
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span className="text-xs">Generating Clinical Encounter Brief…</span>
+          </div>
+        ) : (
+          <ClinicalSummaryPrint
+            zaritResult={zaritResult}
+            vitals={vitals}
+            medications={medications}
+            caregiverAttrs={caregiverAttrs}
+            patientProfile={patientProfile}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-20 text-center text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+        </div>
+      }
+    >
+      <ReportsContent />
+    </Suspense>
   );
 }

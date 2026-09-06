@@ -44,6 +44,8 @@ import {
   Hospital,
   Store,
   Ambulance,
+  FileCheck2,
+  Printer,
   ExternalLink
 } from 'lucide-react';
 import {
@@ -777,6 +779,18 @@ export default function DyadDetailPage({ params }: { params?: Promise<{ patientU
                   </Button>
                 }
               />
+
+              <Link href={`/reports?patientUid=${patientUid}`} target="_blank">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted"
+                  title="Print or export clinical encounter brief for OPD consultation"
+                >
+                  <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="hidden sm:inline">Print Brief</span>
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

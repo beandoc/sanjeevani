@@ -6,7 +6,10 @@ import { VitalRecord, MedicationItem, HealthRepository } from '@/lib/db/health-r
 import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
   DEFAULT_PATIENT_PROFILE,
-  CareGapEvaluationResult
+  CareGapEvaluationResult,
+  CareGapEngine,
+  CaregiverAttributes,
+  PatientDependenceProfile
 } from '@/lib/clinical/care-gap-engine';
 import { format } from 'date-fns';
 
@@ -17,6 +20,8 @@ interface ClinicalSummaryPrintProps {
   patientName?: string;
   caregiverName?: string;
   caregiverRelation?: string;
+  caregiverAttrs?: CaregiverAttributes | null;
+  patientProfile?: PatientDependenceProfile | null;
 }
 
 export function ClinicalSummaryPrint({
@@ -26,6 +31,8 @@ export function ClinicalSummaryPrint({
   patientName = 'Smt. Sarojini Devi (Age 81)',
   caregiverName = 'Suresh Kumar (Son)',
   caregiverRelation = 'Primary Family Caregiver',
+  caregiverAttrs: propsCaregiverAttrs,
+  patientProfile: propsPatientProfile
 }: ClinicalSummaryPrintProps) {
   const [mounted, setMounted] = useState(false);
   const [docId, setDocId] = useState('SNJ-CLINICAL-000000');
@@ -39,14 +46,24 @@ export function ClinicalSummaryPrint({
     setMounted(true);
     setGeneratedDate(new Date());
     setDocId(`SNJ-CLINICAL-${Date.now().toString().slice(-6)}`);
-    const hasProfile = HealthRepository.hasStoredDyadProfile();
-    setHasRealDyadProfile(hasProfile);
-    if (hasProfile) {
-      setCaregiverAttrs(HealthRepository.getCaregiverAttributes());
-      setPatientProfile(HealthRepository.getPatientProfile());
-      setCareGapEval(HealthRepository.getCareGapEvaluation());
+
+    if (propsCaregiverAttrs && propsPatientProfile) {
+      setHasRealDyadProfile(true);
+      setCaregiverAttrs(propsCaregiverAttrs);
+      setPatientProfile(propsPatientProfile);
+      setCareGapEval(CareGapEngine.evaluate(propsCaregiverAttrs, propsPatientProfile, new Date(), vitals as any, []));
+    } else {
+      const hasProfile = HealthRepository.hasStoredDyadProfile();
+      setHasRealDyadProfile(hasProfile);
+      if (hasProfile) {
+        const cg = HealthRepository.getCaregiverAttributes();
+        const pt = HealthRepository.getPatientProfile();
+        setCaregiverAttrs(cg);
+        setPatientProfile(pt);
+        setCareGapEval(CareGapEngine.evaluate(cg, pt, new Date(), vitals as any, []));
+      }
     }
-  }, []);
+  }, [propsCaregiverAttrs, propsPatientProfile, vitals]);
 
   // Consistent 10-Record / Recent 14-Day Window Analytics
   const recentVitals = vitals.slice(0, 10);
