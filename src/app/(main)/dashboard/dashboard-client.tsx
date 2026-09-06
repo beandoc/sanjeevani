@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Card,
   CardContent,
@@ -63,11 +64,32 @@ import {
   AppointmentRecord
 } from '@/lib/db/health-repository';
 import { ZaritEvaluationResult, isReassessmentDue } from '@/lib/zarit-scale';
-import { NurseShiftDashboard } from '@/components/dashboard/nurse-shift-dashboard';
-import { DoctorCohortDashboard } from '@/components/dashboard/doctor-cohort-dashboard';
 import { subscribeToReassessmentRequest } from '@/lib/firebase/clinical-sync';
-import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
-import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
+
+// Code-split by persona: the nurse, doctor, and family views below are
+// mutually exclusive (see the `role ===` branch), so a caregiver was
+// downloading the whole clinician cohort dashboard — and vice versa — on
+// every visit to /dashboard.
+const NurseShiftDashboard = dynamic(() =>
+  import('@/components/dashboard/nurse-shift-dashboard').then((m) => m.NurseShiftDashboard), {
+  loading: () => <DashboardSkeleton />
+});
+const DoctorCohortDashboard = dynamic(() =>
+  import('@/components/dashboard/doctor-cohort-dashboard').then((m) => m.DoctorCohortDashboard), {
+  loading: () => <DashboardSkeleton />
+});
+const DailyCareLogPanel = dynamic(() =>
+  import('@/components/clinical/daily-care-log-panel').then((m) => m.DailyCareLogPanel), {
+  loading: () => <DashboardSkeleton />
+});
+const CareIntelligencePanel = dynamic(() =>
+  import('@/components/clinical/care-intelligence-panel').then((m) => m.CareIntelligencePanel), {
+  loading: () => <DashboardSkeleton />
+});
+
+function DashboardSkeleton() {
+  return <div className="rounded-2xl border border-border/60 bg-muted/40 animate-pulse h-48" />;
+}
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 import type { CaregiverAttributes, PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';

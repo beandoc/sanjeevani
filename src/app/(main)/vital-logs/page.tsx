@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -40,8 +41,11 @@ import {
 } from '@/components/ui/table';
 import { ClipboardList, Trash2, CalendarIcon, HeartPulse, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+// Code-split: react-day-picker only mounts when the date popover is opened.
+const Calendar = dynamic(() => import('@/components/ui/calendar').then((m) => m.Calendar), {
+  loading: () => <div className="h-72 w-72 animate-pulse rounded-md bg-muted/50" />
+});
 import { cn } from '@/lib/utils';
 import { HealthRepository, VitalRecord } from '@/lib/db/health-repository';
 import { syncVitals, getVitalsFor, syncConsent, syncDraft, getDraftForCurrentUser, clearDraft } from '@/lib/firebase/clinical-sync';

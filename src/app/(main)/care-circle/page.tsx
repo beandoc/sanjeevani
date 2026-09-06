@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +69,12 @@ import {
   syncCareCircle,
   getCareCircleFor
 } from '@/lib/firebase/clinical-sync';
-import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
+// Code-split: 2000+ lines, and this page's own "matrix" tab already covers
+// its own loading state visually (see the skeleton below).
+const CaregiverSupportMatrix = dynamic(() =>
+  import('@/components/clinician/caregiver-support-matrix').then((m) => m.CaregiverSupportMatrix), {
+  loading: () => <div className="rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-96" />
+});
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
 import { Stethoscope, FileSignature, AlertCircle, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';

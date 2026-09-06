@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState, use as usePromise } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { useParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,15 +68,55 @@ import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory } from '@/lib/clinical/care-gap-engine';
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
-import { ScissorsChart } from '@/components/clinician/scissors-chart';
 import { RiskHeader } from '@/components/clinician/risk-header';
-import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
-import { AssistedZaritAssessmentForm } from '@/components/clinical/assisted-zarit-assessment-form';
-import { DailyCareLogPanel } from '@/components/clinical/daily-care-log-panel';
-import { CareIntelligencePanel } from '@/components/clinical/care-intelligence-panel';
-import { DoctorCareBlueprintDialog } from '@/components/clinician/doctor-care-blueprint-dialog';
-import { CaregiverSupportMatrix } from '@/components/clinician/caregiver-support-matrix';
-import { AssignModulesPanel } from '@/components/clinician/assign-modules-panel';
+
+// Code-split: each of these only ever mounts once its own dialog is opened or
+// its own workspace tab is selected (see `activeTab` below), so bundling them
+// into the initial page chunk cost every visitor ~130kB of JS they may never
+// touch in that session. `caregiver-support-matrix.tsx` alone is 2000+ lines
+// (the default "matrix" tab) and was the single largest contributor.
+const FunctionAssessmentForm = dynamic(() =>
+  import('@/components/clinical/function-assessment-form').then((m) => m.FunctionAssessmentForm), {
+  loading: () => <ButtonSkeleton />
+});
+const AssistedZaritAssessmentForm = dynamic(() =>
+  import('@/components/clinical/assisted-zarit-assessment-form').then((m) => m.AssistedZaritAssessmentForm), {
+  loading: () => <ButtonSkeleton />
+});
+const DailyCareLogPanel = dynamic(() =>
+  import('@/components/clinical/daily-care-log-panel').then((m) => m.DailyCareLogPanel), {
+  loading: () => <PanelSkeleton />
+});
+const CareIntelligencePanel = dynamic(() =>
+  import('@/components/clinical/care-intelligence-panel').then((m) => m.CareIntelligencePanel), {
+  loading: () => <PanelSkeleton />
+});
+const DoctorCareBlueprintDialog = dynamic(() =>
+  import('@/components/clinician/doctor-care-blueprint-dialog').then((m) => m.DoctorCareBlueprintDialog), {
+  loading: () => <ButtonSkeleton />
+});
+const CaregiverSupportMatrix = dynamic(() =>
+  import('@/components/clinician/caregiver-support-matrix').then((m) => m.CaregiverSupportMatrix), {
+  loading: () => <PanelSkeleton className="h-96" />
+});
+const AssignModulesPanel = dynamic(() =>
+  import('@/components/clinician/assign-modules-panel').then((m) => m.AssignModulesPanel), {
+  loading: () => <PanelSkeleton />
+});
+// recharts + date-fns are a heavy pull for a chart that only renders on the
+// "overview" tab.
+const ScissorsChart = dynamic(() =>
+  import('@/components/clinician/scissors-chart').then((m) => m.ScissorsChart), {
+  loading: () => <PanelSkeleton className="h-64" />
+});
+
+function PanelSkeleton({ className }: { className?: string }) {
+  return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
+}
+
+function ButtonSkeleton() {
+  return <div className="h-9 w-28 rounded-xl bg-muted/70 animate-pulse" />;
+}
 import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/use-auth-user';
@@ -93,8 +135,10 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
 
 type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'dailyLogs' | 'modules' | 'emergency';
 
-export default function DyadDetailPage({ params }: { params: Promise<{ patientUid: string }> }) {
-  const { patientUid } = usePromise(params);
+export default function DyadDetailPage({ params }: { params?: Promise<{ patientUid: string }> }) {
+  const routeParams = useParams();
+  const rawUid = (routeParams?.patientUid as string | undefined) ?? '';
+  const patientUid = (Array.isArray(rawUid) ? rawUid[0] : rawUid) || '';
   const { toast } = useToast();
   const { user } = useAuthUser();
   const clinicianLabel = user?.displayName || 'Your Doctor';
@@ -133,8 +177,9 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
   }, []);
 
   const load = async () => {
+    if (!patientUid) return;
     try {
-      const [assessmentsResult, functionScoresResult, nameResult, meds, vitalRecords, cgAttrs, prof, appts] = await Promise.all([
+      const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult] = await Promise.all([
         getZaritAssessmentsFor(patientUid),
         getFunctionScoresFor(patientUid),
         getPatientDisplayName(patientUid),
@@ -147,11 +192,11 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
       let assessments = assessmentsResult;
       let functionScores = functionScoresResult;
       let name = nameResult;
-      setMedications(meds);
-      setVitals(vitalRecords);
-      setAppointments(appts);
-      setCaregiver(cgAttrs);
-      setPatientProfile(prof);
+      let meds = medsResult;
+      let vitalRecords = vitalRecordsResult;
+      let cgAttrs = cgAttrsResult;
+      let prof = profResult;
+      const appts = apptsResult;
 
       if (patientUid.startsWith('demo-')) {
         if (patientUid.includes('sarojini') || patientUid.includes('8102')) {
@@ -166,6 +211,77 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
               'ZBI22'
             )
           ];
+          if (!cgAttrs) {
+            cgAttrs = {
+              name: 'Suresh Kumar',
+              age: 78,
+              gender: 'male',
+              kinship: 'spouse',
+              coResidence: 'lives_together',
+              education: 'graduate',
+              employment: 'retired',
+              caregiverHealth: {
+                hasBackPain: true,
+                hasHypertension: true,
+                hasArthritis: true,
+                hasDiabetes: false,
+                hasInsomnia: true
+              },
+              dailyHoursCommitted: 14,
+              monthlyOutOfPocketBurden: 'moderate_strain',
+              formalTrainingReceived: false,
+              formalSupport: {
+                type: 'none',
+                types: [],
+                hoursPerDay: 0,
+                handlesHeavyTransfers: false,
+                handlesMedicationWoundCare: false
+              }
+            };
+          }
+          if (!prof) {
+            prof = {
+              name: 'Smt. Sarojini Devi',
+              age: 78,
+              primaryConditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
+              katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: false, feeding: true },
+              lawtonIadl: {
+                telephone: false,
+                shopping: false,
+                mealPreparation: false,
+                housekeeping: false,
+                laundry: false,
+                transportation: false,
+                medicationManagement: false,
+                finances: false
+              },
+              cognitiveBehavioralLoad: 'wandering_agitation',
+              fallHistoryLast6Months: 2,
+              isBedBound: true,
+              weightKg: 62,
+              heightCm: 155,
+              updatedAt: new Date().toISOString(),
+              assistiveDevices: {
+                hospitalBed: 'manual_adjustable',
+                airWaterMattress: true,
+                wheelchair: true,
+                suctionApparatus: false,
+                transferAids: true
+              }
+            };
+          }
+          if (meds.length === 0) {
+            meds = [
+              { id: 'med_sarojini_1', name: 'Amlodipine', dosage: '5mg', frequency: 'morning', timeOfDay: ['morning'], foodRelation: 'after', indication: 'Hypertension', duration: 'Continuous' },
+              { id: 'med_sarojini_2', name: 'Atorvastatin', dosage: '20mg', frequency: 'bedtime', timeOfDay: ['bedtime'], foodRelation: 'after', indication: 'Stroke Secondary Prevention', duration: 'Continuous' },
+              { id: 'med_sarojini_3', name: 'Paracetamol', dosage: '650mg', frequency: 'afternoon', timeOfDay: ['afternoon'], foodRelation: 'after', indication: 'Osteoarthritis Pain SOS', duration: 'SOS' }
+            ];
+          }
+          if (vitalRecords.length === 0) {
+            vitalRecords = [
+              { id: 'vital_sarojini_1', date: new Date().toISOString(), bp: '168/102', pulse: '84', spo2: '94%', sleep: 'poor', createdAt: new Date().toISOString() }
+            ];
+          }
         } else if (patientUid.includes('ramesh') || patientUid.includes('7641')) {
           name = 'Shri Ramesh Chand (Dyad #7641)';
           assessments = [
@@ -174,6 +290,76 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
               'ZBI22'
             )
           ];
+          if (!cgAttrs) {
+            cgAttrs = {
+              name: 'Anjali Sharma',
+              age: 46,
+              gender: 'female',
+              kinship: 'daughter',
+              coResidence: 'nearby',
+              education: 'post_graduate',
+              employment: 'full_time',
+              caregiverHealth: {
+                hasBackPain: false,
+                hasHypertension: false,
+                hasArthritis: false,
+                hasDiabetes: false,
+                hasInsomnia: true
+              },
+              dailyHoursCommitted: 6,
+              monthlyOutOfPocketBurden: 'manageable',
+              formalTrainingReceived: true,
+              formalSupport: {
+                type: 'paid_attendant_12h',
+                types: ['paid_attendant_12h'],
+                hoursPerDay: 4,
+                handlesHeavyTransfers: true,
+                handlesMedicationWoundCare: false
+              }
+            };
+          }
+          if (!prof) {
+            prof = {
+              name: 'Shri Ramesh Chand',
+              age: 74,
+              primaryConditions: ['Parkinson’s Disease', 'Diabetes T2', 'Gait Freezing'],
+              katzAdl: { bathing: true, dressing: false, toileting: true, transferring: false, continence: true, feeding: true },
+              lawtonIadl: {
+                telephone: true,
+                shopping: false,
+                mealPreparation: false,
+                housekeeping: false,
+                laundry: false,
+                transportation: false,
+                medicationManagement: false,
+                finances: true
+              },
+              cognitiveBehavioralLoad: 'severe_sundowning',
+              fallHistoryLast6Months: 1,
+              isBedBound: false,
+              weightKg: 68,
+              heightCm: 168,
+              updatedAt: new Date().toISOString(),
+              assistiveDevices: {
+                hospitalBed: 'none',
+                airWaterMattress: false,
+                wheelchair: true,
+                suctionApparatus: false,
+                transferAids: true
+              }
+            };
+          }
+          if (meds.length === 0) {
+            meds = [
+              { id: 'med_ramesh_1', name: 'Levodopa / Carbidopa', dosage: '100/25mg', frequency: 'morning', timeOfDay: ['morning'], foodRelation: 'after', indication: 'Parkinson’s Gait Freezing', duration: 'Continuous' },
+              { id: 'med_ramesh_2', name: 'Metformin', dosage: '500mg', frequency: 'evening', timeOfDay: ['evening'], foodRelation: 'after', indication: 'Type 2 Diabetes', duration: 'Continuous' }
+            ];
+          }
+          if (vitalRecords.length === 0) {
+            vitalRecords = [
+              { id: 'vital_ramesh_1', date: new Date().toISOString(), bp: '134/86', pulse: '76', spo2: '97%', sleep: 'average', createdAt: new Date().toISOString() }
+            ];
+          }
         } else {
           name = 'Smt. Kamla Gupta (Dyad #8419)';
           assessments = [
@@ -184,6 +370,12 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
           ];
         }
       }
+
+      setMedications(meds);
+      setVitals(vitalRecords);
+      setAppointments(appts);
+      setCaregiver(cgAttrs);
+      setPatientProfile(prof);
 
       const interventions: CareMatrixInterventionMarker[] = [];
       if (patientUid.startsWith('demo-') && assessments.length > 0) {
@@ -201,21 +393,21 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
       setLatestAssessment(assessments[0] ?? null);
     } catch (err) {
       console.warn('Error loading dyad profile, falling back gracefully:', err);
-      setDisplayName(patientUid.replace('demo-', '').replace('dyad_', 'Dyad '));
+      setDisplayName(patientUid ? patientUid.replace('demo-', '').replace('dyad_', 'Dyad ') : 'Patient Dyad');
       setTrajectory(computeTrajectory([], []));
       setLatestAssessment(null);
     }
   };
 
   useEffect(() => {
-    if (isMounted) {
+    if (isMounted && patientUid) {
       void load();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted, patientUid]);
 
   useEffect(() => {
-    if (!isMounted || patientUid.startsWith('demo-')) return;
+    if (!isMounted || !patientUid || patientUid.startsWith('demo-')) return;
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const unsubscribe = subscribeToDyadClinicalData(patientUid, () => {
@@ -434,14 +626,14 @@ export default function DyadDetailPage({ params }: { params: Promise<{ patientUi
     [caregiver, patientProfile, vitals, appointments, medications]
   );
 
-  if (!isMounted || !trajectory) {
+  if (!isMounted || !patientUid || !trajectory) {
     return <p className="text-sm text-muted-foreground p-6">Loading dyad…</p>;
   }
 
   // Extract clean patient name and dyad identifiers
   const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
-  const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${patientUid.replace('demo-', '').toUpperCase()}`;
+  const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${(patientUid || '').replace('demo-', '').toUpperCase()}`;
   // PatientDependenceProfile does not (yet) declare `gender` in its TS type, but the
   // underlying record may carry one — read defensively rather than hardcoding a value.
   const rawPatientGender = (patientProfile as (PatientDependenceProfile & { gender?: 'female' | 'male' | 'other' }) | null)?.gender;
