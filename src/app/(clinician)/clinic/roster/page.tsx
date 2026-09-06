@@ -480,7 +480,7 @@ export default function ClinicianRosterPage() {
 
                       {/* Advisory Alert Lines */}
                       <div className="space-y-1 pt-0.5">
-                        {row.latestAlertSnippet && (
+                        {row.latestAlertSnippet && !row.latestAlertSnippet.toLowerCase().includes('no nurse or medical assistant') && (
                           <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5 font-medium leading-relaxed">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                             <span>{row.latestAlertSnippet}</span>

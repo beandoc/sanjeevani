@@ -53,7 +53,32 @@ const RISK_BAND_LABEL: Record<RiskBand, string> = {
   stable: 'Stable'
 };
 
-type FilterType = 'all' | 'critical' | 'care_gap' | 'bed_bound' | 'reassessment_due' | 'respite' | 'daily_red_flags';
+function formatFormalSupport(type: string | undefined, hours: number) {
+  if (!hours || hours === 0) return '0h Solo';
+  const t = (type || '').toLowerCase();
+  let role = 'Attendant';
+  if (t.includes('nurse')) role = 'Nurse';
+  else if (t.includes('medical_assistant')) role = 'Med Asst';
+  else if (t.includes('family')) role = 'Family Rota';
+  return `${hours}h ${role}`;
+}
+
+function getActionableAlert(alertSnippet: string | null | undefined): string | null {
+  if (!alertSnippet) return null;
+  const lower = alertSnippet.toLowerCase();
+  if (
+    lower.includes('no nurse or medical assistant') ||
+    lower.includes('decision-support limitation') ||
+    lower.includes('fully compliant')
+  ) {
+    return null;
+  }
+  if (lower.includes('scheduled doses were not ticked')) {
+    const match = alertSnippet.match(/(\d+\s*of\s*\d+)/i);
+    return match ? `${match[1]} doses missed` : 'Missed doses reported';
+  }
+  return alertSnippet;
+}
 
 export function DoctorCohortDashboard() {
   const [rows, setRows] = useState<CohortRow[] | null>(null);
@@ -409,121 +434,118 @@ export function DoctorCohortDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-border/40">
-              {filteredRows.map((row) => (
-                <div
-                  key={row.patientUid}
-                  className="group px-2 py-2 rounded-lg transition-colors hover:bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                >
-                  {/* Left: 2 structured, high-density clinical lines */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    {/* Line 1: Identity + High-Risk Chips + Caregiver Details */}
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', RISK_BAND_STYLE[row.riskBand])}>
-                        {RISK_BAND_LABEL[row.riskBand]}
-                      </Badge>
-                      <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{row.displayName}</span>
+              {filteredRows.map((row) => {
+                const actionableAlert = getActionableAlert(row.latestAlertSnippet);
 
-                      {row.isBedBound && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                          <Bed className="w-2.5 h-2.5" /> Bed-Bound
-                        </span>
-                      )}
-                      {(row.fallHistory || 0) >= 1 && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
-                          <AlertTriangle className="w-2.5 h-2.5" /> {row.fallHistory} Falls (6m)
-                        </span>
-                      )}
-                      {row.respitePrescription?.needed && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
-                          Respite {row.respitePrescription.urgency}
-                        </span>
-                      )}
+                return (
+                  <div
+                    key={row.patientUid}
+                    className="group px-3 py-2.5 rounded-xl transition-colors hover:bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                  >
+                    {/* Left: 2 clean, structured clinical lines */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      {/* Line 1: Identity + Key High-Risk Tags + Caregiver */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', RISK_BAND_STYLE[row.riskBand])}>
+                          {RISK_BAND_LABEL[row.riskBand]}
+                        </Badge>
+                        <span className="text-xs sm:text-sm font-semibold text-foreground">{row.displayName}</span>
 
-                      <span className="text-muted-foreground/40 text-[10px] hidden sm:inline">|</span>
+                        {row.isBedBound && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-muted/80 text-muted-foreground border border-border/60">
+                            <Bed className="w-2.5 h-2.5" /> Bed-Bound
+                          </span>
+                        )}
+                        {(row.fallHistory || 0) >= 1 && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                            <AlertTriangle className="w-2.5 h-2.5" /> {row.fallHistory} Fall{row.fallHistory === 1 ? '' : 's'}
+                          </span>
+                        )}
 
-                      <span className="text-[11px] text-muted-foreground truncate">
-                        Caregiver: <strong className="text-foreground font-medium">{row.caregiverName || 'Family'}</strong>
-                        {row.caregiverKinship && ` (${row.caregiverKinship})`}
-                        {' · '}
-                        <span className={cn(row.formalSupportHours === 0 ? 'text-amber-600 font-semibold' : 'text-muted-foreground')}>
-                          {row.formalSupportHours ? `${row.formalSupportHours}h/d (${row.formalSupportType})` : '0h Solo'}
+                        <span className="text-border text-[10px] hidden sm:inline">•</span>
+
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          Caregiver: <strong className="text-foreground font-medium">{row.caregiverName || 'Family'}</strong>
+                          {row.caregiverKinship && ` (${row.caregiverKinship})`}
+                          {' · '}
+                          <span className={cn(row.formalSupportHours === 0 ? 'text-amber-600 font-semibold' : 'text-foreground/80 font-medium')}>
+                            {formatFormalSupport(row.formalSupportType, row.formalSupportHours)}
+                          </span>
                         </span>
-                      </span>
+                      </div>
+
+                      {/* Line 2: Conditions + Actionable Alert + Respite Recommendation */}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        {row.conditions && row.conditions.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground/80 truncate max-w-xs sm:max-w-md">
+                            {row.conditions.join(' · ')}
+                          </span>
+                        )}
+
+                        {actionableAlert && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+                            <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate max-w-[240px] sm:max-w-xs">{actionableAlert}</span>
+                          </span>
+                        )}
+
+                        {row.respitePrescription?.needed && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
+                            <HeartHandshake className="w-2.5 h-2.5 shrink-0" />
+                            <span>Respite: {row.respitePrescription.recommendedDaysPerMonth}d/mo rec.</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Line 2: Conditions + Inline Micro-Alerts / Prescriptions */}
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                      {row.conditions && row.conditions.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground/90 truncate max-w-xs sm:max-w-md">
-                          {row.conditions.join(' · ')}
+                    {/* Right: Metrics + Quick Actions */}
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/30 border border-border/50 text-[11px] font-mono">
+                        <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">ZBI</span>
+                        <span className={cn('font-bold', row.latestBurdenPct && row.latestBurdenPct > 50 ? 'text-red-600' : 'text-foreground')}>
+                          {row.latestBurdenPct !== null ? `${row.latestBurdenPct}%` : '—'}
                         </span>
-                      )}
+                        {row.lastVitalBp && (
+                          <>
+                            <span className="text-border">|</span>
+                            <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">BP</span>
+                            <span className="font-semibold text-foreground">{row.lastVitalBp}</span>
+                          </>
+                        )}
+                      </div>
 
-                      {row.latestAlertSnippet && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
-                          <span className="truncate max-w-xs sm:max-w-sm">{row.latestAlertSnippet}</span>
-                        </span>
-                      )}
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSendWhatsApp(row)}
+                          title="WhatsApp message to caregiver"
+                          className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-500/10 rounded-md"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </Button>
 
-                      {row.respitePrescription?.needed && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
-                          <Bed className="w-2.5 h-2.5 shrink-0" />
-                          <span>Prescribe {row.respitePrescription.recommendedDaysPerMonth}d/mo or {row.respitePrescription.recommendedHoursPerWeek}h/wk</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRequestReassessment(row.patientUid, row.displayName)}
+                          disabled={requestingUids.has(row.patientUid)}
+                          title="Request Zarit Reassessment"
+                          className="h-7 w-7 p-0 text-primary hover:bg-primary/10 rounded-md"
+                        >
+                          <CalendarClock className="w-3.5 h-3.5" />
+                        </Button>
 
-                  {/* Right: Metrics + Quick Actions */}
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    {/* Compact ZBI & BP metric chip */}
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 border border-border/50 text-[11px] font-mono">
-                      <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">ZBI</span>
-                      <span className={cn('font-bold', row.latestBurdenPct && row.latestBurdenPct > 50 ? 'text-red-600' : 'text-foreground')}>
-                        {row.latestBurdenPct !== null ? `${row.latestBurdenPct}%` : '—'}
-                      </span>
-                      {row.lastVitalBp && (
-                        <>
-                          <span className="text-border">|</span>
-                          <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">BP</span>
-                          <span className="font-semibold text-foreground">{row.lastVitalBp}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Quick action buttons */}
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleSendWhatsApp(row)}
-                        title="WhatsApp message to caregiver"
-                        className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-500/10 rounded"
-                      >
-                        <Send className="w-3 h-3" />
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRequestReassessment(row.patientUid, row.displayName)}
-                        disabled={requestingUids.has(row.patientUid)}
-                        title="Request Zarit Reassessment"
-                        className="h-6 w-6 p-0 text-primary hover:bg-primary/10 rounded"
-                      >
-                        <CalendarClock className="w-3 h-3" />
-                      </Button>
-
-                      <Button asChild size="sm" className="h-6 text-[11px] font-medium gap-0.5 px-2 rounded">
-                        <Link href={`/clinic/dyad/${row.patientUid}`}>
-                          Open <ChevronRight className="w-2.5 h-2.5" />
-                        </Link>
-                      </Button>
+                        <Button asChild size="sm" className="h-7 text-xs font-semibold gap-1 px-2.5 rounded-md shadow-2xs">
+                          <Link href={`/clinic/dyad/${row.patientUid}`}>
+                            Open <ChevronRight className="w-3 h-3" />
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
