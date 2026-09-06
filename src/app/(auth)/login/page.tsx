@@ -108,16 +108,35 @@ export default function LoginPage() {
 
     try {
       if (authMethod === 'email') {
-        const user = isSignUp
-          ? await signUpWithEmail(cleanEmail, cleanPassword, selectedRole)
-          : await signInWithEmail(cleanEmail, cleanPassword);
-
         const effectiveRole: Role =
-          cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
-            ? 'professional'
-            : cleanEmail.toLowerCase().includes('nurse') || cleanEmail.toLowerCase().includes('vidya')
-              ? 'nurse'
-              : selectedRole;
+          cleanEmail.toLowerCase().includes('caregiver')
+            ? 'caregiver'
+            : cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
+              ? 'professional'
+              : cleanEmail.toLowerCase().includes('nurse') || cleanEmail.toLowerCase().includes('vidya')
+                ? 'nurse'
+                : selectedRole;
+
+        let user;
+        if (isSignUp) {
+          user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
+        } else {
+          try {
+            user = await signInWithEmail(cleanEmail, cleanPassword);
+          } catch (signInErr: unknown) {
+            const errCode = (signInErr as { code?: string })?.code;
+            // If the demo/kutumbh account doesn't exist yet in Firebase Auth,
+            // seamlessly auto-create it so the user never gets stuck on "Incorrect credentials"
+            if (
+              (errCode === 'auth/user-not-found' || errCode === 'auth/invalid-credential') &&
+              (cleanEmail.endsWith('@kutumbh.com') || cleanEmail.includes('caregiver') || cleanEmail.includes('nurse'))
+            ) {
+              user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
+            } else {
+              throw signInErr;
+            }
+          }
+        }
 
         await completeSignIn(user, effectiveRole);
       } else if (authMethod === 'mobile') {
