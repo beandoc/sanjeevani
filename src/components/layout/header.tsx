@@ -17,6 +17,7 @@ import {
   Bed,
   Activity,
   LogOut,
+  LayoutDashboard
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -189,11 +190,11 @@ export function Header() {
                 asChild
                 variant="outline"
                 size="sm"
-                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs gap-1.5 shrink-0"
+                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs gap-1.5 shrink-0"
               >
-                <Link href="/domiciliary">
-                  <Bed className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>Today</span>
+                <Link href="/dashboard">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Shift Dashboard</span>
                 </Link>
               </Button>
 

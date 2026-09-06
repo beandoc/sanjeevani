@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   Compass,
   HeartPulse,
-  BookOpen
+  BookOpen,
+  LayoutDashboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,12 @@ export default function DomiciliaryHubPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/dashboard">
+            <Button size="sm" className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
+              <LayoutDashboard className="w-4 h-4" /> Shift Dashboard
+            </Button>
+          </Link>
           <Link href="/stress-calculator">
             <Button variant="outline" size="sm" className="gap-1.5 text-xs font-semibold">
               <HeartPulse className="w-4 h-4 text-primary" /> Burden Gauge

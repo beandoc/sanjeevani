@@ -208,14 +208,19 @@ function readLastTurnedAt(): number {
 }
 
 export function DailyBedsideRoutine() {
+  const [isMounted, setIsMounted] = useState(false);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   const [activeTaskModal, setActiveTaskModal] = useState<BedsideTask | null>(null);
   const [filterPeriod, setFilterPeriod] = useState<string>('all');
-  const [lastTurnedAt, setLastTurnedAt] = useState<number>(() => readLastTurnedAt());
-  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  const [lastTurnedAt, setLastTurnedAt] = useState<number>(0);
+  const [nowTick, setNowTick] = useState<number>(0);
 
   useEffect(() => {
+    setIsMounted(true);
     setCompletedTasks(HealthRepository.getBedsideRoutineChecklist());
+    const turnedAt = readLastTurnedAt();
+    setLastTurnedAt(turnedAt);
+    setNowTick(Date.now());
   }, []);
 
   // 1-second ticker driving the elapsed-time calculation. The countdown is
@@ -223,13 +228,14 @@ export function DailyBedsideRoutine() {
   // survives navigation/refresh and never silently rolls back to a fresh
   // 2 hours unless a turn is actually logged.
   useEffect(() => {
+    if (!isMounted) return;
     const interval = setInterval(() => {
       setNowTick(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMounted]);
 
-  const elapsedSeconds = Math.max(0, Math.floor((nowTick - lastTurnedAt) / 1000));
+  const elapsedSeconds = isMounted && lastTurnedAt > 0 ? Math.max(0, Math.floor((nowTick - lastTurnedAt) / 1000)) : 0;
   const isOverdue = elapsedSeconds >= Q2H_CYCLE_SECONDS;
   const q2hTimerSeconds = isOverdue ? elapsedSeconds - Q2H_CYCLE_SECONDS : Q2H_CYCLE_SECONDS - elapsedSeconds;
 
@@ -347,6 +353,7 @@ export function DailyBedsideRoutine() {
               role="timer"
               aria-live={isOverdue ? 'assertive' : 'polite'}
               aria-atomic="true"
+              suppressHydrationWarning
               aria-label={
                 isOverdue
                   ? `Repositioning is overdue by ${formatTimer(q2hTimerSeconds)}. Reposition the patient now.`
@@ -354,6 +361,7 @@ export function DailyBedsideRoutine() {
               }
             >
               <div
+                suppressHydrationWarning
                 className={cn(
                   'text-3xl font-black font-mono tracking-tight',
                   isOverdue ? 'text-destructive' : 'text-amber-950 dark:text-amber-100'

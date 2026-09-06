@@ -196,21 +196,27 @@ export function AppSidebar() {
       title: 'Nurse Portal',
       items: [
         {
-          href: '/domiciliary',
-          label: 'Today',
-          icon: Bed,
-          badge: null,
+          href: '/dashboard',
+          label: 'Shift Dashboard',
+          icon: LayoutDashboard,
+          badge: 'Live',
           isHighlighted: true
         },
         {
+          href: '/domiciliary',
+          label: 'Bedside Companion',
+          icon: Bed,
+          badge: null
+        },
+        {
           href: '/vital-logs',
-          label: 'Vitals',
+          label: 'Vitals Log',
           icon: Activity,
           badge: null
         },
         {
           href: '/medications',
-          label: 'Medicines',
+          label: 'MAR / Medicines',
           icon: ClipboardList,
           badge: null
         }
