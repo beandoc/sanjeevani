@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import {
   createDyadInvite,
+  createStaffInvite,
+  generateInviteCode,
   saveCaregiverAttributesFor,
   savePatientProfileFor,
   recordVitalFor,
@@ -54,6 +56,26 @@ interface RegisterPatientDialogProps {
   onRegistered?: (invite: DyadInvite) => void;
   /** Custom trigger element. Defaults to a standalone "Register New Patient" button. */
   trigger?: React.ReactNode;
+}
+
+/** Shared default password for auto-generated demo logins — see the
+ * "Assign a Nurse" section below. Not a real credential-issuance flow yet
+ * (that needs its own reset/invite-email system); this exists so a doctor
+ * can hand a caregiver/nurse working credentials on the spot at discharge. */
+const DEMO_LOGIN_PASSWORD = 'test1234';
+
+/**
+ * abhishekcaregiver@kutumbh.com / shilpanurse@kutumbh.com style auto-login.
+ * Derived from first name only, so two different patients whose caregivers
+ * happen to share a first name would collide on the same generated email —
+ * a known limitation for this demo-stage convenience feature, not something
+ * actively detected or avoided yet. Whichever invite is claimed first wins;
+ * the other stays unclaimed until manually reassigned.
+ */
+function deriveDemoLoginEmail(fullName: string, roleSuffix: 'caregiver' | 'nurse'): string | null {
+  const first = fullName.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, '');
+  if (!first) return null;
+  return `${first}${roleSuffix}@kutumbh.com`;
 }
 
 const COMMON_COMORBIDITIES = [
@@ -92,6 +114,12 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
   const [caregiverLastName, setCaregiverLastName] = useState('');
   const [caregiverPhone, setCaregiverPhone] = useState('');
+  const [nurseFirstName, setNurseFirstName] = useState('');
+  const [nurseLastName, setNurseLastName] = useState('');
+  const [generatedLogins, setGeneratedLogins] = useState<{ caregiverEmail: string | null; nurseEmail: string | null }>({
+    caregiverEmail: null,
+    nurseEmail: null
+  });
 
   const [caregiverKinship, setCaregiverKinship] = useState<CaregiverAttributes['kinship']>('spouse');
   const [secondaryFamily, setSecondaryFamily] = useState<number>(0);
@@ -119,6 +147,9 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     setCaregiverFirstName('');
     setCaregiverLastName('');
     setCaregiverPhone('');
+    setNurseFirstName('');
+    setNurseLastName('');
+    setGeneratedLogins({ caregiverEmail: null, nurseEmail: null });
     setCaregiverKinship('spouse');
     setSecondaryFamily(0);
     setFormalSupportType('none');
@@ -184,6 +215,10 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     const cleanPhone = caregiverPhone.replace(/\D/g, '');
     const formattedPhone = cleanPhone ? (cleanPhone.length === 10 ? `+91${cleanPhone}` : cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+${cleanPhone}`) : undefined;
 
+    const caregiverEmail = caregiverName.trim() ? deriveDemoLoginEmail(caregiverName, 'caregiver') : null;
+    const nurseName = `${nurseFirstName.trim()} ${nurseLastName.trim()}`.trim();
+    const nurseEmail = nurseName ? deriveDemoLoginEmail(nurseName, 'nurse') : null;
+
     setIsSubmitting(true);
     try {
       if (auth && !auth.currentUser) {
@@ -196,9 +231,18 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         primaryConditions: selectedConditions,
         caregiverName: caregiverName.trim() || undefined,
         caregiverPhone: formattedPhone,
+        caregiverEmail,
         weightKg: patientWeight ? Number(patientWeight) : null,
         heightCm: patientHeight ? Number(patientHeight) : null
       });
+
+      // Doctor confirmed at discharge that this dyad will have a specific
+      // nurse — delegate this one patient to her via the same unguessable-
+      // code staff-invite mechanism a doctor would otherwise issue by hand.
+      if (nurseName && nurseEmail) {
+        await createStaffInvite(invite.dyadUid || `dyad_${invite.inviteCode}`, generateInviteCode(), nurseName, nurseEmail);
+      }
+      setGeneratedLogins({ caregiverEmail, nurseEmail });
 
       // Persist the caregiver capacity & formal support matrix
       const hoursNum = Number(formalSupportHours) || 0;
@@ -420,6 +464,37 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 )}
               </p>
             </div>
+
+            {/* Auto-Generated Logins — hand these to the caregiver/nurse at discharge */}
+            {(generatedLogins.caregiverEmail || generatedLogins.nurseEmail) && (
+              <div className="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2.5">
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                  Auto-Generated Logins — Share at Discharge
+                </span>
+                {generatedLogins.caregiverEmail && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground">Caregiver ({issuedInvite.caregiverName})</span>
+                    <code className="font-mono font-bold text-foreground bg-card px-2 py-1 rounded-lg border border-border/60">
+                      {generatedLogins.caregiverEmail}
+                    </code>
+                  </div>
+                )}
+                {generatedLogins.nurseEmail && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground">Nurse</span>
+                    <code className="font-mono font-bold text-foreground bg-card px-2 py-1 rounded-lg border border-border/60">
+                      {generatedLogins.nurseEmail}
+                    </code>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 text-xs pt-1 border-t border-emerald-500/20">
+                  <span className="text-muted-foreground">Shared password</span>
+                  <code className="font-mono font-bold text-foreground bg-card px-2 py-1 rounded-lg border border-border/60">
+                    {DEMO_LOGIN_PASSWORD}
+                  </code>
+                </div>
+              </div>
+            )}
 
             {/* Direct Sharing Actions */}
             <div className="space-y-2">
@@ -654,6 +729,65 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                   <p>
                     Adding their mobile number enables <strong>seamless 1-click auto-linking</strong> when the caregiver logs in via Mobile OTP.
+                    {caregiverFirstName.trim() && (
+                      <>
+                        {' '}An email login also works instantly:{' '}
+                        <strong className="font-mono text-foreground">
+                          {deriveDemoLoginEmail(caregiverFirstName, 'caregiver')}
+                        </strong>
+                        , password <strong className="font-mono text-foreground">{DEMO_LOGIN_PASSWORD}</strong>.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* SECTION 2b: Assign a Nurse (Optional) */}
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
+                    <Bed className="w-3.5 h-3.5" />
+                    <span>2b. Assign a Nurse</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    Optional — if the family has hired one
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Nurse First Name</Label>
+                    <Input
+                      placeholder="e.g. Shilpa"
+                      value={nurseFirstName}
+                      onChange={(e) => setNurseFirstName(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Nurse Last Name</Label>
+                    <Input
+                      placeholder="e.g. Katoch"
+                      value={nurseLastName}
+                      onChange={(e) => setNurseLastName(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 p-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[11px] text-muted-foreground">
+                  <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <p>
+                    Scoped to <strong>this patient only</strong> — she won't see your other patients.
+                    {nurseFirstName.trim() && (
+                      <>
+                        {' '}Her login will be{' '}
+                        <strong className="font-mono text-foreground">
+                          {deriveDemoLoginEmail(nurseFirstName, 'nurse')}
+                        </strong>
+                        .
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

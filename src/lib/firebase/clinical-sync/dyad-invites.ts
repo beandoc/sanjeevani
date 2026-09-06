@@ -46,6 +46,10 @@ export interface DyadInvite {
   primaryConditions: string[];
   caregiverName?: string | null;
   caregiverPhone?: string | null;
+  /** An auto-generated demo login (e.g. abhishekcaregiver@kutumbh.com) this
+   * invite auto-claims for on first sign-in — see provisionDemoPersonaAccess
+   * in ./access.ts. Independent of caregiverPhone matching. */
+  caregiverEmail?: string | null;
   createdAt: string;
   claimedAt: string | null;
   claimedByUid: string | null;
@@ -55,7 +59,7 @@ export interface DyadInvite {
 // Unambiguous alphabet (no 0/O/1/I) so a code is easy to read aloud or copy
 // off a screen without misreads.
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function generateInviteCode(): string {
+export function generateInviteCode(): string {
   let code = '';
   for (let i = 0; i < 8; i++) {
     code += INVITE_CODE_ALPHABET[Math.floor(Math.random() * INVITE_CODE_ALPHABET.length)];
@@ -89,6 +93,7 @@ export async function createDyadInvite(input: {
   primaryConditions: string[];
   caregiverName?: string | null;
   caregiverPhone?: string | null;
+  caregiverEmail?: string | null;
   clinicianLabel?: string | null;
   weightKg?: number | null;
   heightCm?: number | null;
@@ -108,6 +113,7 @@ export async function createDyadInvite(input: {
     primaryConditions: input.primaryConditions || [],
     caregiverName: input.caregiverName ?? null,
     caregiverPhone: normalizePhoneNumber(input.caregiverPhone),
+    caregiverEmail: input.caregiverEmail?.trim().toLowerCase() || null,
     createdAt: new Date().toISOString(),
     claimedAt: null,
     claimedByUid: null
@@ -455,6 +461,32 @@ export async function autoClaimInviteByPhone(phoneNumber: string | null): Promis
     return await applyInviteClaim(matched.ref, matched.data() as DyadInvite, uid);
   } catch (err) {
     console.warn('Auto-claim by phone skipped:', err);
+    return null;
+  }
+}
+
+/**
+ * Same idea as autoClaimInviteByPhone, matched on the auto-generated demo
+ * login email a doctor derived at registration (see registerPatientDialog's
+ * caregiverEmail field) instead of a phone number. Called on every sign-in
+ * via provisionDemoPersonaAccess; a no-op for any account that isn't a
+ * registered caregiver email.
+ */
+export async function autoClaimInviteByEmail(email: string | null): Promise<DyadInvite | null> {
+  const uid = currentUid();
+  if (!uid || !db || !email) return null;
+  try {
+    const q = query(
+      collection(db, 'dyadInvites'),
+      where('caregiverEmail', '==', email.trim().toLowerCase()),
+      where('claimedAt', '==', null)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const matched = snap.docs[0];
+    return await applyInviteClaim(matched.ref, matched.data() as DyadInvite, uid);
+  } catch (err) {
+    console.warn('Auto-claim by email skipped:', err);
     return null;
   }
 }

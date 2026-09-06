@@ -16,7 +16,7 @@ import {
 import { db } from '../client';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { currentUid, withRetry } from './internal';
-import { getDyadInvite, listMyDyadInvites, claimDyadInvite } from './dyad-invites';
+import { getDyadInvite, listMyDyadInvites, claimDyadInvite, autoClaimInviteByEmail } from './dyad-invites';
 
 /* ------------------------------------------------------------------ *
  * Staff assignment — a doctor delegating a specific dyad to another
@@ -31,14 +31,20 @@ import { getDyadInvite, listMyDyadInvites, claimDyadInvite } from './dyad-invite
  * sentinel exists before allowing a non-doctor professional to self-grant.
  * ------------------------------------------------------------------ */
 
-export async function createStaffInvite(dyadUid: string, code: string, label: string): Promise<void> {
+export async function createStaffInvite(
+  dyadUid: string,
+  code: string,
+  label: string,
+  assignedEmail?: string | null
+): Promise<void> {
   if (!db) return;
   await withRetry(() =>
     setDoc(doc(db!, 'users', dyadUid, 'clinicianGrants', `invite_${code}`), {
       clinicianUid: `invite_${code}`,
       clinicianLabel: label,
       grantedAt: new Date().toISOString(),
-      revokedAt: null
+      revokedAt: null,
+      assignedEmail: assignedEmail?.trim().toLowerCase() || null
     })
   );
 }
@@ -63,12 +69,50 @@ export async function claimStaffInvite(dyadUid: string, code: string): Promise<v
 }
 
 /**
+ * Finds every unclaimed staff invite addressed to `email` (across every
+ * patient a doctor has assigned one to) and claims each — the general,
+ * doctor-driven counterpart to a hardcoded assignment. A collection-group
+ * query on clinicianGrants scoped to `assignedEmail`; firestore.rules'
+ * matching {path=**} rule only exposes docs where that field equals the
+ * requester's own token email, so this can never enumerate other staff's
+ * assignments.
+ */
+export async function claimStaffInviteByEmail(email: string | null): Promise<number> {
+  const uid = currentUid();
+  if (!uid || !db || !email) return 0;
+  try {
+    const q = query(
+      collectionGroup(db, 'clinicianGrants'),
+      where('assignedEmail', '==', email.trim().toLowerCase())
+    );
+    const snap = await getDocs(q);
+    let claimed = 0;
+    for (const d of snap.docs) {
+      if (!d.id.startsWith('invite_')) continue;
+      const dyadUid = d.ref.parent.parent?.id;
+      if (!dyadUid) continue;
+      await claimStaffInvite(dyadUid, d.id.replace(/^invite_/, ''));
+      claimed++;
+    }
+    return claimed;
+  } catch (err) {
+    console.warn('Staff invite auto-claim by email skipped:', err);
+    return 0;
+  }
+}
+
+/**
  * Fixed demo personas: known accounts that should land pre-linked to a
  * specific seeded dyad on first sign-in instead of starting with an empty
  * roster/profile. Exact email matches only — real accounts are unaffected.
  * Best-effort and idempotent (safe to call on every sign-in): a caregiver
  * invite that's already claimed, or a staff invite the account already
  * holds, is simply skipped by claimDyadInvite/claimStaffInvite's own guards.
+ * Kept alongside the general email-based auto-claim below (claimStaffInvite
+ * ByEmail / autoClaimInviteByEmail) for the two original seeded personas,
+ * whose invite/sentinel docs predate the assignedEmail/caregiverEmail
+ * fields; every dyad registered through the app since then is covered by
+ * the general path alone.
  */
 const DEMO_CAREGIVER_INVITE_CLAIMS: Record<string, string> = {
   'sureshcaregiver@kutumbh.com': 'SAROJINI81'
@@ -78,9 +122,27 @@ const DEMO_STAFF_INVITE_CLAIMS: Record<string, Array<{ dyadUid: string; code: st
   'vidyanurse@kutumbh.com': [{ dyadUid: 'dyad_sarojini_devi', code: 'NURSEVIDYA' }]
 };
 
+/**
+ * Best-effort, idempotent, called on every sign-in: links whichever dyad(s)
+ * a doctor registered this exact email as caregiver or assigned nurse for.
+ * Two paths — the general one (any account, driven entirely by what a
+ * doctor entered at registration/matrix-setup time) and a small fixed map
+ * for the two original seeded demo personas predating that mechanism.
+ */
 export async function provisionDemoPersonaAccess(email: string | null | undefined): Promise<void> {
   if (!email || !db) return;
   const cleanEmail = email.toLowerCase();
+
+  try {
+    await autoClaimInviteByEmail(cleanEmail);
+  } catch (err) {
+    console.warn('Caregiver auto-claim by email notice:', err);
+  }
+  try {
+    await claimStaffInviteByEmail(cleanEmail);
+  } catch (err) {
+    console.warn('Staff auto-claim by email notice:', err);
+  }
 
   const inviteCode = DEMO_CAREGIVER_INVITE_CLAIMS[cleanEmail];
   if (inviteCode) {

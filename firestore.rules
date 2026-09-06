@@ -448,8 +448,19 @@ service cloud.firestore {
     // which this rules engine does not bind for list requests) — that
     // field is required and immutable-by-caregiver-only per the create/
     // update rules above, so it's a trustworthy match target.
+    // The second clause covers a *pending* staff-invite sentinel doc (id
+    // `invite_{code}`, whose own clinicianUid field is that same sentinel
+    // string, never a real uid) addressed to this account's own email —
+    // that's what claimStaffInviteByEmail's collection-group query needs to
+    // find it before claiming. Matching on the requester's own token email
+    // means this can never be used to enumerate another account's pending
+    // assignments.
     match /{path=**}/clinicianGrants/{clinicianUid} {
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.clinicianUid;
+      allow read: if isAuthenticated()
+                  && (
+                    request.auth.uid == resource.data.clinicianUid
+                    || (request.auth.token.email != null && request.auth.token.email == resource.data.assignedEmail)
+                  );
     }
 
     // 1c. Doctor-initiated patient registration invite codes. A doctor cannot
@@ -476,6 +487,8 @@ service cloud.firestore {
                     resource.data.clinicianUid == request.auth.uid
                     || (request.auth.token.phone_number != null
                         && resource.data.caregiverPhone == request.auth.token.phone_number)
+                    || (request.auth.token.email != null
+                        && resource.data.caregiverEmail == request.auth.token.email)
                   );
       allow create: if isAuthenticated()
                     && isProfessional(request.auth.uid)
