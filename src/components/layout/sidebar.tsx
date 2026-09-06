@@ -58,7 +58,6 @@ export function AppSidebar() {
   const { role, setRole } = useProfile();
   const { isMobile, setOpenMobile } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string>('');
 
   // Close mobile drawer on route change (keep desktop state intact)
   useEffect(() => {
@@ -71,7 +70,6 @@ export function AppSidebar() {
     if (!auth) return;
     const unsub = auth.onAuthStateChanged((user) => {
       const email = user?.email || '';
-      setUserEmail(email);
 
       // Auto-correct active role strictly by account persona so sessions never leak or mix up
       if (email) {
@@ -90,8 +88,6 @@ export function AppSidebar() {
     });
     return () => unsub();
   }, [role, setRole]);
-
-  const isUserDoctor = userEmail.toLowerCase().includes('doctor') || userEmail.toLowerCase().includes('clinic');
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === href;

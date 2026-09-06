@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase/client';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, Sparkles, HeartPulse, Stethoscope, Bed, Activity, UserCheck } from 'lucide-react';
+import { Shield, Sparkles, HeartPulse, Stethoscope, Bed, Activity } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {

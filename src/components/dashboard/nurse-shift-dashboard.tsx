@@ -16,13 +16,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Activity,
-  Bed,
   Save,
   ExternalLink,
   FileText,
-  ShieldAlert,
-  Clock,
-  RotateCcw
+  ShieldAlert
 } from 'lucide-react';
 import { HealthRepository, type MedicationItem, type VitalRecord } from '@/lib/db/health-repository';
 import {

@@ -14,7 +14,6 @@ import {
   HeartPulse,
   Stethoscope,
   Computer,
-  Bed,
   Activity,
   LogOut,
   LayoutDashboard

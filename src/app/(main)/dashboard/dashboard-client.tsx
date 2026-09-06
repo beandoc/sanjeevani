@@ -44,7 +44,6 @@ import {
   Sparkles,
   PhoneCall,
   Bed,
-  UserCheck,
   Building2,
   Clock
 } from 'lucide-react';
@@ -137,7 +136,7 @@ function getConditionMatchLabel(moduleId: string): string {
 }
 
 export default function DashboardClient() {
-  const { role, setRole, skillLevel, caregivingScenario, moduleProgress } = useProfile();
+  const { role, skillLevel, caregivingScenario, moduleProgress } = useProfile();
   const [personalizedPath, setPersonalizedPath] = useState<PersonalizedPathResult | null>(null);
   const [latestZarit, setLatestZarit] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);

@@ -165,7 +165,7 @@ function StressCalculatorContent() {
     return () => {
       cancelled = true;
     };
-  }, [urlPatientUid]);
+  }, [urlPatientUid, role]);
 
   // 2. Load Assessment History whenever selectedDyadId changes
   useEffect(() => {
