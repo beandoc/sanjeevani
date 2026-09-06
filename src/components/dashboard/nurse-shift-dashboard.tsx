@@ -337,31 +337,33 @@ export function NurseShiftDashboard() {
       {/* ─── 2. CLINICAL WORKFLOW TABS ─── */}
       <Tabs defaultValue="active_station" className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
-          <TabsList className="bg-muted/80 p-1 rounded-xl h-11 border border-border/60">
-            <TabsTrigger
-              value="active_station"
-              className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all"
-            >
-              <Pill className="w-4 h-4" />
-              <span>Bedside MAR & Vitals</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="daily_sheet"
-              className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Daily Bedside Sheet</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="safety_care_plan"
-              className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>Care Plan & Alerts</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+            <TabsList className="bg-muted/80 p-1 rounded-xl min-h-[44px] h-auto border border-border/60 inline-flex w-max sm:w-auto">
+              <TabsTrigger
+                value="active_station"
+                className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all px-3 py-2 shrink-0 min-h-[38px]"
+              >
+                <Pill className="w-4 h-4" />
+                <span>Bedside MAR & Vitals</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="daily_sheet"
+                className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all px-3 py-2 shrink-0 min-h-[38px]"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Daily Bedside Sheet</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="safety_care_plan"
+                className="gap-2 text-xs sm:text-sm font-bold data-[state=active]:bg-rose-800 data-[state=active]:text-white rounded-lg transition-all px-3 py-2 shrink-0 min-h-[38px]"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>Care Plan & Alerts</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Badge variant="outline" className="text-[10px] font-mono border-rose-500/30 text-rose-700 dark:text-rose-300">
               Active Dyad: {patient.name} ({targetDyadUid.slice(0, 8)}...)
             </Badge>
@@ -461,7 +463,7 @@ export function NurseShiftDashboard() {
                                         type="button"
                                         onClick={() => handleToggleMedSlot(med.id, slot)}
                                         className={cn(
-                                          'px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 transition-all',
+                                          'px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all min-h-[36px] active:scale-95',
                                           isTaken
                                             ? 'border-rose-500/80 bg-rose-500/15 text-rose-800 dark:text-rose-200 shadow-2xs font-bold'
                                             : 'border-border bg-background hover:border-rose-500/50 text-foreground'
@@ -469,11 +471,11 @@ export function NurseShiftDashboard() {
                                       >
                                         <div
                                           className={cn(
-                                            'w-3.5 h-3.5 rounded-full border flex items-center justify-center',
+                                            'w-4 h-4 rounded-full border flex items-center justify-center shrink-0',
                                             isTaken ? 'bg-rose-700 border-rose-700 text-white' : 'border-muted-foreground/50'
                                           )}
                                         >
-                                          {isTaken && <CheckCircle2 className="w-2.5 h-2.5" />}
+                                          {isTaken && <CheckCircle2 className="w-3 h-3" />}
                                         </div>
                                         <span className="capitalize">{slot}</span>
                                       </button>

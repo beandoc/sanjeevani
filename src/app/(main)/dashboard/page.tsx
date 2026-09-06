@@ -116,7 +116,7 @@ export default function DashboardPage() {
                   High Fall Risk (2 / 6mo)
                 </Badge>
               </div>
-              <p className="text-xs text-rose-200/80 truncate">
+              <p className="text-xs text-rose-200/80 line-clamp-2 sm:line-clamp-1 leading-snug">
                 Nurse Station · Primary Conditions: Hypertension, Dementia / Alzheimer&apos;s · Tab Amlodipine 5mg OD Active
               </p>
             </div>
@@ -138,7 +138,7 @@ export default function DashboardPage() {
           </div>
         </section>
       ) : (
-        <section className={`relative overflow-hidden rounded-3xl bg-slate-950 px-5 py-8 sm:px-8 sm:py-10 md:px-12 md:py-12 text-white shadow-xl border ${themeConfig.border}`}>
+        <section className={`relative overflow-hidden rounded-3xl bg-slate-950 px-4 py-6 sm:px-8 sm:py-10 md:px-12 md:py-12 text-white shadow-xl border ${themeConfig.border}`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${themeConfig.bgGradient} animate-gradient`} />
           <div className={`absolute -right-16 -top-16 h-64 w-64 rounded-full ${themeConfig.glow1} blur-3xl pointer-events-none`} />
           <div className={`absolute -bottom-16 -left-16 h-64 w-64 rounded-full ${themeConfig.glow2} blur-3xl pointer-events-none`} />

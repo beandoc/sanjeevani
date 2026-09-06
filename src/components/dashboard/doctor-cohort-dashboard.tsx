@@ -249,7 +249,7 @@ export function DoctorCohortDashboard() {
   return (
     <div className="space-y-6">
       {/* 1. CLINICAL COCKPIT BANNER */}
-      <div className="flex items-center justify-between gap-3 px-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="p-1.5 rounded-lg bg-blue-500/10">
             <Stethoscope className="w-4 h-4 text-blue-600" />
@@ -263,18 +263,18 @@ export function DoctorCohortDashboard() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 sm:h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => void load()}
             disabled={isRefreshing}
           >
             <RefreshCw className={cn('w-3 h-3', isRefreshing && 'animate-spin')} /> Refresh
           </Button>
           <Link href="/clinic/roster">
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
+            <Button variant="outline" size="sm" className="h-8 sm:h-7 gap-1 text-xs">
               <Users className="w-3 h-3" /> Roster
             </Button>
           </Link>
@@ -378,24 +378,24 @@ export function DoctorCohortDashboard() {
       {/* 4. ACTIVE CLINICAL PATIENT WORKLIST WITH LIVE FILTERING */}
       <Card className="border-border bg-card shadow-xs">
         <CardHeader className="p-3 pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-primary" />
               Active Worklist ({filteredRows.length})
             </CardTitle>
 
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-48">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search…"
+                  placeholder="Search patient, condition…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-7 h-7 text-xs w-44"
+                  className="pl-8 h-8 text-xs w-full"
                 />
               </div>
 
-              <div className="flex items-center gap-1 overflow-x-auto">
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-full">
                 {([
                   { key: 'all', label: `All (${rows.length})` },
                   { key: 'critical', label: `Critical (${summary.byRiskBand.critical})`, icon: <AlertTriangle className="w-3 h-3" /> },
@@ -408,7 +408,7 @@ export function DoctorCohortDashboard() {
                     key={key}
                     onClick={() => setActiveFilter(key)}
                     className={cn(
-                      'inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold border transition-colors whitespace-nowrap',
+                      'inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold border transition-colors whitespace-nowrap shrink-0',
                       activeFilter === key
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
@@ -552,14 +552,14 @@ export function DoctorCohortDashboard() {
       </Card>
 
       {/* 5. CLINICAL DECISION SUPPORT SHORTCUTS */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {[
           { href: '/medications', icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'Beers Criteria', color: 'text-emerald-600 hover:bg-emerald-500/10 border-emerald-500/30' },
           { href: '/simulations', icon: <Zap className="w-3.5 h-3.5" />, label: 'Geriatric Simulations', color: 'text-blue-600 hover:bg-blue-500/10 border-blue-500/30' },
           { href: '/stress-calculator', icon: <HeartPulse className="w-3.5 h-3.5" />, label: 'Zarit Calculator', color: 'text-purple-600 hover:bg-purple-500/10 border-purple-500/30' },
         ].map(({ href, icon, label, color }) => (
-          <Link key={href} href={href}>
-            <button className={cn('inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border text-[11px] font-semibold transition-colors bg-background', color)}>
+          <Link key={href} href={href} className="shrink-0">
+            <button className={cn('inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[11px] font-semibold transition-colors bg-background shrink-0', color)}>
               {icon}{label}
             </button>
           </Link>

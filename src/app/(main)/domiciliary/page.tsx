@@ -59,20 +59,22 @@ export default function DomiciliaryHubPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full max-w-2xl h-11 p-1 bg-muted/60">
-          <TabsTrigger value="routine" className="text-xs sm:text-sm font-bold gap-1.5">
-            <Bed className="w-4 h-4" />
-            <span>Bedside Routine</span>
-          </TabsTrigger>
-          <TabsTrigger value="emergency" className="text-xs sm:text-sm font-bold gap-1.5">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            <span>Emergency Cards</span>
-          </TabsTrigger>
-          <TabsTrigger value="pathway" className="text-xs sm:text-sm font-bold gap-1.5">
-            <Compass className="w-4 h-4 text-primary" />
-            <span>14-Day Pathway</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto no-scrollbar pb-1">
+          <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-3 max-w-2xl min-h-[44px] h-auto p-1 bg-muted/60 rounded-xl border border-border/50">
+            <TabsTrigger value="routine" className="text-xs sm:text-sm font-bold gap-1.5 py-2 px-3 shrink-0 min-h-[36px]">
+              <Bed className="w-4 h-4" />
+              <span>Bedside Routine</span>
+            </TabsTrigger>
+            <TabsTrigger value="emergency" className="text-xs sm:text-sm font-bold gap-1.5 py-2 px-3 shrink-0 min-h-[36px]">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <span>Emergency Cards</span>
+            </TabsTrigger>
+            <TabsTrigger value="pathway" className="text-xs sm:text-sm font-bold gap-1.5 py-2 px-3 shrink-0 min-h-[36px]">
+              <Compass className="w-4 h-4 text-primary" />
+              <span>14-Day Pathway</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="routine" className="space-y-4 outline-none">
           <DailyBedsideRoutine />

@@ -558,7 +558,9 @@ export default function VitalLogsPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-lg">Historical Vitals Vault</CardTitle>
-              <CardDescription className="text-xs">Chronological record of recent measurements.</CardDescription>
+              <CardDescription className="text-xs">
+                Chronological record of recent measurements. <span className="sm:hidden font-medium text-primary">(Swipe ➔)</span>
+              </CardDescription>
             </div>
             <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
               {logs.length} Entries
@@ -566,7 +568,7 @@ export default function VitalLogsPage() {
           </CardHeader>
           <CardContent>
             {logs.length > 0 ? (
-              <div className="relative w-full overflow-auto border rounded-xl">
+              <div className="relative w-full overflow-auto scroll-touch border rounded-xl">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 text-xs">

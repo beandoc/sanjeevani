@@ -101,7 +101,7 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
     .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50/80 to-slate-100/50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-16 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50/80 to-slate-100/50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 pb-24 md:pb-0">
       {/* Top clinical accent gradient bar */}
       <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 shadow-xs" />
 

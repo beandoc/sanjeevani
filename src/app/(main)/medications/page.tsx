@@ -273,7 +273,7 @@ export default function MedicationsPage() {
               <span>Add Medication</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md rounded-3xl">
+          <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleAddMedication}>
               <DialogHeader>
                 <DialogTitle className="text-lg font-headline">Add Medicine for Review</DialogTitle>
@@ -584,7 +584,7 @@ export default function MedicationsPage() {
       </Card>
 
       {/* Time-of-Day Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-touch pb-1">
         <Button
           variant={activeFilter === 'all' ? 'default' : 'outline'}
           size="sm"

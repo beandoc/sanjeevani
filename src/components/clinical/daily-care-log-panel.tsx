@@ -361,11 +361,16 @@ export function DailyCareLogPanel({
             </div>
 
             <section className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold">
-                <Activity className="w-4 h-4 text-primary" />
-                Monitoring Summary
+              <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <span>Monitoring Summary</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-normal sm:hidden">
+                  Swipe horizontally ➔
+                </span>
               </div>
-              <div className="overflow-x-auto border border-border/70 rounded-xl">
+              <div className="overflow-x-auto scroll-touch border border-border/70 rounded-xl">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>

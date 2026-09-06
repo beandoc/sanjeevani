@@ -18,7 +18,7 @@ function MainContentWrapper({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex flex-1 flex-col min-h-screen min-w-0 w-full bg-background overflow-x-hidden pb-16 md:pb-0">
+    <div className="flex flex-1 flex-col min-h-screen min-w-0 w-full bg-background overflow-x-hidden pb-24 md:pb-0">
       <Header />
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions --
           Tapping the content area to dismiss the open mobile sidebar is a mouse/touch
