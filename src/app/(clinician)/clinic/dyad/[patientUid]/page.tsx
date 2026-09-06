@@ -883,13 +883,15 @@ export default function DyadDetailPage() {
                         <AlertTriangle className="w-5 h-5 text-rose-500" />
                         Discharge Patient Dyad
                       </AlertDialogTitle>
-                      <AlertDialogDescription className="text-sm text-foreground/85 space-y-2 pt-1">
-                        <p>
-                          Are you sure you want to discharge or remove <strong>{cleanPatientName}</strong> ({patientUid}) from active clinical surveillance?
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          This action revokes active surveillance, cleans up clinician grants and pending invite tokens in Firestore, and removes this dyad from your cohort roster.
-                        </p>
+                      <AlertDialogDescription asChild>
+                        <div className="text-sm text-foreground/85 space-y-2 pt-1">
+                          <p>
+                            Are you sure you want to discharge or remove <strong>{cleanPatientName}</strong> ({patientUid}) from active clinical surveillance?
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            This action revokes active surveillance, cleans up clinician grants and pending invite tokens in Firestore, and removes this dyad from your cohort roster.
+                          </p>
+                        </div>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
