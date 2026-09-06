@@ -82,105 +82,113 @@ export function ClinicianQueryDashboard({ rows }: ClinicianQueryDashboardProps) 
   }, [category, query, rows]);
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader className="p-5 pb-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <Card className="border-border bg-card shadow-xs">
+      <CardHeader className="p-3 pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <UserRoundSearch className="w-4 h-4 text-primary" />
+            <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+              <UserRoundSearch className="w-3.5 h-3.5 text-primary" />
               Clinician Query Dashboard
             </CardTitle>
-            <CardDescription className="text-xs mt-0.5">
-              Ask practical OPD questions across daily logs, caregiver burden, care gap, vitals, and safety flags.
+            <CardDescription className="text-[11px] text-muted-foreground mt-0.5">
+              OPD surveillance across daily bedside logs, caregiver burden, care gap, and safety flags.
             </CardDescription>
           </div>
-          <div className="relative w-full lg:w-72">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full sm:w-56 shrink-0">
+            <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search patient, caregiver, condition"
-              className="h-9 pl-8 text-xs"
+              placeholder="Search query…"
+              className="h-7 pl-7 text-xs"
             />
           </div>
         </div>
-        <div className="flex gap-1.5 overflow-x-auto pt-3">
+        <div className="flex gap-1 overflow-x-auto pt-1.5">
           {QUERY_OPTIONS.map((option) => {
             const Icon = option.icon;
             const active = category === option.id;
             return (
-              <Button
+              <button
                 key={option.id}
-                size="sm"
-                variant={active ? 'default' : 'outline'}
                 onClick={() => setCategory(option.id)}
-                className="h-8 text-xs font-bold gap-1.5 shrink-0"
+                className={cn(
+                  'inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold border transition-colors whitespace-nowrap',
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                )}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3 h-3" />
                 <span>{option.label}</span>
-                <Badge variant="outline" className={cn('text-[9px] font-mono ml-0.5', active && 'border-white/50 text-current')}>
+                <span className={cn('text-[9px] font-mono px-1 rounded', active ? 'bg-white/20' : 'bg-muted text-muted-foreground')}>
                   {categoryCounts.get(option.id) || 0}
-                </Badge>
-              </Button>
+                </span>
+              </button>
             );
           })}
         </div>
       </CardHeader>
-      <CardContent className="p-5 pt-2">
+      <CardContent className="p-3 pt-1">
         {results.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center">
-            <p className="text-sm font-bold text-foreground">No matching dyads</p>
-            <p className="text-xs text-muted-foreground mt-1">Try a different query, filter, or datewise bedside logs.</p>
+          <div className="rounded-lg border border-dashed border-border p-5 text-center">
+            <p className="text-xs font-semibold text-foreground">No matching dyads</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Try another filter category or clear search.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {results.slice(0, 6).map((row) => {
               const topSignals = (row.dailyLogSignals || []).slice(0, 2);
               return (
-                <div key={row.patientUid} className="rounded-xl border border-border/70 bg-background p-3 text-xs space-y-3">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={row.patientUid} className="rounded-lg border border-border/60 bg-background/50 hover:bg-muted/20 transition-colors p-2.5 text-xs space-y-2">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h4 className="font-bold text-sm text-foreground truncate">{row.displayName}</h4>
-                      <p className="text-muted-foreground">
-                        Caregiver: {row.caregiverName || 'Primary caregiver'} | Last daily log: {row.lastDailyLogDate || 'not saved'}
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-semibold text-xs text-foreground truncate">{row.displayName}</h4>
+                        <Badge className={cn('text-[9px] uppercase font-bold px-1.5 py-0 h-4 leading-none', row.respitePrescription?.needed ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white')}>
+                          {row.respitePrescription?.needed ? 'Respite' : row.riskBand}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        Caregiver: {row.caregiverName || 'Primary'} · Log: {row.lastDailyLogDate || 'none'}
                       </p>
                     </div>
-                    <Badge className={cn('text-[9px] uppercase font-bold', row.respitePrescription?.needed ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white')}>
-                      {row.respitePrescription?.needed ? 'Respite' : row.riskBand}
-                    </Badge>
                   </div>
 
                   {row.respitePrescription?.needed && (
-                    <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-2">
-                      <p className="font-bold text-red-700 dark:text-red-300">
-                        {row.respitePrescription.recommendedDaysPerMonth} days/month respite recommended
-                      </p>
-                      <p className="text-muted-foreground mt-0.5">{row.respitePrescription.reasons[0] || row.respitePrescription.recommendedSupport}</p>
+                    <div className="rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] flex flex-wrap items-center justify-between gap-1">
+                      <span className="font-semibold text-red-700 dark:text-red-300 flex items-center gap-1">
+                        <Bed className="w-3 h-3 shrink-0" />
+                        {row.respitePrescription.recommendedDaysPerMonth}d/month respite recommended
+                      </span>
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {row.respitePrescription.reasons[0] || row.respitePrescription.recommendedSupport}
+                      </span>
                     </div>
                   )}
 
                   {topSignals.length > 0 ? (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {topSignals.map((signal) => (
-                        <p key={signal.id} className="flex gap-1.5 text-muted-foreground">
-                          <AlertTriangle className={cn('w-3.5 h-3.5 mt-0.5 shrink-0', signal.severity === 'urgent' ? 'text-red-600' : 'text-amber-600')} />
-                          <span>
+                        <p key={signal.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <AlertTriangle className={cn('w-3 h-3 shrink-0', signal.severity === 'urgent' ? 'text-red-600' : 'text-amber-600')} />
+                          <span className="truncate">
                             <strong className="text-foreground">{signal.title}:</strong> {signal.detail}
                           </span>
                         </p>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">No daily-log red flags found in the latest synced bedside sheets.</p>
+                    <p className="text-[10px] text-muted-foreground">No daily-log red flags in recent sheets.</p>
                   )}
 
-                  <div className="flex items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-border/30">
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      ZBI {row.latestBurdenPct ?? 'n/a'}% | {row.dailyLogCount || 0} daily sheets
+                      ZBI {row.latestBurdenPct ?? 'n/a'}% · {row.dailyLogCount || 0} sheets
                     </span>
-                    <Button asChild size="sm" className="h-8 text-xs font-bold gap-1.5">
+                    <Button asChild size="sm" className="h-6 text-[11px] font-medium gap-1 px-2.5 rounded">
                       <Link href={`/clinic/dyad/${row.patientUid}`}>
-                        <Stethoscope className="w-3.5 h-3.5" />
+                        <Stethoscope className="w-3 h-3" />
                         Open
                       </Link>
                     </Button>

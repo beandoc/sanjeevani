@@ -54,7 +54,19 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
       .then(async (response) => ({ ok: response.ok, body: await response.json() }))
       .then(({ ok, body }) => {
         if (!ok) { router.replace('/login?next=/clinic/roster'); return; }
-        if (body.clinician !== true) router.replace('/dashboard');
+        // Accept if the session has the clinician custom claim, OR if the
+        // locally stored role is professional/doctor/nurse (set on every login
+        // in completeSignIn — covers real Firebase sessions that don't yet
+        // have the custom claim provisioned via Admin SDK).
+        const localRole = typeof window !== 'undefined'
+          ? localStorage.getItem('sanjeevani_user_role')
+          : null;
+        const isClinician =
+          body.clinician === true ||
+          localRole === 'professional' ||
+          localRole === 'doctor' ||
+          localRole === 'nurse';
+        if (!isClinician) router.replace('/dashboard');
       })
       .catch(() => router.replace('/login?next=/clinic/roster'));
   }, [isLoading, router]);

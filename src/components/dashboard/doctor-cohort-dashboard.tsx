@@ -224,170 +224,70 @@ export function DoctorCohortDashboard() {
   return (
     <div className="space-y-6">
       {/* 1. CLINICAL COCKPIT BANNER */}
-      <Card className="border border-blue-500/30 bg-blue-50/70 dark:bg-slate-900/90 shadow-sm">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="space-y-2 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-blue-600/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5">
-                  <Stethoscope className="w-3.5 h-3.5 mr-1" />
-                  Geriatric OPD Clinical Cockpit
-                </Badge>
-                <span className="text-xs text-muted-foreground font-mono flex items-center gap-1 font-semibold">
-                  <Clock className="w-3.5 h-3.5 text-primary" /> Real-time Dyad Surveillance
-                </span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black font-headline tracking-tight text-foreground">
-                Cohort Clinical Overview • {summary.totalPatients} Active Dyad{summary.totalPatients === 1 ? '' : 's'}
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                Bi-directional surveillance mapping patient functional trajectory (Barthel ADL) against caregiver psychometric strain (Zarit ZBI) and home safety support.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs font-bold bg-background hover:bg-muted text-foreground border-border shadow-xs"
-                onClick={() => void load()}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh Live Data
-              </Button>
-              <Link href="/clinic/roster">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs font-bold bg-background hover:bg-muted text-blue-700 dark:text-blue-300 border-blue-500/30 shadow-xs"
-                >
-                  <Users className="w-3.5 h-3.5" /> Full Roster Matrix
-                </Button>
-              </Link>
-              <RegisterPatientDialog onRegistered={() => void load()} />
-            </div>
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1.5 rounded-lg bg-blue-500/10">
+            <Stethoscope className="w-4 h-4 text-blue-600" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-foreground truncate">
+              Clinical Dyad Overview · <span className="text-primary">{summary.totalPatients} Active</span>
+            </h2>
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Real-time Dyad Surveillance
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => void load()}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={cn('w-3 h-3', isRefreshing && 'animate-spin')} /> Refresh
+          </Button>
+          <Link href="/clinic/roster">
+            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
+              <Users className="w-3 h-3" /> Roster
+            </Button>
+          </Link>
+          <RegisterPatientDialog onRegistered={() => void load()} />
+        </div>
+      </div>
 
       {/* 2. 4-PILLAR GERIATRIC SURVEILLANCE RADAR */}
       {cohortMetrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Pillar 1: Trajectory Risk */}
-          <Card className="border-border/80 bg-card hover:border-primary/40 transition-all shadow-xs">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Caregiver Burnout Radar
-                </span>
-                <span className="p-1.5 rounded-lg bg-red-500/10 text-red-600">
-                  <Activity className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl font-black font-mono text-foreground">
-                    {cohortMetrics.criticalCount + cohortMetrics.deterioratingCount}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1.5">at-risk dyads</span>
-                </div>
-                <Badge className="text-[10px] font-bold bg-red-600/10 text-red-700 dark:text-red-300 border-red-500/20">
-                  Avg ZBI {cohortMetrics.avgBurden}%
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
-                <span className="w-2 h-2 rounded-full bg-red-600" />
-                <span>{cohortMetrics.criticalCount} Critical</span>
-                <span className="text-border">•</span>
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span>{cohortMetrics.respiteNeeded} Respite</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pillar 2: Biomechanical & Bed-Bound Risk */}
-          <Card className="border-border/80 bg-card hover:border-primary/40 transition-all shadow-xs">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Domiciliary & Mobility
-                </span>
-                <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600">
-                  <Bed className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl font-black font-mono text-foreground">
-                    {cohortMetrics.bedBoundCount}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1.5">bed-bound</span>
-                </div>
-                <Badge className="text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
-                  {cohortMetrics.highFallRisk} Fall History
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/60 truncate">
-                High risk for lumbar strain & pressure ulcers
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Pillar 3: Diurnal Care Gap / Solo Family Burden */}
-          <Card className="border-border/80 bg-card hover:border-primary/40 transition-all shadow-xs">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Care Gap & Night Deficit
-                </span>
-                <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
-                  <HeartHandshake className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl font-black font-mono text-foreground">
-                    {cohortMetrics.soloCaregivers}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1.5">solo families</span>
-                </div>
-                <Badge className="text-[10px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20">
-                  0h Attendant
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/60 truncate">
-                {cohortMetrics.qocWarnings} dyads flagged with nocturnal gaps
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Pillar 4: Surveillance & Reassessment Vigilance */}
-          <Card className="border-border/80 bg-card hover:border-primary/40 transition-all shadow-xs">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Surveillance Cadence
-                </span>
-                <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">
-                  <CalendarClock className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl font-black font-mono text-foreground">
-                    {cohortMetrics.dueForReassessment}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1.5">reassessments due</span>
-                </div>
-                <Badge className="text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20">
-                  &gt;90d Interval
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/60 truncate">
-                {cohortMetrics.dailyRedFlags} daily-log urgent flags, {cohortMetrics.redFlags} ZBI flags
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card">
+            <span className="p-1.5 rounded-lg bg-red-500/10 text-red-600 shrink-0"><Activity className="w-3.5 h-3.5" /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Burnout</p>
+              <p className="text-sm font-black font-mono text-foreground">{cohortMetrics.criticalCount + cohortMetrics.deterioratingCount} <span className="text-[10px] font-normal text-muted-foreground">at-risk · ZBI avg {cohortMetrics.avgBurden}%</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card">
+            <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 shrink-0"><Bed className="w-3.5 h-3.5" /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Mobility</p>
+              <p className="text-sm font-black font-mono text-foreground">{cohortMetrics.bedBoundCount} <span className="text-[10px] font-normal text-muted-foreground">bed-bound · {cohortMetrics.highFallRisk} falls</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card">
+            <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 shrink-0"><HeartHandshake className="w-3.5 h-3.5" /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Care Gap</p>
+              <p className="text-sm font-black font-mono text-foreground">{cohortMetrics.soloCaregivers} <span className="text-[10px] font-normal text-muted-foreground">solo · {cohortMetrics.qocWarnings} gaps</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card">
+            <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 shrink-0"><CalendarClock className="w-3.5 h-3.5" /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Reassessment</p>
+              <p className="text-sm font-black font-mono text-foreground">{cohortMetrics.dueForReassessment} <span className="text-[10px] font-normal text-muted-foreground">due · {cohortMetrics.dailyRedFlags} flags</span></p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -451,91 +351,53 @@ export function DoctorCohortDashboard() {
       <ClinicianQueryDashboard rows={rows} />
 
       {/* 4. ACTIVE CLINICAL PATIENT WORKLIST WITH LIVE FILTERING */}
-      <Card className="border-border bg-card shadow-sm">
-        <CardHeader className="p-5 pb-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-base font-bold font-headline text-foreground flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary" />
-                Active Clinical Dyad Worklist ({filteredRows.length})
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                Real-time psychometric, vital, and support matrix status across your assigned cohort.
-              </CardDescription>
-            </div>
+      <Card className="border-border bg-card shadow-xs">
+        <CardHeader className="p-3 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              Active Worklist ({filteredRows.length})
+            </CardTitle>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search patient, condition, caregiver…"
+                  placeholder="Search…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-9 text-xs"
+                  className="pl-7 h-7 text-xs w-44"
                 />
               </div>
 
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                <Button
-                  variant={activeFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('all')}
-                  className="h-8 text-xs px-2.5 font-bold"
-                >
-                  All ({rows.length})
-                </Button>
-                <Button
-                  variant={activeFilter === 'critical' ? 'destructive' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('critical')}
-                  className="h-8 text-xs px-2.5 font-bold"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Critical ({summary.byRiskBand.critical})
-                </Button>
-                <Button
-                  variant={activeFilter === 'care_gap' ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('care_gap')}
-                  className="h-8 text-xs px-2.5 font-bold"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  Gaps ({cohortMetrics?.qocWarnings || 0})
-                </Button>
-                <Button
-                  variant={activeFilter === 'bed_bound' ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('bed_bound')}
-                  className="h-8 text-xs px-2.5 font-bold"
-                >
-                  <Bed className="w-3.5 h-3.5" />
-                  Bed-Bound ({cohortMetrics?.bedBoundCount || 0})
-                </Button>
-                <Button
-                  variant={activeFilter === 'respite' ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('respite')}
-                  className="h-8 text-xs px-2.5 font-bold gap-1.5"
-                >
-                  <HeartHandshake className="w-3.5 h-3.5" />
-                  Respite ({cohortMetrics?.respiteNeeded || 0})
-                </Button>
-                <Button
-                  variant={activeFilter === 'daily_red_flags' ? 'destructive' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('daily_red_flags')}
-                  className="h-8 text-xs px-2.5 font-bold gap-1.5"
-                >
-                  <BellRing className="w-3.5 h-3.5" />
-                  Daily Flags ({cohortMetrics?.dailyRedFlags || 0})
-                </Button>
+              <div className="flex items-center gap-1 overflow-x-auto">
+                {([
+                  { key: 'all', label: `All (${rows.length})` },
+                  { key: 'critical', label: `Critical (${summary.byRiskBand.critical})`, icon: <AlertTriangle className="w-3 h-3" /> },
+                  { key: 'care_gap', label: `Gaps (${cohortMetrics?.qocWarnings || 0})`, icon: <ShieldAlert className="w-3 h-3" /> },
+                  { key: 'bed_bound', label: `Bed-Bound (${cohortMetrics?.bedBoundCount || 0})`, icon: <Bed className="w-3 h-3" /> },
+                  { key: 'respite', label: `Respite (${cohortMetrics?.respiteNeeded || 0})`, icon: <HeartHandshake className="w-3 h-3" /> },
+                  { key: 'daily_red_flags', label: `Flags (${cohortMetrics?.dailyRedFlags || 0})`, icon: <BellRing className="w-3 h-3" /> },
+                ] as { key: FilterType; label: string; icon?: React.ReactNode }[]).map(({ key, label, icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveFilter(key)}
+                    className={cn(
+                      'inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold border transition-colors whitespace-nowrap',
+                      activeFilter === key
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                    )}
+                  >
+                    {icon}{label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="p-5 pt-1">
+        <CardContent className="p-3 pt-1">
           {filteredRows.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
@@ -546,134 +408,116 @@ export function DoctorCohortDashboard() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border/40">
               {filteredRows.map((row) => (
                 <div
                   key={row.patientUid}
-                  className="p-4 rounded-2xl border border-border/70 hover:border-primary/50 bg-card transition-all duration-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xs"
+                  className="group px-2 py-2 rounded-lg transition-colors hover:bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                 >
-                  {/* Left: Patient and Caregiver Profile */}
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={cn('text-[10px] font-bold uppercase tracking-wider', RISK_BAND_STYLE[row.riskBand])}>
+                  {/* Left: 2 structured, high-density clinical lines */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    {/* Line 1: Identity + High-Risk Chips + Caregiver Details */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', RISK_BAND_STYLE[row.riskBand])}>
                         {RISK_BAND_LABEL[row.riskBand]}
                       </Badge>
-                      <h4 className="text-sm font-bold text-foreground truncate">
-                        {row.displayName}
-                      </h4>
+                      <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{row.displayName}</span>
+
                       {row.isBedBound && (
-                        <Badge variant="outline" className="text-[9px] font-bold text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10">
-                          Bed-Bound
-                        </Badge>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                          <Bed className="w-2.5 h-2.5" /> Bed-Bound
+                        </span>
                       )}
                       {(row.fallHistory || 0) >= 1 && (
-                        <Badge variant="outline" className="text-[9px] font-bold text-red-700 dark:text-red-300 border-red-500/30 bg-red-500/10">
-                          {row.fallHistory} Falls (6m)
-                        </Badge>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                          <AlertTriangle className="w-2.5 h-2.5" /> {row.fallHistory} Falls (6m)
+                        </span>
                       )}
                       {row.respitePrescription?.needed && (
-                        <Badge variant="outline" className="text-[9px] font-bold text-red-700 dark:text-red-300 border-red-500/30 bg-red-500/10">
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
                           Respite {row.respitePrescription.urgency}
-                        </Badge>
-                      )}
-                      {(row.dailyLogSignals || []).some((signal) => signal.severity === 'urgent') && (
-                        <Badge variant="outline" className="text-[9px] font-bold text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10">
-                          Daily Red Flag
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Conditions */}
-                    {row.conditions && row.conditions.length > 0 && (
-                      <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                        {row.conditions.map((c, i) => (
-                          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted/60 text-foreground/80 font-medium text-[10px]">
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Caregiver & Support Details */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-0.5 font-mono">
-                      <span>
-                        Caregiver: <strong className="text-foreground">{row.caregiverName || 'Primary Family Member'}</strong>{' '}
-                        {row.caregiverKinship && <span className="text-[11px]">({row.caregiverKinship})</span>}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        Formal Support:{' '}
-                        <strong className={row.formalSupportHours === 0 ? 'text-amber-600 font-bold' : 'text-foreground'}>
-                          {row.formalSupportHours ? `${row.formalSupportHours}h/day (${row.formalSupportType})` : '0h (100% Family Solo)'}
-                        </strong>
-                      </span>
-                    </div>
-
-                    {/* Alert Snippet if available */}
-                    {row.latestAlertSnippet && (
-                      <p className="text-xs text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1.5 pt-0.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>{row.latestAlertSnippet}</span>
-                      </p>
-                    )}
-                    {row.respitePrescription?.needed && (
-                      <p className="text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-1.5 pt-0.5">
-                        <Bed className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                        <span>
-                          Prescribe {row.respitePrescription.recommendedDaysPerMonth} respite days/month or {row.respitePrescription.recommendedHoursPerWeek} hrs/week.
                         </span>
-                      </p>
-                    )}
+                      )}
+
+                      <span className="text-muted-foreground/40 text-[10px] hidden sm:inline">|</span>
+
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        Caregiver: <strong className="text-foreground font-medium">{row.caregiverName || 'Family'}</strong>
+                        {row.caregiverKinship && ` (${row.caregiverKinship})`}
+                        {' · '}
+                        <span className={cn(row.formalSupportHours === 0 ? 'text-amber-600 font-semibold' : 'text-muted-foreground')}>
+                          {row.formalSupportHours ? `${row.formalSupportHours}h/d (${row.formalSupportType})` : '0h Solo'}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Line 2: Conditions + Inline Micro-Alerts / Prescriptions */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      {row.conditions && row.conditions.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground/90 truncate max-w-xs sm:max-w-md">
+                          {row.conditions.join(' · ')}
+                        </span>
+                      )}
+
+                      {row.latestAlertSnippet && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate max-w-xs sm:max-w-sm">{row.latestAlertSnippet}</span>
+                        </span>
+                      )}
+
+                      {row.respitePrescription?.needed && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                          <Bed className="w-2.5 h-2.5 shrink-0" />
+                          <span>Prescribe {row.respitePrescription.recommendedDaysPerMonth}d/mo or {row.respitePrescription.recommendedHoursPerWeek}h/wk</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Right: Clinical Telemetry & Direct Actions */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-border/50">
-                    {/* Zarit Gauge */}
-                    <div className="p-2.5 rounded-xl bg-muted/50 border border-border/60 text-center min-w-[85px]">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase block">Zarit Burden</span>
-                      <span className={cn('text-base font-black font-mono', row.latestBurdenPct && row.latestBurdenPct > 50 ? 'text-red-600' : 'text-foreground')}>
-                        {row.latestBurdenPct !== null ? `${row.latestBurdenPct}%` : 'N/A'}
+                  {/* Right: Metrics + Quick Actions */}
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {/* Compact ZBI & BP metric chip */}
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 border border-border/50 text-[11px] font-mono">
+                      <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">ZBI</span>
+                      <span className={cn('font-bold', row.latestBurdenPct && row.latestBurdenPct > 50 ? 'text-red-600' : 'text-foreground')}>
+                        {row.latestBurdenPct !== null ? `${row.latestBurdenPct}%` : '—'}
                       </span>
+                      {row.lastVitalBp && (
+                        <>
+                          <span className="text-border">|</span>
+                          <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">BP</span>
+                          <span className="font-semibold text-foreground">{row.lastVitalBp}</span>
+                        </>
+                      )}
                     </div>
 
-                    {/* Vitals Telemetry */}
-                    {row.lastVitalBp && (
-                      <div className="p-2.5 rounded-xl bg-muted/50 border border-border/60 text-center min-w-[85px]">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase block">BP Reading</span>
-                        <span className="text-xs font-mono font-bold text-foreground">{row.lastVitalBp}</span>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    {/* Quick action buttons */}
+                    <div className="flex items-center gap-1">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => handleSendWhatsApp(row)}
-                        title="Send Care Instructions via WhatsApp"
-                        className="h-9 px-2.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 flex-1 sm:flex-none"
+                        title="WhatsApp message to caregiver"
+                        className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-500/10 rounded"
                       >
-                        <Send className="w-3.5 h-3.5" />
-                        <span className="sm:hidden text-xs">WhatsApp</span>
+                        <Send className="w-3 h-3" />
                       </Button>
 
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => handleRequestReassessment(row.patientUid, row.displayName)}
                         disabled={requestingUids.has(row.patientUid)}
-                        title="Request Repeat ZBI Evaluation"
-                        className="h-9 px-2.5 text-xs flex-1 sm:flex-none"
+                        title="Request Zarit Reassessment"
+                        className="h-6 w-6 p-0 text-primary hover:bg-primary/10 rounded"
                       >
-                        <CalendarClock className="w-3.5 h-3.5 text-primary" />
-                        <span className="sm:hidden text-xs">Reassess</span>
+                        <CalendarClock className="w-3 h-3" />
                       </Button>
 
-                      <Button asChild size="sm" className="h-9 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs flex-2 sm:flex-none">
+                      <Button asChild size="sm" className="h-6 text-[11px] font-medium gap-0.5 px-2 rounded">
                         <Link href={`/clinic/dyad/${row.patientUid}`}>
-                          <Stethoscope className="w-3.5 h-3.5" />
-                          <span>Open Workspace</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
+                          Open <ChevronRight className="w-2.5 h-2.5" />
                         </Link>
                       </Button>
                     </div>
@@ -686,60 +530,18 @@ export function DoctorCohortDashboard() {
       </Card>
 
       {/* 5. CLINICAL DECISION SUPPORT SHORTCUTS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/medications" className="block group">
-          <Card className="border-border bg-card hover:border-emerald-500/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 flex items-start gap-3.5">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-foreground group-hover:text-emerald-600 transition-colors">
-                  Beers Criteria Safety Regimen
-                </h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Screen geriatric medications against sedative, anticholinergic, and renal risk criteria for Indian seniors.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/simulations" className="block group">
-          <Card className="border-border bg-card hover:border-blue-500/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 flex items-start gap-3.5">
-              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 shrink-0">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-foreground group-hover:text-blue-600 transition-colors">
-                  21 Indian Geriatric Simulations
-                </h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Interactive triage cases covering acute delirium, post-stroke dysphagia, gait freezing, and sundowning.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/stress-calculator" className="block group">
-          <Card className="border-border bg-card hover:border-purple-500/50 hover:shadow-md transition-all h-full">
-            <CardContent className="p-4 flex items-start gap-3.5">
-              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 shrink-0">
-                <HeartPulse className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-foreground group-hover:text-purple-600 transition-colors">
-                  Psychometric Zarit Calculator
-                </h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Quick clinical calculation of ZBI-4, ZBI-12, and ZBI-22 caregiver burden scores with Indian normative cutoffs.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="flex items-center gap-2">
+        {[
+          { href: '/medications', icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'Beers Criteria', color: 'text-emerald-600 hover:bg-emerald-500/10 border-emerald-500/30' },
+          { href: '/simulations', icon: <Zap className="w-3.5 h-3.5" />, label: 'Geriatric Simulations', color: 'text-blue-600 hover:bg-blue-500/10 border-blue-500/30' },
+          { href: '/stress-calculator', icon: <HeartPulse className="w-3.5 h-3.5" />, label: 'Zarit Calculator', color: 'text-purple-600 hover:bg-purple-500/10 border-purple-500/30' },
+        ].map(({ href, icon, label, color }) => (
+          <Link key={href} href={href}>
+            <button className={cn('inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border text-[11px] font-semibold transition-colors bg-background', color)}>
+              {icon}{label}
+            </button>
+          </Link>
+        ))}
       </div>
     </div>
   );
