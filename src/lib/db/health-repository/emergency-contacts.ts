@@ -11,7 +11,12 @@ export function getEmergencyContacts(): EmergencyContact[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EMERGENCY_CONTACTS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
+    }
+    const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
+    const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
+    if (ptName && ptName !== 'Smt. Sarojini Devi') {
+      return [];
     }
   } catch (e) {
     console.error('Error reading emergency contacts:', e);

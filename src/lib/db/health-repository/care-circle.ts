@@ -18,6 +18,25 @@ export function getCareCircleMembers(): CareCircleMember[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
+    const cgRaw = localStorage.getItem(STORAGE_KEYS.CAREGIVER_ATTRIBUTES);
+    const cgName = cgRaw ? JSON.parse(cgRaw)?.name : null;
+    if (cgName && !cgName.includes('(You)') && cgName !== 'Suresh Kumar' && cgName !== 'Primary Caregiver') {
+      return [
+        {
+          id: 'mem_1',
+          name: `${cgName} (You)`,
+          role: 'Primary Caregiver',
+          phone: '',
+          isSelf: true,
+          avatarColor: 'bg-emerald-600'
+        }
+      ];
+    }
+    const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
+    const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
+    if (ptName && ptName !== 'Smt. Sarojini Devi') {
+      return [];
+    }
   } catch (e) {
     console.error('Error reading circle members:', e);
   }
@@ -39,7 +58,12 @@ export function getCareCircleTasks(): CareCircleTask[] {
     const raw = localStorage.getItem(STORAGE_KEYS.CARE_CIRCLE_TASKS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
+    }
+    const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
+    const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
+    if (ptName && ptName !== 'Smt. Sarojini Devi') {
+      return [];
     }
   } catch (e) {
     console.error('Error reading circle tasks:', e);

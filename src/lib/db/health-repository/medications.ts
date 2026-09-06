@@ -7,18 +7,26 @@ import { DEFAULT_MEDICATIONS } from './defaults';
 
 export function getMedications(): MedicationItem[] {
   const todayStr = new Date().toISOString().slice(0, 10);
-  let meds: MedicationItem[] = DEFAULT_MEDICATIONS;
+  let meds: MedicationItem[] = [];
 
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.MEDICATIONS);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) meds = parsed;
+        if (Array.isArray(parsed)) meds = parsed;
+      } else {
+        const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
+        const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
+        if (!ptName || ptName === 'Smt. Sarojini Devi') {
+          meds = DEFAULT_MEDICATIONS;
+        }
       }
     } catch (e) {
       console.error('Error reading medications:', e);
     }
+  } else {
+    meds = DEFAULT_MEDICATIONS;
   }
 
   // Daily reset check: If lastTakenDate is from a previous calendar day, reset today's taken slots
