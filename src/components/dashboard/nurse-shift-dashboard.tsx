@@ -24,7 +24,8 @@ import {
   syncNursingProcedures,
   getNursingProceduresFor,
   getMedicationsFor,
-  syncMedications
+  syncMedications,
+  getPatientProfileFor
 } from '@/lib/firebase/clinical-sync';
 import { subscribeToAuthState } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -47,7 +48,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function NurseShiftDashboard() {
   const { toast } = useToast();
-  const patient = HealthRepository.getPatientProfile();
+  const [patient, setPatient] = useState(HealthRepository.getPatientProfile());
 
   const [shiftType, setShiftType] = useState<'day_12h' | 'night_12h' | 'live_in_24h'>('day_12h');
   const [systolic, setSystolic] = useState('');
@@ -77,7 +78,13 @@ export function NurseShiftDashboard() {
 
   useEffect(() => {
     if (!currentUid) return;
+    setPatient(HealthRepository.getPatientProfile());
     let cancelled = false;
+    void getPatientProfileFor(currentUid).then((cloudPt) => {
+      if (!cancelled && cloudPt) {
+        setPatient(cloudPt);
+      }
+    });
     void getNursingProceduresFor(currentUid, todayStr()).then((saved) => {
       if (!cancelled && Object.keys(saved).length > 0) {
         setProcedures((prev) => ({ ...prev, ...saved }));

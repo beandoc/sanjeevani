@@ -49,7 +49,9 @@ export default function DashboardPage() {
     role === 'doctor' || role === 'professional'
       ? 'Welcome, Dr. Vivek!'
       : role === 'nurse'
-      ? 'Welcome, Nurse Sister Anjali!'
+      ? patientName && patientName !== 'Smt. Sarojini Devi'
+        ? `Nurse Portal • ${patientName}'s Care`
+        : 'Welcome, Nursing Officer!'
       : caregiverName
       ? `Welcome, ${caregiverName}!`
       : 'Welcome, Family Caregiver!';
@@ -73,7 +75,12 @@ export default function DashboardPage() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl">
-            {role === 'caregiver' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
+            {role === 'nurse' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
+              <>
+                Bedside shift tasks, vitals tracking, and medication administration (MAR) for{' '}
+                <span className="font-bold text-white">{patientName}</span>.
+              </>
+            ) : role === 'caregiver' && patientName && patientName !== 'Smt. Sarojini Devi' ? (
               <>
                 Caring for <span className="font-bold text-white">{patientName}</span> • Your daily care plan, medicine reminders, and vitals in one place.
               </>

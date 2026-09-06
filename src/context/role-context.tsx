@@ -6,7 +6,8 @@ import {
   syncModuleProgress,
   syncUserPreferences,
   getUserPreferencesForCurrentUser,
-  hydrateLocalCacheFromCloud
+  hydrateLocalCacheFromCloud,
+  autoClaimInviteByEmail
 } from '@/lib/firebase/clinical-sync';
 import { subscribeToAuthState } from '@/lib/firebase/auth';
 
@@ -84,6 +85,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       if (!user?.uid || hydratedUidRef.current === user.uid) return;
       hydratedUidRef.current = user.uid;
       void (async () => {
+        if (user.email) {
+          try {
+            await autoClaimInviteByEmail(user.email);
+          } catch (e) {
+            console.warn('Auto-claim in role-context notice:', e);
+          }
+        }
         await hydrateLocalCacheFromCloud(user.uid);
         try {
           const prefs = await getUserPreferencesForCurrentUser();
