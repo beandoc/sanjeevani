@@ -398,10 +398,10 @@ function StressCalculatorContent() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowHistoryView(!showHistoryView)}
-                  className="h-9 text-xs font-semibold mt-4 gap-1.5 shrink-0"
+                  className="h-9 text-xs font-semibold mt-4 gap-1.5 shrink-0 border-primary/40 text-primary hover:bg-primary/10"
                 >
                   <History className="w-3.5 h-3.5" />
-                  <span>{showHistoryView ? 'Hide Prior' : `Prior (${history.length})`}</span>
+                  <span>{showHistoryView ? 'Hide Prior' : `Scissors Chart & Prior (${history.length})`}</span>
                 </Button>
               )}
             </div>
@@ -423,7 +423,7 @@ function StressCalculatorContent() {
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2">
               <History className="w-4 h-4 text-primary" />
-              Prior Assessment Record for {activeDyad.patientName} & {activeDyad.caregiverName}
+              Prior Assessment Record & Scissors Trajectory for {activeDyad.patientName} & {activeDyad.caregiverName}
             </h3>
             <Button size="sm" onClick={() => setShowHistoryView(false)} className="text-xs font-bold gap-1.5">
               <HeartPulse className="w-3.5 h-3.5" /> Start New Reassessment
@@ -435,6 +435,7 @@ function StressCalculatorContent() {
             pastAssessments={history}
             patientName={activeDyad.patientName}
             caregiverName={activeDyad.caregiverName}
+            initialTab="history"
           />
         </div>
       ) : (

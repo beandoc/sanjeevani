@@ -27,6 +27,8 @@ import { cn } from '@/lib/utils';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
 import { SEVERITY_CONFIGS } from '@/lib/clinical/severity-theme';
 import { computeTrajectory } from '@/lib/analytics/trajectory';
+import { ScissorsChart } from '@/components/clinician/scissors-chart';
+import { HealthRepository } from '@/lib/db/health-repository';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
@@ -37,6 +39,7 @@ interface ZaritResultsViewProps {
   pastAssessments?: ZaritEvaluationResult[];
   patientName?: string | null;
   caregiverName?: string | null;
+  initialTab?: 'overview' | 'factors' | 'prescriptions' | 'history';
 }
 
 export function ZaritResultsView({
@@ -45,9 +48,10 @@ export function ZaritResultsView({
   lang = 'en',
   pastAssessments = [],
   patientName,
-  caregiverName
+  caregiverName,
+  initialTab = 'overview'
 }: ZaritResultsViewProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'factors' | 'prescriptions' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'factors' | 'prescriptions' | 'history'>(initialTab);
 
   const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
   const config = SEVERITY_CONFIGS[result?.severityBand] || SEVERITY_CONFIGS.normal;
@@ -56,11 +60,19 @@ export function ZaritResultsView({
   const domainCapacities = result?.domainCapacities || {};
   const factors = result?.factors || {};
 
-  // The caregiver-facing trend. computeTrajectory is otherwise clinician-only
-  // (roster/dyad pages); pastAssessments already includes the just-completed
-  // result (health-repository returns it in saveZaritAssessment's response),
-  // so this reflects the same series clinicians see, without a Barthel axis.
-  const trajectory = useMemo(() => computeTrajectory(pastAssessments, []), [pastAssessments]);
+  const functionScores = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const all = HealthRepository.getFunctionScoresFor('primary');
+      if (all.length > 0) return all;
+      return HealthRepository.getFunctionScoresFor('c4WgNrxHbxZSlWSaCTQZAceTIt33');
+    }
+    return [];
+  }, []);
+
+  const trajectory = useMemo(
+    () => computeTrajectory(pastAssessments, functionScores),
+    [pastAssessments, functionScores]
+  );
   const priorAssessment = pastAssessments.find((a) => a.completedAt !== result?.completedAt);
   const scoreDelta =
     priorAssessment && result ? result.normalizedPercentage - priorAssessment.normalizedPercentage : null;
@@ -476,6 +488,27 @@ export function ZaritResultsView({
                         {trajectory.riskReasons[0] ||
                           'Complete at least 3 assessments spanning 3+ weeks to establish a trend.'}
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Longitudinal Scissors Trajectory Chart */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-primary" />
+                          Longitudinal Scissors Chart (Burden & Function Trajectory)
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Caregiver Burden (ZBI %) plotted against Care-Recipient Functional Dependency (100 − Barthel) across assessment dates.
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary w-fit">
+                        Evidence Grade
+                      </Badge>
+                    </div>
+                    <div className="pt-2">
+                      <ScissorsChart trajectory={trajectory} />
                     </div>
                   </div>
 
