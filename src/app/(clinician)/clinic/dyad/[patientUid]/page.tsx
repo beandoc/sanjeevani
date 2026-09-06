@@ -59,7 +59,8 @@ import {
   Printer,
   ExternalLink,
   UserMinus,
-  Trash2
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -81,7 +82,7 @@ import {
 } from '@/lib/firebase/clinical-sync';
 import { HealthRepository, type MedicationItem, type VitalRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
-import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory } from '@/lib/clinical/care-gap-engine';
+import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory, EmergencyLogistics } from '@/lib/clinical/care-gap-engine';
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
 import { RiskHeader } from '@/components/clinician/risk-header';
@@ -190,6 +191,18 @@ export default function DyadDetailPage() {
   const [vitalPulse, setVitalPulse] = useState('');
   const [vitalSugar, setVitalSugar] = useState('');
   const [isSavingVital, setIsSavingVital] = useState(false);
+
+  // Edit Emergency Logistics State
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+  const [emerDist, setEmerDist] = useState('');
+  const [emerTransitTime, setEmerTransitTime] = useState('');
+  const [emerFourWheeler, setEmerFourWheeler] = useState(false);
+  const [emerVehicleDetails, setEmerVehicleDetails] = useState('');
+  const [emerDriver, setEmerDriver] = useState('');
+  const [emerHospital, setEmerHospital] = useState('');
+  const [emerHelpline, setEmerHelpline] = useState('108');
+  const [emerAddress, setEmerAddress] = useState('');
+  const [isSavingEmergency, setIsSavingEmergency] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -641,6 +654,110 @@ export default function DyadDetailPage() {
       });
     } finally {
       setIsSavingVital(false);
+    }
+  };
+
+  const handleOpenEmergencyModal = () => {
+    const el = caregiver?.emergencyLogistics;
+    setEmerDist(el?.hospitalDistanceKm != null ? String(el.hospitalDistanceKm) : '');
+    setEmerTransitTime(el?.travelTimeMinutes != null ? String(el.travelTimeMinutes) : '');
+    setEmerFourWheeler(el?.fourWheelerAvailableAtHome ?? false);
+    setEmerVehicleDetails(el?.vehicleDetails || '');
+    setEmerDriver(el?.designatedEmergencyDriver || caregiver?.name || '');
+    setEmerHospital(el?.preferredHospitalName || '');
+    setEmerHelpline(el?.ambulanceContact || '108');
+    setEmerAddress(patientProfile?.homeCareAddress || 'H-402, Green Park Society, New Delhi');
+    setIsEmergencyModalOpen(true);
+  };
+
+  const handleSaveEmergencyLogistics = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingEmergency(true);
+    try {
+      const updatedLogistics: EmergencyLogistics = {
+        hospitalDistanceKm: Number(emerDist) || 0,
+        travelTimeMinutes: Number(emerTransitTime) || 0,
+        fourWheelerAvailableAtHome: emerFourWheeler,
+        vehicleDetails: emerVehicleDetails.trim() || undefined,
+        designatedEmergencyDriver: emerDriver.trim() || undefined,
+        preferredHospitalName: emerHospital.trim() || undefined,
+        ambulanceContact: emerHelpline.trim() || '108'
+      };
+
+      const updatedCaregiver: CaregiverAttributes = {
+        ...(caregiver || {
+          name: 'Primary Caregiver',
+          age: 50,
+          gender: 'female',
+          kinship: 'daughter',
+          coResidence: 'lives_together',
+          education: 'graduate',
+          employment: 'full_time',
+          dailyHoursCommitted: 5,
+          monthlyOutOfPocketBurden: 'moderate_strain',
+          formalTrainingReceived: false,
+          caregiverHealth: {
+            hasBackPain: false,
+            hasHypertension: false,
+            hasArthritis: false,
+            hasDiabetes: false,
+            hasInsomnia: false
+          }
+        }),
+        emergencyLogistics: updatedLogistics
+      };
+
+      await saveCaregiverAttributesFor(patientUid, updatedCaregiver, caregiver?.updatedAt);
+      setCaregiver(updatedCaregiver);
+
+      if (patientProfile || emerAddress.trim()) {
+        const updatedProfile: PatientDependenceProfile = {
+          ...(patientProfile || {
+            name: cleanPatientName,
+            age: 75,
+            primaryConditions: [],
+            katzAdl: {
+              bathing: true,
+              dressing: true,
+              toileting: true,
+              transferring: true,
+              continence: true,
+              feeding: true
+            },
+            lawtonIadl: {
+              telephone: true,
+              shopping: true,
+              mealPreparation: true,
+              housekeeping: true,
+              laundry: true,
+              transportation: true,
+              medicationManagement: true,
+              finances: true
+            },
+            cognitiveBehavioralLoad: 'none',
+            fallHistoryLast6Months: 0,
+            isBedBound: false
+          }),
+          homeCareAddress: emerAddress.trim()
+        };
+        await savePatientProfileFor(patientUid, updatedProfile);
+        setPatientProfile(updatedProfile);
+      }
+
+      toast({
+        title: 'Emergency Logistics Saved',
+        description: 'Hospital proximity and rapid transit setpoints have been updated.'
+      });
+      setIsEmergencyModalOpen(false);
+      await load();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error Saving Logistics',
+        description: 'Failed to update emergency logistics. Please try again.'
+      });
+    } finally {
+      setIsSavingEmergency(false);
     }
   };
 
@@ -1495,13 +1612,131 @@ export default function DyadDetailPage() {
           {/* TAB 7: EMERGENCY READINESS */}
           {(activeTab === 'emergency') && (
             <Card className="rounded-3xl border-red-500/20 shadow-xs animate-in fade-in duration-200">
-              <CardHeader className="pb-3 border-b border-border/50 bg-red-500/5">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-red-700 dark:text-red-400">
-                  <Car className="w-5 h-5 text-red-600" /> Emergency Transit & Hospital Accessibility Readiness
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Physical access to 4-wheeler, proximity to emergency triage, and designated transit escorts.
-                </CardDescription>
+              <CardHeader className="pb-3 border-b border-border/50 bg-red-500/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-red-700 dark:text-red-400">
+                    <Car className="w-5 h-5 text-red-600" /> Emergency Transit & Hospital Accessibility Readiness
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Physical access to 4-wheeler, proximity to emergency triage, and designated transit escorts.
+                  </CardDescription>
+                </div>
+
+                <Dialog open={isEmergencyModalOpen} onOpenChange={setIsEmergencyModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      onClick={handleOpenEmergencyModal}
+                      className="h-8 text-xs font-bold gap-1.5 bg-red-600 hover:bg-red-700 text-white shrink-0 shadow-xs"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit Emergency Logistics</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+                    <DialogHeader>
+                      <DialogTitle className="text-base font-bold flex items-center gap-2 text-red-700 dark:text-red-400">
+                        <Car className="w-4 h-4 text-red-600" /> Configure Emergency Readiness
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        Configure hospital distance, vehicle availability, key holder driver, and home address.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSaveEmergencyLogistics} className="space-y-3 py-2 text-xs">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Patient Home Address</Label>
+                        <Input
+                          placeholder="e.g. H-402, Green Park Society, New Delhi"
+                          value={emerAddress}
+                          onChange={(e) => setEmerAddress(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Distance to Hospital (km)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder="e.g. 4.5"
+                            value={emerDist}
+                            onChange={(e) => setEmerDist(e.target.value)}
+                            className="h-9 text-xs font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Transit Time (mins)</Label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 15"
+                            value={emerTransitTime}
+                            onChange={(e) => setEmerTransitTime(e.target.value)}
+                            className="h-9 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">4-Wheeler (Car) at Home?</Label>
+                          <select
+                            value={emerFourWheeler ? 'yes' : 'no'}
+                            onChange={(e) => setEmerFourWheeler(e.target.value === 'yes')}
+                            className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                          >
+                            <option value="yes">Yes (Car Available)</option>
+                            <option value="no">No (Cab/Auto Needed)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Vehicle Notes</Label>
+                          <Input
+                            placeholder="e.g. Maruti Swift in garage"
+                            value={emerVehicleDetails}
+                            onChange={(e) => setEmerVehicleDetails(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Designated Emergency Driver</Label>
+                        <Input
+                          placeholder="e.g. Abhishek Rai (Sibling / Key Holder)"
+                          value={emerDriver}
+                          onChange={(e) => setEmerDriver(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Preferred Hospital</Label>
+                          <Input
+                            placeholder="e.g. AIIMS Geriatric Center"
+                            value={emerHospital}
+                            onChange={(e) => setEmerHospital(e.target.value)}
+                            className="h-9 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Ambulance / Helpline</Label>
+                          <Input
+                            placeholder="108"
+                            value={emerHelpline}
+                            onChange={(e) => setEmerHelpline(e.target.value)}
+                            className="h-9 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter className="pt-2 border-t border-border/50">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsEmergencyModalOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={isSavingEmergency} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+                          {isSavingEmergency ? 'Saving...' : 'Save Logistics'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent className="p-5 space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
