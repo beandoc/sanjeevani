@@ -49,7 +49,7 @@ export default function HypertensionCaregiverPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          High Blood Pressure in Your Loved One: A Caregiver's Guide
+          High Blood Pressure in Your Loved One: A Caregiver&apos;s Guide
         </h1>
         <p className="text-muted-foreground">
           Learn to manage high blood pressure safely with a focus on quality of life.
@@ -72,7 +72,7 @@ export default function HypertensionCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  As we get older, our blood vessels naturally change. Think of them like a garden hose: when new, it's flexible and springy. After years in the sun, it becomes stiff and less pliable. This stiffness forces the pressure of the blood to go up. This is why the top number (systolic) of the blood pressure reading is often high, while the bottom number might be normal or even low.
+                  As we get older, our blood vessels naturally change. Think of them like a garden hose: when new, it&apos;s flexible and springy. After years in the sun, it becomes stiff and less pliable. This stiffness forces the pressure of the blood to go up. This is why the top number (systolic) of the blood pressure reading is often high, while the bottom number might be normal or even low.
                 </p>
             </SectionCard>
           </AccordionContent>
@@ -101,7 +101,7 @@ export default function HypertensionCaregiverPage() {
                         <strong>The First Month is Critical:</strong> The danger of falling is highest in the first 30 to 45 days after your loved one starts a new blood pressure medicine or increases the dose. Watch them closely for any signs of dizziness.
                     </li>
                     <li>
-                        <strong>Dizziness When Standing Up:</strong> If your loved one feels faint or "woozy" right after standing up, this is called orthostatic hypotension. It is a significant fall risk. Report this to their doctor immediately.
+                        <strong>Dizziness When Standing Up:</strong> If your loved one feels faint or &quot;woozy&quot; right after standing up, this is called orthostatic hypotension. It is a significant fall risk. Report this to their doctor immediately.
                     </li>
                 </ul>
             </SectionCard>
@@ -112,7 +112,7 @@ export default function HypertensionCaregiverPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-6 w-6 text-primary" />
-              Why "Lower Isn't Always Better"
+              Why &quot;Lower Isn&apos;t Always Better&quot;
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
@@ -123,7 +123,7 @@ export default function HypertensionCaregiverPage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  You might hear about very low blood pressure targets, but these don't apply to everyone. For older adults, especially those who are frail, the goal is about balance. A safer goal might be under 140/90 or even 150/90.
+                  You might hear about very low blood pressure targets, but these don&apos;t apply to everyone. For older adults, especially those who are frail, the goal is about balance. A safer goal might be under 140/90 or even 150/90.
                 </p>
                 <p>
                   The reason for a relaxed goal is simple: to prioritize safety and quality of life. For a frail person, the harm from a fall caused by low blood pressure can be far worse than the long-term risk of a slightly higher reading. This is a sign of good, thoughtful care.
@@ -154,7 +154,7 @@ export default function HypertensionCaregiverPage() {
                         <strong>Communicate with the Doctor:</strong> Bring an updated list of all medications to every appointment. Report any falls, dizziness, or new confusion.
                     </li>
                     <li>
-                        <strong>Ask Questions:</strong> "What is our blood pressure goal?" and "What side effects should I watch for?" are great places to start.
+                        <strong>Ask Questions:</strong> &quot;What is our blood pressure goal?&quot; and &quot;What side effects should I watch for?&quot; are great places to start.
                     </li>
                 </ul>
             </SectionCard>

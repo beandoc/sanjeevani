@@ -7,8 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Home, Shield, Utensils, HeartPulse, Phone, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Home, Shield, Utensils, HeartPulse, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';

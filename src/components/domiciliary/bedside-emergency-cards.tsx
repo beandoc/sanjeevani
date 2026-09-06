@@ -1,22 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertTriangle,
   ShieldAlert,
   PhoneCall,
-  Activity,
-  HeartCrack,
-  Droplet,
-  Compass,
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
-  Sparkles,
-  LifeBuoy
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-modal';
@@ -188,7 +182,16 @@ export function BedsideEmergencyCards() {
               )}
             >
               <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
                 onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setExpandedCardId(isExpanded ? null : card.id);
+                  }
+                }}
                 className="p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors gap-3"
               >
                 <div className="flex items-center gap-3">

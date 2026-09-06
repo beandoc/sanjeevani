@@ -19,12 +19,9 @@ import {
   UserPlus,
   Copy,
   CheckCircle2,
-  Share2,
   Phone,
   User,
   HeartPulse,
-  Sparkles,
-  Smartphone,
   Check,
   Send,
   Info,
@@ -797,7 +794,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 <div className="flex items-start gap-2 p-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[11px] text-muted-foreground">
                   <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                   <p>
-                    Scoped to <strong>this patient only</strong> — she won't see your other patients.
+                    Scoped to <strong>this patient only</strong> — she won&apos;t see your other patients.
                     {nurseFirstName.trim() && (
                       <>
                         {' '}Her login will be{' '}
@@ -828,7 +825,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                     <Label className="text-xs font-semibold">Primary Relationship (Kinship)</Label>
                     <select
                       value={caregiverKinship}
-                      onChange={(e) => setCaregiverKinship(e.target.value as any)}
+                      onChange={(e) => setCaregiverKinship(e.target.value as CaregiverAttributes['kinship'])}
                       className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                     >
                       <option value="spouse">Spouse (Wife / Husband)</option>
@@ -860,7 +857,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                     <Label className="text-xs font-semibold">Formal Attendant / Support</Label>
                     <select
                       value={formalSupportType}
-                      onChange={(e) => setFormalSupportType(e.target.value as any)}
+                      onChange={(e) => setFormalSupportType(e.target.value as FormalSupportType)}
                       className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                     >
                       <option value="none">None (100% Family Burden)</option>
@@ -966,7 +963,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                     <Label className="text-[11px] font-semibold">Initial Caregiver Burden</Label>
                     <select
                       value={baselineStrainTier}
-                      onChange={(e) => setBaselineStrainTier(e.target.value as any)}
+                      onChange={(e) => setBaselineStrainTier(e.target.value as 'low' | 'moderate' | 'high' | 'severe')}
                       className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                     >
                       <option value="low">Low Burden (ZBI &lt; 20%)</option>

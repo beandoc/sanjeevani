@@ -1,129 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, hasAdminCredentials } from '@/lib/firebase/admin';
+import { z } from 'zod';
+import { adminAuth } from '@/lib/firebase/admin';
+import { checkRateLimit } from '@/lib/security/rate-limit';
+import { logAuditEvent } from '@/lib/security/audit';
 
 export const runtime = 'nodejs';
 const SESSION_COOKIE = '__session';
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 5;
+const MAX_AGE_SECONDS = 60 * 60 * 24 * 5; // 5 days
 
-function parseJwtPayload(token: string): any | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-}
+const SessionPayloadSchema = z.object({
+  idToken: z.string().min(10, 'Valid Firebase ID token required.')
+});
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown-ip';
+  const userAgent = request.headers.get('user-agent') || 'unknown-ua';
+
+  // Enforce IP-based rate limiting on session creation
+  const rateLimit = checkRateLimit(`session:${ip}`, { windowMs: 60 * 1000, maxRequests: 20 });
+  if (!rateLimit.allowed) {
+    logAuditEvent({
+      timestamp: new Date().toISOString(),
+      eventType: 'RATE_LIMIT_EXCEEDED',
+      ip,
+      userAgent,
+      status: 'BLOCKED',
+      details: { endpoint: '/api/auth/session' }
+    });
+    return NextResponse.json({ error: 'Too many login attempts. Please try again later.' }, { status: 429 });
+  }
+
   try {
-    const { idToken } = await request.json();
-    if (typeof idToken !== 'string' || !idToken.trim()) {
-      return NextResponse.json({ error: 'Invalid token.' }, { status: 400 });
+    const rawBody = await request.json().catch(() => ({}));
+    const parseResult = SessionPayloadSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid request payload.', details: parseResult.error.format() },
+        { status: 400 }
+      );
     }
+    const { idToken } = parseResult.data;
 
-    // 1. If Firebase Admin Service Account credentials exist, issue a signed session cookie
-    if (hasAdminCredentials()) {
-      try {
-        const decoded = await adminAuth().verifyIdToken(idToken);
-        if (decoded.auth_time * 1000 < Date.now() - 5 * 60 * 1000) {
-          return NextResponse.json({ error: 'Recent sign-in required.' }, { status: 401 });
-        }
-        const sessionCookie = await adminAuth().createSessionCookie(idToken, { expiresIn: MAX_AGE_SECONDS * 1000 });
-        const response = NextResponse.json({ ok: true });
-        response.cookies.set(SESSION_COOKIE, sessionCookie, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: MAX_AGE_SECONDS
-        });
-        return response;
-      } catch (adminErr) {
-        console.warn('Firebase Admin session cookie creation failed, using resilient token session:', adminErr);
-      }
-    }
+    // Cryptographically verify ID token with Firebase Admin
+    const decoded = await adminAuth().verifyIdToken(idToken, true);
 
-    // 2. Resilient session handling for Vercel/edge serverless environments:
-    // If idToken is a real Firebase JWT token, parse claims and establish session
-    const payload = parseJwtPayload(idToken);
-    const nowSec = Math.floor(Date.now() / 1000);
-
-    if (payload && (!payload.exp || payload.exp > nowSec - 300)) {
-      const email = (payload.email || '').toLowerCase();
-      const isClinician =
-        payload.clinician === true ||
-        email.includes('doctor') ||
-        email.includes('clinic') ||
-        email.startsWith('dr');
-
-      const response = NextResponse.json({ ok: true, uid: payload.sub || payload.user_id, isClinician });
-      response.cookies.set(SESSION_COOKIE, idToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: MAX_AGE_SECONDS
+    // Enforce recent sign-in within last 5 minutes to prevent replay attacks
+    if (decoded.auth_time * 1000 < Date.now() - 5 * 60 * 1000) {
+      logAuditEvent({
+        timestamp: new Date().toISOString(),
+        eventType: 'AUTH_SESSION_REJECTED',
+        actorUid: decoded.uid,
+        ip,
+        userAgent,
+        status: 'FAILURE',
+        details: { reason: 'stale_token_auth_time' }
       });
-      return response;
+      return NextResponse.json({ error: 'Recent sign-in required.' }, { status: 401 });
     }
 
-    // 3. Fallback for demo credentials or offline development
-    const fallbackCookie = `dev-session-${Date.now()}-${idToken.slice(0, 32)}`;
-    const response = NextResponse.json({ ok: true, devMode: true });
-    response.cookies.set(SESSION_COOKIE, fallbackCookie, {
+    // Mint an authentic Firebase Admin session cookie
+    const sessionCookie = await adminAuth().createSessionCookie(idToken, {
+      expiresIn: MAX_AGE_SECONDS * 1000
+    });
+
+    const isClinician =
+      decoded.clinician === true ||
+      decoded.role === 'doctor' ||
+      decoded.role === 'nurse' ||
+      decoded.role === 'professional';
+
+    // A bare `clinician: true` claim carries no tier, so it resolves to the
+    // least-privileged clinical role rather than 'doctor' (which is the
+    // clinic-wide tier). /api/admin/claims maps a provisioned doctor to
+    // 'professional', so a real doctor always arrives with an explicit role.
+    const role = decoded.role || (isClinician ? 'professional' : 'caregiver');
+
+    logAuditEvent({
+      timestamp: new Date().toISOString(),
+      eventType: 'AUTH_SESSION_CREATED',
+      actorUid: decoded.uid,
+      actorRole: role,
+      ip,
+      userAgent,
+      status: 'SUCCESS'
+    });
+
+    const response = NextResponse.json({
+      ok: true,
+      uid: decoded.uid,
+      isClinician,
+      role
+    });
+
+    response.cookies.set(SESSION_COOKIE, sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: MAX_AGE_SECONDS
     });
+
     return response;
   } catch (err) {
-    console.error('Session POST error:', err);
-    return NextResponse.json({ error: 'Session verification failed.' }, { status: 401 });
+    logAuditEvent({
+      timestamp: new Date().toISOString(),
+      eventType: 'AUTH_SESSION_REJECTED',
+      ip,
+      userAgent,
+      status: 'FAILURE',
+      details: { error: err instanceof Error ? err.message : String(err) }
+    });
+    return NextResponse.json({ error: 'Authentication failed. Invalid or revoked token.' }, { status: 401 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     const cookie = request.cookies.get(SESSION_COOKIE)?.value;
-    if (!cookie) throw new Error('No session');
-
-    if (hasAdminCredentials()) {
-      try {
-        const decoded = await adminAuth().verifySessionCookie(cookie, true);
-        return NextResponse.json({ uid: decoded.uid, clinician: decoded.clinician === true });
-      } catch {
-        // Fallback to token payload check below
-      }
+    if (!cookie) {
+      return NextResponse.json({ error: 'No active session.' }, { status: 401 });
     }
 
-    const payload = parseJwtPayload(cookie);
-    if (payload && (!payload.exp || payload.exp > Math.floor(Date.now() / 1000) - 300)) {
-      const email = (payload.email || '').toLowerCase();
-      const isClinician =
-        payload.clinician === true ||
-        email.includes('doctor') ||
-        email.includes('clinic') ||
-        email.startsWith('dr');
-      return NextResponse.json({
-        uid: payload.sub || payload.user_id || 'user',
-        clinician: isClinician,
-        email
-      });
-    }
+    // Cryptographically verify session cookie and check revocation status
+    const decoded = await adminAuth().verifySessionCookie(cookie, true);
 
-    if (cookie.startsWith('dev-session-')) {
-      return NextResponse.json({ uid: 'dev-user', clinician: true, devMode: true });
-    }
+    const isClinician =
+      decoded.clinician === true ||
+      decoded.role === 'doctor' ||
+      decoded.role === 'nurse' ||
+      decoded.role === 'professional';
 
-    throw new Error('Unrecognized session format');
+    return NextResponse.json({
+      uid: decoded.uid,
+      email: decoded.email || null,
+      clinician: isClinician,
+      role: decoded.role || (isClinician ? 'professional' : 'caregiver')
+    });
   } catch {
-    return NextResponse.json({ error: 'Unauthenticated.' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthenticated or expired session.' }, { status: 401 });
   }
 }
 

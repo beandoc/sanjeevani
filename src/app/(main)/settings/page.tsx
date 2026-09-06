@@ -29,7 +29,6 @@ import {
   Users2,
   Activity,
   ShieldCheck,
-  PhoneCall,
   GraduationCap
 } from 'lucide-react';
 

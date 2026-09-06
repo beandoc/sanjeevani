@@ -109,7 +109,9 @@ export async function recordZaritAssessmentFor(
   const past = await getZaritAssessmentsFor(patientUid);
   const completedAt = result.completedAt || new Date().toISOString();
   const tier = result.tier || 'ZBI22';
-  const totalScore = Math.round(result.totalScore ?? (result as any).rawScore ?? 0);
+  // `rawScore` is not part of ZaritEvaluationResult — a defensive fallback for
+  // legacy persisted documents from before the field was renamed to totalScore.
+  const totalScore = Math.round(result.totalScore ?? (result as ZaritEvaluationResult & { rawScore?: number }).rawScore ?? 0);
   const normalizedPercentage = Number(
     result.normalizedPercentage ??
       Math.round((totalScore / (tier === 'ZBI22' ? 88 : tier === 'ZBI12' ? 48 : 16)) * 100)

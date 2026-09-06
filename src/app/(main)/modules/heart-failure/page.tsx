@@ -72,18 +72,18 @@ export default function HeartFailureModulePage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Heart failure, sometimes called congestive heart failure, doesn't mean the heart has stopped working. It means the heart muscle isn't pumping blood as well as it should. Because of this, the body doesn't get enough oxygen-rich blood, which can cause a variety of symptoms.
+                  Heart failure, sometimes called congestive heart failure, doesn&apos;t mean the heart has stopped working. It means the heart muscle isn&apos;t pumping blood as well as it should. Because of this, the body doesn&apos;t get enough oxygen-rich blood, which can cause a variety of symptoms.
                 </p>
                 <h4 className="font-semibold">Key Points to Remember:</h4>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    <strong>It's a Chronic Condition:</strong> Heart failure is a long-term condition that needs ongoing management.
+                    <strong>It&apos;s a Chronic Condition:</strong> Heart failure is a long-term condition that needs ongoing management.
                   </li>
                   <li>
                     <strong>Management is Key:</strong> With the right medications, lifestyle changes, and monitoring, people can live full lives with heart failure.
                   </li>
                   <li>
-                    <strong>Symptoms Can Worsen:</strong> It's important to watch for changes and report them to the doctor.
+                    <strong>Symptoms Can Worsen:</strong> It&apos;s important to watch for changes and report them to the doctor.
                   </li>
                 </ul>
             </SectionCard>
@@ -138,17 +138,17 @@ export default function HeartFailureModulePage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  People with heart failure often take several medications. It's vital they are taken exactly as prescribed.
+                  People with heart failure often take several medications. It&apos;s vital they are taken exactly as prescribed.
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Use a Pill Organizer:</strong> A weekly pillbox can help ensure no doses are missed.
                     </li>
                     <li>
-                        <strong>Know the Medications:</strong> Keep an updated list of all medications, including the name, dose, and what it's for.
+                        <strong>Know the Medications:</strong> Keep an updated list of all medications, including the name, dose, and what it&apos;s for.
                     </li>
                     <li>
-                        <strong>Diuretics ("Water Pills"):</strong> These help the body get rid of extra fluid. Be aware of their schedule and potential side effects like dizziness.
+                        <strong>Diuretics (&quot;Water Pills&quot;):</strong> These help the body get rid of extra fluid. Be aware of their schedule and potential side effects like dizziness.
                     </li>
                     <li>
                         <strong>Never Stop a Medication:</strong> Do not stop or change any medication without talking to the doctor first.

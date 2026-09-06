@@ -4,7 +4,6 @@ import {
   HeartPulse,
   Activity,
   User,
-  ShieldAlert,
   Accessibility,
   PersonStanding,
   Recycle,
@@ -19,7 +18,6 @@ import {
   Utensils,
   Eye,
   Smile,
-  Pill,
   Shield,
   Siren,
 } from 'lucide-react';

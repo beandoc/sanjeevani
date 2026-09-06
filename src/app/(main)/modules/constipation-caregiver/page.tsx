@@ -7,7 +7,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, AlertTriangle, Pill, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -74,14 +73,14 @@ export default function ConstipationCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  It's important to know that constipation isn't just about going to the bathroom less often. For older adults, the main complaints are often:
+                  It&apos;s important to know that constipation isn&apos;t just about going to the bathroom less often. For older adults, the main complaints are often:
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>Straining and pushing to have a bowel movement.</li>
                   <li>Passing hard, dry, lumpy stools.</li>
-                  <li>Feeling like they haven't fully emptied their bowels.</li>
+                  <li>Feeling like they haven&apos;t fully emptied their bowels.</li>
                 </ul>
-                <p className="font-semibold">Key Fact: Constipation is not a normal part of getting older. Healthy, active seniors are not destined to have this problem. It's usually caused by other factors you can help with.</p>
+                <p className="font-semibold">Key Fact: Constipation is not a normal part of getting older. Healthy, active seniors are not destined to have this problem. It&apos;s usually caused by other factors you can help with.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -102,7 +101,7 @@ export default function ConstipationCaregiverPage() {
             >
                     <p>Constipation in older adults usually has multiple causes. The biggest ones are:</p>
                     <h4 className="font-semibold">Medications:</h4>
-                    <p>This is a major cause. At your next doctor's visit, ask if any of your loved one's medications could be the problem. Common culprits include:</p>
+                    <p>This is a major cause. At your next doctor&apos;s visit, ask if any of your loved one&apos;s medications could be the problem. Common culprits include:</p>
                      <ul className="list-disc space-y-2 pl-5">
                         <li>Strong pain relievers (opiates like morphine or oxycodone)</li>
                         <li>Certain blood pressure pills (calcium channel blockers)</li>
@@ -110,7 +109,7 @@ export default function ConstipationCaregiverPage() {
                         <li>Iron supplements</li>
                     </ul>
                     <h4 className="font-semibold">Other Health Conditions:</h4>
-                    <p>Problems like Parkinson's disease, diabetes, and stroke can directly affect how the bowels work.</p>
+                    <p>Problems like Parkinson&apos;s disease, diabetes, and stroke can directly affect how the bowels work.</p>
                     <h4 className="font-semibold">Being Immobile:</h4>
                     <p>Not moving around as much can slow down the digestive system.</p>
               </SectionCard>
@@ -134,7 +133,7 @@ export default function ConstipationCaregiverPage() {
                 <h4 className="font-semibold">Step 1: Start with the Basics</h4>
                 <ul className="list-disc space-y-4 pl-5">
                     <li>
-                        <strong>Review Medicines:</strong> Make a list of every medication and supplement your loved one takes and bring it to the doctor. Ask, "Could any of these be causing constipation?"
+                        <strong>Review Medicines:</strong> Make a list of every medication and supplement your loved one takes and bring it to the doctor. Ask, &quot;Could any of these be causing constipation?&quot;
                     </li>
                     <li>
                         <strong>Gentle Fibre:</strong> Encourage foods rich in fibre, like fruits, vegetables, and whole arains. If you use a fibre supplement (like Metamucil), make sure they drink plenty of extra water with it. <strong className="text-destructive">Warning:</strong> Do not give a fibre supplement if they are bedridden or you suspect a severe blockage.
@@ -144,9 +143,9 @@ export default function ConstipationCaregiverPage() {
                     </li>
                 </ul>
                 <h4 className="font-semibold mt-4">Step 2: Try a Gentle Laxative</h4>
-                <p>If the basics don't work, an osmotic laxative is a safe next step. A common one is polyethylene glycol (PEG), sold under brand names like Miralax. It works by gently drawing water into the stool to soften it.</p>
+                <p>If the basics don&apos;t work, an osmotic laxative is a safe next step. A common one is polyethylene glycol (PEG), sold under brand names like Miralax. It works by gently drawing water into the stool to soften it.</p>
                 <h4 className="font-semibold mt-4">Step 3: If Needed, a Stimulant Laxative</h4>
-                <p>Products containing senna or bisacodyl (like Senokot or Dulcolax) stimulate the bowel to move. These are best used when gentler options haven't worked.</p>
+                <p>Products containing senna or bisacodyl (like Senokot or Dulcolax) stimulate the bowel to move. These are best used when gentler options haven&apos;t worked.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -155,7 +154,7 @@ export default function ConstipationCaregiverPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-6 w-6 text-destructive" />
-              When to Call the Doctor: "Red Flag" Symptoms
+              When to Call the Doctor: &quot;Red Flag&quot; Symptoms
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">

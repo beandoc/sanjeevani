@@ -111,9 +111,42 @@ describe('Firestore Security Rules Compliance Audit', () => {
   });
 
   test('should require an Admin-issued clinician claim and keep browser profile roles immutable', () => {
-    assert.ok(rulesContent.includes('request.auth.token.clinician == true'));
+    // Read via the safe accessor: dot access on an absent claim key raises
+    // "Property <key> is undefined on object" and denies the request rather
+    // than evaluating to null, which silently locked out every legitimately
+    // granted clinician. Covered functionally in rules.emulator.test.ts.
+    assert.ok(rulesContent.includes("request.auth.token.get('clinician', false) == true"));
+    assert.ok(!/request\.auth\.token\.(clinician|role|email|phone_number)\b/.test(rulesContent));
     assert.ok(rulesContent.includes("request.resource.data.role == 'caregiver'"));
     assert.ok(rulesContent.includes('request.resource.data.role == resource.data.role'));
   });
 
+  test('should not allow a browser to self-assign a clinical role at profile creation', () => {
+    // Self-service registration is caregiver-only; clinical roles arrive as
+    // Admin SDK custom claims (see /api/admin/claims, scripts/set-claims.ts).
+    assert.ok(!rulesContent.includes("request.resource.data.role in ['professional', 'doctor', 'nurse']"));
+    assert.ok(rulesContent.includes("(isOwner(userId) && request.resource.data.role == 'caregiver')"));
+  });
+
+  test('should enforce Phase 2 rules hardening: no email regex, no demo bypass, scoped cohortSummaries', () => {
+    // 1. Email pattern role inference functions must be absent
+    assert.ok(!rulesContent.includes('function isDoctorEmail'));
+    assert.ok(!rulesContent.includes('function isNurseEmail'));
+
+    // 2. Demo bypass must be absent from hasActiveGrant
+    assert.ok(!rulesContent.includes("userId.matches('^demo-.*')"));
+
+    // 3. clinicianGrants read must not have isDyadPlaceholder bypass
+    const grantsBlock = rulesContent.slice(
+      rulesContent.indexOf('match /clinicianGrants/{clinicianUid}'),
+      rulesContent.indexOf('match /{path=**}/clinicianGrants/{grantId}')
+    );
+    assert.ok(!grantsBlock.includes('|| isDyadPlaceholder(userId)'));
+
+    // 4. cohortSummaries must be scoped to owning clinician and forbid client writes
+    const cohortBlock = rulesContent.slice(rulesContent.indexOf('match /cohortSummaries/{dyadId}'));
+    assert.ok(cohortBlock.includes('resource.data.clinicianUid == request.auth.uid'));
+    assert.ok(cohortBlock.includes('allow write: if false;'));
+  });
 });
+

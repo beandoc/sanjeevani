@@ -66,19 +66,26 @@ export function getZaritAssessments(): ZaritEvaluationResult[] {
 
 function normalizeZaritAssessment(item: unknown): ZaritEvaluationResult | null {
   if (!item || typeof item !== 'object') return null;
-  const raw = item as Record<string, any>;
-  const classification =
+  // Parsing a legacy/untrusted localStorage blob field-by-field with explicit
+  // runtime coercion below (Number/String/Boolean/Array.isArray) rather than
+  // trusting its shape — `unknown` here, not `any`, so every access still has
+  // to go through one of those coercions or an explicit narrowing.
+  const raw = item as Record<string, unknown>;
+  const rawClassification =
     typeof raw.classification === 'object' && raw.classification !== null
-      ? {
-          en: raw.classification.en || 'Standard Assessment',
-          hi: raw.classification.hi || raw.classification.en || 'मानक मूल्यांकन',
-          mr: raw.classification.mr || raw.classification.en || 'मानक मूल्यांकन'
-        }
-      : {
-          en: String(raw.classification || 'Standard Assessment'),
-          hi: String(raw.classification || 'मानक मूल्यांकन'),
-          mr: String(raw.classification || 'मानक मूल्यांकन')
-        };
+      ? (raw.classification as Record<string, unknown>)
+      : null;
+  const classification = rawClassification
+    ? {
+        en: String(rawClassification.en || 'Standard Assessment'),
+        hi: String(rawClassification.hi || rawClassification.en || 'मानक मूल्यांकन'),
+        mr: String(rawClassification.mr || rawClassification.en || 'मानक मूल्यांकन')
+      }
+    : {
+        en: String(raw.classification || 'Standard Assessment'),
+        hi: String(raw.classification || 'मानक मूल्यांकन'),
+        mr: String(raw.classification || 'मानक मूल्यांकन')
+      };
 
   return {
     ...raw,

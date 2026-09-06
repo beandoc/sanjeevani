@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +12,6 @@ import {
   Sparkles,
   ChevronRight,
   RotateCcw,
-  Sun,
   Moon,
   Utensils,
   Pill,
@@ -21,7 +20,6 @@ import {
   HeartPulse,
   Activity,
   Bed,
-  HelpCircle,
   BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
@@ -438,6 +436,10 @@ export function DailyBedsideRoutine() {
                 >
                   {isDone && <CheckCircle2 className="w-4 h-4" />}
                 </button>
+
+                <div className="p-1.5 rounded-lg bg-muted/50 shrink-0 mt-0.5">
+                  <Icon className="w-4 h-4 text-primary" />
+                </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">

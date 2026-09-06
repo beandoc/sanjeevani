@@ -10,15 +10,10 @@ import {
   ArrowLeft,
   HeartPulse,
   Home,
-  Shield,
   Activity,
   Users,
-  BrainCircuit,
   Stethoscope,
   Sparkles,
-  HelpCircle,
-  CheckCircle2,
-  Calendar,
   AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';

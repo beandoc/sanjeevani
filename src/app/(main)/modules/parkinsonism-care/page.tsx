@@ -49,10 +49,10 @@ export default function ParkinsonismCareModulePage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Living with Parkinson's Disease: A Detailed Guide for Families and Caregivers
+          Living with Parkinson&apos;s Disease: A Detailed Guide for Families and Caregivers
         </h1>
         <p className="text-muted-foreground">
-          This guide provides families with in-depth information to understand the many symptoms of Parkinson's Disease (PD), how to be an effective partner in treatment, and ways to manage daily life.
+          This guide provides families with in-depth information to understand the many symptoms of Parkinson&apos;s Disease (PD), how to be an effective partner in treatment, and ways to manage daily life.
         </p>
       </div>
 
@@ -61,7 +61,7 @@ export default function ParkinsonismCareModulePage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Brain className="h-6 w-6 text-primary" />
-              Chapter 1: Understanding What's Happening
+              Chapter 1: Understanding What&apos;s Happening
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
@@ -72,7 +72,7 @@ export default function ParkinsonismCareModulePage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Parkinson's is a slowly progressing disease of the brain that primarily affects movement. Imagine your brain has a message center that uses a special chemical called dopamine to send signals that tell your muscles to move smoothly and with coordination. In Parkinson's, the brain cells that make dopamine start to disappear, so these messages get weaker and distorted.
+                  Parkinson&apos;s is a slowly progressing disease of the brain that primarily affects movement. Imagine your brain has a message center that uses a special chemical called dopamine to send signals that tell your muscles to move smoothly and with coordination. In Parkinson&apos;s, the brain cells that make dopamine start to disappear, so these messages get weaker and distorted.
                 </p>
                 <h4 className="font-semibold">How It Typically Starts</h4>
                 <p>
@@ -98,15 +98,15 @@ export default function ParkinsonismCareModulePage() {
             >
                 <h4 className="font-semibold">The Main Movement (Motor) Symptoms</h4>
                 <p>
-                  <strong>The Parkinson's Tremor:</strong> This is the most well-known symptom. It is a shaking that is most obvious when the hand or limb is at rest. The tremor often improves or disappears when your loved one is actively using that hand.
+                  <strong>The Parkinson&apos;s Tremor:</strong> This is the most well-known symptom. It is a shaking that is most obvious when the hand or limb is at rest. The tremor often improves or disappears when your loved one is actively using that hand.
                 </p>
                 <p>
-                  <strong>Slowness and Smallness of Movement (Bradykinesia):</strong> This is often the most disabling symptom. It's a "shrinking" of movement. You might notice:
+                  <strong>Slowness and Smallness of Movement (Bradykinesia):</strong> This is often the most disabling symptom. It&apos;s a &quot;shrinking&quot; of movement. You might notice:
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>Difficulty with fine motor tasks like buttoning a shirt or using utensils.</li>
                   <li>A change in handwriting, making it very small (micrographia).</li>
-                  <li>A loss of facial expression, sometimes called a "masked face."</li>
+                  <li>A loss of facial expression, sometimes called a &quot;masked face.&quot;</li>
                   <li>Difficulty getting up from a chair or turning over in bed.</li>
                 </ul>
                 <p>
@@ -119,24 +119,24 @@ export default function ParkinsonismCareModulePage() {
                   <li>A stooped-over posture.</li>
                   <li>Shuffling steps, where the feet barely leave the floor.</li>
                   <li>A lack of arm swing when walking.</li>
-                  <li>A feeling of being "stuck to the floor" (known as "freezing"). This makes falls a very serious risk.</li>
+                  <li>A feeling of being &quot;stuck to the floor&quot; (known as &quot;freezing&quot;). This makes falls a very serious risk.</li>
                 </ul>
-                <h4 className="font-semibold mt-4">The "Hidden" Non-Movement (Non-Motor) Symptoms</h4>
+                <h4 className="font-semibold mt-4">The &quot;Hidden&quot; Non-Movement (Non-Motor) Symptoms</h4>
                 <p>
-                  These symptoms are a direct result of Parkinson's and can be just as challenging as the movement problems.
+                  These symptoms are a direct result of Parkinson&apos;s and can be just as challenging as the movement problems.
                 </p>
                 <p>
                   <strong>Dizziness When Standing Up (Orthostatic Hypotension):</strong> This is a sudden drop in blood pressure upon standing that can cause lightheadedness, blurry vision, or even fainting. Encourage your loved one to get up slowly from a seated or lying position.
                 </p>
                 <p>
-                  <strong>Constipation:</strong> This is extremely common, affecting about half of all patients. It's caused by the disease slowing down the digestive system.
+                  <strong>Constipation:</strong> This is extremely common, affecting about half of all patients. It&apos;s caused by the disease slowing down the digestive system.
                 </p>
                 <p>
                   <strong>Mood and Mind:</strong>
                 </p>
                  <ul className="list-disc space-y-2 pl-5">
-                    <li>Depression and Anxiety: It's very important to know that these are part of the brain changes of PD, not just a reaction to having the illness. They are treatable.</li>
-                    <li>Memory Problems: Serious memory loss and dementia are not an early feature of Parkinson's. If they occur, it is only after many years with the disease.</li>
+                    <li>Depression and Anxiety: It&apos;s very important to know that these are part of the brain changes of PD, not just a reaction to having the illness. They are treatable.</li>
+                    <li>Memory Problems: Serious memory loss and dementia are not an early feature of Parkinson&apos;s. If they occur, it is only after many years with the disease.</li>
                 </ul>
                 <p>
                   <strong>Other Common Issues:</strong> You may also notice problems with sleep, excessive drooling, urinary urgency, and a very soft voice.
@@ -161,21 +161,21 @@ export default function ParkinsonismCareModulePage() {
             >
                 <h4 className="font-semibold">The Main Medicine: Levodopa (L-dopa)</h4>
                 <p>
-                  The most powerful medication for Parkinson's is levodopa. It helps replace the missing dopamine in the brain and is very effective at treating the motor symptoms.
+                  The most powerful medication for Parkinson&apos;s is levodopa. It helps replace the missing dopamine in the brain and is very effective at treating the motor symptoms.
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>The Golden Rule of Timing:</strong> To work properly, levodopa should be taken on an empty stomach, about 30 minutes before a meal. Food, especially protein, can interfere with how the medicine is absorbed.
                     </li>
                     <li>
-                        <strong>Tracking "On" and "Off" Times:</strong> After a few years, you may notice the medication's effect doesn't last until the next dose. This is called "wearing-off." Your loved one may feel good and move well ("On" time) and then become slow and stiff before the next pill ("Off" time). Keeping a simple diary of these times is incredibly helpful for the doctor.
+                        <strong>Tracking &quot;On&quot; and &quot;Off&quot; Times:</strong> After a few years, you may notice the medication&apos;s effect doesn&apos;t last until the next dose. This is called &quot;wearing-off.&quot; Your loved one may feel good and move well (&quot;On&quot; time) and then become slow and stiff before the next pill (&quot;Off&quot; time). Keeping a simple diary of these times is incredibly helpful for the doctor.
                     </li>
                     <li>
-                        <strong>Side Effects to Report:</strong> Be sure to tell the doctor if you notice nausea, dizziness, or especially any new confusion, vivid dreams, or hallucinations (seeing things that aren't there).
+                        <strong>Side Effects to Report:</strong> Be sure to tell the doctor if you notice nausea, dizziness, or especially any new confusion, vivid dreams, or hallucinations (seeing things that aren&apos;t there).
                     </li>
                 </ul>
                 <h4 className="font-semibold mt-4">A Critical Warning: Other Medications Can Mimic PD</h4>
-                <p>Some medications, particularly antipsychotics used to treat behavioral issues in dementia, can cause stiffness and slowness that look exactly like Parkinson's. If your loved one starts showing these symptoms after beginning a new medication, it is vital to contact the doctor immediately.</p>
+                <p>Some medications, particularly antipsychotics used to treat behavioral issues in dementia, can cause stiffness and slowness that look exactly like Parkinson&apos;s. If your loved one starts showing these symptoms after beginning a new medication, it is vital to contact the doctor immediately.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -233,10 +233,10 @@ export default function ParkinsonismCareModulePage() {
                         <strong>Patience and Support:</strong> Everyday tasks will take longer. Patience and encouragement are key. Help them stay socially connected and as physically active as possible.
                     </li>
                     <li>
-                        <strong>Looking Ahead:</strong> Parkinson's is a long journey. As the disease advances, your loved one will need more help with daily activities. Planning for professional help, meals-on-wheels, and other services in advance can reduce stress later on.
+                        <strong>Looking Ahead:</strong> Parkinson&apos;s is a long journey. As the disease advances, your loved one will need more help with daily activities. Planning for professional help, meals-on-wheels, and other services in advance can reduce stress later on.
                     </li>
                     <li>
-                        <strong>Support for You:</strong> Being a caregiver is a marathon, not a sprint. Connect with local Parkinson's associations for resources, education, and support groups. Taking care of your own well-being is essential.
+                        <strong>Support for You:</strong> Being a caregiver is a marathon, not a sprint. Connect with local Parkinson&apos;s associations for resources, education, and support groups. Taking care of your own well-being is essential.
                     </li>
                 </ul>
             </SectionCard>

@@ -16,7 +16,6 @@ import {
   Copy,
   CalendarCheck,
   Plus,
-  ShieldCheck,
   PhoneCall,
   Activity,
   Calendar,
@@ -83,7 +82,7 @@ const CaregiverSupportMatrix = dynamic(() =>
   )
 });
 import { buildFormalSupport } from '@/lib/clinical/formal-support';
-import { Stethoscope, FileSignature, AlertCircle, UserMinus } from 'lucide-react';
+import { Stethoscope, AlertCircle, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
@@ -1054,7 +1053,7 @@ export default function CareCirclePage() {
 
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold">Role in Care Ecosystem</Label>
-                        <Select value={newMemberRole} onValueChange={(v: any) => setNewMemberRole(v)}>
+                        <Select value={newMemberRole} onValueChange={(v: 'Family Member' | 'Home Nurse' | 'Visiting Doctor') => setNewMemberRole(v)}>
                           <SelectTrigger className="h-9 text-xs">
                             <SelectValue />
                           </SelectTrigger>
@@ -1164,7 +1163,7 @@ export default function CareCirclePage() {
 
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold">Category</Label>
-                        <Select value={taskCategory} onValueChange={(v: any) => setTaskCategory(v)}>
+                        <Select value={taskCategory} onValueChange={(v: 'meds' | 'physio' | 'hygiene' | 'appointment' | 'general') => setTaskCategory(v)}>
                           <SelectTrigger className="h-9 text-xs">
                             <SelectValue />
                           </SelectTrigger>
@@ -1178,7 +1177,7 @@ export default function CareCirclePage() {
                         </Select>
                         <div className="space-y-1.5 pt-2">
                           <Label className="text-xs font-semibold">Repeats</Label>
-                          <Select value={taskRecurrence} onValueChange={(v: any) => setTaskRecurrence(v)}>
+                          <Select value={taskRecurrence} onValueChange={(v: 'once' | 'daily') => setTaskRecurrence(v)}>
                             <SelectTrigger className="h-9 text-xs">
                               <SelectValue />
                             </SelectTrigger>
@@ -1293,7 +1292,16 @@ export default function CareCirclePage() {
                     tasks.map((task) => (
                       <div
                         key={task.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={task.isCompleted}
                         onClick={() => handleToggleTask(task.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleTask(task.id);
+                          }
+                        }}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
                           task.isCompleted
                             ? 'bg-muted/40 border-border opacity-70'

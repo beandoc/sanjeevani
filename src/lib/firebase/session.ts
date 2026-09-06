@@ -26,5 +26,16 @@ export async function clearSession(): Promise<void> {
   try {
     await fetch('/api/auth/session', { method: 'DELETE' });
   } catch {}
+
+  // Purge the service worker's caches on sign-out. Only public/static
+  // content is ever cached (see public/sw.js), but this guarantees a
+  // shared/clinic device can never surface anything from a previous
+  // session, even if that policy changes later.
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      registration?.active?.postMessage({ type: 'CLEAR_CACHES' });
+    }
+  } catch {}
 }
 

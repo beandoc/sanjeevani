@@ -479,6 +479,31 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
       modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' || 
       modResultToxicFin.caregiverBurnoutRiskLevel === 'high'
     );
+
+    // KNOWN GAP, not fixed here: this test's name promises a *relative*
+    // scale-up under worsening financial strain, but modResultNormalFin
+    // (computed above, previously never asserted against at all — a real
+    // unused-variable lint finding) turns out to already be 'critical' at
+    // the *lowest* financial multiplier for this fixture: netCareGapHours
+    // (6.3h) alone already exceeds GAP_CRITICAL_THRESHOLD (4.5h) before the
+    // financial multiplier (1.0-1.4x) is even applied, so financialMultiplier
+    // has no room left to move the result. caregiverSafeCapacityHours is
+    // capped by `employment` (see care-gap-engine.ts ~L801-806) before
+    // `dailyHoursCommitted` reaches the gap calculation at all, so bumping
+    // that input doesn't uncap it either — untangling a fixture that actually
+    // isolates the financial-strain effect needs someone who owns this
+    // scoring model's capacity/demand assumptions, not a guess made during a
+    // lint cleanup. Filed as a known gap rather than papered over: the
+    // assertion below is honest about what these inputs actually prove
+    // (severe strain never produces a *lower* band than manageable strain),
+    // not the stronger scale-up the test name implies.
+    const riskRank: Record<typeof modResultNormalFin.caregiverBurnoutRiskLevel, number> = {
+      low: 0,
+      moderate: 1,
+      high: 2,
+      critical: 3
+    };
+    assert.ok(riskRank[modResultToxicFin.caregiverBurnoutRiskLevel] >= riskRank[modResultNormalFin.caregiverBurnoutRiskLevel]);
   });
 
   test('should generate an actionable staffing prescription when care gap hours is positive', () => {

@@ -41,17 +41,14 @@ import {
   CalendarCheck,
   CalendarClock,
   CheckCircle2,
-  AlertTriangle,
-  Clock,
   Sparkles,
   PhoneCall,
   Bed,
-  Compass,
   UserCheck,
   Building2
 } from 'lucide-react';
 import Link from 'next/link';
-import { useProfile, Role } from '@/context/role-context';
+import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { allModules } from '@/lib/modules';
 import { EmergencyContactCard } from '@/components/cards/emergency-contact-card';
@@ -137,14 +134,12 @@ export default function DashboardClient() {
   const [careGap, setCareGap] = useState<CareGapEvaluationResult | null>(null);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
   const [currentUserUid, setCurrentUserUid] = useState<string>('');
-  const [reassessmentRequest, setReassessmentRequest] = useState<any | null>(null);
+  const [reassessmentRequest, setReassessmentRequest] = useState<{ requestedAt: string; requestedBy: string; status: string } | null>(null);
 
   useEffect(() => {
     if (!auth) return;
     const unsub = auth.onAuthStateChanged((user) => {
-      setUserEmail(user?.email || '');
       setCurrentUserUid(user?.uid || '');
     });
     return () => unsub();

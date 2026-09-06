@@ -11,7 +11,7 @@ import { Timestamp } from 'firebase/firestore';
 import { auth } from '../client';
 import { type ZaritEvaluationResult } from '@/lib/zarit-scale';
 import { type FunctionEvaluationResult } from '@/lib/clinical/function-scale';
-import { HealthRepository, type DailyCareLog } from '@/lib/db/health-repository';
+import { type DailyCareLog } from '@/lib/db/health-repository';
 export function currentUid(): string | null {
   try {
     return auth?.currentUser?.uid ?? null;
@@ -20,10 +20,26 @@ export function currentUid(): string | null {
   }
 }
 
+function isTransientError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const code = (err as { code?: string }).code;
+  if (!code || typeof code !== 'string') {
+    const message = (err as { message?: string }).message || '';
+    return /network|fetch|timeout|econnreset|offline/i.test(message);
+  }
+  const normalized = code.replace(/^(firestore|auth)\//, '').toLowerCase();
+  // Immediately terminal errors — do not retry
+  if (['permission-denied', 'unauthenticated', 'invalid-argument', 'not-found', 'already-exists', 'failed-precondition'].includes(normalized)) {
+    return false;
+  }
+  // Standard transient retryable error codes
+  return ['unavailable', 'deadline-exceeded', 'aborted', 'resource-exhausted', 'cancelled', 'internal'].includes(normalized);
+}
+
 /**
  * Retries an async operation up to `maxAttempts` times with exponential
- * back-off. Intended for intent-critical writes (encounters, grant changes,
- * invite claims) that must surface errors rather than silently drop.
+ * back-off. Only retries on transient errors (network timeouts, unavailable, aborted);
+ * terminal errors like permission-denied fail immediately without delay.
  */
 export async function withRetry<T>(
   fn: () => Promise<T>,
@@ -36,9 +52,10 @@ export async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
+      if (!isTransientError(err) || attempt >= maxAttempts) {
+        throw err;
       }
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
     }
   }
   throw lastErr;

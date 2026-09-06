@@ -5,24 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   UserCheck,
   Stethoscope,
   HeartPulse,
   Pill,
-  Clock,
   CheckCircle2,
   AlertTriangle,
-  FileText,
   Activity,
   Bed,
-  PhoneCall,
   Save,
-  Droplet,
-  Sparkles,
   ExternalLink
 } from 'lucide-react';
-import { HealthRepository, VitalRecord, type MedicationItem } from '@/lib/db/health-repository';
+import { HealthRepository, type MedicationItem } from '@/lib/db/health-repository';
 import {
   syncVitals,
   syncNursingProcedures,
@@ -244,17 +240,30 @@ export function NurseShiftDashboard() {
                 <HeartPulse className="w-4 h-4 text-emerald-600" />
                 Shift Vital Signs Log (MAR Entry)
               </CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono">
-                Real-Time
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Select value={shiftType} onValueChange={(value) => setShiftType(value as typeof shiftType)}>
+                  <SelectTrigger id="nurse-shift-type" className="h-7 w-auto text-[10px] font-mono gap-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day_12h">Day (12h)</SelectItem>
+                    <SelectItem value="night_12h">Night (12h)</SelectItem>
+                    <SelectItem value="live_in_24h">Live-in (24h)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  Real-Time
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-4 sm:p-5">
             <form onSubmit={handleLogShiftVitals} className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground">BP Systolic (mmHg)</label>
+                  <label htmlFor="nurse-shift-systolic" className="text-[11px] font-semibold text-muted-foreground">BP Systolic (mmHg)</label>
                   <Input
+                    id="nurse-shift-systolic"
                     type="number"
                     placeholder="120"
                     value={systolic}
@@ -263,8 +272,9 @@ export function NurseShiftDashboard() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground">BP Diastolic (mmHg)</label>
+                  <label htmlFor="nurse-shift-diastolic" className="text-[11px] font-semibold text-muted-foreground">BP Diastolic (mmHg)</label>
                   <Input
+                    id="nurse-shift-diastolic"
                     type="number"
                     placeholder="80"
                     value={diastolic}
@@ -273,8 +283,9 @@ export function NurseShiftDashboard() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground">Pulse (bpm)</label>
+                  <label htmlFor="nurse-shift-pulse" className="text-[11px] font-semibold text-muted-foreground">Pulse (bpm)</label>
                   <Input
+                    id="nurse-shift-pulse"
                     type="number"
                     placeholder="72"
                     value={pulse}
@@ -283,8 +294,9 @@ export function NurseShiftDashboard() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground">Blood Glucose (mg/dL)</label>
+                  <label htmlFor="nurse-shift-blood-sugar" className="text-[11px] font-semibold text-muted-foreground">Blood Glucose (mg/dL)</label>
                   <Input
+                    id="nurse-shift-blood-sugar"
                     type="number"
                     placeholder="110"
                     value={bloodSugar}
@@ -293,8 +305,9 @@ export function NurseShiftDashboard() {
                   />
                 </div>
                 <div className="space-y-1 col-span-2 sm:col-span-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground">SpO2 Oxygen (%)</label>
+                  <label htmlFor="nurse-shift-spo2" className="text-[11px] font-semibold text-muted-foreground">SpO2 Oxygen (%)</label>
                   <Input
+                    id="nurse-shift-spo2"
                     type="number"
                     placeholder="98"
                     value={spO2}
@@ -340,7 +353,7 @@ export function NurseShiftDashboard() {
                 <button
                   key={task.key}
                   type="button"
-                  onClick={() => toggleProcedure(task.key as any)}
+                  onClick={() => toggleProcedure(task.key as keyof typeof procedures)}
                   className={cn(
                     'w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all',
                     isChecked

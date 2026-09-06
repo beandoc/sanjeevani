@@ -10,21 +10,13 @@ import {
   ArrowLeft,
   HeartHandshake,
   Home,
-  Shield,
-  Activity,
   Users,
-  Brain,
-  Stethoscope,
   Sparkles,
   Music,
   BookOpen,
   MapPin,
-  Pill,
-  Smile,
   Heart,
-  Eye,
-  CheckCircle2,
-  AlertTriangle
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

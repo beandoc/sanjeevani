@@ -7,12 +7,12 @@ import {
   collection,
   doc,
   setDoc,
-  deleteDoc,
   getDocs,
-  getDoc,
   query,
   where,
-  collectionGroup
+  collectionGroup,
+  writeBatch,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '../client';
 import { HealthRepository } from '@/lib/db/health-repository';
@@ -55,18 +55,21 @@ export async function claimStaffInvite(dyadUid: string, code: string): Promise<v
   const uid = currentUid();
   if (!uid || !db) return;
   const sentinelId = `invite_${code}`;
-  const sentinelSnap = await getDoc(doc(db, 'users', dyadUid, 'clinicianGrants', sentinelId));
-  if (!sentinelSnap.exists()) return;
-  const label = (sentinelSnap.data() as { clinicianLabel?: string })?.clinicianLabel ?? null;
-  await withRetry(() =>
-    setDoc(doc(db!, 'users', dyadUid, 'clinicianGrants', uid), {
+  const sentinelRef = doc(db, 'users', dyadUid, 'clinicianGrants', sentinelId);
+  const targetGrantRef = doc(db, 'users', dyadUid, 'clinicianGrants', uid);
+
+  await runTransaction(db, async (txn) => {
+    const sentinelSnap = await txn.get(sentinelRef);
+    if (!sentinelSnap.exists()) return;
+    const label = (sentinelSnap.data() as { clinicianLabel?: string })?.clinicianLabel ?? null;
+    txn.set(targetGrantRef, {
       clinicianUid: uid,
       clinicianLabel: label,
       grantedAt: new Date().toISOString(),
       revokedAt: null,
       staffInviteCode: sentinelId
-    })
-  );
+    });
+  });
 }
 
 /**
@@ -262,7 +265,13 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
   const invites = await listMyDyadInvites();
   for (const inv of invites) {
     const dyadUid = inv.dyadUid || `dyad_${inv.inviteCode}`;
-    if (!existingUids.has(dyadUid) && !existingUids.has(inv.claimedByUid || '')) {
+    const code = inv.inviteCode;
+    if (
+      !existingUids.has(dyadUid) &&
+      !existingUids.has(code) &&
+      !existingUids.has(`dyad_${code}`) &&
+      !existingUids.has(inv.claimedByUid || '')
+    ) {
       entries.push({
         patientUid: dyadUid,
         grant: {
@@ -273,6 +282,11 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
         }
       });
       existingUids.add(dyadUid);
+      if (code) {
+        existingUids.add(code);
+        existingUids.add(`dyad_${code}`);
+      }
+      if (inv.claimedByUid) existingUids.add(inv.claimedByUid);
     }
   }
 
@@ -280,7 +294,11 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
   const localPatients = HealthRepository.getRegisteredPatients();
   for (const lp of localPatients) {
     const dyadUid = lp.patientUid;
-    if (!existingUids.has(dyadUid)) {
+    const code = lp.inviteCode;
+    if (
+      !existingUids.has(dyadUid) &&
+      (!code || (!existingUids.has(code) && !existingUids.has(`dyad_${code}`)))
+    ) {
       entries.push({
         patientUid: dyadUid,
         grant: {
@@ -291,11 +309,27 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
         }
       });
       existingUids.add(dyadUid);
+      if (code) {
+        existingUids.add(code);
+        existingUids.add(`dyad_${code}`);
+      }
     }
   }
 
   const archived = new Set(HealthRepository.getArchivedDyads());
-  return entries.filter((e) => !archived.has(e.patientUid) && !archived.has(e.patientUid.replace('dyad_', '')));
+  return entries.filter((e) => {
+    const pUid = e.patientUid;
+    if (archived.has(pUid) || archived.has(pUid.replace('dyad_', '')) || archived.has(`dyad_${pUid}`)) {
+      return false;
+    }
+    if (
+      (pUid.toLowerCase().includes('sarojini') || pUid.toUpperCase().includes('SAROJINI81')) &&
+      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81'))
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
@@ -313,20 +347,53 @@ export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<
   // 2. Cloud cleanup if Firestore is active
   if (db) {
     try {
+      const batch = writeBatch(db);
+      let opsCount = 0;
+
       if (uid) {
-        // Revoke grant doc
+        // Revoke grant doc in batch
         const grantRef = doc(db, 'users', cleanId, 'clinicianGrants', uid);
-        await setDoc(grantRef, { revokedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
-        await deleteDoc(grantRef).catch(() => {});
+        batch.delete(grantRef);
+        opsCount++;
       }
 
       // If it's an invite or code, clean up dyadInvites
       const code = cleanId.replace('dyad_', '');
       if (code) {
-        await deleteDoc(doc(db, 'dyadInvites', code)).catch(() => {});
+        batch.delete(doc(db, 'dyadInvites', code));
+        opsCount++;
         if (uid) {
-          await deleteDoc(doc(db, 'users', uid, 'dyadInvites', code)).catch(() => {});
+          batch.delete(doc(db, 'users', uid, 'dyadInvites', code));
+          opsCount++;
         }
+      }
+
+      // If cleanId is an invite code or dyadUid, also clean up by dyadUid query
+      try {
+        const snap = await getDocs(query(collection(db, 'dyadInvites'), where('dyadUid', '==', cleanId)));
+        for (const d of snap.docs) {
+          batch.delete(d.ref);
+          opsCount++;
+          if (uid) {
+            batch.delete(doc(db, 'users', uid, 'dyadInvites', d.id));
+            opsCount++;
+          }
+          HealthRepository.archiveDyad(d.id);
+        }
+      } catch {}
+
+      // If Sarojini alias, delete the seeded Firestore invite
+      if (cleanId.toLowerCase().includes('sarojini') || cleanId.toUpperCase().includes('SAROJINI81')) {
+        batch.delete(doc(db, 'dyadInvites', 'SAROJINI81'));
+        opsCount++;
+        if (uid) {
+          batch.delete(doc(db, 'users', uid, 'dyadInvites', 'SAROJINI81'));
+          opsCount++;
+        }
+      }
+
+      if (opsCount > 0) {
+        await withRetry(() => batch.commit());
       }
     } catch (err) {
       console.warn(`Discharge dyad cloud notice for ${cleanId}:`, err);

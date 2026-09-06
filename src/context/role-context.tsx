@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { HealthRepository, ModuleSectionProgress } from '@/lib/db/health-repository';
+import { HealthRepository } from '@/lib/db/health-repository';
 import {
   syncModuleProgress,
   syncUserPreferences,

@@ -7,7 +7,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Stethoscope, Microscope, ShieldCheck, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -74,7 +73,7 @@ export default function ConstipationProfessionalPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  While clinically defined as fewer than three bowel movements per week, older patients more often describe constipation as difficulty with defecation, straining, or hard stools. It's crucial to understand the patient's perspective.
+                  While clinically defined as fewer than three bowel movements per week, older patients more often describe constipation as difficulty with defecation, straining, or hard stools. It&apos;s crucial to understand the patient&apos;s perspective.
                 </p>
                 <p className="font-semibold">Busting the Myth: Age alone is not an independent risk factor for reduced stool frequency. Constipation in older adults is typically multifactorial, resulting from the combined effects of medications, comorbid diseases, immobility, and reduced caloric intake.</p>
                 <h4 className="font-semibold">Key Distinctions:</h4>
@@ -105,12 +104,12 @@ export default function ConstipationProfessionalPage() {
                     <li><strong>Onset and Duration:</strong> Is it acute or chronic?</li>
                     <li><strong>Symptoms:</strong> Go beyond frequency. Ask about straining, incomplete evacuation, hard stools (use the Bristol Stool Chart), and the need for perineal splinting or manual assistance (digitation).</li>
                     <li><strong>Medication Review:</strong> Scrutinize all medications, especially opiates, calcium channel blockers, NSAIDs, and anticholinergic drugs.</li>
-                    <li><strong>Alarm Symptoms ("Red Flags"):</strong> Rectal bleeding, weight loss, iron deficiency anemia, or a new, acute onset warrant a prompt structural evaluation (e.g., colonoscopy).</li>
+                    <li><strong>Alarm Symptoms (&quot;Red Flags&quot;):</strong> Rectal bleeding, weight loss, iron deficiency anemia, or a new, acute onset warrant a prompt structural evaluation (e.g., colonoscopy).</li>
                 </ul>
                 <h4 className="font-semibold mt-4">Physical Examination</h4>
                 <p>A rectal exam is essential. Assess for:</p>
                  <ul className="list-disc space-y-2 pl-5">
-                    <li><strong>Fecal Impaction:</strong> The first sign may be paradoxical "overflow" diarrhea.</li>
+                    <li><strong>Fecal Impaction:</strong> The first sign may be paradoxical &quot;overflow&quot; diarrhea.</li>
                     <li><strong>Perineal Descent:</strong> Normal is 1-4 cm with strain. No descent may suggest failure of pelvic floor relaxation.</li>
                     <li><strong>Sphincter Tone:</strong> Assess resting and squeeze pressures. Weakness can increase incontinence risk with treatment.</li>
                     <li><strong>Paradoxical Contraction:</strong> Contraction during strain suggests dyssynergic defecation.</li>
@@ -156,7 +155,7 @@ export default function ConstipationProfessionalPage() {
                 <p><strong>Avoid/Use Caution:</strong> Magnesium salts should not be used in patients with renal disease due to the risk of hypermagnesemia.</p>
 
                 <h4 className="font-semibold text-lg mt-4">Step 3: Stimulant Laxatives</h4>
-                <p>Use when osmotic laxatives are insufficient. Common agents include senna and bisacodyl. The idea that these drugs cause "laxative dependence" or damage the colon is a medical myth; they are safe when used at recommended doses.</p>
+                <p>Use when osmotic laxatives are insufficient. Common agents include senna and bisacodyl. The idea that these drugs cause &quot;laxative dependence&quot; or damage the colon is a medical myth; they are safe when used at recommended doses.</p>
 
                 <h4 className="font-semibold text-lg mt-4">Step 4: Advanced & Targeted Therapies</h4>
                 <ul className="list-disc space-y-2 pl-5">
@@ -184,8 +183,8 @@ export default function ConstipationProfessionalPage() {
                 <ul className="list-disc space-y-4 pl-5">
                 <li><strong>Fecal Impaction:</strong> Suspect this in immobile or cognitively impaired individuals, especially with overflow diarrhea. Management may require manual disimpaction followed by oral PEG.</li>
                 <li><strong>Dementia:</strong> Prevention is the primary strategy. Use non-verbal cues (fidgeting, pacing), timed toileting (30 mins after meals), and consider regular osmotic laxatives.</li>
-                <li><strong>Parkinson's Disease:</strong> Constipation is very common due to dyssynergic defecation and medications. Standard treatment with fibre and laxatives applies.</li>
-                <li><strong>Post-Stroke:</strong> Constipation occurs in 30-60% of patients. It's associated with increased dependency and poor outcomes. Abdominal massage may be effective.</li>
+                <li><strong>Parkinson&apos;s Disease:</strong> Constipation is very common due to dyssynergic defecation and medications. Standard treatment with fibre and laxatives applies.</li>
+                <li><strong>Post-Stroke:</strong> Constipation occurs in 30-60% of patients. It&apos;s associated with increased dependency and poor outcomes. Abdominal massage may be effective.</li>
                 </ul>
             </SectionCard>
           </AccordionContent>

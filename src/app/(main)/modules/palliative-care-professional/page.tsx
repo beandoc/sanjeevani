@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, MessageSquare, ShieldPlus, Users } from 'lucide-react';
+import { ArrowLeft, Stethoscope, MessageSquare, ShieldPlus } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -92,7 +92,7 @@ export default function PalliativeCareProfessionalPage() {
                         <strong>Complex care needs:</strong> Multiple comorbidities, polypharmacy, and psychosocial distress.
                     </li>
                      <li>
-                        <strong>Prognostic uncertainty:</strong> When asked the "surprise question": "Would you be surprised if this patient died in the next year?" and the answer is "no."
+                        <strong>Prognostic uncertainty:</strong> When asked the &quot;surprise question&quot;: &quot;Would you be surprised if this patient died in the next year?&quot; and the answer is &quot;no.&quot;
                     </li>
                 </ul>
             </SectionCard>
@@ -125,7 +125,7 @@ export default function PalliativeCareProfessionalPage() {
                     <strong className="font-semibold text-card-foreground">Spiritual Needs:</strong> Explore sources of hope, meaning, and comfort. Spiritual distress is common in serious illness and can impact coping and decision-making. The FICA tool (Faith, Importance, Community, Address) can be a useful guide.
                 </li>
                 <li>
-                    <strong className="font-semibold text-card-foreground">Understanding of Illness and Prognosis:</strong> Assess the patient's and family's understanding of the medical condition, its trajectory, and the goals of care. Address any misconceptions gently.
+                    <strong className="font-semibold text-card-foreground">Understanding of Illness and Prognosis:</strong> Assess the patient&apos;s and family&apos;s understanding of the medical condition, its trajectory, and the goals of care. Address any misconceptions gently.
                 </li>
                 </ul>
             </SectionCard>
@@ -153,7 +153,7 @@ export default function PalliativeCareProfessionalPage() {
                     <strong>SPIKES Protocol:</strong> A six-step protocol for delivering bad news (Setting, Perception, Invitation, Knowledge, Emotions, Strategy/Summary).
                 </li>
                 <li>
-                    <strong>Ask-Tell-Ask:</strong> Assess the patient's understanding, provide information in small chunks, and then check their understanding before proceeding.
+                    <strong>Ask-Tell-Ask:</strong> Assess the patient&apos;s understanding, provide information in small chunks, and then check their understanding before proceeding.
                 </li>
                 <li>
                     <strong>NURSE Mnemonic for Empathy:</strong> Naming the emotion, Understanding, Respecting, Supporting, and Exploring.
@@ -162,13 +162,13 @@ export default function PalliativeCareProfessionalPage() {
                 <h4 className="font-semibold text-lg mt-4">Goals of Care Discussions</h4>
                 <ul className="list-disc space-y-2 pl-5">
                 <li>
-                    Move beyond the code status. Explore the patient's values, fears, and what makes life worth living for them.
+                    Move beyond the code status. Explore the patient&apos;s values, fears, and what makes life worth living for them.
                 </li>
                 <li>
-                    Use open-ended questions: "What's most important to you as you think about the future?" or "What are you worried about?"
+                    Use open-ended questions: &quot;What&apos;s most important to you as you think about the future?&quot; or &quot;What are you worried about?&quot;
                 </li>
                 <li>
-                    Make a recommendation based on the patient's goals. Frame treatment options in the context of what they can help the patient achieve (e.g., "This treatment may not cure the illness, but it could give you more time with good quality of life at home.").
+                    Make a recommendation based on the patient&apos;s goals. Frame treatment options in the context of what they can help the patient achieve (e.g., &quot;This treatment may not cure the illness, but it could give you more time with good quality of life at home.&quot;).
                 </li>
                 </ul>
             </SectionCard>

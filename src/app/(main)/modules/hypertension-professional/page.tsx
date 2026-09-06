@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Microscope, Activity, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Microscope, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -49,7 +49,7 @@ export default function HypertensionProfessionalPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Hypertension in Older Adults: A Nurse's Guide
+          Hypertension in Older Adults: A Nurse&apos;s Guide
         </h1>
         <p className="text-muted-foreground">
           A clinical overview of the unique aspects of hypertension in the geriatric population.
@@ -61,7 +61,7 @@ export default function HypertensionProfessionalPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Microscope className="h-6 w-6 text-primary" />
-              The Pathophysiology of "Old" Arteries
+              The Pathophysiology of &quot;Old&quot; Arteries
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
@@ -92,7 +92,7 @@ export default function HypertensionProfessionalPage() {
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(2)}
             >
-                 <p>A "one-size-fits-all" approach can be harmful. Individualize BP targets based on patient status:</p>
+                 <p>A &quot;one-size-fits-all&quot; approach can be harmful. Individualize BP targets based on patient status:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         <strong>Independent & Fit:</strong> A target of &lt;130/80 mmHg is reasonable.
@@ -132,7 +132,7 @@ export default function HypertensionProfessionalPage() {
                 </div>
                 <div className="mt-4">
                   <h4 className="font-semibold text-card-foreground">Frailty</h4>
-                  <p>In frail older adults, a low BP is often associated with increased mortality (the "U-shaped" curve). Frailty modifies the risk-benefit equation.</p>
+                  <p>In frail older adults, a low BP is often associated with increased mortality (the &quot;U-shaped&quot; curve). Frailty modifies the risk-benefit equation.</p>
                 </div>
                 <div className="mt-4">
                   <h4 className="font-semibold text-card-foreground">Dementia</h4>

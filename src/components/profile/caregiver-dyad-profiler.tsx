@@ -15,19 +15,10 @@ import {
 } from '@/components/ui/select';
 import {
   Users,
-  Activity,
-  HeartPulse,
-  ShieldAlert,
   Clock,
-  Sparkles,
   AlertTriangle,
   CheckCircle2,
-  HelpCircle,
   Save,
-  ArrowRight,
-  TrendingDown,
-  TrendingUp,
-  UserCheck,
   Building2,
   Stethoscope,
   MapPin
@@ -81,6 +72,10 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
       if (first !== caregiverFirstName) setCaregiverFirstName(first);
       if (last !== caregiverLastName) setCaregiverLastName(last);
     }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-runs
+     only when caregiver?.name (the external source of truth) changes; each
+     invocation still reads current first/last state via a fresh closure, and the
+     `!==` guards make this idempotent regardless. */
   }, [caregiver?.name]);
 
   const handleCaregiverFirstNameChange = (val: string) => {
@@ -643,7 +638,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 <Label className="text-xs font-semibold">Relationship / Kinship</Label>
                 <Select
                   value={caregiver.kinship}
-                  onValueChange={(v: any) => setCaregiver({ ...caregiver, kinship: v })}
+                  onValueChange={(v: string) => setCaregiver({ ...caregiver, kinship: v as CaregiverAttributes['kinship'] })}
                 >
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -664,7 +659,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 <Label className="text-xs font-semibold">Employment Status</Label>
                 <Select
                   value={caregiver.employment}
-                  onValueChange={(v: any) => setCaregiver({ ...caregiver, employment: v })}
+                  onValueChange={(v: string) => setCaregiver({ ...caregiver, employment: v as CaregiverAttributes['employment'] })}
                 >
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -681,7 +676,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 <Label className="text-xs font-semibold">Educational Background</Label>
                 <Select
                   value={caregiver.education}
-                  onValueChange={(v: any) => setCaregiver({ ...caregiver, education: v })}
+                  onValueChange={(v: string) => setCaregiver({ ...caregiver, education: v as CaregiverAttributes['education'] })}
                 >
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -720,7 +715,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                     <button
                       key={item.key}
                       type="button"
-                      onClick={() => toggleCaregiverHealth(item.key as any)}
+                      onClick={() => toggleCaregiverHealth(item.key as keyof CaregiverAttributes['caregiverHealth'])}
                       className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
                         isChecked
                           ? 'border-rose-500/60 bg-rose-500/10 text-rose-800 dark:text-rose-300 font-bold'
@@ -889,7 +884,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                     <button
                       key={adl.key}
                       type="button"
-                      onClick={() => toggleKatzAdl(adl.key as any)}
+                      onClick={() => toggleKatzAdl(adl.key as keyof PatientDependenceProfile['katzAdl'])}
                       className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                         isIndep
                           ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-900 dark:text-emerald-300 font-bold'
@@ -935,7 +930,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                     <button
                       key={iadl.key}
                       type="button"
-                      onClick={() => toggleLawtonIadl(iadl.key as any)}
+                      onClick={() => toggleLawtonIadl(iadl.key as keyof PatientDependenceProfile['lawtonIadl'])}
                       className={`p-2.5 rounded-xl border text-left flex flex-col justify-between gap-1.5 transition-all ${
                         isIndep
                           ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-900 dark:text-emerald-300 font-bold'
@@ -958,8 +953,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 <Label className="text-xs font-semibold">Cognitive & Behavioral Pattern</Label>
                 <Select
                   value={patient.cognitiveBehavioralLoad}
-                  onValueChange={(v: any) => {
-                    const updated = { ...patient, cognitiveBehavioralLoad: v };
+                  onValueChange={(v: string) => {
+                    const updated = { ...patient, cognitiveBehavioralLoad: v as PatientDependenceProfile['cognitiveBehavioralLoad'] };
                     setPatient(updated);
                   }}
                 >

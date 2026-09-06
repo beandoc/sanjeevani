@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/privacy', '/resources', '/assessment-guide', '/modules', '/simulations'];
+const PUBLIC_PATHS = ['/login', '/privacy', '/resources', '/assessment-guide', '/modules', '/simulations', '/offline'];
 const isPublic = (pathname: string) => PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
 export function middleware(request: NextRequest) {

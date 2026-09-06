@@ -15,15 +15,29 @@ function adminApp() {
     return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
   }
 
-  // Application Default Credentials are the preferred production setup on
-  // Firebase App Hosting / Google Cloud. Never fall back to a client key.
-  return initializeApp(projectId ? { projectId } : undefined);
+  // If running against Firebase emulator, initialize without requiring private key
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    return initializeApp(projectId ? { projectId } : undefined);
+  }
+
+  // Application Default Credentials (ADC) on Google Cloud / Firebase App Hosting
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE || process.env.FIREBASE_CONFIG) {
+    return initializeApp(projectId ? { projectId } : undefined);
+  }
+
+  throw new Error(
+    'Firebase Admin configuration error: Missing service account credentials, Application Default Credentials, or FIREBASE_AUTH_EMULATOR_HOST. Refusing to start unverified auth.'
+  );
 }
 
+/** True when a full service account, ADC, or emulator is configured. */
 export function hasAdminCredentials(): boolean {
+  if (Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST)) return true;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
-  return Boolean(projectId && clientEmail && privateKey);
+  if (Boolean(projectId && clientEmail && privateKey)) return true;
+  if (Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE)) return true;
+  return false;
 }
 
 export const adminAuth = () => getAuth(adminApp());

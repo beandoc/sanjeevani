@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ShieldAlert, Home, ArrowLeft, PhoneCall } from 'lucide-react';
+import { ShieldAlert, Home, PhoneCall } from 'lucide-react';
 
 export default function NotFound() {
   return (

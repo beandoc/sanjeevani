@@ -8,7 +8,7 @@
  * 4. Longitudinal Module Completion History & Gaps
  */
 
-import { ZaritEvaluationResult, ZbiFactor } from '@/lib/zarit-scale';
+import { ZaritEvaluationResult } from '@/lib/zarit-scale';
 
 export interface ModuleRecommendation {
   moduleId: string;

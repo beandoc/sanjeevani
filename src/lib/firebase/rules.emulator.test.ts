@@ -32,6 +32,15 @@ const CLINICIAN_UID = 'clinician-dr-bob';
 const OTHER_CLINICIAN_UID = 'clinician-dr-carol';
 const RANDOM_STRANGER_UID = 'stranger-mallory';
 
+/**
+ * Clinical role now comes exclusively from Admin SDK-issued custom claims —
+ * the email-pattern inference these fixtures previously relied on has been
+ * removed from firestore.rules. A clinician context must therefore carry the
+ * same claim shape that /api/admin/claims provisions, or every
+ * hasActiveGrant() check correctly evaluates to false.
+ */
+const CLINICIAN_CLAIMS = { role: 'doctor', clinician: true } as const;
+
 const SAMPLE_ASSESSMENT = {
   tier: 'ZBI22',
   totalScore: 44,
@@ -88,12 +97,12 @@ describe('zaritAssessments — clinician consent gating', () => {
   });
 
   it('a clinician with an active grant CAN read the assessment', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1')));
   });
 
   it('a clinician with NO grant is DENIED', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1')));
   });
 
@@ -104,7 +113,7 @@ describe('zaritAssessments — clinician consent gating', () => {
         { clinicianUid: CLINICIAN_UID, grantedAt: new Date().toISOString(), revokedAt: new Date().toISOString() }
       );
     });
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1')));
   });
 
@@ -128,11 +137,11 @@ describe('zaritAssessments — clinician consent gating', () => {
   });
 
   it('a clinician with an active grant CAN create an assessment, but a clinician with NO grant is DENIED', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(
       setDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-2'), SAMPLE_ASSESSMENT)
     );
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-3'), SAMPLE_ASSESSMENT)
     );
@@ -149,14 +158,14 @@ describe('functionScores — either owner or granted clinician may record', () =
   };
 
   it('a granted clinician CAN record a function score for the dyad', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(
       setDoc(doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-1'), SAMPLE_SCORE)
     );
   });
 
   it('an ungranted clinician CANNOT record a function score', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-2'), SAMPLE_SCORE)
     );
@@ -175,7 +184,7 @@ describe('functionScores — either owner or granted clinician may record', () =
 
 describe('clinicianGrants — consent can only originate from the caregiver', () => {
   it('the clinician cannot self-grant access to a dyad', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(doc(clinician, 'users', CAREGIVER_UID, 'clinicianGrants', OTHER_CLINICIAN_UID), {
         clinicianUid: OTHER_CLINICIAN_UID,
@@ -194,19 +203,19 @@ describe('clinicianGrants — consent can only originate from the caregiver', ()
         { merge: true }
       )
     );
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1')));
   });
 
   it('a clinician can read their own grant doc to check status', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'clinicianGrants', CLINICIAN_UID)));
   });
 });
 
 describe('roster collection-group query — clinician sees only their own grants', () => {
   it("a collection-group query for the clinician's own grants returns exactly the consented dyad", async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     const q = query(
       collectionGroup(clinician, 'clinicianGrants'),
       where('clinicianUid', '==', CLINICIAN_UID),
@@ -218,7 +227,7 @@ describe('roster collection-group query — clinician sees only their own grants
   });
 
   it("a different clinician's collection-group query returns nothing for this caregiver", async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     const q = query(
       collectionGroup(otherClinician, 'clinicianGrants'),
       where('clinicianUid', '==', OTHER_CLINICIAN_UID),
@@ -253,7 +262,7 @@ describe('zaritAssessments — immutability (audit trail)', () => {
   });
 
   it('a granted clinician CANNOT update a past assessment', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(
         doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'),
@@ -264,7 +273,7 @@ describe('zaritAssessments — immutability (audit trail)', () => {
   });
 
   it('a granted clinician CANNOT delete a past assessment', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       deleteDoc(doc(clinician, 'users', CAREGIVER_UID, 'zaritAssessments', 'assessment-1'))
     );
@@ -312,7 +321,7 @@ describe('vitals — immutability (audit trail)', () => {
   });
 
   it('a granted clinician CANNOT update a vital reading', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(
         doc(clinician, 'users', CAREGIVER_UID, 'vitals', 'vital-1'),
@@ -357,7 +366,7 @@ describe('functionScores — immutability (audit trail)', () => {
   });
 
   it('a granted clinician CANNOT update a function score', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(
         doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'),
@@ -368,7 +377,7 @@ describe('functionScores — immutability (audit trail)', () => {
   });
 
   it('a granted clinician CANNOT delete a function score', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       deleteDoc(doc(clinician, 'users', CAREGIVER_UID, 'functionScores', 'fs-seed'))
     );
@@ -377,7 +386,7 @@ describe('functionScores — immutability (audit trail)', () => {
 
 describe('reassessmentRequests & reassessmentAlerts — workflow rules', () => {
   it('a granted clinician CAN create a reassessment request for a patient', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(
       setDoc(
         doc(clinician, 'users', CAREGIVER_UID, 'reassessmentRequests', 'current'),
@@ -470,28 +479,28 @@ describe('patientProfile / caregiverAttributes — professional bypass scoped to
   const VALID_CAREGIVER_ATTRS = { name: 'Primary Caregiver' };
 
   it('an ungranted professional CANNOT write a real caregiver uid\'s patientProfile', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'patientProfile', 'current'), VALID_PROFILE)
     );
   });
 
   it('an ungranted professional CANNOT write a real caregiver uid\'s caregiverAttributes', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(
       setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'), VALID_CAREGIVER_ATTRS)
     );
   });
 
   it('a granted clinician CAN still write the real caregiver uid\'s patientProfile', async () => {
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(
       setDoc(doc(clinician, 'users', CAREGIVER_UID, 'patientProfile', 'current'), VALID_PROFILE)
     );
   });
 
   it('ANY professional (even ungranted) CAN bootstrap a dyad_* placeholder patientProfile pre-claim', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(
       setDoc(doc(otherClinician, 'users', 'dyad_ABC123', 'patientProfile', 'current'), VALID_PROFILE)
     );
@@ -530,12 +539,12 @@ describe('careCircle — single current document, same access model as caregiver
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'careCircle', 'current'), VALID_CIRCLE);
     });
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'careCircle', 'current')));
   });
 
   it('an ungranted clinician CANNOT read or write the care circle', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'careCircle', 'current')));
     await assertFails(setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'careCircle', 'current'), VALID_CIRCLE));
   });
@@ -557,13 +566,13 @@ describe('newly cloud-backed collections — emergencyContacts, consent, bedside
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'emergencyContacts', 'current'), VALID_CONTACTS);
     });
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current')));
     await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current'), VALID_CONTACTS));
   });
 
   it('an ungranted clinician CANNOT read emergency contacts', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'emergencyContacts', 'current')));
   });
 
@@ -577,7 +586,7 @@ describe('newly cloud-backed collections — emergencyContacts, consent, bedside
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'consent', 'current'), VALID_CONSENT);
     });
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'consent', 'current')));
     await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'consent', 'current'), VALID_CONSENT));
   });
@@ -585,13 +594,13 @@ describe('newly cloud-backed collections — emergencyContacts, consent, bedside
   it('the owning caregiver CAN write the bedside routine checklist, and a granted clinician CAN read/write it too', async () => {
     const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
     await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current')));
     await assertSucceeds(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
   });
 
   it('an ungranted clinician CANNOT read or write the bedside routine checklist', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current')));
     await assertFails(setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'bedsideRoutineChecklist', 'current'), VALID_CHECKLIST));
   });
@@ -599,12 +608,12 @@ describe('newly cloud-backed collections — emergencyContacts, consent, bedside
   it('the owning caregiver CAN write discharge milestones, and a granted clinician CAN read them', async () => {
     const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
     await assertSucceeds(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current'), VALID_MILESTONES));
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertSucceeds(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current')));
   });
 
   it('an ungranted clinician CANNOT read discharge milestones', async () => {
-    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID).firestore();
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'dischargeMilestones', 'current')));
   });
 });
@@ -654,7 +663,7 @@ describe('drafts — owner-only, no clinician access', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT);
     });
-    const clinician = testEnv.authenticatedContext(CLINICIAN_UID).firestore();
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
     await assertFails(getDoc(doc(clinician, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft')));
     await assertFails(setDoc(doc(clinician, 'users', CAREGIVER_UID, 'drafts', 'vitalsDraft'), VALID_DRAFT));
   });

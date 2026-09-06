@@ -185,14 +185,12 @@
   }
 }
 
+/* font-family for .font-headline / .font-body now comes from the Tailwind
+   fontFamily config (tailwind.config.ts), which points at the next/font CSS
+   variables set in src/app/layout.tsx. Only the non-font styling stays here. */
 .font-headline {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   letter-spacing: -0.02em;
 }
-
-  .font-body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  }
 
 @media (prefers-reduced-motion: reduce) {
   *,

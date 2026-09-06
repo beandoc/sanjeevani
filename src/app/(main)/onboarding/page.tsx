@@ -9,18 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  HeartPulse,
   UserCheck,
   Stethoscope,
   Users,
-  ShieldCheck,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  AlertTriangle,
   Building2,
   Sparkles,
-  Bed,
   Activity,
   Heart,
   User,
@@ -194,6 +190,12 @@ export default function OnboardingIntakePage() {
       if (first !== patientFirstName) setPatientFirstName(first);
       if (last !== patientLastName) setPatientLastName(last);
     }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-runs
+     only when `patient.name` (the external source of truth) changes, not on every
+     local first/last edit this same effect makes: each closure invocation still
+     reads the *current* patientFirstName/patientLastName (a fresh closure is
+     created every render regardless of the dep array), and the `!==` guards make
+     re-running idempotent even if they were added. */
   }, [patient.name]);
 
   // Sync caregiver name to first/last inputs
@@ -205,6 +207,9 @@ export default function OnboardingIntakePage() {
       if (first !== caregiverFirstName) setCaregiverFirstName(first);
       if (last !== caregiverLastName) setCaregiverLastName(last);
     }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps -- see the matching
+     patient.name sync effect above for why this intentionally excludes
+     caregiverFirstName/caregiverLastName. */
   }, [caregiver.name]);
 
   const handlePatientFirstNameChange = (val: string) => {
@@ -294,7 +299,7 @@ export default function OnboardingIntakePage() {
       cancelled = true;
     };
     // Re-run if the user switches into doctor persona after the wizard mounted.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isDoctorPersona]);
 
   // Caregiver persona: claim a doctor-issued invite code (see
@@ -883,7 +888,7 @@ export default function OnboardingIntakePage() {
                       <button
 	                        key={item.key}
 	                        type="button"
-	                        onClick={() => toggleKatzItem(item.key as any)}
+	                        onClick={() => toggleKatzItem(item.key as keyof typeof patient.katzAdl)}
 	                        aria-pressed={isIndep}
 	                        aria-label={`${item.label}: ${isIndep ? 'independent' : 'needs help'}`}
 	                        className={cn(
@@ -912,7 +917,7 @@ export default function OnboardingIntakePage() {
                   <Label className="text-xs font-semibold">Cognitive & Behavioral Status</Label>
                   <Select
                     value={patient.cognitiveBehavioralLoad}
-                    onValueChange={(v: any) => setPatient({ ...patient, cognitiveBehavioralLoad: v })}
+                    onValueChange={(v: string) => setPatient({ ...patient, cognitiveBehavioralLoad: v as PatientDependenceProfile['cognitiveBehavioralLoad'] })}
                   >
                     <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -1060,7 +1065,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Relationship to Patient</Label>
                     <Select
                       value={caregiver.kinship}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, kinship: v })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, kinship: v as CaregiverAttributes['kinship'] })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1082,7 +1087,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Co-Residence Arrangement</Label>
                     <Select
                       value={caregiver.coResidence}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, coResidence: v })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, coResidence: v as CaregiverAttributes['coResidence'] })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1096,7 +1101,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Education Level</Label>
                     <Select
                       value={caregiver.education}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, education: v })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, education: v as CaregiverAttributes['education'] })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1120,7 +1125,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Employment Commitment</Label>
                     <Select
                       value={caregiver.employment}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, employment: v })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, employment: v as CaregiverAttributes['employment'] })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1136,7 +1141,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Caregiver Functional Physical Capacity</Label>
                     <Select
                       value={caregiver.functionalCapacity || 'fully_independent'}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, functionalCapacity: v })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, functionalCapacity: v as CaregiverAttributes['functionalCapacity'] })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1161,7 +1166,7 @@ export default function OnboardingIntakePage() {
                       <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-card border border-border/60 text-xs">
                         <input
                           type="checkbox"
-                          checked={(caregiver.caregiverHealth as any)[item.id]}
+                          checked={(caregiver.caregiverHealth as unknown as Record<string, boolean>)[item.id]}
                           onChange={(e) => {
                             setCaregiver({
                               ...caregiver,
@@ -1190,7 +1195,7 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Other Secondary Family Members Assisting</Label>
                     <Select
                       value={String(caregiver.otherFamilyMembersCount ?? 1)}
-                      onValueChange={(v: any) => setCaregiver({ ...caregiver, otherFamilyMembersCount: parseInt(v) })}
+                      onValueChange={(v: string) => setCaregiver({ ...caregiver, otherFamilyMembersCount: parseInt(v) })}
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1205,8 +1210,12 @@ export default function OnboardingIntakePage() {
                     <Label className="text-xs font-semibold">Monthly Financial Burden / Out-of-Pocket Strain</Label>
                     <Select
                       value={caregiver.financialStatus || caregiver.monthlyOutOfPocketBurden}
-                      onValueChange={(v: any) =>
-                        setCaregiver({ ...caregiver, financialStatus: v, monthlyOutOfPocketBurden: v })
+                      onValueChange={(v: string) =>
+                        setCaregiver({
+                          ...caregiver,
+                          financialStatus: v as CaregiverAttributes['financialStatus'],
+                          monthlyOutOfPocketBurden: v as CaregiverAttributes['monthlyOutOfPocketBurden']
+                        })
                       }
                     >
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>

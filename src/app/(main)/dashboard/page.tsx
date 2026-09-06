@@ -1,15 +1,10 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+
+
 import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
-import { Shield, Sparkles, HeartPulse, Stethoscope, ArrowRight } from 'lucide-react';
+import { Shield, Sparkles, HeartPulse, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {

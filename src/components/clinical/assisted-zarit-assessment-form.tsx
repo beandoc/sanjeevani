@@ -11,11 +11,9 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { HeartHandshake, Sparkles, Activity } from 'lucide-react';
+import { HeartHandshake } from 'lucide-react';
 import {
   calculateZaritScore,
   getItemsForTier,
@@ -180,8 +178,13 @@ export function AssistedZaritAssessmentForm({
               {answeredCount} of {items.length} answered
             </Badge>
           </div>
-          <Button onClick={handleSubmit} disabled={isSaving} className="font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white">
-            {isSaving ? 'Saving Assessment…' : 'Save Caregiver Strain Score'}
+          <Button
+            onClick={handleSubmit}
+            disabled={isSaving || !isComplete}
+            title={!isComplete ? `Answer all ${items.length} items before saving.` : undefined}
+            className="font-bold text-xs bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50"
+          >
+            {isSaving ? 'Saving Assessment…' : isComplete ? 'Save Caregiver Strain Score' : `Answer ${items.length - answeredCount} More`}
           </Button>
         </DialogFooter>
       </DialogContent>

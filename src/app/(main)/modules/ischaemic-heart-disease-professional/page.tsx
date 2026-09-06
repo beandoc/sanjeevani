@@ -75,7 +75,7 @@ export default function IschaemicHeartDiseaseProfessionalPage() {
                   IHD in older adults is not simply the same disease in an older body. Age-related cardiovascular changes create a unique clinical picture.
                 </p>
                 <h4 className="font-semibold">Atypical Presentation is the Norm:</h4>
-                 <p>While you may see classic angina, it's often less severe or poorly defined. Be highly suspicious of IHD when an older patient presents with:</p>
+                 <p>While you may see classic angina, it&apos;s often less severe or poorly defined. Be highly suspicious of IHD when an older patient presents with:</p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>Dyspnoea (may be misdiagnosed as heart failure exacerbation)</li>
                   <li>Fatigue, dizziness, or syncope</li>
@@ -106,11 +106,11 @@ export default function IschaemicHeartDiseaseProfessionalPage() {
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(2)}
             >
-                <p>Prevention strategies must be tailored to the individual's risk profile and life expectancy.</p>
+                <p>Prevention strategies must be tailored to the individual&apos;s risk profile and life expectancy.</p>
                 <h4 className="font-semibold text-lg">Lifestyle is Potent Medicine:</h4>
                 <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
                     <li>
-                        <strong>Physical Activity:</strong> Emphasize that "all movement counts." Even light activity and increasing walking pace are associated with significant risk reduction.
+                        <strong>Physical Activity:</strong> Emphasize that &quot;all movement counts.&quot; Even light activity and increasing walking pace are associated with significant risk reduction.
                     </li>
                     <li>
                         <strong>Diet:</strong> The Mediterranean diet, supplemented with olive oil or nuts, has been shown to reduce major CV events by 30% in older adults.
@@ -191,7 +191,7 @@ export default function IschaemicHeartDiseaseProfessionalPage() {
                 </p>
                 <h4 className="font-semibold text-lg mt-4">Holistic Decision-Making:</h4>
                 <p>
-                The best treatment plan is not disease-centered but patient-centered. It requires a comprehensive geriatric assessment that considers frailty, comorbidities, cognitive function, and most importantly, the patient's preferences and goals. For some, palliative care and symptom control may be more appropriate than aggressive intervention.
+                The best treatment plan is not disease-centered but patient-centered. It requires a comprehensive geriatric assessment that considers frailty, comorbidities, cognitive function, and most importantly, the patient&apos;s preferences and goals. For some, palliative care and symptom control may be more appropriate than aggressive intervention.
                 </p>
             </SectionCard>
           </AccordionContent>

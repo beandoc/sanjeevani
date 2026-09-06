@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb, hasAdminCredentials } from '@/lib/firebase/admin';
+import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { logAuditEvent } from '@/lib/security/audit';
 
 export const runtime = 'nodejs';
 const SESSION_COOKIE = '__session';
-
-function parseJwtPayload(token: string): any | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-}
 
 interface AuthenticatedClinician {
   uid: string;
@@ -27,76 +15,89 @@ async function authenticateRequest(request: NextRequest): Promise<AuthenticatedC
   const cookie = request.cookies.get(SESSION_COOKIE)?.value;
   if (!cookie) return null;
 
-  if (hasAdminCredentials()) {
-    try {
-      const decoded = await adminAuth().verifySessionCookie(cookie, true);
-      return {
-        uid: decoded.uid,
-        email: decoded.email,
-        isClinician: decoded.clinician === true || decoded.role === 'doctor' || decoded.role === 'professional'
-      };
-    } catch {
-      // Fallback to token payload below
-    }
-  }
-
-  const payload = parseJwtPayload(cookie);
-  if (payload && (!payload.exp || payload.exp > Math.floor(Date.now() / 1000) - 300)) {
-    const email = (payload.email || '').toLowerCase();
+  try {
+    const decoded = await adminAuth().verifySessionCookie(cookie, true);
     const isClinician =
-      payload.clinician === true ||
-      payload.role === 'doctor' ||
-      payload.role === 'professional' ||
-      email.includes('doctor') ||
-      email.includes('clinic') ||
-      email.startsWith('dr');
+      decoded.clinician === true ||
+      decoded.role === 'doctor' ||
+      decoded.role === 'nurse' ||
+      decoded.role === 'professional';
+
     return {
-      uid: payload.sub || payload.user_id || 'clinician',
-      email,
+      uid: decoded.uid,
+      email: decoded.email,
       isClinician
     };
+  } catch {
+    return null;
   }
-
-  if (cookie.startsWith('dev-session-')) {
-    return { uid: 'dev-user', isClinician: true };
-  }
-
-  return null;
 }
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown-ip';
+  const userAgent = request.headers.get('user-agent') || 'unknown-ua';
+
   try {
     const authUser = await authenticateRequest(request);
     if (!authUser || !authUser.isClinician) {
+      logAuditEvent({
+        timestamp: new Date().toISOString(),
+        eventType: 'CLINICAL_COHORT_READ',
+        actorUid: authUser?.uid || null,
+        ip,
+        userAgent,
+        status: 'BLOCKED',
+        details: { reason: 'unauthorized_clinician_access' }
+      });
       return NextResponse.json({ error: 'Clinician authentication required.' }, { status: 401 });
     }
 
-    // 1. Fast path: If Firebase Admin is available, query pre-computed materialized cohort summaries
-    if (hasAdminCredentials()) {
-      try {
-        const db = adminDb();
-        const summariesSnap = await db
-          .collection('cohortSummaries')
-          .where('clinicianUid', '==', authUser.uid)
-          .orderBy('riskBandOrder', 'asc')
-          .limit(50)
-          .get();
+    // 1. Fast path: Query pre-computed materialized cohort summaries if populated
+    try {
+      const db = adminDb();
+      const summariesSnap = await db
+        .collection('cohortSummaries')
+        .where('clinicianUid', '==', authUser.uid)
+        .orderBy('riskBandOrder', 'asc')
+        .limit(50)
+        .get();
 
-        if (!summariesSnap.empty) {
-          const rows = summariesSnap.docs.map((doc) => doc.data());
-          return NextResponse.json(
-            { rows, source: 'materialized-summary' },
-            {
-              headers: {
-                'Cache-Control': 'private, s-maxage=15, stale-while-revalidate=60'
-              }
+      if (!summariesSnap.empty) {
+        const rows = summariesSnap.docs.map((doc) => doc.data());
+        logAuditEvent({
+          timestamp: new Date().toISOString(),
+          eventType: 'CLINICAL_COHORT_READ',
+          actorUid: authUser.uid,
+          actorRole: 'clinician',
+          ip,
+          userAgent,
+          status: 'SUCCESS',
+          details: { source: 'materialized-summary', count: rows.length }
+        });
+
+        return NextResponse.json(
+          { rows, source: 'materialized-summary' },
+          {
+            headers: {
+              'Cache-Control': 'private, max-age=15, stale-while-revalidate=60'
             }
-          );
-        }
-      } catch (adminErr) {
-        console.warn('Materialized cohort query notice (falling back to dynamic aggregation):', adminErr);
+          }
+        );
       }
+    } catch (adminErr) {
+      console.warn('Materialized cohort query notice (falling back to dynamic aggregation):', adminErr);
     }
+
+    logAuditEvent({
+      timestamp: new Date().toISOString(),
+      eventType: 'CLINICAL_COHORT_READ',
+      actorUid: authUser.uid,
+      actorRole: 'clinician',
+      ip,
+      userAgent,
+      status: 'SUCCESS',
+      details: { source: 'client-fallback' }
+    });
 
     // 2. Server-side dynamic aggregation path if materialized summaries aren't yet populated
     return NextResponse.json(
@@ -107,11 +108,11 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'private, s-maxage=10, stale-while-revalidate=30'
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30'
         }
       }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('BFF Cohort API Error:', err);
     return NextResponse.json({ error: 'Cohort aggregation failed.' }, { status: 500 });
   }

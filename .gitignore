@@ -41,3 +41,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# firebase emulator debug output
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

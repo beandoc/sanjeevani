@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Dumbbell, HeartPulse, Bone, Shield, AlertTriangle, Stethoscope, Users } from 'lucide-react';
+import { ArrowLeft, HeartPulse, AlertTriangle, Stethoscope, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -149,7 +149,7 @@ export default function StrengthTrainingProfessionalPage() {
                     <strong className="font-semibold text-card-foreground">Cardiovascular Health (Heart Disease, Hypertension):</strong> It can lower blood pressure, improve cholesterol profiles, and is beneficial for patients with stable coronary artery disease and even chronic heart failure.
                 </li>
                 <li>
-                    <strong className="font-semibold text-card-foreground">Musculoskeletal Health (Sarcopenia, Osteoarthritis, Back Pain):</strong> It's the most effective way to combat age-related muscle loss (sarcopenia). For osteoarthritis, strengthening the muscles around an affected joint can reduce pain and improve function. It can also alleviate chronic low back pain by strengthening the entire body.
+                    <strong className="font-semibold text-card-foreground">Musculoskeletal Health (Sarcopenia, Osteoarthritis, Back Pain):</strong> It&apos;s the most effective way to combat age-related muscle loss (sarcopenia). For osteoarthritis, strengthening the muscles around an affected joint can reduce pain and improve function. It can also alleviate chronic low back pain by strengthening the entire body.
                 </li>
                 </ul>
             </SectionCard>

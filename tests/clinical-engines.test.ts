@@ -2,7 +2,7 @@ import { test, describe } from 'vitest';
 import assert from 'node:assert';
 import { ClinicalRecommendationEngine } from '../src/lib/recommendations/rules-engine';
 import { MedicationChecker } from '../src/lib/clinical/medication-checker';
-import { ZaritEvaluationResult, calculateZaritScore, isReassessmentDue } from '../src/lib/zarit-scale';
+import { calculateZaritScore, isReassessmentDue } from '../src/lib/zarit-scale';
 
 describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
   test('ZBI-4 Rapid Triage must trigger crisis escalation on severe strain (>=12/16)', () => {

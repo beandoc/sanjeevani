@@ -15,15 +15,11 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   HeartPulse,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  AlertTriangle,
   RotateCcw,
   Layers,
-  HelpCircle,
-  Clock,
   ShieldAlert,
   ArrowRight
 } from 'lucide-react';

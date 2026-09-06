@@ -10,14 +10,10 @@ import {
   AlertTriangle,
   Compass,
   HeartPulse,
-  Sparkles,
-  ArrowLeft,
-  BookOpen,
-  PhoneCall
+  BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 export default function DomiciliaryHubPage() {
   const [activeTab, setActiveTab] = useState<string>('routine');

@@ -174,7 +174,7 @@ export function EmergencyContactsManager() {
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit Emergency Contact' : 'Add Emergency Contact'}</DialogTitle>
                 <DialogDescription>
-                  Saved to your account and, once signed in, backed up to the cloud so it's visible to any clinician granted access to this dyad.
+                  Saved to your account and, once signed in, backed up to the cloud so it&apos;s visible to any clinician granted access to this dyad.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-3 py-2">

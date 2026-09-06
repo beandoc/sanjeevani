@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Microscope, Footprints, Shield } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Microscope, Footprints } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -110,13 +110,13 @@ export default function FootCareProfessionalPage() {
                 <h4 className="font-semibold text-lg">Onychopathies (Nail Disorders)</h4>
                 <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
                     <li>
-                        <strong>Onychomycosis:</strong> Fungal infection of the nail plate/bed. Presents as thickened, discolored, dystrophic nails. It's a chronic, communicable disease and serves as a focus of infection for tinea pedis. Management includes periodic debridement and topical antifungals. Systemic agents carry hepatotoxicity risks.
+                        <strong>Onychomycosis:</strong> Fungal infection of the nail plate/bed. Presents as thickened, discolored, dystrophic nails. It&apos;s a chronic, communicable disease and serves as a focus of infection for tinea pedis. Management includes periodic debridement and topical antifungals. Systemic agents carry hepatotoxicity risks.
                     </li>
                     <li>
                         <strong>Onychocryptosis (Ingrown Toenail):</strong> Often results from deformity or improper care. Management requires removal of the offending nail spicule. If granulation tissue is present, chemical cautery (e.g., phenol) or surgical excision may be necessary after evaluating vascular status.
                     </li>
                     <li>
-                        <strong>Onychauxis & Onychogryphosis:</strong> Hypertrophy (thickening) of the nail, often from microtrauma. Gryphosis is a severe, deformed "ram's horn" presentation. Management is periodic debridement.
+                        <strong>Onychauxis & Onychogryphosis:</strong> Hypertrophy (thickening) of the nail, often from microtrauma. Gryphosis is a severe, deformed &quot;ram&apos;s horn&quot; presentation. Management is periodic debridement.
                     </li>
                 </ul>
 

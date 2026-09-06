@@ -6,18 +6,12 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Search,
-  Brain,
   ShieldAlert,
-  Wind,
-  Droplets,
-  Moon,
   Pill,
   HeartPulse,
   LayoutDashboard,
@@ -37,10 +31,9 @@ import {
   Computer,
   AlertTriangle,
   ArrowRight,
-  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CaregiverTroubleshootingModal, SCENARIOS, Scenario } from './caregiver-troubleshooting-modal';
+import { CaregiverTroubleshootingModal, SCENARIOS } from './caregiver-troubleshooting-modal';
 import { useProfile } from '@/context/role-context';
 
 /* ─── Navigation Items Data ─────────────────────────────────────── */
@@ -316,7 +309,8 @@ export function GlobalCommandPalette({ isOpen, onClose }: GlobalCommandPalettePr
                 placeholder="Search medicines, vitals, appointments, care tasks..."
                 className="pl-10 pr-12 h-11 text-sm bg-muted/30 border-border/50 rounded-xl focus-visible:ring-primary/30"
                 aria-label="Search app tools and care tasks"
-                autoFocus
+                // No explicit autoFocus: Radix's Dialog already moves focus to the
+                // first focusable element on open, which is this input.
               />
               <kbd className="absolute right-3.5 hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                 ESC

@@ -7,7 +7,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(dirname, './src')
+      '@': path.resolve(dirname, './src'),
+      'server-only': path.resolve(dirname, './tests/mocks/server-only.ts')
     }
   },
   // tsconfig.json sets "jsx": "preserve" for the Next.js compiler, which the

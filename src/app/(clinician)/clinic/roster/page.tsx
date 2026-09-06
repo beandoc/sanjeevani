@@ -11,8 +11,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Send,
-  Copy,
-  Check,
   Stethoscope,
   HeartPulse,
   Bed,
@@ -36,7 +34,7 @@ import {
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
 import { useAuthUser } from '@/hooks/use-auth-user';
-import { loadCohortRoster, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
+import { loadCohortRoster, invalidateCohortCache, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
 import {
   listMyDyadInvites,
   seedRealDyadsToFirestore,
@@ -61,7 +59,6 @@ export default function ClinicianRosterPage() {
   const [invites, setInvites] = useState<DyadInvite[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,17 +117,8 @@ export default function ClinicianRosterPage() {
     if (isMounted) {
       void load();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isMounted, user?.uid]);
-
-  const copyCode = (e: React.MouseEvent, code: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2500);
-    toast({ title: 'Invite Code Copied', description: `Code ${code} copied to clipboard.` });
-  };
 
   const shareViaWhatsApp = (
     e: React.MouseEvent,
@@ -581,6 +569,45 @@ export default function ClinicianRosterPage() {
                       >
                         <Calendar className="w-4 h-4" />
                       </Button>
+
+                      {/* Quick Action: Discharge / Delete Dyad */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-xl border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 shadow-2xs"
+                            title="Discharge / remove patient dyad from roster"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-3xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Discharge {row.displayName}?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-xs leading-relaxed">
+                              This will remove {row.displayName} from your active clinical surveillance and cohort worklist, revoke clinician grants, and archive their local record.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                              onClick={async () => {
+                                await dischargeOrDeletePatientDyad(row.patientUid);
+                                invalidateCohortCache();
+                                toast({
+                                  title: 'Patient Discharged',
+                                  description: `${row.displayName} has been removed from active roster.`
+                                });
+                                await load();
+                              }}
+                            >
+                              Discharge Patient
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
                       {/* Primary CTA: Open Workspace */}
                       <Link href={`/clinic/dyad/${row.patientUid}`}>

@@ -108,7 +108,16 @@ export default function SimulationDetailPage() {
                 return (
                   <div
                     key={idx}
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={hasSubmitted ? -1 : 0}
                     onClick={() => !hasSubmitted && setSelectedOption(idx)}
+                    onKeyDown={(e) => {
+                      if (!hasSubmitted && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        setSelectedOption(idx);
+                      }
+                    }}
                     className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${cardStyle}`}
                   >
                     <div

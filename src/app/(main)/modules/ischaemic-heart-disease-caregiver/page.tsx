@@ -82,7 +82,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
                   <li>New or worsening confusion, sleepiness, or a change in mental status.</li>
                   <li>Pain in the stomach area, shoulder, or back instead of the chest.</li>
                 </ul>
-                <p className="mt-4 font-medium">Treat these signs as seriously as you would chest pain. They can be the body’s way of signaling that the heart isn't getting enough oxygen.</p>
+                <p className="mt-4 font-medium">Treat these signs as seriously as you would chest pain. They can be the body’s way of signaling that the heart isn&apos;t getting enough oxygen.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -101,9 +101,9 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(2)}
             >
-                    <p>You can be a powerful partner in managing your loved one's heart health.</p>
+                    <p>You can be a powerful partner in managing your loved one&apos;s heart health.</p>
                     <h4 className="font-semibold">Encourage Movement:</h4>
-                    <p>The science is clear: all movement counts. You don't need to push for intense workouts. Encouraging daily walks and celebrating their ability to walk a little farther or faster makes a huge difference.</p>
+                    <p>The science is clear: all movement counts. You don&apos;t need to push for intense workouts. Encouraging daily walks and celebrating their ability to walk a little farther or faster makes a huge difference.</p>
                      <h4 className="font-semibold mt-4">Promote a Heart-Healthy Diet:</h4>
                     <p>A Mediterranean-style diet is proven to protect the heart. This means focusing on:</p>
                      <ul className="list-disc space-y-2 pl-5">
@@ -149,7 +149,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <UserCheck className="h-6 w-6 text-primary" />
-              A "Personalized" Treatment Plan
+              A &quot;Personalized&quot; Treatment Plan
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
@@ -159,7 +159,7 @@ export default function IschaemicHeartDiseaseCaregiverPage() {
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(4)}
             >
-                 <p>You may notice that your loved one's treatment is different from that of a younger person or even another person their age. This is intentional and important.</p>
+                 <p>You may notice that your loved one&apos;s treatment is different from that of a younger person or even another person their age. This is intentional and important.</p>
                  <p>The doctor creates a personalized plan that considers the whole person, not just the disease. This includes their:</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>Overall strength and frailty.</li>

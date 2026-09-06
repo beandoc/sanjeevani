@@ -20,38 +20,24 @@ import {
   HeartHandshake,
   ShieldCheck,
   AlertTriangle,
-  Clock,
-  Briefcase,
   UserCheck,
   Edit3,
   Activity,
   Sparkles,
-  Home,
-  CheckCircle2,
   Plus,
   Trash2,
   Moon,
-  Pill,
-  Move,
-  Flame,
-  ArrowRight,
   Stethoscope,
   Car,
-  Navigation,
-  PhoneCall,
   Calendar,
   Wand2,
   Share2,
   Download,
   Printer,
   Bed,
-  Wind,
-  Accessibility,
   Copy,
   ExternalLink,
-  Sun,
-  Sunrise,
-  Sunset
+  Sunrise
 } from 'lucide-react';
 import {
   CaregiverAttributes,
@@ -60,7 +46,6 @@ import {
   FormalSupportType,
   SecondaryFamilyMember,
   CareTask,
-  EmergencyLogistics,
   MonthlyRotationPolicy,
   AssistiveDeviceInventory,
   DEFAULT_ASSISTIVE_DEVICES,
@@ -73,7 +58,7 @@ import { ShiftAllocator, DIURNAL_BLOCK_META, type CareShiftRoster } from '@/lib/
 import { buildFormalSupport, resolveSupportTypes, toggleSupportType } from '@/lib/clinical/formal-support';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface CaregiverSupportMatrixProps {
@@ -300,10 +285,23 @@ export function CaregiverSupportMatrix({
   const hasPatientProfile = !!patient;
   const isDyadDocumented = hasCaregiverProfile && hasPatientProfile;
 
-  const currentCaregiver: CaregiverAttributes = caregiver || PLACEHOLDER_CAREGIVER;
-  const currentPatient: PatientDependenceProfile = patient
-    ? { ...patient, assistiveDevices: patient.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES }
-    : PLACEHOLDER_PATIENT;
+  // Memoized so identity is stable across renders when the source `caregiver`/
+  // `patient` haven't actually changed — currentPatient in particular was a
+  // fresh spread object literal every render, defeating the useMemo below it
+  // (currentEval) and forcing CareGapEngine.evaluate() to recompute on every
+  // keystroke elsewhere in this component, not just when the dyad's real data
+  // changed.
+  const currentCaregiver: CaregiverAttributes = useMemo(
+    () => caregiver || PLACEHOLDER_CAREGIVER,
+    [caregiver]
+  );
+  const currentPatient: PatientDependenceProfile = useMemo(
+    () =>
+      patient
+        ? { ...patient, assistiveDevices: patient.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES }
+        : PLACEHOLDER_PATIENT,
+    [patient]
+  );
 
   const currentEval = useMemo(
     () => CareGapEngine.evaluate(currentCaregiver, currentPatient),
@@ -371,6 +369,11 @@ export function CaregiverSupportMatrix({
 
   const simulatedEval = useMemo(
     () => CareGapEngine.evaluate(simulatedCaregiver, simulatedPatient),
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- simulatedCaregiver/
+       simulatedPatient are plain object literals rebuilt fresh every render from
+       exactly the fields listed below; naming them here too would be redundant
+       and counterproductive (they're never referentially stable, so including
+       them would make this useMemo re-run every render). */
     [
       currentCaregiver,
       currentPatient,
@@ -476,7 +479,7 @@ export function CaregiverSupportMatrix({
     syncedSignatureRef.current = signature;
     applyLoadedProfile(caregiver, patient);
     // applyLoadedProfile only calls setters; re-running on its identity would loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [caregiver, patient, open]);
 
   const handleToggleSupportType = (type: FormalSupportType) => {
@@ -736,11 +739,6 @@ export function CaregiverSupportMatrix({
     });
   };
 
-  const hasFormalSupport =
-    currentCaregiver.formalSupport &&
-    currentCaregiver.formalSupport.type !== 'none' &&
-    currentCaregiver.formalSupport.hoursPerDay > 0;
-
   const totalDemand = Math.max(0.1, currentEval.patientCareDemandHours);
   const primaryPct = Math.round((currentEval.teamAllocations.primaryCaregiverHours / totalDemand) * 100);
   const formalPct = Math.round((currentEval.teamAllocations.formalStaffHours / totalDemand) * 100);
@@ -900,7 +898,7 @@ export function CaregiverSupportMatrix({
                       <Label className="text-xs">Kinship</Label>
                       <select
                         value={kinship}
-                        onChange={(e) => setKinship(e.target.value as any)}
+                        onChange={(e) => setKinship(e.target.value as CaregiverAttributes['kinship'])}
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                       >
                         <option value="spouse">Spouse (Wife / Husband)</option>
@@ -918,7 +916,7 @@ export function CaregiverSupportMatrix({
                       <Label className="text-xs">Living Arrangement</Label>
                       <select
                         value={coResidence}
-                        onChange={(e) => setCoResidence(e.target.value as any)}
+                        onChange={(e) => setCoResidence(e.target.value as CaregiverAttributes['coResidence'])}
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                       >
                         <option value="lives_together">Lives Together in Same Household</option>
@@ -930,7 +928,7 @@ export function CaregiverSupportMatrix({
                       <Label className="text-xs">Employment Status</Label>
                       <select
                         value={employment}
-                        onChange={(e) => setEmployment(e.target.value as any)}
+                        onChange={(e) => setEmployment(e.target.value as CaregiverAttributes['employment'])}
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                       >
                         <option value="homemaker">Homemaker (Full Time Home)</option>
@@ -1008,7 +1006,7 @@ export function CaregiverSupportMatrix({
                       <Label className="text-xs font-semibold">Hospital Bed Function</Label>
                       <select
                         value={hospitalBed}
-                        onChange={(e) => setHospitalBed(e.target.value as any)}
+                        onChange={(e) => setHospitalBed(e.target.value as AssistiveDeviceInventory['hospitalBed'])}
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium"
                       >
                         <option value="none">Standard Home Bed (High Spine Strain)</option>
@@ -1063,9 +1061,14 @@ export function CaregiverSupportMatrix({
                   {secondaryMembers.length === 0 ? (
                     <div className="p-4 rounded-xl border border-dashed border-border text-center text-muted-foreground">
                       <p className="text-xs">No secondary family members added yet (Solo Caregiver arrangement).</p>
-                      <p className="text-[11px] pt-1 text-primary cursor-pointer hover:underline" onClick={handleAddSecondaryMember}>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 pt-1 text-[11px] font-normal"
+                        onClick={handleAddSecondaryMember}
+                      >
                         + Click here to pool sons, daughters, or relatives into the care matrix
-                      </p>
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1089,7 +1092,7 @@ export function CaregiverSupportMatrix({
                                   <div className="flex items-center gap-1.5">
                                     <select
                                       value={member.relationship}
-                                      onChange={(e) => handleUpdateSecondaryMember(member.id, { relationship: e.target.value as any })}
+                                      onChange={(e) => handleUpdateSecondaryMember(member.id, { relationship: e.target.value as SecondaryFamilyMember['relationship'] })}
                                       className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
                                     >
                                       <option value="son">Son</option>
@@ -1372,7 +1375,7 @@ export function CaregiverSupportMatrix({
                       <Label className="text-xs">Rotation Interval</Label>
                       <select
                         value={rotationInterval}
-                        onChange={(e) => setRotationInterval(e.target.value as any)}
+                        onChange={(e) => setRotationInterval(e.target.value as MonthlyRotationPolicy['rotationInterval'])}
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                       >
                         <option value="weekly">Weekly Shift Swap</option>
@@ -2062,7 +2065,7 @@ export function CaregiverSupportMatrix({
               1-Page Printable Bedside Care Roster
             </DialogTitle>
             <DialogDescription className="text-xs">
-              High-contrast, large-print care instructions sheet designed to be taped on the patient's bedroom wall or kitchen refrigerator.
+              High-contrast, large-print care instructions sheet designed to be taped on the patient&apos;s bedroom wall or kitchen refrigerator.
             </DialogDescription>
           </DialogHeader>
 

@@ -11,9 +11,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ClipboardPlus } from 'lucide-react';
 import { BARTHEL_ITEMS, LAWTON_ITEMS, calculateFunctionScore } from '@/lib/clinical/function-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';

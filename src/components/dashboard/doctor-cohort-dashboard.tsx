@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import {
   Stethoscope,
   Users,
   AlertTriangle,
-  ArrowRight,
   RefreshCw,
   CalendarClock,
   BellRing,
@@ -18,19 +17,12 @@ import {
   ShieldAlert,
   Search,
   Send,
-  PhoneCall,
   Bed,
-  Sparkles,
   Clock,
-  CheckCircle2,
   Zap,
-  SlidersHorizontal,
-  FileText,
   ShieldCheck,
   HeartHandshake,
-  ExternalLink,
-  ChevronRight,
-  Info
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { loadCohortRoster, summarizeCohort, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
@@ -42,7 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import {
   requestReassessment,
   subscribeToReassessmentAlerts,
-  dismissReassessmentAlert
+  dismissReassessmentAlert,
+  type ReassessmentAlert
 } from '@/lib/firebase/clinical-sync';
 
 const RISK_BAND_LABEL: Record<RiskBand, string> = {
@@ -85,7 +78,7 @@ function getActionableAlert(alertSnippet: string | null | undefined): string | n
 export function DoctorCohortDashboard() {
   const [rows, setRows] = useState<CohortRow[] | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<ReassessmentAlert[]>([]);
   const [requestingUids, setRequestingUids] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -113,7 +106,7 @@ export function DoctorCohortDashboard() {
       void load();
     });
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const handleDismissAlert = async (alertId: string) => {

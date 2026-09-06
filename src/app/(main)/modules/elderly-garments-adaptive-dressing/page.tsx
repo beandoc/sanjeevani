@@ -9,16 +9,10 @@ import {
 import {
   ArrowLeft,
   Shirt,
-  Sparkles,
-  Shield,
   Sun,
   Heart,
   CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
-  Activity,
-  Scissors,
-  Droplets
+  Activity
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

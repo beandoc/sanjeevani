@@ -231,6 +231,10 @@ const Sidebar = React.forwardRef<
     const state = open ? "expanded" : "collapsed"
 
     return (
+      /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions --
+         Clicking this collapsed-rail gap to re-expand is a mouse-only convenience;
+         SidebarTrigger (below) is the real, keyboard-operable control for the same
+         action, so this isn't the only way to expand the sidebar. */
       <div
         ref={ref}
         className={cn(
@@ -241,7 +245,7 @@ const Sidebar = React.forwardRef<
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
-        onClick={(e) => {
+        onClick={() => {
           if (!isMobile && state === "collapsed") {
             setOpen(true)
           }

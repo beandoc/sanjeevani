@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Bot, ShieldAlert, Sparkles, Filter, Activity, HeartPulse } from 'lucide-react';
+import { ArrowRight, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { simulationsData } from '@/lib/simulations-data';
 

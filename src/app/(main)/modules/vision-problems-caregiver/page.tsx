@@ -49,7 +49,7 @@ export default function VisionProblemsCaregiverPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Vision and Eye Problems: A Caregiver's Guide
+          Vision and Eye Problems: A Caregiver&apos;s Guide
         </h1>
         <p className="text-muted-foreground">
           Understanding common age-related eye conditions to better support your loved one.
@@ -72,7 +72,7 @@ export default function VisionProblemsCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Most red eyes are not an emergency, but you should seek same-day medical attention from an eye provider if you notice any of these "red flag" symptoms:
+                  Most red eyes are not an emergency, but you should seek same-day medical attention from an eye provider if you notice any of these &quot;red flag&quot; symptoms:
                 </p>
                 <ul className="list-disc space-y-2 pl-5 font-medium text-destructive">
                   <li>Sudden decrease or loss of vision</li>
@@ -105,13 +105,13 @@ export default function VisionProblemsCaregiverPage() {
                  <h4 className="font-semibold">How You Can Help:</h4>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
-                        <strong>Use Lubricating Eye Drops:</strong> Artificial tears can provide significant relief. It's best to use preservative-free drops if they are needed more than 3-4 times a day.
+                        <strong>Use Lubricating Eye Drops:</strong> Artificial tears can provide significant relief. It&apos;s best to use preservative-free drops if they are needed more than 3-4 times a day.
                     </li>
                     <li>
                         <strong>Apply Warm Compresses:</strong> A clean, warm washcloth held over the closed eyes for a few minutes can be soothing.
                     </li>
                     <li>
-                        <strong>Avoid "Redness-Reducing" Drops:</strong> Over-the-counter drops that promise to "get the red out" can make dry eye worse if used for a long time.
+                        <strong>Avoid &quot;Redness-Reducing&quot; Drops:</strong> Over-the-counter drops that promise to &quot;get the red out&quot; can make dry eye worse if used for a long time.
                     </li>
                     <li>
                         <strong>Review Medications:</strong> Ask the doctor if any current medications could be making dry eye worse.
@@ -136,11 +136,11 @@ export default function VisionProblemsCaregiverPage() {
               isCompleted={completedSections.has(3)}
             >
                 <h4 className="font-semibold">Cataracts</h4>
-                <p>A clouding of the eye's natural lens. It causes blurry vision, faded colors, and increased glare, especially at night. It is very common and treatable with surgery, which is safe and highly effective.</p>
+                <p>A clouding of the eye&apos;s natural lens. It causes blurry vision, faded colors, and increased glare, especially at night. It is very common and treatable with surgery, which is safe and highly effective.</p>
                 <h4 className="font-semibold mt-4">Age-Related Macular Degeneration (AMD)</h4>
                 <p>This disease affects the macula, the part of the retina responsible for sharp, central vision. It can make it difficult to read, drive, or recognize faces. A key symptom is seeing straight lines as wavy or distorted.</p>
                 <h4 className="font-semibold mt-4">Glaucoma</h4>
-                <p>Often called the "silent thief of sight," glaucoma damages the optic nerve, usually without symptoms in the early stages. It causes a gradual loss of peripheral (side) vision. Regular eye exams are crucial for early detection.</p>
+                <p>Often called the &quot;silent thief of sight,&quot; glaucoma damages the optic nerve, usually without symptoms in the early stages. It causes a gradual loss of peripheral (side) vision. Regular eye exams are crucial for early detection.</p>
                 <h4 className="font-semibold mt-4">Diabetic Retinopathy</h4>
                 <p>A complication of diabetes that damages the blood vessels in the retina. Anyone with diabetes needs a comprehensive eye exam at least once a year to screen for this condition, even if their vision seems fine.</p>
             </SectionCard>

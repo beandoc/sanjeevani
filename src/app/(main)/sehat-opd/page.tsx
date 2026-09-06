@@ -13,19 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   Download,
   Smartphone,
-  UserPlus,
-  Video,
   ExternalLink,
   ShieldCheck,
-  Clock,
-  FileText,
   Building2,
   CheckCircle2,
-  PhoneCall,
-  Activity,
   HeartPulse,
-  Sparkles,
-  HelpCircle
+  Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 

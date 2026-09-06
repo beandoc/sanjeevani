@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ClipboardList, Trash2, CalendarIcon, HeartPulse, ShieldAlert } from 'lucide-react';
+import { ClipboardList, Trash2, CalendarIcon, HeartPulse } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 // Code-split: react-day-picker only mounts when the date popover is opened.
@@ -73,7 +73,6 @@ type VitalLogFormValues = z.infer<typeof vitalLogSchema>;
 
 export default function VitalLogsPage() {
   const [logs, setLogs] = useState<VitalRecord[]>([]);
-  const [lastDeletedLog, setLastDeletedLog] = useState<VitalRecord | null>(null);
   const { toast } = useToast();
   const { user } = useAuthUser();
 
@@ -125,7 +124,21 @@ export default function VitalLogsPage() {
     },
   });
 
-  function applyDraft(parsed: Record<string, any>) {
+  interface VitalsDraft {
+    date?: string;
+    systolic?: string;
+    diastolic?: string;
+    pulse?: string;
+    spo2?: string;
+    temperatureC?: string;
+    respiratoryRate?: string;
+    bloodSugar?: string;
+    weight?: string;
+    sleep?: 'good' | 'average' | 'poor';
+    notes?: string;
+  }
+
+  function applyDraft(parsed: VitalsDraft) {
     form.reset({
       date: parsed.date ? new Date(parsed.date) : new Date(),
       systolic: parsed.systolic || '',
@@ -160,7 +173,7 @@ export default function VitalLogsPage() {
   // whatever was just restored from local storage above untouched.
   useEffect(() => {
     if (!user?.uid) return;
-    void getDraftForCurrentUser<Record<string, any>>('vitalsDraft').then((cloudDraft) => {
+    void getDraftForCurrentUser<VitalsDraft>('vitalsDraft').then((cloudDraft) => {
       if (cloudDraft) applyDraft(cloudDraft);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,7 +209,7 @@ export default function VitalLogsPage() {
     return () => {
       if (draftSyncTimer.current) clearTimeout(draftSyncTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [formValues]);
 
   async function onSubmit(data: VitalLogFormValues) {
@@ -268,7 +281,6 @@ export default function VitalLogsPage() {
     // (the record would just reappear on the next refresh) or, for a
     // never-synced entry, be indistinguishable from that case up front.
     HealthRepository.dismissVital(id);
-    setLastDeletedLog(recordToDelete);
     void refreshLogs();
 
     toast({

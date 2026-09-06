@@ -4,7 +4,7 @@
  */
 
 import { allModules } from './modules';
-import { ClinicalRecommendationEngine, RecommendationEngineInput, RecommendationOutput } from './recommendations/rules-engine';
+import { ClinicalRecommendationEngine, RecommendationOutput } from './recommendations/rules-engine';
 import { HealthRepository } from './db/health-repository';
 
 export interface PersonalizedPathResult {

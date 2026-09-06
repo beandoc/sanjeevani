@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,11 +20,6 @@ import {
   Stethoscope,
   HeartPulse,
   Users,
-  CheckCircle2,
-  PhoneCall,
-  Activity,
-  Globe,
-  KeyRound,
   Fingerprint,
   Bed
 } from 'lucide-react';
@@ -45,40 +39,10 @@ import { provisionDemoPersonaAccess } from '@/lib/firebase/clinical-sync';
 
 const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';
 
-const DEMO_PRESETS = {
-  doctor: {
-    email: 'doctor@kutumbh.com',
-    password: 'test1234',
-    role: 'professional' as Role,
-    title: 'Doctor',
-    name: 'Dr. Vivek',
-    description: 'doctor@kutumbh.com'
-  },
-  nurse: {
-    email: 'nurse@kutumbh.com',
-    password: 'test1234',
-    role: 'nurse' as Role,
-    title: 'Nurse',
-    name: 'Nurse Vidya',
-    description: 'nurse@kutumbh.com'
-  },
-  caregiver: {
-    email: 'caregiver@kutumbh.com',
-    password: 'test1234',
-    role: 'caregiver' as Role,
-    title: 'Family',
-    name: 'Suresh Kumar',
-    description: 'caregiver@kutumbh.com'
-  }
-} as const;
-
 export default function LoginPage() {
   const router = useRouter();
   const { role, setRole } = useProfile();
   const { toast } = useToast();
-
-  const initialKey: keyof typeof DEMO_PRESETS =
-    role === 'nurse' ? 'nurse' : (role === 'doctor' || role === 'professional') ? 'doctor' : 'doctor';
 
   const [authMethod, setAuthMethod] = useState<'email' | 'mobile' | 'abha'>('email');
   const [selectedRole, setSelectedRole] = useState<Role>(role || 'professional');
@@ -86,23 +50,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Form Fields pre-filled with demo credentials (password test1234 for all)
-  const [email, setEmail] = useState<string>(DEMO_PRESETS[initialKey].email);
-  const [password, setPassword] = useState<string>(DEMO_PRESETS[initialKey].password);
+  // Form Fields
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [abhaId, setAbhaId] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-
-  const applyDemoPreset = (presetKey: keyof typeof DEMO_PRESETS) => {
-    const preset = DEMO_PRESETS[presetKey];
-    setSelectedRole(preset.role);
-    setAuthMethod('email');
-    setEmail(preset.email);
-    setPassword(preset.password);
-    setIsSignUp(false);
-  };
 
   /** Routes by the account's actual stored role, not the login toggle — a
    * returning user's role is authoritative in Firestore, so this can't be
@@ -116,7 +71,7 @@ export default function LoginPage() {
     try {
       const fetchedRole = await getUserRole(uid);
       if (fetchedRole) actualRole = fetchedRole;
-    } catch (e) {
+    } catch {
       // Fallback safely to selected persona
     }
 
@@ -153,8 +108,7 @@ export default function LoginPage() {
 
     try {
       if (authMethod === 'email') {
-        let user: any;
-        user = isSignUp
+        const user = isSignUp
           ? await signUpWithEmail(cleanEmail, cleanPassword, selectedRole)
           : await signInWithEmail(cleanEmail, cleanPassword);
 
@@ -185,13 +139,14 @@ export default function LoginPage() {
           description: 'ABHA sign-in requires production NHA credentials. Use Email or Mobile OTP here instead.'
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errCode = (err as { code?: string })?.code;
       const errMsg =
-        err?.code === 'auth/user-not-found'
+        errCode === 'auth/user-not-found'
           ? 'No account found with this email. Create an account to continue.'
-          : err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential'
+          : errCode === 'auth/wrong-password' || errCode === 'auth/invalid-credential'
             ? 'Incorrect email or password. Please verify your credentials.'
-            : err?.code === 'auth/configuration-not-found'
+            : errCode === 'auth/configuration-not-found'
               ? 'Firebase Authentication is not enabled or Email/Password provider is disabled in Firebase Console (kutumbh-45485).'
               : err instanceof Error
                 ? err.message
@@ -224,12 +179,13 @@ export default function LoginPage() {
         title: 'OTP Dispatched',
         description: `A 6-digit verification code was sent to +91 ${mobile.slice(-4).padStart(10, '•')}`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errCode = (err as { code?: string })?.code;
       toast({
         variant: 'destructive',
         title: 'Could Not Send OTP',
         description:
-          err?.code === 'auth/configuration-not-found'
+          errCode === 'auth/configuration-not-found'
             ? 'Phone Authentication is not enabled in Firebase Console (kutumbh-45485).'
             : err instanceof Error
               ? err.message
@@ -350,7 +306,7 @@ export default function LoginPage() {
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-2xl border border-border/60">
               <button
                 type="button"
-                onClick={() => applyDemoPreset('caregiver')}
+                onClick={() => setSelectedRole('caregiver')}
                 aria-pressed={selectedRole === 'caregiver'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'caregiver'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
@@ -362,7 +318,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => applyDemoPreset('nurse')}
+                onClick={() => setSelectedRole('nurse')}
                 aria-pressed={selectedRole === 'nurse'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'nurse'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
@@ -374,7 +330,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => applyDemoPreset('doctor')}
+                onClick={() => setSelectedRole('professional')}
                 aria-pressed={selectedRole === 'professional' || selectedRole === 'doctor'}
                 className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedRole === 'professional' || selectedRole === 'doctor'
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
@@ -443,65 +399,6 @@ export default function LoginPage() {
             {/* METHOD 1: EMAIL */}
             {authMethod === 'email' && (
               <>
-                {/* 1-Tap Quick Demo Credentials Card */}
-                <div className="p-3 bg-muted/40 rounded-2xl border border-border/70 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                      <KeyRound className="w-3.5 h-3.5 text-primary" />
-                      <span>Demo Credentials (Password: <code className="text-[11px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono font-bold">test1234</code>)</span>
-                    </div>
-                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 font-mono text-muted-foreground">
-                      1-Tap Login
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => applyDemoPreset('doctor')}
-                      className={`p-2 rounded-xl text-left border transition-all flex flex-col justify-between ${selectedRole === 'professional' || selectedRole === 'doctor'
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/30'
-                          : 'bg-background hover:bg-muted/60 border-border/60 text-muted-foreground'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1 text-[11px] font-bold">
-                        <Stethoscope className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>Doctor</span>
-                      </div>
-                      <span className="text-[10px] font-mono truncate text-muted-foreground">doctor@kutumbh.com</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => applyDemoPreset('nurse')}
-                      className={`p-2 rounded-xl text-left border transition-all flex flex-col justify-between ${selectedRole === 'nurse'
-                          ? 'bg-amber-500/10 border-amber-500/40 text-amber-800 dark:text-amber-300 shadow-xs ring-1 ring-amber-500/30'
-                          : 'bg-background hover:bg-muted/60 border-border/60 text-muted-foreground'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1 text-[11px] font-bold">
-                        <Bed className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                        <span>Nurse</span>
-                      </div>
-                      <span className="text-[10px] font-mono truncate text-muted-foreground">nurse@kutumbh.com</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => applyDemoPreset('caregiver')}
-                      className={`p-2 rounded-xl text-left border transition-all flex flex-col justify-between ${selectedRole === 'caregiver'
-                          ? 'bg-primary/10 border-primary/40 text-primary shadow-xs ring-1 ring-primary/30'
-                          : 'bg-background hover:bg-muted/60 border-border/60 text-muted-foreground'
-                        }`}
-                    >
-                      <div className="flex items-center gap-1 text-[11px] font-bold">
-                        <Users className="w-3 h-3 text-primary shrink-0" />
-                        <span>Family</span>
-                      </div>
-                      <span className="text-[10px] font-mono truncate text-muted-foreground">caregiver@kutumbh.com</span>
-                    </button>
-                  </div>
-                </div>
-
                 <div className="flex items-center justify-between -mt-1 mb-1">
                   <span className="text-[11px] text-muted-foreground">
                     {isSignUp ? 'Creating a new account' : 'Signing in to existing account'}
@@ -521,7 +418,7 @@ export default function LoginPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="doctor@kutumbh.com, nurse@kutumbh.com, or caregiver@kutumbh.com"
+                      placeholder="name@example.com or institutional email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-9 h-10 text-xs font-medium"

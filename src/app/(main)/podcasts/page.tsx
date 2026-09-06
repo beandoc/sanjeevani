@@ -1,13 +1,10 @@
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mic, Clock, Sparkles, Radio, Headphones, Bell, ArrowRight } from 'lucide-react';
+import { Clock, Sparkles, Radio, Headphones, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const upcomingEpisodes = [

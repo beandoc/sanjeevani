@@ -18,6 +18,9 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement
 }
 
+/* eslint-disable-next-line unused-imports/no-unused-vars -- used only as a type via
+   `typeof actionTypes[keyof typeof actionTypes]` below (standard shadcn/ui toast-
+   reducer pattern); never read for its runtime value. */
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",

@@ -231,10 +231,22 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
   }
 
   const archived = new Set(HealthRepository.getArchivedDyads());
-  const isNotArchived = (uid: string) =>
-    !archived.has(uid) &&
-    !archived.has(uid.replace('dyad_', '')) &&
-    !archived.has(`dyad_${uid}`);
+  const isNotArchived = (uid: string) => {
+    if (
+      archived.has(uid) ||
+      archived.has(uid.replace('dyad_', '')) ||
+      archived.has(`dyad_${uid}`)
+    ) {
+      return false;
+    }
+    if (
+      (uid.toLowerCase().includes('sarojini') || uid.toUpperCase().includes('SAROJINI81')) &&
+      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81'))
+    ) {
+      return false;
+    }
+    return true;
+  };
 
   const fetchPromise = (async () => {
     // 1. Fast path: Attempt BFF aggregation endpoint first
@@ -340,7 +352,23 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
 
       const validRows = rows.filter((r) => isNotArchived(r.patientUid));
       validRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
-      return validRows;
+
+      // Deduplicate rows by normalized patient display name
+      const seenPatientNames = new Set<string>();
+      const dedupedRows: CohortRow[] = [];
+      for (const row of validRows) {
+        const norm = row.displayName
+          .replace(/^(Smt\.|Shri|Dr\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
+          .replace(/\s*\(Dyad\s*#[^)]+\)/i, '')
+          .trim()
+          .toLowerCase();
+        if (norm && seenPatientNames.has(norm)) {
+          continue;
+        }
+        if (norm) seenPatientNames.add(norm);
+        dedupedRows.push(row);
+      }
+      return dedupedRows;
     } catch (err) {
       console.warn('Could not load cohort roster, falling back to demo cohort:', err);
       return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));

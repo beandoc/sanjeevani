@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Microscope, Eye, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Microscope, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -107,7 +107,7 @@ export default function VisionProblemsProfessionalPage() {
                 <h4 className="font-semibold">Dry Eye Disease (Keratoconjunctivitis Sicca)</h4>
                 <p>A multifactorial disease causing discomfort, visual disturbance, and tear film instability. Risk factors include advanced age, female sex, Sjögren syndrome, and polypharmacy (especially diuretics, antihistamines, antidepressants). Management focuses on education, environmental modification, artificial tears (preservative-free preferred for frequent use), and addressing underlying conditions like blepharitis.</p>
                 <h4 className="font-semibold mt-4">Age-Related Macular Degeneration (AMD)</h4>
-                <p>A leading cause of irreversible vision loss. "Dry" (atrophic) AMD is more common, while "wet" (neovascular) AMD causes more severe vision loss. Key risk factors are age, smoking, and genetics. Patients should monitor for metamorphopsia with an Amsler grid. Management for intermediate/advanced AMD includes AREDS2 vitamin supplementation. Wet AMD is treated with intravitreal anti-VEGF injections.</p>
+                <p>A leading cause of irreversible vision loss. &quot;Dry&quot; (atrophic) AMD is more common, while &quot;wet&quot; (neovascular) AMD causes more severe vision loss. Key risk factors are age, smoking, and genetics. Patients should monitor for metamorphopsia with an Amsler grid. Management for intermediate/advanced AMD includes AREDS2 vitamin supplementation. Wet AMD is treated with intravitreal anti-VEGF injections.</p>
                 <h4 className="font-semibold mt-4">Cataracts</h4>
                 <p>Lens opacification causing decreased visual acuity, glare, and poor contrast sensitivity. The only treatment is surgical extraction with intraocular lens implantation. The indication for surgery is functional impairment, not a specific VA number. Surgery is highly effective and can improve quality of life, cognition, and reduce fall risk.</p>
                 <h4 className="font-semibold mt-4">Glaucoma</h4>

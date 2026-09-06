@@ -90,6 +90,7 @@ export function HomeCareAddressCard() {
         });
       },
       (err) => {
+        console.warn('Geolocation request failed:', err);
         setIsLocating(false);
         toast({
           variant: 'destructive',

@@ -1,4 +1,5 @@
 import type {Config} from 'tailwindcss';
+import tailwindcssAnimate from 'tailwindcss-animate';
 
 export default {
   darkMode: ['class'],
@@ -10,8 +11,15 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['"Space Grotesk"', 'sans-serif'],
+        // Backed by CSS variables from next/font/google in src/app/layout.tsx
+        // (self-hosted at build time — no runtime Google Fonts request, no
+        // font-swap layout shift). Plus Jakarta Sans is the font actually
+        // shipped for headings; a previous "Space Grotesk" entry here was
+        // never loaded and never rendered — a plain CSS rule in globals.css
+        // silently overrode it — so it's replaced rather than fixed by
+        // finally loading Space Grotesk, which would change the app's look.
+        body: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        headline: ['var(--font-plus-jakarta)', 'system-ui', '-apple-system', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -95,5 +103,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

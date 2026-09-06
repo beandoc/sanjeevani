@@ -13,9 +13,10 @@ import {
   query,
   where,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  runTransaction
 } from 'firebase/firestore';
-import { auth, db } from '../client';
+import { db } from '../client';
 import {
   DEFAULT_CAREGIVER_ATTRIBUTES,
   type PatientDependenceProfile,
@@ -61,9 +62,17 @@ export interface DyadInvite {
 // off a screen without misreads.
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function generateInviteCode(): string {
+  const randomBytes = new Uint8Array(8);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(randomBytes);
+  } else {
+    for (let i = 0; i < 8; i++) {
+      randomBytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
   let code = '';
   for (let i = 0; i < 8; i++) {
-    code += INVITE_CODE_ALPHABET[Math.floor(Math.random() * INVITE_CODE_ALPHABET.length)];
+    code += INVITE_CODE_ALPHABET[randomBytes[i] % INVITE_CODE_ALPHABET.length];
   }
   return code;
 }
@@ -328,42 +337,52 @@ async function applyInviteClaim(
     fallHistoryLast6Months: 0
   };
 
-  // patientProfile: prefer the dyad's LIVE document (what the doctor's dyad
-  // workspace actually edits via savePatientProfileFor), then the invite's
-  // own draft (filled out from the onboarding wizard), then bare defaults.
-  let profileToSave: Record<string, unknown> = defaultProfile;
-  try {
-    const dyadProfileSnap = await getDoc(doc(db!, 'users', dyadDocId, 'patientProfile', 'current'));
-    if (dyadProfileSnap.exists()) {
-      profileToSave = dyadProfileSnap.data() as Record<string, unknown>;
-    } else if (invite.patientProfileDraft) {
-      profileToSave = invite.patientProfileDraft as unknown as Record<string, unknown>;
-    }
-  } catch (profileErr) {
-    console.warn('Dyad patientProfile migration notice (using draft/defaults):', profileErr);
-    if (invite.patientProfileDraft) profileToSave = invite.patientProfileDraft as unknown as Record<string, unknown>;
-  }
+  let effectiveInvite: DyadInvite = invite;
 
-  // Atomic batch commit for core invite claim + clinician grant + patient profile
-  const claimBatch = writeBatch(db);
-  claimBatch.set(inviteRef, { claimedAt, claimedByUid: uid }, { merge: true });
-  claimBatch.set(doc(db, 'users', uid, 'clinicianGrants', invite.clinicianUid), {
-    clinicianUid: invite.clinicianUid,
-    clinicianLabel: invite.clinicianLabel ?? null,
-    grantedAt: claimedAt,
-    revokedAt: null
+  // Run transactional read-and-claim to prevent double-claiming race conditions
+  await runTransaction(db, async (txn) => {
+    const inviteSnap = await txn.get(inviteRef);
+    if (!inviteSnap.exists()) {
+      throw new Error('Invite code not found. Check the code and try again.');
+    }
+    const currentInvite = inviteSnap.data() as DyadInvite;
+    if (currentInvite.claimedAt) {
+      throw new Error('This invite code has already been used.');
+    }
+    effectiveInvite = currentInvite;
+
+    let profileToSave: Record<string, unknown> = defaultProfile;
+    try {
+      const dyadProfileSnap = await txn.get(doc(db!, 'users', dyadDocId, 'patientProfile', 'current'));
+      if (dyadProfileSnap.exists()) {
+        profileToSave = dyadProfileSnap.data() as Record<string, unknown>;
+      } else if (currentInvite.patientProfileDraft) {
+        profileToSave = currentInvite.patientProfileDraft as unknown as Record<string, unknown>;
+      }
+    } catch {
+      if (currentInvite.patientProfileDraft) {
+        profileToSave = currentInvite.patientProfileDraft as unknown as Record<string, unknown>;
+      }
+    }
+
+    txn.set(inviteRef, { claimedAt, claimedByUid: uid }, { merge: true });
+    txn.set(doc(db!, 'users', uid, 'clinicianGrants', currentInvite.clinicianUid), {
+      clinicianUid: currentInvite.clinicianUid,
+      clinicianLabel: currentInvite.clinicianLabel ?? null,
+      grantedAt: claimedAt,
+      revokedAt: null
+    });
+    txn.set(doc(db!, 'users', uid, 'patientProfile', 'current'), {
+      ...profileToSave,
+      updatedAt: claimedAt
+    });
+    txn.set(doc(db!, 'cohortSummaries', uid), {
+      patientUid: uid,
+      displayName: currentInvite.patientName,
+      clinicianUid: currentInvite.clinicianUid,
+      updatedAt: claimedAt
+    }, { merge: true });
   });
-  claimBatch.set(doc(db, 'users', uid, 'patientProfile', 'current'), {
-    ...profileToSave,
-    updatedAt: claimedAt
-  });
-  claimBatch.set(doc(db, 'cohortSummaries', uid), {
-    patientUid: uid,
-    displayName: invite.patientName,
-    clinicianUid: invite.clinicianUid,
-    updatedAt: claimedAt
-  }, { merge: true });
-  await withRetry(() => claimBatch.commit());
 
   // Migrate every other pre-claim clinical record. Each is independently
   // best-effort — a failure on one (e.g. no medications were ever recorded)
@@ -417,7 +436,7 @@ async function applyInviteClaim(
     }
   }
 
-  return { ...invite, claimedAt, claimedByUid: uid };
+  return { ...effectiveInvite, claimedAt, claimedByUid: uid };
 }
 
 /**

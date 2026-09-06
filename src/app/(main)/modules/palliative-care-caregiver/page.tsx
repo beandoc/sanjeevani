@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, HeartHandshake, MessageCircle, ShieldCheck, BookUser } from 'lucide-react';
+import { ArrowLeft, HeartHandshake, MessageCircle, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -75,7 +75,7 @@ export default function PalliativeCareCaregiverPage() {
                   Palliative care is a specialized type of medical care that focuses on providing relief from the symptoms and stress of a serious illness. The main goal is to improve the quality of life for both the patient and their family.
                 </p>
                 <p>
-                  <strong>It's not the same as hospice.</strong> Palliative care can be provided at any age and at any stage of an illness, and it can be given alongside curative treatments like chemotherapy or dialysis. It's an extra layer of support that works with your loved one's other doctors.
+                  <strong>It&apos;s not the same as hospice.</strong> Palliative care can be provided at any age and at any stage of an illness, and it can be given alongside curative treatments like chemotherapy or dialysis. It&apos;s an extra layer of support that works with your loved one&apos;s other doctors.
                 </p>
                 <h4 className="font-semibold">What does it provide?</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -117,7 +117,7 @@ export default function PalliativeCareCaregiverPage() {
                         <strong>Be the Eyes and Ears:</strong> Keep track of symptoms. When do they happen? What makes them better or worse? This information is vital for the care team.
                     </li>
                     <li>
-                        <strong>Ask Questions:</strong> Don't be afraid to ask for clarification. If you don't understand a treatment or a medication, ask the palliative care team to explain it in simple terms.
+                        <strong>Ask Questions:</strong> Don&apos;t be afraid to ask for clarification. If you don&apos;t understand a treatment or a medication, ask the palliative care team to explain it in simple terms.
                     </li>
                     <li>
                         <strong>Express Their Wishes:</strong> Help your loved one express what is most important to them. Is it being at home? Is it having the energy to see family? These goals will guide the care plan.
@@ -161,10 +161,10 @@ export default function PalliativeCareCaregiverPage() {
                         <strong>Take Breaks:</strong> Step away for short periods to recharge. Even 15 minutes to take a walk, read a book, or call a friend can make a difference.
                     </li>
                     <li>
-                        <strong>Connect with Others:</strong> Join a caregiver support group, either online or in person. Talking with others who understand what you're going through can be incredibly helpful.
+                        <strong>Connect with Others:</strong> Join a caregiver support group, either online or in person. Talking with others who understand what you&apos;re going through can be incredibly helpful.
                     </li>
                     <li>
-                        <strong>Acknowledge Your Feelings:</strong> It's normal to feel a wide range of emotions—sadness, anger, guilt, and exhaustion. Allow yourself to feel them without judgment.
+                        <strong>Acknowledge Your Feelings:</strong> It&apos;s normal to feel a wide range of emotions—sadness, anger, guilt, and exhaustion. Allow yourself to feel them without judgment.
                     </li>
                 </ul>
             </SectionCard>

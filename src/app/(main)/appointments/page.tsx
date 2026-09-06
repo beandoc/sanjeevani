@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { CalendarDays, Clock, Trash2, User, Hospital, CalendarCheck } from 'lucide-react';
+import { CalendarDays, Trash2, CalendarCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { HealthRepository, AppointmentRecord } from '@/lib/db/health-repository';
 import { syncAppointment, getAppointmentsFor } from '@/lib/firebase/clinical-sync';

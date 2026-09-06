@@ -21,8 +21,6 @@ import {
   LayoutDashboard,
   GraduationCap,
   Bot,
-  Video,
-  Mic,
   BookMarked,
   FileText,
   Computer,
@@ -38,8 +36,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
-import { useProfile, Role } from '@/context/role-context';
+import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
 
@@ -58,9 +55,8 @@ interface NavSection {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const t = useTranslations('Sidebar');
   const { role, setRole } = useProfile();
-  const { isMobile, open, setOpen, setOpenMobile, state } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
 

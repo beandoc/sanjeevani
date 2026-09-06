@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Stethoscope,
   LogOut,
   Copy,
   Users,
@@ -28,7 +27,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { signOutUser } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase/client';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { HeaderControls } from '@/components/layout/header-controls';
 import { cn } from '@/lib/utils';

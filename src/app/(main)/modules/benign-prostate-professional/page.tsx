@@ -75,7 +75,7 @@ export default function BenignProstateProfessionalPage() {
                   Benign Prostatic Hyperplasia (BPH) arises from the transitional zone of the prostate. Its pathophysiology involves both static and dynamic components. The <strong>static component</strong> results from glandular enlargement impinging on the urethra, while the <strong>dynamic component</strong> relates to the tension of prostatic smooth muscle, mediated by alpha-1 adrenergic receptors.
                 </p>
                 <p>
-                  Lower Urinary Tract Symptoms (LUTS) are preferred over "prostatism" as they are not disease-specific. They are classified into:
+                  Lower Urinary Tract Symptoms (LUTS) are preferred over &quot;prostatism&quot; as they are not disease-specific. They are classified into:
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
@@ -152,7 +152,7 @@ export default function BenignProstateProfessionalPage() {
                       <li><strong>Non-selective (Terazosin, Doxazosin):</strong> Require dose titration and BP monitoring.</li>
                       <li><strong>Alpha-1A Selective (Tamsulosin, Silodosin):</strong> Minimal effects on BP, but higher rates of ejaculatory dysfunction. Silodosin is highly selective.</li>
                       <li><strong>Alfuzosin:</strong> Lacks subtype selectivity but has minimal BP effects and low rates of ejaculatory dysfunction.</li>
-                      <li><strong>Clinical Pearl:</strong> Warn patients about Intraoperative Floppy Iris Syndrome (IFIS) if cataract surgery is planned. It's prudent to delay initiation until after surgery.</li>
+                      <li><strong>Clinical Pearl:</strong> Warn patients about Intraoperative Floppy Iris Syndrome (IFIS) if cataract surgery is planned. It&apos;s prudent to delay initiation until after surgery.</li>
                   </ul>
                 </div>
                 <div className="mt-4">

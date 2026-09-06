@@ -52,7 +52,7 @@ export default function PolypharmacyProfessionalPage() {
           Medication Safety in Geriatric Care
         </h1>
         <p className="text-muted-foreground">
-          A nurse's guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.
+          A nurse&apos;s guide to identifying, preventing, and managing adverse drug events (ADEs) in older patients.
         </p>
       </div>
 
@@ -127,9 +127,9 @@ export default function PolypharmacyProfessionalPage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  The prescribing cascade is a dangerous cycle where a drug's side effect is misinterpreted as a new medical condition, leading to another prescription to treat the side effect.
+                  The prescribing cascade is a dangerous cycle where a drug&apos;s side effect is misinterpreted as a new medical condition, leading to another prescription to treat the side effect.
                 </p>
-                <p className="font-semibold">When an older patient presents with a new symptom (especially a geriatric syndrome), always ask: "Could this be a medication side effect?" before assuming it's a new disease.</p>
+                <p className="font-semibold">When an older patient presents with a new symptom (especially a geriatric syndrome), always ask: &quot;Could this be a medication side effect?&quot; before assuming it&apos;s a new disease.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>

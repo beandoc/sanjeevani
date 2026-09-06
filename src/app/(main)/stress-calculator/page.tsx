@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ZaritCalculator } from '@/components/stress/zarit-calculator';
 import { ZaritResultsView } from '@/components/stress/zarit-results-view';
 import { ZaritEvaluationResult } from '@/lib/zarit-scale';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,16 +23,8 @@ import {
   Sparkles,
   BookOpen,
   Users,
-  UserCheck,
   Stethoscope,
-  Activity,
-  History,
-  RotateCcw,
-  Clock,
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2
+  History
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -44,12 +36,11 @@ import {
   getPatientProfileFor,
   getCaregiverAttributesFor
 } from '@/lib/firebase/clinical-sync';
-import { loadCohortRoster, type CohortRow } from '@/lib/analytics/cohort';
+import { loadCohortRoster } from '@/lib/analytics/cohort';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/use-auth-user';
 import { useProfile } from '@/context/role-context';
 import { SyncStatusBanner } from '@/components/shared/sync-status-banner';
-import { cn } from '@/lib/utils';
 
 interface DyadOption {
   id: string; // 'primary' or patientUid
@@ -378,12 +369,12 @@ function StressCalculatorContent() {
             {/* Right: Dyad Selector Dropdown */}
             <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
               <div className="w-full sm:w-72">
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">
+                <label htmlFor="dyad-switcher" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">
                   Switch Person / Dyad
                 </label>
-                <Select value={selectedDyadId} onValueChange={handleSwitchDyad}>
-                  <SelectTrigger className="h-9 text-xs font-semibold bg-background">
-                    <SelectValue placeholder="Select patient dyad" />
+                <Select value={selectedDyadId} onValueChange={handleSwitchDyad} disabled={isLoadingDyads}>
+                  <SelectTrigger id="dyad-switcher" className="h-9 text-xs font-semibold bg-background">
+                    <SelectValue placeholder={isLoadingDyads ? 'Loading dyads…' : 'Select patient dyad'} />
                   </SelectTrigger>
                   <SelectContent className="max-w-xs sm:max-w-sm">
                     {dyads.map((dyad) => (

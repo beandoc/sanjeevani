@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Microscope, ShieldCheck, AlertTriangle, UserCheck } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Microscope, ShieldCheck, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -72,7 +72,7 @@ export default function LungInfectionsProfessionalPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  In older adults, pneumonia is not just a lung infection; it's a systemic event with high rates of hospitalization and mortality. The risk is elevated due to a confluence of age-related changes and common comorbidities.
+                  In older adults, pneumonia is not just a lung infection; it&apos;s a systemic event with high rates of hospitalization and mortality. The risk is elevated due to a confluence of age-related changes and common comorbidities.
                 </p>
                 <h4 className="font-semibold">Key Risk Factors:</h4>
                 <ul className="list-disc space-y-2 pl-5">

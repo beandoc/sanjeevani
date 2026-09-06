@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Bone, Shield, Utensils, HeartPulse, Activity } from 'lucide-react';
+import { ArrowLeft, Bone, Shield, Utensils, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -61,7 +61,7 @@ export default function JointProblemsCaregiverPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Bone className="h-6 w-6 text-primary" />
-              Osteoarthritis (OA): The "Wear and Tear" Arthritis
+              Osteoarthritis (OA): The &quot;Wear and Tear&quot; Arthritis
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2">
@@ -107,7 +107,7 @@ export default function JointProblemsCaregiverPage() {
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(2)}
             >
-                <p>Gout is a form of inflammatory arthritis characterized by sudden, severe attacks of pain, swelling, redness, and tenderness in the joints, often at the base of the big toe. It's caused by the buildup of uric acid crystals in a joint.</p>
+                <p>Gout is a form of inflammatory arthritis characterized by sudden, severe attacks of pain, swelling, redness, and tenderness in the joints, often at the base of the big toe. It&apos;s caused by the buildup of uric acid crystals in a joint.</p>
                  <h4 className="font-semibold">Key Signs of a Gout Attack:</h4>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>

@@ -14,12 +14,7 @@ import {
   ShieldAlert,
   Sparkles,
   CheckCircle2,
-  AlertTriangle,
-  Wind,
-  Volume2,
-  Droplets,
-  Heart,
-  Home
+  Wind
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

@@ -49,7 +49,7 @@ export default function StrengthTrainingCaregiverPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Supporting Physical Activity: A Caregiver's Guide
+          Supporting Physical Activity: A Caregiver&apos;s Guide
         </h1>
         <p className="text-muted-foreground">
           Learn how to encourage exercise and physical fitness for older adults.
@@ -72,10 +72,10 @@ export default function StrengthTrainingCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Regular physical activity is one of the most powerful things an older adult can do for their health. It can improve everything from heart health to mood, and it's essential for maintaining independence.
+                  Regular physical activity is one of the most powerful things an older adult can do for their health. It can improve everything from heart health to mood, and it&apos;s essential for maintaining independence.
                 </p>
                 <p>
-                  It's helpful to know the difference between "physical activity" (like gardening or chores) and "exercise" (a planned workout). Both are important! Your role as a caregiver is to encourage both in a safe and supportive way.
+                  It&apos;s helpful to know the difference between &quot;physical activity&quot; (like gardening or chores) and &quot;exercise&quot; (a planned workout). Both are important! Your role as a caregiver is to encourage both in a safe and supportive way.
                 </p>
             </SectionCard>
           </AccordionContent>
@@ -129,7 +129,7 @@ export default function StrengthTrainingCaregiverPage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  Think of exercise as a powerful "medication" with only positive side effects. It can be more effective than drugs for some conditions and is especially helpful for issues that don't have a cure.
+                  Think of exercise as a powerful &quot;medication&quot; with only positive side effects. It can be more effective than drugs for some conditions and is especially helpful for issues that don&apos;t have a cure.
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>

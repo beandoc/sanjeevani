@@ -72,11 +72,11 @@ export default function LungInfectionsCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Pneumonia is an infection deep in the lungs. It's not just a bad cold or bronchitis. For people over 65, it's one of the leading causes of hospitalization and death because their bodies have a harder time fighting off serious infections.
+                  Pneumonia is an infection deep in the lungs. It&apos;s not just a bad cold or bronchitis. For people over 65, it&apos;s one of the leading causes of hospitalization and death because their bodies have a harder time fighting off serious infections.
                 </p>
                 <h4 className="font-semibold">Key Risk Factors:</h4>
                 <ul className="list-disc space-y-2 pl-5">
-                  <li>Their immune system isn't as strong.</li>
+                  <li>Their immune system isn&apos;t as strong.</li>
                   <li>Their cough, which helps clear germs from the lungs, is often weaker.</li>
                   <li>They are more likely to have other health problems like heart disease, lung disease, or diabetes.</li>
                 </ul>
@@ -107,7 +107,7 @@ export default function LungInfectionsCaregiverPage() {
                     <li><strong>Falls or Dizziness:</strong> A sudden decline in their ability to get around or a new fall can be caused by the weakness and low oxygen from pneumonia.</li>
                     <li><strong>General Weakness:</strong> A sudden inability to perform their usual daily activities.</li>
                 </ul>
-                <p className="mt-4 font-semibold text-destructive">Important: A high fever and a bad cough might not be present at the beginning. Trust your instincts. If your loved one is "not themselves," it's worth a call to the doctor.</p>
+                <p className="mt-4 font-semibold text-destructive">Important: A high fever and a bad cough might not be present at the beginning. Trust your instincts. If your loved one is &quot;not themselves,&quot; it&apos;s worth a call to the doctor.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -127,7 +127,7 @@ export default function LungInfectionsCaregiverPage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  You don't need to be a doctor to know when a situation is serious. Think about these four things:
+                  You don&apos;t need to be a doctor to know when a situation is serious. Think about these four things:
                 </p>
                 <ul className="list-disc space-y-2 pl-5 font-medium">
                   <li>Is there new <strong>C</strong>onfusion?</li>
@@ -135,7 +135,7 @@ export default function LungInfectionsCaregiverPage() {
                   <li>Do they seem dizzy or faint (a sign of low <strong>B</strong>lood pressure)?</li>
                   <li>Are they over <strong>65</strong>?</li>
                 </ul>
-                <p className="mt-4 font-semibold">If you see these signs, especially new confusion or fast breathing, it's a medical emergency. You should seek help right away.</p>
+                <p className="mt-4 font-semibold">If you see these signs, especially new confusion or fast breathing, it&apos;s a medical emergency. You should seek help right away.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>

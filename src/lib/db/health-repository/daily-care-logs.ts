@@ -75,7 +75,7 @@ function normalizeDailyCareLogs(items: unknown[]): DailyCareLog[] {
   return items
     .filter((item) => item && typeof item === 'object')
     .map((item) => {
-      const raw = item as Record<string, any>;
+      const raw = item as Record<string, unknown>;
       return {
         id: String(raw.id || `daily_${raw.date || new Date().toISOString().slice(0, 10)}_${raw.shift || 'full_day'}`),
         date: String(raw.date || new Date().toISOString().slice(0, 10)),

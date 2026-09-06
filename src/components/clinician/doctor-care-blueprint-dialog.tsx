@@ -16,14 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
   Stethoscope,
-  Sparkles,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   Bed,
   Clock,
   Send,
-  Users,
   Activity,
   FileSignature
 } from 'lucide-react';
@@ -32,8 +30,7 @@ import {
   PatientDependenceProfile,
   ClinicalCareBlueprint,
   AssistiveDeviceInventory,
-  DEFAULT_ASSISTIVE_DEVICES,
-  FormalSupportType
+  DEFAULT_ASSISTIVE_DEVICES
 } from '@/lib/clinical/care-gap-engine';
 import { StaffingRecommender, SimulatedStaffingOption } from '@/lib/clinical/staffing-recommender';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +39,6 @@ import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/ev
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface DoctorCareBlueprintDialogProps {
-  patientUid: string;
   patientName: string;
   caregiver: CaregiverAttributes | null;
   patientProfile: PatientDependenceProfile | null;
@@ -51,7 +47,6 @@ interface DoctorCareBlueprintDialogProps {
 }
 
 export function DoctorCareBlueprintDialog({
-  patientUid,
   patientName,
   caregiver,
   patientProfile,
@@ -62,53 +57,65 @@ export function DoctorCareBlueprintDialog({
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Derive staffing recommendation from the engine
-  const safeCaregiver: CaregiverAttributes = caregiver || {
-    name: 'Primary Caregiver',
-    age: 50,
-    gender: 'female',
-    kinship: 'daughter',
-    coResidence: 'lives_together',
-    education: 'graduate',
-    employment: 'full_time',
-    dailyHoursCommitted: 5,
-    monthlyOutOfPocketBurden: 'moderate_strain',
-    formalTrainingReceived: false,
-    caregiverHealth: {
-      hasBackPain: false,
-      hasHypertension: false,
-      hasArthritis: false,
-      hasDiabetes: false,
-      hasInsomnia: false
-    }
-  };
+  // Derive staffing recommendation from the engine. safeCaregiver/safePatient
+  // are memoized so their identity is stable across renders when caregiver/
+  // patientProfile haven't changed — the placeholder object literal fallbacks
+  // were previously recreated fresh every render, which defeated `report`'s
+  // memoization whenever no real profile was passed in yet.
+  const safeCaregiver: CaregiverAttributes = useMemo(
+    () =>
+      caregiver || {
+        name: 'Primary Caregiver',
+        age: 50,
+        gender: 'female',
+        kinship: 'daughter',
+        coResidence: 'lives_together',
+        education: 'graduate',
+        employment: 'full_time',
+        dailyHoursCommitted: 5,
+        monthlyOutOfPocketBurden: 'moderate_strain',
+        formalTrainingReceived: false,
+        caregiverHealth: {
+          hasBackPain: false,
+          hasHypertension: false,
+          hasArthritis: false,
+          hasDiabetes: false,
+          hasInsomnia: false
+        }
+      },
+    [caregiver]
+  );
 
-  const safePatient: PatientDependenceProfile = patientProfile || {
-    name: patientName,
-    age: 75,
-    primaryConditions: [],
-    katzAdl: {
-      bathing: false,
-      dressing: false,
-      toileting: true,
-      transferring: false,
-      continence: true,
-      feeding: true
-    },
-    lawtonIadl: {
-      telephone: true,
-      shopping: false,
-      mealPreparation: false,
-      housekeeping: false,
-      laundry: false,
-      transportation: false,
-      medicationManagement: false,
-      finances: false
-    },
-    cognitiveBehavioralLoad: 'none',
-    fallHistoryLast6Months: 0,
-    isBedBound: false
-  };
+  const safePatient: PatientDependenceProfile = useMemo(
+    () =>
+      patientProfile || {
+        name: patientName,
+        age: 75,
+        primaryConditions: [],
+        katzAdl: {
+          bathing: false,
+          dressing: false,
+          toileting: true,
+          transferring: false,
+          continence: true,
+          feeding: true
+        },
+        lawtonIadl: {
+          telephone: true,
+          shopping: false,
+          mealPreparation: false,
+          housekeeping: false,
+          laundry: false,
+          transportation: false,
+          medicationManagement: false,
+          finances: false
+        },
+        cognitiveBehavioralLoad: 'none',
+        fallHistoryLast6Months: 0,
+        isBedBound: false
+      },
+    [patientProfile, patientName]
+  );
 
   const report = useMemo(
     () => StaffingRecommender.recommend(safeCaregiver, safePatient),
@@ -379,6 +386,7 @@ export function DoctorCareBlueprintDialog({
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card cursor-pointer text-xs">
                 <input
                   type="checkbox"
+                  aria-label="Motorized Multi-Channel Hospital Bed"
                   checked={devices.hospitalBed !== 'none'}
                   onChange={(e) =>
                     setDevices({
@@ -397,6 +405,7 @@ export function DoctorCareBlueprintDialog({
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card cursor-pointer text-xs">
                 <input
                   type="checkbox"
+                  aria-label="Alternating Pressure Ripple Air Mattress"
                   checked={devices.airWaterMattress}
                   onChange={(e) => setDevices({ ...devices, airWaterMattress: e.target.checked })}
                   className="rounded text-primary"
@@ -410,6 +419,7 @@ export function DoctorCareBlueprintDialog({
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card cursor-pointer text-xs">
                 <input
                   type="checkbox"
+                  aria-label="Transfer Aids (Gait Belt / Pivot Disc)"
                   checked={devices.transferAids}
                   onChange={(e) => setDevices({ ...devices, transferAids: e.target.checked })}
                   className="rounded text-primary"
@@ -423,6 +433,7 @@ export function DoctorCareBlueprintDialog({
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card cursor-pointer text-xs">
                 <input
                   type="checkbox"
+                  aria-label="Folding Commode / Transit Wheelchair"
                   checked={devices.wheelchair}
                   onChange={(e) => setDevices({ ...devices, wheelchair: e.target.checked })}
                   className="rounded text-primary"

@@ -16,12 +16,9 @@ import {
   ChevronLeft,
   AlertTriangle,
   CheckCircle2,
-  Thermometer,
   Wind,
   Droplets,
-  Pill,
   Moon,
-  PhoneCall,
   RotateCcw,
   HeartPulse,
 } from 'lucide-react';

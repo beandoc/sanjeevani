@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Footprints, Eye, ShieldCheck, Sun, Droplets } from 'lucide-react';
+import { ArrowLeft, Footprints, Eye, ShieldCheck, Droplets } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -89,7 +89,7 @@ export default function FootCarePage() {
                     <strong>Corns and Calluses:</strong> Note any thick, hard patches of skin, as these can hide sores underneath.
                   </li>
                 </ul>
-                 <p className="mt-4 text-sm text-muted-foreground">If the person can't see their own feet, use a mirror or ask for help. Good lighting is key.</p>
+                 <p className="mt-4 text-sm text-muted-foreground">If the person can&apos;t see their own feet, use a mirror or ask for help. Good lighting is key.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -113,7 +113,7 @@ export default function FootCarePage() {
                         <strong>Wash Gently:</strong> Wash feet daily with lukewarm water and mild soap. Avoid soaking, as it can dry out the skin.
                     </li>
                     <li>
-                        <strong>Dry Thoroughly:</strong> Pay special attention to drying between the toes to prevent fungal infections like athlete's foot.
+                        <strong>Dry Thoroughly:</strong> Pay special attention to drying between the toes to prevent fungal infections like athlete&apos;s foot.
                     </li>
                     <li>
                         <strong>Moisturize:</strong> Apply a good quality lotion to the tops and bottoms of the feet to prevent dry skin and cracking. Do not put lotion between the toes.
@@ -145,7 +145,7 @@ export default function FootCarePage() {
                         <strong>Trim Straight Across:</strong> Cut the toenails straight across and gently file the edges with an emery board. Avoid rounding the corners.
                     </li>
                     <li>
-                        <strong>Don't Cut Too Short:</strong> Be careful not to cut nails shorter than the end of the toe.
+                        <strong>Don&apos;t Cut Too Short:</strong> Be careful not to cut nails shorter than the end of the toe.
                     </li>
                     <li>
                         <strong>Seek Professional Help:</strong> If the person has thick, hard-to-cut nails, poor circulation, or diabetes, it is safest to have their nails trimmed by a podiatrist (foot doctor).

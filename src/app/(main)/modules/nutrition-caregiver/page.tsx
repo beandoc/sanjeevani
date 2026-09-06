@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Utensils, Search, Brain, Handshake, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Brain, Handshake, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -49,7 +49,7 @@ export default function NutritionCaregiverPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          Nutrition and Feeding: A Caregiver's Guide
+          Nutrition and Feeding: A Caregiver&apos;s Guide
         </h1>
         <p className="text-muted-foreground">
           Understanding malnutrition and feeding problems in older adults.
@@ -72,7 +72,7 @@ export default function NutritionCaregiverPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Malnutrition means an imbalance of nutrients. In older adults, it usually means "undernutrition"—not getting enough calories, protein, or other nutrients needed to keep the body healthy. It's a serious issue linked to more frequent hospital visits, falls, and other negative outcomes.
+                  Malnutrition means an imbalance of nutrients. In older adults, it usually means &quot;undernutrition&quot;—not getting enough calories, protein, or other nutrients needed to keep the body healthy. It&apos;s a serious issue linked to more frequent hospital visits, falls, and other negative outcomes.
                 </p>
                 <h4 className="font-semibold">Key Signs to Watch For:</h4>
                 <ul className="list-disc space-y-2 pl-5">
@@ -144,7 +144,7 @@ export default function NutritionCaregiverPage() {
               isCompleted={completedSections.has(3)}
             >
                 <p>
-                  Dysphagia is the medical term for difficulty swallowing. It's a common issue in older adults, especially after a stroke or with conditions like dementia.
+                  Dysphagia is the medical term for difficulty swallowing. It&apos;s a common issue in older adults, especially after a stroke or with conditions like dementia.
                 </p>
                 <h4 className="font-semibold">Signs of a Swallowing Problem:</h4>
                 <ul className="list-disc space-y-2 pl-5">
@@ -152,7 +152,7 @@ export default function NutritionCaregiverPage() {
                         <strong>Coughing or Choking:</strong> Frequent coughing or choking during or after eating and drinking.
                     </li>
                     <li>
-                        <strong>"Wet" or Gurgly Voice:</strong> A change in voice quality after swallowing.
+                        <strong>&quot;Wet&quot; or Gurgly Voice:</strong> A change in voice quality after swallowing.
                     </li>
                     <li>
                         <strong>Pocketing Food:</strong> Holding food in the cheeks instead of swallowing it.
@@ -161,7 +161,7 @@ export default function NutritionCaregiverPage() {
                         <strong>Persistent Throat Clearing:</strong> Needing to clear the throat often while eating.
                     </li>
                 </ul>
-                <p className="mt-4 font-semibold text-destructive">If you notice these signs, it's crucial to report them to a doctor or speech therapist for a proper evaluation.</p>
+                <p className="mt-4 font-semibold text-destructive">If you notice these signs, it&apos;s crucial to report them to a doctor or speech therapist for a proper evaluation.</p>
             </SectionCard>
           </AccordionContent>
         </AccordionItem>
@@ -194,7 +194,7 @@ export default function NutritionCaregiverPage() {
                         <strong>Create a Pleasant Mealtime Environment:</strong> Eat together, reduce distractions like the TV, and make mealtime a positive social event.
                     </li>
                     <li>
-                        <strong>Offer Assistance:</strong> If needed, help with meal setup or feeding. Be patient and don't rush.
+                        <strong>Offer Assistance:</strong> If needed, help with meal setup or feeding. Be patient and don&apos;t rush.
                     </li>
                      <li>
                         <strong>Look into Community Resources:</strong> Programs like Meals on Wheels can provide regular, nutritious meals for those who have trouble with food preparation.

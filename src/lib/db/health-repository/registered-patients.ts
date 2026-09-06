@@ -77,35 +77,74 @@ export function archiveDyad(patientUid: string): void {
     } else {
       toAdd.add(`dyad_${cleanId}`);
     }
+
+    // Also look up any matching registered patient or invite to archive its aliases
+    const reg = getRegisteredPatient(cleanId);
+    if (reg) {
+      if (reg.patientUid) toAdd.add(reg.patientUid);
+      if (reg.inviteCode) {
+        toAdd.add(reg.inviteCode);
+        toAdd.add(`dyad_${reg.inviteCode}`);
+      }
+    }
+    const invites = getDyadInvites();
+    for (const inv of invites) {
+      if (
+        inv.dyadUid === cleanId ||
+        inv.inviteCode === cleanId ||
+        inv.inviteCode === cleanId.replace('dyad_', '')
+      ) {
+        toAdd.add(inv.inviteCode);
+        toAdd.add(`dyad_${inv.inviteCode}`);
+        if (inv.dyadUid) toAdd.add(inv.dyadUid);
+      }
+    }
+
+    // If it's a Sarojini alias, archive all known demo/seed variants so it cannot ghost back
+    if (cleanId.toLowerCase().includes('sarojini') || cleanId.toUpperCase().includes('SAROJINI81')) {
+      toAdd.add('demo-sarojini');
+      toAdd.add('dyad_sarojini_devi');
+      toAdd.add('sarojini_devi');
+      toAdd.add('SAROJINI81');
+      toAdd.add('dyad_SAROJINI81');
+    }
+
     localStorage.setItem(STORAGE_KEYS.ARCHIVED_DYADS, JSON.stringify(Array.from(toAdd)));
 
     // Clean up from registered patients
     removeRegisteredPatient(cleanId);
+    if (cleanId.toLowerCase().includes('sarojini') || cleanId.toUpperCase().includes('SAROJINI81')) {
+      removeRegisteredPatient('demo-sarojini');
+      removeRegisteredPatient('dyad_sarojini_devi');
+      removeRegisteredPatient('SAROJINI81');
+    }
 
     // Clean up invites
     const rawInvites = localStorage.getItem(STORAGE_KEYS.DYAD_INVITES);
     if (rawInvites) {
       try {
-        const invites = JSON.parse(rawInvites);
-        if (Array.isArray(invites)) {
-          const filteredInvites = invites.filter(
-            (inv: any) =>
-              inv.dyadUid !== cleanId &&
-              inv.inviteCode !== cleanId &&
-              inv.inviteCode !== cleanId.replace('dyad_', '')
+        const parsedInvites = JSON.parse(rawInvites);
+        if (Array.isArray(parsedInvites)) {
+          const filteredInvites = parsedInvites.filter(
+            (inv: unknown) => {
+              const { dyadUid, inviteCode } = inv as { dyadUid?: string; inviteCode?: string };
+              return !toAdd.has(dyadUid ?? '') && !toAdd.has(inviteCode ?? '');
+            }
           );
           localStorage.setItem(STORAGE_KEYS.DYAD_INVITES, JSON.stringify(filteredInvites));
         }
       } catch {}
     }
 
-    // Clean up per-dyad local stores
-    localStorage.removeItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${cleanId}`);
-    localStorage.removeItem(`${STORAGE_KEYS.CAREGIVER_ATTRIBUTES}_${cleanId}`);
-    localStorage.removeItem(`${STORAGE_KEYS.ZARIT}_${cleanId}`);
-    localStorage.removeItem(`${STORAGE_KEYS.VITALS}_${cleanId}`);
-    localStorage.removeItem(`${STORAGE_KEYS.MEDICATIONS}_${cleanId}`);
-    localStorage.removeItem(`${STORAGE_KEYS.DAILY_CARE_LOGS}_${cleanId}`);
+    // Clean up per-dyad local stores for all aliases
+    for (const alias of Array.from(toAdd)) {
+      localStorage.removeItem(`${STORAGE_KEYS.PATIENT_PROFILE}_${alias}`);
+      localStorage.removeItem(`${STORAGE_KEYS.CAREGIVER_ATTRIBUTES}_${alias}`);
+      localStorage.removeItem(`${STORAGE_KEYS.ZARIT}_${alias}`);
+      localStorage.removeItem(`${STORAGE_KEYS.VITALS}_${alias}`);
+      localStorage.removeItem(`${STORAGE_KEYS.MEDICATIONS}_${alias}`);
+      localStorage.removeItem(`${STORAGE_KEYS.DAILY_CARE_LOGS}_${alias}`);
+    }
   } catch (e) {
     console.error(`Error archiving dyad ${patientUid}:`, e);
   }

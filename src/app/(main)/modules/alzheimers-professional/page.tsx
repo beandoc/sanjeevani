@@ -7,8 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Brain, Microscope, Search, ShieldCheck, Activity, Stethoscope } from 'lucide-react';
+import { ArrowLeft, Brain, Microscope, ShieldCheck, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -50,10 +49,10 @@ export default function AlzheimersProfessionalPage() {
       </Button>
       <div>
         <h1 className="text-3xl font-bold font-headline">
-          A Comprehensive Nursing Guide to Alzheimer's Disease
+          A Comprehensive Nursing Guide to Alzheimer&apos;s Disease
         </h1>
         <p className="text-muted-foreground">
-          This lesson provides a detailed clinical framework for understanding Alzheimer's Disease (AD) in the geriatric population, covering its pathophysiology, risk factors, the spectrum of cognitive decline, the diagnostic process including biomarkers, and the assessment of behavioral symptoms.
+          This lesson provides a detailed clinical framework for understanding Alzheimer&apos;s Disease (AD) in the geriatric population, covering its pathophysiology, risk factors, the spectrum of cognitive decline, the diagnostic process including biomarkers, and the assessment of behavioral symptoms.
         </p>
       </div>
 
@@ -62,7 +61,7 @@ export default function AlzheimersProfessionalPage() {
           <AccordionTrigger className="text-xl font-semibold">
             <div className="flex items-center gap-3">
               <Microscope className="h-6 w-6 text-primary" />
-              Chapter 1: Foundations of Alzheimer's Disease
+              Chapter 1: Foundations of Alzheimer&apos;s Disease
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 space-y-4">
@@ -73,7 +72,7 @@ export default function AlzheimersProfessionalPage() {
                 isCompleted={completedSections.has(1)}
                 >
                 <p>
-                  Alzheimer's Disease is a progressive, degenerative brain disorder characterized by a decline in memory, cognition, and/or behavior that ultimately impacts Activities of Daily Living (ADLs). The disease is defined by two core neuropathological lesions:
+                  Alzheimer&apos;s Disease is a progressive, degenerative brain disorder characterized by a decline in memory, cognition, and/or behavior that ultimately impacts Activities of Daily Living (ADLs). The disease is defined by two core neuropathological lesions:
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li><strong>Senile (Amyloid) Plaques:</strong> Extracellular deposits of insoluble amyloid-β (Aβ) peptide filaments.</li>
@@ -174,7 +173,7 @@ export default function AlzheimersProfessionalPage() {
                 isCompleted={completedSections.has(4)}
                 >
                  <h4 className="font-semibold text-lg">Subjective Cognitive Decline (SCD)</h4>
-                 <p>This is a patient's self-reported memory concern in the presence of normal performance on objective cognitive tests. While often linked to depression or anxiety, it can also be the very first symptomatic manifestation of preclinical AD.</p>
+                 <p>This is a patient&apos;s self-reported memory concern in the presence of normal performance on objective cognitive tests. While often linked to depression or anxiety, it can also be the very first symptomatic manifestation of preclinical AD.</p>
 
                  <h4 className="font-semibold text-lg mt-4">Mild Cognitive Impairment (MCI)</h4>
                  <p>MCI is a transitional state characterized by:</p>

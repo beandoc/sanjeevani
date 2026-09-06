@@ -15,14 +15,11 @@ import {
   Activity,
   Utensils,
   AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  ShieldAlert
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { useProfile } from '@/context/role-context';
 import { useEffect, useState } from 'react';
 import { SectionCard } from '@/components/cards/section-card';

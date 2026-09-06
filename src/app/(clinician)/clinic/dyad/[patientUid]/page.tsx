@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ArrowLeft,
-  User,
   AlertTriangle,
   Pill,
   HeartPulse,
@@ -44,22 +43,15 @@ import {
   TrendingUp,
   BookOpen,
   Car,
-  ShieldCheck,
-  Calendar,
   FileText,
   Sparkles,
-  Layers,
   HeartHandshake,
-  ClipboardPlus,
   MapPin,
   Hospital,
-  Store,
   Ambulance,
-  FileCheck2,
   Printer,
   ExternalLink,
   UserMinus,
-  Trash2,
   Edit3
 } from 'lucide-react';
 import {
@@ -80,10 +72,11 @@ import {
   subscribeToDyadClinicalData,
   dischargeOrDeletePatientDyad
 } from '@/lib/firebase/clinical-sync';
-import { HealthRepository, type MedicationItem, type VitalRecord } from '@/lib/db/health-repository';
+import { HealthRepository, type MedicationItem, type VitalRecord, type AppointmentRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory, EmergencyLogistics } from '@/lib/clinical/care-gap-engine';
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
+import { invalidateCohortCache } from '@/lib/analytics/cohort';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
 import { RiskHeader } from '@/components/clinician/risk-header';
 import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
@@ -170,7 +163,7 @@ export default function DyadDetailPage() {
   const [latestAssessment, setLatestAssessment] = useState<ZaritEvaluationResult | null>(null);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
   const [showCdssDetails, setShowCdssDetails] = useState(false);
@@ -228,7 +221,7 @@ export default function DyadDetailPage() {
         getAppointmentsFor(patientUid).catch(() => [])
       ]);
       let assessments = assessmentsResult;
-      let functionScores = functionScoresResult;
+      const functionScores = functionScoresResult;
       let name = nameResult;
       let meds = medsResult;
       let vitalRecords = vitalRecordsResult;
@@ -751,6 +744,7 @@ export default function DyadDetailPage() {
       setIsEmergencyModalOpen(false);
       await load();
     } catch (err) {
+      console.error('Failed to save emergency logistics:', err);
       toast({
         variant: 'destructive',
         title: 'Error Saving Logistics',
@@ -781,6 +775,7 @@ export default function DyadDetailPage() {
     setIsDischarging(true);
     try {
       await dischargeOrDeletePatientDyad(patientUid);
+      invalidateCohortCache();
       setIsArchived(true);
       toast({
         title: 'Patient Dyad Discharged',
@@ -800,6 +795,7 @@ export default function DyadDetailPage() {
 
   const handleRestoreDyad = () => {
     HealthRepository.unarchiveDyad(patientUid);
+    invalidateCohortCache();
     setIsArchived(false);
     toast({
       title: 'Dyad Restored',
@@ -942,7 +938,6 @@ export default function DyadDetailPage() {
               />
 
               <DoctorCareBlueprintDialog
-                patientUid={patientUid}
                 patientName={cleanPatientName}
                 caregiver={caregiver}
                 patientProfile={patientProfile}

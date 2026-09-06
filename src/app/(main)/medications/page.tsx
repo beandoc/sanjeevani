@@ -11,16 +11,13 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  Clock,
   Trash2,
   ShieldAlert,
   Info,
   CalendarCheck,
   Sun,
   Sunset,
-  Moon,
-  Sparkles,
-  Search
+  Moon
 } from 'lucide-react';
 import {
   Dialog,
@@ -449,7 +446,7 @@ export default function MedicationsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Food Relation</Label>
-                    <Select value={foodRelation} onValueChange={(v: any) => setFoodRelation(v)}>
+                    <Select value={foodRelation} onValueChange={(v: 'before' | 'after' | 'with' | 'any') => setFoodRelation(v)}>
                       <SelectTrigger className="h-9 text-xs">
                         <SelectValue />
                       </SelectTrigger>

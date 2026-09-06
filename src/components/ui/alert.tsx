@@ -36,6 +36,10 @@ const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
+  /* eslint-disable-next-line jsx-a11y/heading-has-content -- generic forwardRef wrapper;
+     content is always supplied as `children` via {...props} at the call site
+     (e.g. <AlertTitle>Some text</AlertTitle>), which static analysis can't trace through
+     the spread. */
   <h5
     ref={ref}
     className={cn("mb-1 font-medium leading-none tracking-tight", className)}

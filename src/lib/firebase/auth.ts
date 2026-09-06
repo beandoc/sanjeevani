@@ -72,79 +72,18 @@ export async function signUpWithEmail(
   displayName?: string
 ): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await ensureUserProfile(cred.user.uid, role, { displayName, email });
-    return cred.user;
-  } catch (err: any) {
-    if (err?.code === 'auth/configuration-not-found') {
-      const cleanEmail = email.toLowerCase();
-      const mockUser = {
-        uid: `kutumbh-${cleanEmail.replace(/[^a-z0-9]/g, '-')}`,
-        email: cleanEmail,
-        displayName: displayName || (role === 'professional' ? 'Dr. Vivek' : role === 'nurse' ? 'Nurse Vidya' : 'Suresh Kumar'),
-        getIdToken: async () => `demo-token-${Date.now()}`,
-        reload: async () => {},
-        emailVerified: true
-      } as unknown as User;
-      return mockUser;
-    }
-    throw err;
-  }
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  // Default self-service registrations to caregiver. Clinician/nurse privileges require admin claims.
+  const targetRole: Role = role === 'nurse' || role === 'doctor' || role === 'professional' ? 'caregiver' : role;
+  await ensureUserProfile(cred.user.uid, targetRole, { displayName, email });
+  return cred.user;
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is unconfigured or unavailable in this environment.');
 
-  const cleanEmail = email.toLowerCase();
-  const inferredRole: Role = (
-    cleanEmail.includes('doctor') ||
-    cleanEmail.includes('clinic') ||
-    cleanEmail.startsWith('dr')
-  ) ? 'professional' : (cleanEmail.includes('nurse') || cleanEmail.includes('vidya')) ? 'nurse' : 'caregiver';
-
-  let defaultName = 'Suresh Kumar (Kutumbh Caregiver)';
-  if (inferredRole === 'professional') {
-    defaultName = 'Dr. Vivek (Consultant Geriatrician)';
-  } else if (inferredRole === 'nurse') {
-    defaultName = 'Nurse Vidya (Clinical Care Coordinator)';
-  }
-
-  try {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const displayName = cred.user.displayName || defaultName;
-    await ensureUserProfile(cred.user.uid, inferredRole, { email, displayName });
-    return cred.user;
-  } catch (err: any) {
-    // If account does not exist yet, attempt automatic creation (e.g. for test credentials)
-    if (err?.code === 'auth/user-not-found' || err?.code === 'auth/invalid-credential') {
-      try {
-        const newCred = await createUserWithEmailAndPassword(auth, email, password);
-        await ensureUserProfile(newCred.user.uid, inferredRole, { email, displayName: defaultName });
-        return newCred.user;
-      } catch (createErr: any) {
-        if (createErr?.code !== 'auth/configuration-not-found') {
-          throw err;
-        }
-      }
-    }
-
-    // If Firebase Authentication is not yet enabled in Firebase Console (kutumbh-45485)
-    // or unconfigured, support seamless login for test/demo credentials so user is not blocked
-    if (err?.code === 'auth/configuration-not-found') {
-      const mockUser = {
-        uid: `kutumbh-${cleanEmail.replace(/[^a-z0-9]/g, '-')}`,
-        email: cleanEmail,
-        displayName: defaultName,
-        getIdToken: async () => `demo-token-${Date.now()}`,
-        reload: async () => {},
-        emailVerified: true
-      } as unknown as User;
-      return mockUser;
-    }
-
-    throw err;
-  }
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
 }
 
 /* ------------------------------------------------------------------ *
@@ -221,6 +160,17 @@ export function subscribeToAuthState(callback: (user: User | null) => void): () 
 }
 
 export async function getUserRole(uid: string): Promise<Role | null> {
+  // 1. Prioritize verified custom claims from token if available for current user
+  if (auth?.currentUser && auth.currentUser.uid === uid) {
+    try {
+      const tokenResult = await auth.currentUser.getIdTokenResult();
+      const claimRole = tokenResult.claims.role as Role | undefined;
+      if (claimRole) return claimRole;
+      if (tokenResult.claims.clinician === true) return 'professional';
+    } catch {}
+  }
+
+  // 2. Fall back to users/{uid} profile document
   if (!db) return null;
   try {
     const snap = await getDoc(doc(db, 'users', uid));

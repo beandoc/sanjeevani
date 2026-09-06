@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Shield, Users, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Stethoscope, Shield, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -72,7 +72,7 @@ export default function OralHealthProfessionalPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Oral health screening should be a routine part of the initial history and physical examination. Disease in the oral cavity can significantly diminish a patient's overall health and quality of life.
+                  Oral health screening should be a routine part of the initial history and physical examination. Disease in the oral cavity can significantly diminish a patient&apos;s overall health and quality of life.
                 </p>
                 <h4 className="font-semibold">Key Considerations:</h4>
                 <ul className="list-disc space-y-2 pl-5">
@@ -83,7 +83,7 @@ export default function OralHealthProfessionalPage() {
                     <strong>Medication Adverse Effects:</strong> Many common medications (e.g., anticholinergics, diuretics, antidepressants) cause xerostomia (dry mouth), which dramatically increases the risk for dental caries and candidiasis.
                   </li>
                   <li>
-                    <strong>Functional Limitations:</strong> Assess the patient's ability to perform their own oral hygiene. Frailty, cognitive impairment, or poor manual dexterity are significant barriers to effective daily care.
+                    <strong>Functional Limitations:</strong> Assess the patient&apos;s ability to perform their own oral hygiene. Frailty, cognitive impairment, or poor manual dexterity are significant barriers to effective daily care.
                   </li>
                 </ul>
             </SectionCard>

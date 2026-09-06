@@ -14,12 +14,9 @@ import {
   Utensils,
   Pill,
   Accessibility,
-  Car,
   HeartHandshake,
   Activity,
   CheckCircle2,
-  AlertCircle,
-  Stethoscope,
   Smile,
   ShieldCheck
 } from 'lucide-react';

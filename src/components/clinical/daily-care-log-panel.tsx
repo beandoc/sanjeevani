@@ -111,8 +111,6 @@ export function DailyCareLogPanel({
     () => logs.find((log) => log.id === makeLogId(date, shift)) || null,
     [date, logs, shift]
   );
-  const latestLog = logs[0] || null;
-
   useEffect(() => {
     let unsubscribe = () => {};
     if (patientUid) {
@@ -278,13 +276,13 @@ export function DailyCareLogPanel({
           <CardContent className="p-4 sm:p-5 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">Date</label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 text-xs font-mono" />
+                <label htmlFor="daily-care-log-date" className="text-[11px] font-semibold text-muted-foreground">Date</label>
+                <Input id="daily-care-log-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 text-xs font-mono" />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">Shift</label>
+                <label htmlFor="daily-care-log-shift" className="text-[11px] font-semibold text-muted-foreground">Shift</label>
                 <Select value={shift} onValueChange={(value) => setShift(value as DailyCareShift)}>
-                  <SelectTrigger className="h-9 text-xs">
+                  <SelectTrigger id="daily-care-log-shift" className="h-9 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,8 +293,8 @@ export function DailyCareLogPanel({
                 </Select>
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <label className="text-[11px] font-semibold text-muted-foreground">Recorded By</label>
-                <Input value={recordedByName} onChange={(e) => setRecordedByName(e.target.value)} placeholder="Nurse / medical assistant name" className="h-9 text-xs" />
+                <label htmlFor="daily-care-log-recorded-by" className="text-[11px] font-semibold text-muted-foreground">Recorded By</label>
+                <Input id="daily-care-log-recorded-by" value={recordedByName} onChange={(e) => setRecordedByName(e.target.value)} placeholder="Nurse / medical assistant name" className="h-9 text-xs" />
               </div>
             </div>
 

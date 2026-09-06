@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ArrowLeft, Stethoscope, Microscope, Beaker, ShieldCheck, FileText } from 'lucide-react';
+import { ArrowLeft, Microscope, Beaker, ShieldCheck, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/context/role-context';
@@ -188,7 +188,7 @@ export default function NutritionCareProfessionalPage() {
                         <strong>Dysphagia Management:</strong> For patients with swallowing difficulties, consult a speech therapist. Interventions include texture-modified diets (e.g., pureed, minced) and thickened liquids.
                     </li>
                     <li>
-                        <strong>Enteral/Parenteral Nutrition:</strong> Consider specialized nutrition support only when a patient cannot eat adequately and the benefits outweigh the risks. Always consider the patient's advance directives.
+                        <strong>Enteral/Parenteral Nutrition:</strong> Consider specialized nutrition support only when a patient cannot eat adequately and the benefits outweigh the risks. Always consider the patient&apos;s advance directives.
                     </li>
                     <li>
                         <strong>Refeeding Syndrome:</strong> In severely malnourished patients, monitor electrolytes (especially phosphate, potassium, magnesium) and fluid status carefully during the first week of nutritional repletion to prevent this potentially fatal complication.

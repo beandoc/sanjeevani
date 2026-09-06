@@ -72,7 +72,7 @@ export default function GeriatricDepressionProfessionalPage() {
               isCompleted={completedSections.has(1)}
             >
                 <p>
-                  Depression is a leading cause of disability worldwide and a serious public health problem among older adults. Primary care settings are the "de facto mental health care system" where up to 80% of older Americans with depression receive their care. Approximately 5-10% of older adults in primary care have clinically significant depression, but it is often undetected and undertreated.
+                  Depression is a leading cause of disability worldwide and a serious public health problem among older adults. Primary care settings are the &quot;de facto mental health care system&quot; where up to 80% of older Americans with depression receive their care. Approximately 5-10% of older adults in primary care have clinically significant depression, but it is often undetected and undertreated.
                 </p>
                 <h4 className="font-semibold">Key Statistics:</h4>
                  <ul className="list-disc space-y-2 pl-5">
@@ -107,7 +107,7 @@ export default function GeriatricDepressionProfessionalPage() {
                 <h4 className="font-semibold text-lg">Barriers to Effective Treatment</h4>
                 <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
                     <li>
-                        <strong>Patient-Level:</strong> Atypical presentation (somatic complaints), attributing symptoms to "normal aging," stigma, and poor adherence.
+                        <strong>Patient-Level:</strong> Atypical presentation (somatic complaints), attributing symptoms to &quot;normal aging,&quot; stigma, and poor adherence.
                     </li>
                     <li>
                         <strong>Provider-Level:</strong> Time pressure, inadequate knowledge, and lack of a psychosocial orientation.
@@ -120,7 +120,7 @@ export default function GeriatricDepressionProfessionalPage() {
                 <h4 className="font-semibold text-lg mt-4">Risk and Protective Factors</h4>
                 <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
                     <li>
-                        <strong>Risk Factors:</strong> Female gender, being unmarried, poverty, chronic physical illness, social isolation, loss and grief, and caregiving responsibilities. 'Vascular depression' is a subtype associated with cerebrovascular changes.
+                        <strong>Risk Factors:</strong> Female gender, being unmarried, poverty, chronic physical illness, social isolation, loss and grief, and caregiving responsibilities. &apos;Vascular depression&apos; is a subtype associated with cerebrovascular changes.
                     </li>
                     <li>
                         <strong>Protective Factors:</strong> Social support, social activities (volunteering), physical activity, religion, and spirituality.
@@ -161,14 +161,14 @@ export default function GeriatricDepressionProfessionalPage() {
                 <h4 className="font-semibold text-lg">Detection and Screening</h4>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
-                        <strong>Brief Screens:</strong> Use simple, validated tools like the single-item screen ("Do you often feel sad or depressed?") or the PHQ-2 for initial screening.
+                        <strong>Brief Screens:</strong> Use simple, validated tools like the single-item screen (&quot;Do you often feel sad or depressed?&quot;) or the PHQ-2 for initial screening.
                     </li>
                     <li>
                         <strong>Longer Tools for Monitoring:</strong> The Geriatric Depression Scale (GDS) or the PHQ-9 can be used to establish a diagnosis and track symptoms over time.
                     </li>
                 </ul>
                 <h4 className="font-semibold text-lg mt-4">Stepped Care</h4>
-                <p>This model begins with the least intrusive interventions and "steps up" treatment intensity if the patient is not improving.</p>
+                <p>This model begins with the least intrusive interventions and &quot;steps up&quot; treatment intensity if the patient is not improving.</p>
                 <ul className="list-disc space-y-2 pl-5">
                 <li>
                     <strong>Step 1:</strong> Encourage self-directed interventions like pleasant events scheduling or physical activity.
@@ -223,13 +223,13 @@ export default function GeriatricDepressionProfessionalPage() {
                     <strong>Cultural Considerations:</strong> Culture influences how depression is experienced and expressed (e.g., somatic vs. psychological symptoms). Treatment must be culturally sensitive.
                 </li>
                 <li>
-                    <strong>Collaborative Care's Role:</strong> Collaborative care programs that offer both pharmacological and non-pharmacological options have been shown to improve outcomes for older minorities and low-income Americans.
+                    <strong>Collaborative Care&apos;s Role:</strong> Collaborative care programs that offer both pharmacological and non-pharmacological options have been shown to improve outcomes for older minorities and low-income Americans.
                 </li>
                 </ul>
                 <h4 className="font-semibold text-lg mt-4">Engaging Family as Partners</h4>
                 <ul className="list-disc space-y-2 pl-5">
                 <li>
-                    Family caregivers of depressed older adults experience significant burden, similar to caregivers of patients with Alzheimer's disease.
+                    Family caregivers of depressed older adults experience significant burden, similar to caregivers of patients with Alzheimer&apos;s disease.
                 </li>
                 <li>
                     Positive family support is a key predictor of good depression outcomes and can help with treatment adherence.

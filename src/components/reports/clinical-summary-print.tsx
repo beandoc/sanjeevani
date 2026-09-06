@@ -17,9 +17,6 @@ interface ClinicalSummaryPrintProps {
   zaritResult?: ZaritEvaluationResult | null;
   vitals: VitalRecord[];
   medications: MedicationItem[];
-  patientName?: string;
-  caregiverName?: string;
-  caregiverRelation?: string;
   caregiverAttrs?: CaregiverAttributes | null;
   patientProfile?: PatientDependenceProfile | null;
 }
@@ -28,13 +25,9 @@ export function ClinicalSummaryPrint({
   zaritResult,
   vitals,
   medications,
-  patientName = 'Smt. Sarojini Devi (Age 81)',
-  caregiverName = 'Suresh Kumar (Son)',
-  caregiverRelation = 'Primary Family Caregiver',
   caregiverAttrs: propsCaregiverAttrs,
   patientProfile: propsPatientProfile
 }: ClinicalSummaryPrintProps) {
-  const [mounted, setMounted] = useState(false);
   const [docId, setDocId] = useState('SNJ-CLINICAL-000000');
   const [generatedDate, setGeneratedDate] = useState<Date | null>(null);
   const [caregiverAttrs, setCaregiverAttrs] = useState(DEFAULT_CAREGIVER_ATTRIBUTES);
@@ -43,7 +36,6 @@ export function ClinicalSummaryPrint({
   const [hasRealDyadProfile, setHasRealDyadProfile] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     setGeneratedDate(new Date());
     setDocId(`SNJ-CLINICAL-${Date.now().toString().slice(-6)}`);
 
@@ -51,7 +43,7 @@ export function ClinicalSummaryPrint({
       setHasRealDyadProfile(true);
       setCaregiverAttrs(propsCaregiverAttrs);
       setPatientProfile(propsPatientProfile);
-      setCareGapEval(CareGapEngine.evaluate(propsCaregiverAttrs, propsPatientProfile, new Date(), vitals as any, []));
+      setCareGapEval(CareGapEngine.evaluate(propsCaregiverAttrs, propsPatientProfile, new Date(), vitals, []));
     } else {
       const hasProfile = HealthRepository.hasStoredDyadProfile();
       setHasRealDyadProfile(hasProfile);
@@ -60,7 +52,7 @@ export function ClinicalSummaryPrint({
         const pt = HealthRepository.getPatientProfile();
         setCaregiverAttrs(cg);
         setPatientProfile(pt);
-        setCareGapEval(CareGapEngine.evaluate(cg, pt, new Date(), vitals as any, []));
+        setCareGapEval(CareGapEngine.evaluate(cg, pt, new Date(), vitals, []));
       }
     }
   }, [propsCaregiverAttrs, propsPatientProfile, vitals]);

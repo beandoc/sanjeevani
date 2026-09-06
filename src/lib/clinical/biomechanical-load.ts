@@ -184,25 +184,16 @@ export function calculateBiomechanicalLoad(
     liftingIndex = Math.round(liftingIndex * 0.4 * 100) / 100; // 60% load reduction from shared handling
   }
 
-  // 6. Caregiver Physical Constraint Vector & Spinal Compression Estimation
-  let caregiverTolerance = 1.0;
-  if (caregiver.age >= 65) {
-    caregiverTolerance *= MAPO_PATIENT_HANDLING_PARAMS.caregiverToleranceFactors.age65Plus;
-  } else if (caregiver.age >= 50) {
-    caregiverTolerance *= MAPO_PATIENT_HANDLING_PARAMS.caregiverToleranceFactors.age50To64;
-  }
-
-  if (safeHealth.hasBackPain) {
-    caregiverTolerance *= MAPO_PATIENT_HANDLING_PARAMS.caregiverToleranceFactors.preExistingBackPainToleranceDiscount;
-  }
-  if (safeHealth.hasArthritis) {
-    caregiverTolerance *= MAPO_PATIENT_HANDLING_PARAMS.caregiverToleranceFactors.peripheralArthritisCouplingDiscount;
-  }
-
-  // Sleep interruption penalty on core muscle stabilization
-  if (nocturnalSleepInterruptions >= 3.0) {
-    caregiverTolerance *= 0.88; // Micro-sleep loss decreases core neuromuscular reaction
-  }
+  // NOTE: a `caregiverTolerance` multiplicative factor (age, back pain,
+  // arthritis, sleep-interruption discounts via MAPO_PATIENT_HANDLING_PARAMS
+  // .caregiverToleranceFactors) was computed here but never applied to any
+  // downstream value — removed as dead code during a lint cleanup rather than
+  // guessed into strainScore below, which already applies flat point
+  // penalties for the same four factors (age >= 60, hasBackPain, hasArthritis
+  // via the transferring/bathing branches, nocturnalSleepInterruptions). If
+  // the multiplicative model was the intended one instead of (or in addition
+  // to) those additive penalties, that's a clinical-logic decision for
+  // someone who owns this scoring model, not a lint fix.
 
   // Estimate L5/S1 spinal compression force in kN (Chaffin & Andersson 1991, Waters 1993):
   // Upper body torso baseline compression ~1.2 kN.

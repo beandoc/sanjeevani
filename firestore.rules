@@ -37,42 +37,31 @@ service cloud.firestore {
       return tier == 'ZBI22' ? 88 : (tier == 'ZBI12' ? 48 : 16);
     }
 
-    // Clinician status is an Admin SDK-issued custom claim, or an email
-    // matching a recognized role pattern. Doctor and nurse are checked
-    // separately (not just "any clinical staff") because a doctor is the
-    // clinic-wide account (sees every dyad_* placeholder it or a colleague
-    // created) while a nurse must be explicitly assigned to a dyad — see
-    // hasActiveGrant and the clinicianGrants create rule below. A generic
-    // "any @kutumbh.com address is professional" match was removed here: it
-    // silently made every caregiver account (e.g. sureshcaregiver@kutumbh.com)
-    // count as clinical staff too, defeating that scoping entirely.
-    function isDoctorEmail(email) {
-      return email != null
-          && (email.matches('^(doctor|dr).*') || email.matches('.*(doctor|clinic).*'));
-    }
-
-    function isNurseEmail(email) {
-      return email != null
-          && (email.matches('^(nurse|vidya).*') || email.matches('.*nurse.*'));
-    }
-
+    // Clinician status is an Admin SDK-issued custom claim.
+    //
+    // Every optional claim is read with `.get(key, default)`. Dot access on a
+    // key that is absent from the token map does not evaluate to null — it
+    // raises "Property <key> is undefined on object" and denies the request
+    // outright. Since `clinician`/`role` are absent from every unprovisioned
+    // token (and `email`/`phone_number` are absent for phone/email sign-in
+    // respectively), dot access here denied legitimate access; the emulator
+    // suite in rules.emulator.test.ts covers this.
+    // Doctor and nurse roles are cryptographically verified through
+    // request.auth.token claims; email regex inference has been strictly eliminated.
     function isDoctorTier(uid) {
       return isAuthenticated()
           && (
-            request.auth.token.clinician == true
-            || request.auth.token.role == 'doctor'
-            || request.auth.token.role == 'professional'
-            || isDoctorEmail(request.auth.token.email)
+            request.auth.token.get('clinician', false) == true
+            || request.auth.token.get('role', '') == 'doctor'
+            || request.auth.token.get('role', '') == 'professional'
           );
     }
 
     function isProfessional(uid) {
       return isAuthenticated()
           && (
-            request.auth.token.clinician == true
-            || request.auth.token.role in ['doctor', 'nurse', 'professional']
-            || isDoctorEmail(request.auth.token.email)
-            || isNurseEmail(request.auth.token.email)
+            request.auth.token.get('clinician', false) == true
+            || request.auth.token.get('role', '') in ['doctor', 'nurse', 'professional']
           );
     }
 
@@ -92,17 +81,10 @@ service cloud.firestore {
       return isAuthenticated()
           && isProfessional(request.auth.uid)
           && (
-            userId.matches('^demo-.*')
-            // Blanket dyad_* access is doctor-tier only — a nurse (or any
-            // other non-doctor professional) must hold an explicit grant
-            // below, same as a real claimed caregiver.
-            || (isDyadPlaceholder(userId) && isDoctorTier(request.auth.uid))
-            || (
-              exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
-              && (
-                !('revokedAt' in get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data)
-                || get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null
-              )
+            exists(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid))
+            && (
+              !('revokedAt' in get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data)
+              || get(/databases/$(database)/documents/users/$(userId)/clinicianGrants/$(request.auth.uid)).data.revokedAt == null
             )
           );
     }
@@ -110,7 +92,15 @@ service cloud.firestore {
     // 1. User Profiles & Role Mapping
     match /users/{userId} {
       allow read: if isOwner(userId) || hasActiveGrant(userId);
-      allow create: if ((isOwner(userId) && (request.resource.data.role == 'caregiver' || request.resource.data.role in ['professional', 'doctor', 'nurse']))
+      // Self-service registration is caregiver-only. A clinical role is never
+      // self-asserted: it is provisioned as a custom claim by an administrator
+      // (see /api/admin/claims and scripts/set-claims.ts), which also mirrors
+      // the role onto this document via the Admin SDK — a path that bypasses
+      // these rules entirely. Without this restriction any account could write
+      // itself role:'doctor' here; rules themselves only trust the token
+      // claim, so that was never a data breach, but it did let the client UI
+      // be spoofed into rendering the clinician experience.
+      allow create: if ((isOwner(userId) && request.resource.data.role == 'caregiver')
                         || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                     && request.resource.data.keys().hasAll(['role', 'createdAt'])
                     && (request.resource.data.createdAt is timestamp || request.resource.data.createdAt is string);
@@ -427,7 +417,7 @@ service cloud.firestore {
       //      checks the referenced sentinel doc actually exists first, so
       //      this can never be used to self-grant on an arbitrary dyad.
       match /clinicianGrants/{clinicianUid} {
-        allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid) || isDyadPlaceholder(userId);
+        allow read: if isOwner(userId) || (isAuthenticated() && request.auth.uid == clinicianUid);
         allow create: if (isOwner(userId)
                           || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId))
                           || (isAuthenticated() && isProfessional(request.auth.uid)
@@ -465,7 +455,7 @@ service cloud.firestore {
       allow read: if isAuthenticated()
                   && (
                     request.auth.uid == resource.data.clinicianUid
-                    || (request.auth.token.email != null && request.auth.token.email == resource.data.assignedEmail)
+                    || (request.auth.token.get('email', null) != null && request.auth.token.get('email', null) == resource.data.assignedEmail)
                   );
     }
 
@@ -491,10 +481,10 @@ service cloud.firestore {
       allow list: if isAuthenticated()
                   && (
                     resource.data.clinicianUid == request.auth.uid
-                    || (request.auth.token.phone_number != null
-                        && resource.data.caregiverPhone == request.auth.token.phone_number)
-                    || (request.auth.token.email != null
-                        && resource.data.caregiverEmail == request.auth.token.email)
+                    || (request.auth.token.get('phone_number', null) != null
+                        && resource.data.caregiverPhone == request.auth.token.get('phone_number', null))
+                    || (request.auth.token.get('email', null) != null
+                        && resource.data.caregiverEmail == request.auth.token.get('email', null))
                   );
       allow create: if isAuthenticated()
                     && isProfessional(request.auth.uid)
@@ -529,8 +519,8 @@ service cloud.firestore {
 
     // Materialized Cohort Summaries (BFF / single-read aggregation)
     match /cohortSummaries/{dyadId} {
-      allow read: if isAuthenticated() && isProfessional(request.auth.uid);
-      allow write: if isAuthenticated() && (isProfessional(request.auth.uid) || isOwner(dyadId));
+      allow read: if isAuthenticated() && (resource.data.clinicianUid == request.auth.uid || isOwner(dyadId));
+      allow write: if false; // Materialized view written exclusively by server Admin SDK
     }
 
     // 2. Care Circles (Multi-caregiver team collaboration)

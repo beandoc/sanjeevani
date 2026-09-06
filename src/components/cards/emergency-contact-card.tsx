@@ -1,13 +1,14 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, HeartPulse, ShieldAlert, PhoneCall, Sparkles } from 'lucide-react';
+import { Phone, ShieldAlert, PhoneCall } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTranslations } from 'next-intl';
 
+// NOTE: this component's strings are hardcoded English, unconnected to the
+// app's 5-locale next-intl catalogue — part of the broader i18n gap (most of
+// the app doesn't call useTranslations either) rather than something to fix
+// in isolation here.
 export const EmergencyContactCard = () => {
-  const t = useTranslations('Dashboard');
-
   const emergencyServices = [
     {
       id: 'elderline',

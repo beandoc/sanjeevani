@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ShieldCheck, Download, Trash2, AlertTriangle, CheckCircle2, Lock, FileJson } from 'lucide-react';
+import { ShieldCheck, Download, Trash2, AlertTriangle } from 'lucide-react';
 import { HealthRepository, UserConsentPreferences } from '@/lib/db/health-repository';
 import { syncConsent } from '@/lib/firebase/clinical-sync';
 import { useToast } from '@/hooks/use-toast';
@@ -97,6 +97,7 @@ export function ConsentManager({ mode = 'full', onConsentChange }: ConsentManage
         description: 'Your portable JSON archive has been downloaded successfully.',
       });
     } catch (e) {
+      console.error('Health data export failed:', e);
       toast({
         variant: 'destructive',
         title: 'Export Failed',

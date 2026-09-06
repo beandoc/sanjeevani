@@ -22,10 +22,7 @@ import {
   ArrowRight,
   ShieldAlert,
   Sparkles,
-  HeartPulse,
-  BrainCircuit,
   Activity,
-  CheckCircle2,
   BookOpen,
   UserCheck,
   Stethoscope,
@@ -144,7 +141,7 @@ const CompetencySection = ({
   );
 };
 
-const ModulesView = ({ modules, role }: { modules: Module[]; role: 'caregiver' | 'professional' }) => {
+const ModulesView = ({ modules }: { modules: Module[] }) => {
   const { caregivingScenario } = useProfile();
   const { user } = useAuthUser();
   const searchParams = useSearchParams();
@@ -358,10 +355,10 @@ function ModulesContent() {
           <TabsTrigger value="professional">{t('professionalTab')}</TabsTrigger>
         </TabsList>
         <TabsContent value="caregiver" className="pt-4">
-          <ModulesView modules={getModulesForRole('caregiver')} role="caregiver" />
+          <ModulesView modules={getModulesForRole('caregiver')} />
         </TabsContent>
         <TabsContent value="professional" className="pt-4">
-          <ModulesView modules={getModulesForRole('professional')} role="professional" />
+          <ModulesView modules={getModulesForRole('professional')} />
         </TabsContent>
       </Tabs>
     </div>

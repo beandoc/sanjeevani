@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Lock, EyeOff, Database, FileText, HeartPulse } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ShieldCheck, Lock, EyeOff, Database } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
             3. Regulatory Compliance
           </h2>
           <p>
-            Sanjeevani adheres to the principles outlined in India's Digital Personal Data Protection Act (DPDPA 2023), ensuring purpose limitation, minimal data retention, and patient dignity.
+            Sanjeevani adheres to the principles outlined in India&apos;s Digital Personal Data Protection Act (DPDPA 2023), ensuring purpose limitation, minimal data retention, and patient dignity.
           </p>
         </section>
       </div>

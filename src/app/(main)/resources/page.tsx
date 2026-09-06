@@ -39,7 +39,6 @@ import {
   Sparkles,
   AlertTriangle,
   FileText,
-  Activity,
   CheckCircle2,
   Clock,
   ShieldAlert,
@@ -57,8 +56,7 @@ import {
   SupportedLanguage
 } from '@/lib/clinical/patient-education-data';
 import {
-  literatureReviewData,
-  LiteratureReviewItem
+  literatureReviewData
 } from '@/lib/clinical/literature-review-data';
 
 const directoryResources = [

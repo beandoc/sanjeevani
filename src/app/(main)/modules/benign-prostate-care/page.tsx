@@ -77,13 +77,13 @@ export default function BenignProstateCarePage() {
                 <h4 className="font-semibold">Key Symptoms:</h4>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    <strong>Storage Symptoms:</strong> Needing to urinate often during the day, waking up at night to urinate (nocturia), a sudden urge to go that's hard to ignore, and leaking urine.
+                    <strong>Storage Symptoms:</strong> Needing to urinate often during the day, waking up at night to urinate (nocturia), a sudden urge to go that&apos;s hard to ignore, and leaking urine.
                   </li>
                   <li>
                     <strong>Voiding Symptoms:</strong> A weak or slow urine stream, trouble starting urination (hesitancy), a stream that starts and stops, or straining to urinate.
                   </li>
                   <li>
-                    <strong>After-Urination Symptoms:</strong> A feeling that the bladder isn't completely empty, or dribbling urine after leaving the toilet.
+                    <strong>After-Urination Symptoms:</strong> A feeling that the bladder isn&apos;t completely empty, or dribbling urine after leaving the toilet.
                   </li>
                 </ul>
             </SectionCard>
@@ -138,7 +138,7 @@ export default function BenignProstateCarePage() {
                 isCompleted={completedSections.has(3)}
             >
                 <p>
-                  If lifestyle changes aren't enough, a doctor may prescribe medication.
+                  If lifestyle changes aren&apos;t enough, a doctor may prescribe medication.
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                     <li>
@@ -169,7 +169,7 @@ export default function BenignProstateCarePage() {
                 onComplete={handleSectionComplete}
                 isCompleted={completedSections.has(4)}
             >
-                <p>It's important to involve a healthcare professional to get an accurate diagnosis and rule out more serious conditions.</p>
+                <p>It&apos;s important to involve a healthcare professional to get an accurate diagnosis and rule out more serious conditions.</p>
                  <ul className="list-disc space-y-2 pl-5">
                     <li>
                         If symptoms are significantly impacting quality of life (e.g., poor sleep, avoiding social activities).

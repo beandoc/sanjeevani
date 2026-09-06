@@ -2,17 +2,13 @@
 
 import React, { useState, useMemo } from 'react';
 import { ZaritEvaluationResult, ZbiFactor } from '@/lib/zarit-scale';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  AlertTriangle,
   ShieldAlert,
   HeartPulse,
-  Award,
-  CheckCircle2,
-  FileText,
   RotateCcw,
   Sparkles,
   ArrowRight,
@@ -22,8 +18,6 @@ import {
   Calendar,
   PhoneCall,
   Download,
-  Share2,
-  ExternalLink,
   ChevronRight,
   Activity,
   Layers

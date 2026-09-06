@@ -42,11 +42,11 @@ const mockLocalStorage = {
 describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', () => {
   beforeEach(() => {
     // Setup window & localStorage mock
-    (globalThis as any).window = {
+    (globalThis as unknown as { window: unknown }).window = {
       localStorage: mockLocalStorage,
       location: { origin: 'http://localhost:3000' }
     };
-    (globalThis as any).localStorage = mockLocalStorage;
+    (globalThis as unknown as { localStorage: unknown }).localStorage = mockLocalStorage;
     mockLocalStorage.clear();
     HealthRepository.deleteAllUserData();
   });

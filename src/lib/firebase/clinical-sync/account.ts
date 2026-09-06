@@ -10,7 +10,6 @@ import {
   setDoc,
   getDocs,
   getDoc,
-  where,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../client';
@@ -21,7 +20,7 @@ import {
   type UserConsentPreferences,
   type AppointmentRecord
 } from '@/lib/db/health-repository';
-import { currentUid, mergeZaritAssessments } from './internal';
+import { currentUid } from './internal';
 import type { SyncResult } from './types';
 import { getPatientProfileFor, getCaregiverAttributesFor } from './profile';
 import { getMedicationsFor } from './medications';

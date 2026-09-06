@@ -18,6 +18,21 @@ import { currentUid } from './internal';
 import { getDyadInvite } from './dyad-invites';
 import type { ClinicianGrant } from './access';
 
+export interface ReassessmentAlert {
+  id: string;
+  patientUid: string;
+  patientName: string;
+  previousScore: number;
+  newScore: number;
+  completedAt: string;
+  alertType: 'zarit_surge' | 'caregiver_respite_needed';
+  deltaPct?: number;
+  needsCaregiverRespite: boolean;
+  reason?: string;
+  read: boolean;
+  createdAt: string;
+}
+
 const RESPITE_ALERT_MIN_DELTA_PCT = 5;
 const RESPITE_ALERT_MIN_SCORE_PCT = 50;
 
@@ -144,7 +159,7 @@ export function subscribeToReassessmentRequest(
     doc(db, 'users', patientUid, 'reassessmentRequests', 'current'),
     (snap) => {
       if (snap.exists()) {
-        callback(snap.data() as any);
+        callback(snap.data() as { requestedAt: string; requestedBy: string; status: string });
       } else {
         callback(null);
       }
@@ -195,13 +210,13 @@ export async function createReassessmentAlert(
 }
 
 /** Clinician subscribes to caregiver increased burden alerts */
-export function subscribeToReassessmentAlerts(callback: (alerts: any[]) => void) {
+export function subscribeToReassessmentAlerts(callback: (alerts: ReassessmentAlert[]) => void) {
   const clinicianUid = currentUid();
   if (!db || !clinicianUid) return () => {};
   return onSnapshot(
     collection(db, 'users', clinicianUid, 'reassessmentAlerts'),
     (snap) => {
-      const alerts = snap.docs.map((d) => d.data());
+      const alerts = snap.docs.map((d) => d.data() as ReassessmentAlert);
       alerts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(alerts);
     },
