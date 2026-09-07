@@ -12,6 +12,7 @@ import {
   getDoc,
   query,
   where,
+  limit,
   serverTimestamp,
   writeBatch,
   runTransaction
@@ -231,7 +232,9 @@ export async function listMyDyadInvites(): Promise<DyadInvite[]> {
   const uid = currentUid();
   if (!uid || !db) return localInvites;
   try {
-    const snap = await getDocs(query(collection(db, 'dyadInvites'), where('clinicianUid', '==', uid)));
+    const snap = await getDocs(
+      query(collection(db, 'dyadInvites'), where('clinicianUid', '==', uid), limit(500))
+    );
     const cloudInvites = snap.docs.map((d) => d.data() as DyadInvite);
     const map = new Map<string, DyadInvite>();
     for (const item of [...cloudInvites, ...localInvites]) {

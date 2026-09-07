@@ -8,7 +8,9 @@ import {
   doc,
   setDoc,
   getDocs,
-  getDoc
+  getDoc,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { type ModuleSectionProgress } from '@/lib/db/health-repository';
@@ -89,7 +91,7 @@ export async function getModuleProgressFor(
 ): Promise<Record<string, ModuleSectionProgress>> {
   if (!db) return {};
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'moduleProgress'));
+    const snap = await getDocs(query(collection(db, 'users', patientUid, 'moduleProgress'), limit(100)));
     const map: Record<string, ModuleSectionProgress> = {};
     snap.docs.forEach((d) => {
       map[d.id] = d.data() as ModuleSectionProgress;

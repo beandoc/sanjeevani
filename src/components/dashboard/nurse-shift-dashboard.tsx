@@ -28,9 +28,7 @@ import {
   getVitalsFor,
   syncNursingProcedures,
   getNursingProceduresFor,
-  getMedicationsFor,
   saveMedicationsFor,
-  getPatientProfileFor,
   listMyRoster,
   hydrateLocalCacheFromCloud
 } from '@/lib/firebase/clinical-sync';
@@ -99,29 +97,23 @@ export function NurseShiftDashboard() {
 
     let cancelled = false;
     void (async () => {
-      try {
-        await hydrateLocalCacheFromCloud(targetDyadUid);
-      } catch {}
+      // hydrateLocalCacheFromCloud already fetches + merges the patient
+      // profile, medications, and vitals into HealthRepository — re-fetching
+      // each one again right after was firing the same network reads twice.
+      // Run it alongside the one fetch it doesn't cover (today's nursing
+      // procedures) instead of a redundant sequential chain.
+      const [, savedProcs] = await Promise.all([
+        hydrateLocalCacheFromCloud(targetDyadUid).catch(() => {}),
+        getNursingProceduresFor(targetDyadUid, todayStr())
+      ]);
 
-      const cloudPt = await getPatientProfileFor(targetDyadUid);
-      if (!cancelled && cloudPt) {
-        HealthRepository.savePatientProfile(cloudPt);
-        setPatient(cloudPt);
-      }
+      if (cancelled) return;
 
-      const cloudMeds = await getMedicationsFor(targetDyadUid);
-      if (!cancelled && cloudMeds.length > 0) {
-        HealthRepository.saveMedications(cloudMeds);
-        setMedications(HealthRepository.getMedications());
-      }
+      setPatient(HealthRepository.getPatientProfile());
+      setMedications(HealthRepository.getMedications());
+      setRecentVitals(HealthRepository.getVitals());
 
-      const cloudVitals = await getVitalsFor(targetDyadUid);
-      if (!cancelled && cloudVitals.length > 0) {
-        setRecentVitals(cloudVitals);
-      }
-
-      const savedProcs = await getNursingProceduresFor(targetDyadUid, todayStr());
-      if (!cancelled && Object.keys(savedProcs).length > 0) {
+      if (Object.keys(savedProcs).length > 0) {
         setProcedures((prev) => ({ ...prev, ...savedProcs }));
       }
     })();

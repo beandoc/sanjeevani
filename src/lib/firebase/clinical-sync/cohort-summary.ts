@@ -12,7 +12,7 @@ import type { CohortRow } from '@/lib/analytics/cohort';
 
 export async function syncCohortSummary(
   patientUid: string,
-  partial: Partial<CohortRow> & { clinicianUid?: string }
+  partial: Partial<CohortRow> & { clinicianUid?: string; riskBandOrder?: number }
 ): Promise<void> {
   if (!db || !patientUid || patientUid.startsWith('demo-')) return;
   try {

@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Lock,
   Mail,
-  Smartphone,
   Building2,
   ArrowRight,
   Eye,
@@ -20,7 +19,6 @@ import {
   Stethoscope,
   HeartPulse,
   Users,
-  Fingerprint,
   Bed
 } from 'lucide-react';
 import { useProfile, Role } from '@/context/role-context';
@@ -29,22 +27,16 @@ import { useToast } from '@/hooks/use-toast';
 import {
   signInWithEmail,
   signUpWithEmail,
-  sendCaregiverOtp,
-  verifyCaregiverOtp,
-  getUserRole,
-  type ConfirmationResult
+  getUserRole
 } from '@/lib/firebase/auth';
 import { createSession } from '@/lib/firebase/session';
 import { provisionDemoPersonaAccess, hydrateLocalCacheFromCloud } from '@/lib/firebase/clinical-sync';
-
-const RECAPTCHA_CONTAINER_ID = 'sanjeevani-recaptcha-container';
 
 export default function LoginPage() {
   const router = useRouter();
   const { role, setRole } = useProfile();
   const { toast } = useToast();
 
-  const [authMethod, setAuthMethod] = useState<'email' | 'mobile' | 'abha'>('email');
   const [selectedRole, setSelectedRole] = useState<Role>(role || 'professional');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,11 +45,6 @@ export default function LoginPage() {
   // Form Fields
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [abhaId, setAbhaId] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   /** Routes by the account's actual stored role, not the login toggle — a
    * returning user's role is authoritative in Firestore, so this can't be
@@ -112,57 +99,37 @@ export default function LoginPage() {
     const cleanPassword = password.trim();
 
     try {
-      if (authMethod === 'email') {
-        const effectiveRole: Role =
-          cleanEmail.toLowerCase().includes('caregiver')
-            ? 'caregiver'
-            : cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
-              ? 'professional'
-              : cleanEmail.toLowerCase().includes('nurse') || cleanEmail.toLowerCase().includes('vidya')
-                ? 'nurse'
-                : selectedRole;
+      const effectiveRole: Role =
+        cleanEmail.toLowerCase().includes('caregiver')
+          ? 'caregiver'
+          : cleanEmail.toLowerCase().includes('doctor') || cleanEmail.toLowerCase().includes('clinic')
+            ? 'professional'
+            : cleanEmail.toLowerCase().includes('nurse') || cleanEmail.toLowerCase().includes('vidya')
+              ? 'nurse'
+              : selectedRole;
 
-        let user;
-        if (isSignUp) {
-          user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
-        } else {
-          try {
-            user = await signInWithEmail(cleanEmail, cleanPassword);
-          } catch (signInErr: unknown) {
-            const errCode = (signInErr as { code?: string })?.code;
-            // If the demo/kutumbh account doesn't exist yet in Firebase Auth,
-            // seamlessly auto-create it so the user never gets stuck on "Incorrect credentials"
-            if (
-              (errCode === 'auth/user-not-found' || errCode === 'auth/invalid-credential') &&
-              (cleanEmail.endsWith('@kutumbh.com') || cleanEmail.includes('caregiver') || cleanEmail.includes('nurse'))
-            ) {
-              user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
-            } else {
-              throw signInErr;
-            }
+      let user;
+      if (isSignUp) {
+        user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
+      } else {
+        try {
+          user = await signInWithEmail(cleanEmail, cleanPassword);
+        } catch (signInErr: unknown) {
+          const errCode = (signInErr as { code?: string })?.code;
+          // If the demo/kutumbh account doesn't exist yet in Firebase Auth,
+          // seamlessly auto-create it so the user never gets stuck on "Incorrect credentials"
+          if (
+            (errCode === 'auth/user-not-found' || errCode === 'auth/invalid-credential') &&
+            (cleanEmail.endsWith('@kutumbh.com') || cleanEmail.includes('caregiver') || cleanEmail.includes('nurse'))
+          ) {
+            user = await signUpWithEmail(cleanEmail, cleanPassword, effectiveRole);
+          } else {
+            throw signInErr;
           }
         }
-
-        await completeSignIn(user, effectiveRole);
-      } else if (authMethod === 'mobile') {
-        if (!confirmationResult) {
-          toast({ variant: 'destructive', title: 'Send an OTP first', description: 'Request a verification code before submitting.' });
-          return;
-        }
-        const { user, linkedInvite } = await verifyCaregiverOtp(confirmationResult, otp);
-        if (linkedInvite) {
-          toast({
-            title: 'Linked to Your Doctor',
-            description: `${linkedInvite.patientName}'s details are ready — no invite code needed.`
-          });
-        }
-        await completeSignIn(user, 'caregiver');
-      } else {
-        toast({
-          title: 'ABDM Gateway Not Connected in This Environment',
-          description: 'ABHA sign-in requires production NHA credentials. Use Email or Mobile OTP here instead.'
-        });
       }
+
+      await completeSignIn(user, effectiveRole);
     } catch (err: unknown) {
       const errCode = (err as { code?: string })?.code;
       const errMsg =
@@ -183,38 +150,6 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!mobile || mobile.length < 10) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Mobile Number',
-        description: 'Please enter a valid 10-digit Indian mobile number.',
-      });
-      return;
-    }
-    try {
-      const result = await sendCaregiverOtp(`+91${mobile}`, RECAPTCHA_CONTAINER_ID);
-      setConfirmationResult(result);
-      setIsOtpSent(true);
-      toast({
-        title: 'OTP Dispatched',
-        description: `A 6-digit verification code was sent to +91 ${mobile.slice(-4).padStart(10, '•')}`,
-      });
-    } catch (err: unknown) {
-      const errCode = (err as { code?: string })?.code;
-      toast({
-        variant: 'destructive',
-        title: 'Could Not Send OTP',
-        description:
-          errCode === 'auth/configuration-not-found'
-            ? 'Phone Authentication is not enabled in Firebase Console (kutumbh-45485).'
-            : err instanceof Error
-              ? err.message
-              : 'Please try again.'
-      });
     }
   };
 
@@ -321,10 +256,7 @@ export default function LoginPage() {
 
           {/* Role Persona Segmented Switch (Kutumbh Caregiver, Nurse, Doctor) */}
           <div className="mt-5 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Select Active Persona / Portal
-              </Label>
+            <div className="flex items-center justify-end">
               <span className="text-[10px] text-primary font-bold">Kutumbh = Family (कुटुम्ब)</span>
             </div>
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 rounded-2xl border border-border/60">
@@ -367,198 +299,64 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Authentication Method Tabs */}
-          <div className="flex items-center gap-4 mt-5 border-b border-border/60 pb-2">
-            <button
-              type="button"
-              onClick={() => setAuthMethod('email')}
-              aria-pressed={authMethod === 'email'}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'email'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              <span>Email & Password</span>
-              {authMethod === 'email' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAuthMethod('mobile')}
-              aria-pressed={authMethod === 'mobile'}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'mobile'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Mobile OTP</span>
-              {authMethod === 'mobile' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAuthMethod('abha')}
-              aria-pressed={authMethod === 'abha'}
-              className={`text-xs font-bold pb-2 transition-all flex items-center gap-1.5 relative ${authMethod === 'abha'
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Fingerprint className="w-3.5 h-3.5" />
-              <span>ABDM / ABHA</span>
-              {authMethod === 'abha' && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-          </div>
-
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4 mt-5">
-            {/* METHOD 1: EMAIL */}
-            {authMethod === 'email' && (
-              <>
-                <div className="flex items-center justify-between -mt-1 mb-1">
-                  <span className="text-[11px] text-muted-foreground">
-                    {isSignUp ? 'Creating a new account' : 'Signing in to existing account'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp((v) => !v)}
-                    className="text-[11px] text-primary hover:underline font-semibold"
-                  >
-                    {isSignUp ? 'Have an account? Sign in' : 'New here? Create account'}
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold">Institutional / Account Email</Label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@example.com or institutional email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-9 h-10 text-xs font-medium"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
-                    <Link href="#" className="text-[11px] text-primary hover:underline font-medium">
-                      Forgot Password?
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 pr-9 h-10 text-xs font-medium"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* METHOD 2: MOBILE OTP */}
-            {authMethod === 'mobile' && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="mobile" className="text-xs font-semibold">10-Digit Mobile Number</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">+91</span>
-                      <Input
-                        id="mobile"
-                        type="tel"
-                        inputMode="tel"
-                        maxLength={10}
-                        placeholder="9820012345"
-                        value={mobile}
-                        onChange={(e) => setMobile(e.target.value)}
-                        className="pl-12 h-10 text-xs font-mono font-medium"
-                        required
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSendOtp}
-                      className="h-10 text-xs font-bold shrink-0"
-                    >
-                      {isOtpSent ? 'Resend OTP' : 'Send OTP'}
-                    </Button>
-                  </div>
-                </div>
-
-                {isOtpSent && (
-                  <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <Label htmlFor="otp" className="text-xs font-semibold">Enter 6-Digit OTP</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={6}
-                      placeholder="123456"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      className="h-10 text-center tracking-widest font-mono text-base font-bold"
-                      required
-                    />
-                  </div>
-                )}
+            <div className="flex items-center justify-between -mt-1 mb-1">
+              <span className="text-[11px] text-muted-foreground">
+                {isSignUp ? 'Creating a new account' : 'Signing in to existing account'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSignUp((v) => !v)}
+                className="text-[11px] text-primary hover:underline font-semibold"
+              >
+                {isSignUp ? 'Have an account? Sign in' : 'New here? Create account'}
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-semibold">Institutional / Account Email</Label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com or institutional email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-9 h-10 text-xs font-medium"
+                  required
+                />
               </div>
-            )}
+            </div>
 
-            {/* METHOD 3: ABDM / ABHA ID */}
-            {authMethod === 'abha' && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="abha" className="text-xs font-semibold">Ayushman Bharat Health Account (ABHA) ID</Label>
-                  <div className="relative">
-                    <Fingerprint className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
-                    <Input
-                      id="abha"
-                      placeholder="14-digit ABHA ID (e.g. 91-1234-5678-9012)"
-                      value={abhaId}
-                      onChange={(e) => setAbhaId(e.target.value)}
-                      className="pl-9 h-10 text-xs font-mono font-medium"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground space-y-0.5">
-                  <p className="font-semibold text-primary">National Health Stack (ABDM M1/M2 Gateway)</p>
-                  <p>Authenticates directly against National Health Authority (NHA) consent records.</p>
-                </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
+                <Link href="#" className="text-[11px] text-primary hover:underline font-medium">
+                  Forgot Password?
+                </Link>
               </div>
-            )}
-
-            <div id={RECAPTCHA_CONTAINER_ID} />
+              <div className="relative">
+                <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-9 pr-9 h-10 text-xs font-medium"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
 
             <Button
               type="submit"
@@ -570,7 +368,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <span>
-                    {authMethod === 'email' && isSignUp ? 'Create Account' : 'Sign In to Clinical Workspace'}
+                    {isSignUp ? 'Create Account' : 'Sign In to Clinical Workspace'}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>

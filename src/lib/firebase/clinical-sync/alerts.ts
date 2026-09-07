@@ -10,7 +10,9 @@ import {
   setDoc,
   getDocs,
   onSnapshot,
-  deleteDoc
+  deleteDoc,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { type ZaritEvaluationResult } from '@/lib/zarit-scale';
@@ -82,7 +84,7 @@ async function getAlertClinicianUids(patientUid: string, fallbackClinicianUid?: 
 
   if (db) {
     try {
-      const grants = await getDocs(collection(db, 'users', patientUid, 'clinicianGrants'));
+      const grants = await getDocs(query(collection(db, 'users', patientUid, 'clinicianGrants'), limit(20)));
       grants.docs.forEach((grantDoc) => {
         const data = grantDoc.data() as ClinicianGrant;
         if (!data.revokedAt) uids.add(data.clinicianUid || grantDoc.id);

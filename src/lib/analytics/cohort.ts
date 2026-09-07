@@ -19,8 +19,10 @@ import {
   getPatientProfileFor,
   getVitalsFor,
   getAppointmentsFor,
-  getDailyCareLogsFor
+  getDailyCareLogsFor,
+  syncCohortSummary
 } from '@/lib/firebase/clinical-sync';
+import { auth } from '@/lib/firebase/client';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { computeTrajectory, type RiskBand } from './trajectory';
 import { isReassessmentDue, type ZbiTier } from '@/lib/zarit-scale';
@@ -368,6 +370,21 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
         if (norm) seenPatientNames.add(norm);
         dedupedRows.push(row);
       }
+
+      // Persist the just-computed rows to the materialized cache so the
+      // BFF fast path (src/app/api/clinic/cohort/route.ts) can serve the
+      // next load in one query instead of repeating this N+1 aggregation.
+      const clinicianUid = auth?.currentUser?.uid;
+      if (clinicianUid) {
+        for (const row of dedupedRows) {
+          syncCohortSummary(row.patientUid, {
+            ...row,
+            clinicianUid,
+            riskBandOrder: RISK_BAND_ORDER[row.riskBand]
+          });
+        }
+      }
+
       return dedupedRows;
     } catch (err) {
       console.warn('Could not load cohort roster, falling back to demo cohort:', err);

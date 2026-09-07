@@ -12,7 +12,8 @@ import {
   where,
   collectionGroup,
   writeBatch,
-  runTransaction
+  runTransaction,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { HealthRepository } from '@/lib/db/health-repository';
@@ -212,7 +213,7 @@ export async function listMyGrants(): Promise<ClinicianGrant[]> {
   const uid = currentUid();
   if (!uid || !db) return [];
   try {
-    const snap = await getDocs(collection(db, 'users', uid, 'clinicianGrants'));
+    const snap = await getDocs(query(collection(db, 'users', uid, 'clinicianGrants'), limit(50)));
     return snap.docs.map((d) => d.data() as ClinicianGrant);
   } catch {
     return [];

@@ -4,7 +4,9 @@ import {
   collection,
   doc,
   setDoc,
-  getDocs
+  getDocs,
+  query,
+  limit
 } from 'firebase/firestore';
 import { db } from '../client';
 import { HealthRepository, type AppointmentRecord } from '@/lib/db/health-repository';
@@ -29,7 +31,8 @@ export async function getAppointmentsFor(patientUid: string): Promise<Appointmen
   const local = currentUid() === patientUid ? HealthRepository.getAppointments() : [];
   if (!db) return local;
   try {
-    const snap = await getDocs(collection(db, 'users', patientUid, 'appointments'));
+    const q = query(collection(db, 'users', patientUid, 'appointments'), limit(10));
+    const snap = await getDocs(q);
     const cloud = snap.docs.map((d) => d.data() as AppointmentRecord);
     const map = new Map<string, AppointmentRecord>();
     for (const a of [...local, ...cloud]) map.set(a.id, a);

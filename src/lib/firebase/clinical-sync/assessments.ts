@@ -48,10 +48,9 @@ export async function syncZaritAssessment(result: ZaritEvaluationResult): Promis
   const uid = currentUid();
   if (!uid || !db) return { queued: false };
   try {
-    const snap = await getDocs(collection(db, 'users', uid, 'zaritAssessments'));
-    const past = snap.docs
-      .map((d) => d.data() as ZaritEvaluationResult)
-      .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+    const past = (await getZaritAssessmentsFor(uid)).sort(
+      (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
 
     await addDoc(collection(db, 'users', uid, 'zaritAssessments'), {
       ...result,

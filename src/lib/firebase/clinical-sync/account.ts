@@ -5,15 +5,12 @@
  */
 
 import {
-  collection,
   doc,
   setDoc,
-  getDocs,
   getDoc,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../client';
-import { type ZaritEvaluationResult } from '@/lib/zarit-scale';
 import {
   HealthRepository,
   type EmergencyContact,
@@ -29,7 +26,7 @@ import { getAppointmentsFor } from './appointments';
 import { getModuleProgressFor } from './learning-modules';
 import { getCareCircleFor } from './care-circle';
 import { getBedsideRoutineChecklistFor, getDischargeMilestonesFor } from './daily-care';
-import { getFunctionScoresFor } from './assessments';
+import { getFunctionScoresFor, getZaritAssessmentsFor } from './assessments';
 /**
  * Mirrors the signed-in caregiver's emergency contact list to Firestore as a
  * single current-state document. Previously local-storage-only with no
@@ -237,8 +234,7 @@ export async function hydrateLocalCacheFromCloud(uid: string): Promise<void> {
       getDischargeMilestonesFor(uid).then((milestones) => {
         if (Object.keys(milestones).length > 0) HealthRepository.saveDischargeMilestones(milestones);
       }),
-      getDocs(collection(db, 'users', uid, 'zaritAssessments')).then((snap) => {
-        const cloud = snap.docs.map((d) => d.data() as ZaritEvaluationResult);
+      getZaritAssessmentsFor(uid).then((cloud) => {
         if (cloud.length > 0) HealthRepository.mergeZaritAssessments(cloud);
       }),
       getFunctionScoresFor(uid).then((scores) => {

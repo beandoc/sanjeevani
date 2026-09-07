@@ -23,6 +23,14 @@
         { "fieldPath": "caregiverEmail", "order": "ASCENDING" },
         { "fieldPath": "claimedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "cohortSummaries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clinicianUid", "order": "ASCENDING" },
+        { "fieldPath": "riskBandOrder", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
