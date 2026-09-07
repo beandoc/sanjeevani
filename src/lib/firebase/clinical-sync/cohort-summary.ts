@@ -6,7 +6,7 @@
  * a single query instead of an N+1 subcollection waterfall over WAN.
  */
 
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../client';
 import type { CohortRow } from '@/lib/analytics/cohort';
 
@@ -42,3 +42,14 @@ export async function getCohortSummary(patientUid: string): Promise<CohortRow | 
     return null;
   }
 }
+
+export async function deleteCohortSummary(patientUid: string): Promise<void> {
+  if (!db || !patientUid) return;
+  try {
+    const cleanId = patientUid.trim();
+    await deleteDoc(doc(db, 'cohortSummaries', cleanId));
+  } catch (err) {
+    console.warn(`Materialized cohort summary deletion notice for ${patientUid}:`, err);
+  }
+}
+

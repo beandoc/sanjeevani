@@ -520,7 +520,7 @@ service cloud.firestore {
     // Materialized Cohort Summaries (BFF / single-read aggregation)
     match /cohortSummaries/{dyadId} {
       allow read: if isAuthenticated() && (resource.data.clinicianUid == request.auth.uid || isOwner(dyadId));
-      allow write: if isAuthenticated() && (isOwner(dyadId) || isDoctorTier(request.auth.uid));
+      allow write: if false;
     }
 
     // 2. Care Circles (Multi-caregiver team collaboration)

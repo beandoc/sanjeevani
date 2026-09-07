@@ -117,3 +117,79 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Cohort aggregation failed.' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown-ip';
+  const userAgent = request.headers.get('user-agent') || 'unknown-ua';
+
+  try {
+    const authUser = await authenticateRequest(request);
+    if (!authUser || !authUser.isClinician) {
+      return NextResponse.json({ error: 'Clinician authentication required.' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const patientUid = searchParams.get('patientUid');
+    const purgeDummies = searchParams.get('purgeDummies') === 'true';
+
+    const db = adminDb();
+    const batch = db.batch();
+    let opsCount = 0;
+
+    const uidsToDelete: string[] = [];
+    if (patientUid) {
+      uidsToDelete.push(patientUid);
+      uidsToDelete.push(patientUid.replace('dyad_', ''));
+      uidsToDelete.push(`dyad_${patientUid}`);
+    }
+
+    const isSarojini = patientUid && (patientUid.toLowerCase().includes('sarojini') || patientUid.toUpperCase().includes('SAROJINI81'));
+    const isRamesh = patientUid && (patientUid.toLowerCase().includes('ramesh') || patientUid.toUpperCase().includes('RAMESH76'));
+
+    if (purgeDummies || isSarojini) {
+      uidsToDelete.push('dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81');
+    }
+
+    if (purgeDummies || isRamesh) {
+      uidsToDelete.push('dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76');
+    }
+
+    if (purgeDummies) {
+      uidsToDelete.push('demo-kamla');
+    }
+
+    const uniqueUids = Array.from(new Set(uidsToDelete));
+
+    for (const id of uniqueUids) {
+      batch.delete(db.collection('cohortSummaries').doc(id));
+      opsCount++;
+
+      const cleanCode = id.replace('dyad_', '');
+      batch.delete(db.collection('dyadInvites').doc(cleanCode));
+      opsCount++;
+
+      batch.delete(db.collection('users').doc(id).collection('clinicianGrants').doc(authUser.uid));
+      opsCount++;
+    }
+
+    if (opsCount > 0) {
+      await batch.commit();
+    }
+
+    logAuditEvent({
+      timestamp: new Date().toISOString(),
+      eventType: 'CLINICAL_COHORT_WRITE',
+      actorUid: authUser.uid,
+      actorRole: 'clinician',
+      ip,
+      userAgent,
+      status: 'SUCCESS',
+      details: { action: 'discharge_delete_patient', deletedUids: uniqueUids }
+    });
+
+    return NextResponse.json({ success: true, deleted: uniqueUids });
+  } catch (err: unknown) {
+    console.error('BFF Cohort DELETE Error:', err);
+    return NextResponse.json({ error: 'Failed to delete cohort record.' }, { status: 500 });
+  }
+}

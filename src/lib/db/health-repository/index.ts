@@ -109,6 +109,7 @@ export const HealthRepository = {
   getDyadInvites: registeredpatients.getDyadInvites,
   saveDyadInvite: registeredpatients.saveDyadInvite,
   getDyadInvite: registeredpatients.getDyadInvite,
+  purgeAllDemoDyadsFromStorage: registeredpatients.purgeAllDemoDyadsFromStorage,
   exportAllUserData: dataportability.exportAllUserData,
   deleteAllUserData: dataportability.deleteAllUserData,
 };

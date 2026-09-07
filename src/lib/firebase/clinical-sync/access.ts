@@ -15,7 +15,7 @@ import {
   runTransaction,
   limit
 } from 'firebase/firestore';
-import { db } from '../client';
+import { db, auth } from '../client';
 import { HealthRepository } from '@/lib/db/health-repository';
 import { currentUid, withRetry } from './internal';
 import { getDyadInvite, listMyDyadInvites, claimDyadInvite, autoClaimInviteByEmail } from './dyad-invites';
@@ -324,9 +324,23 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
     if (archived.has(pUid) || archived.has(pUid.replace('dyad_', '')) || archived.has(`dyad_${pUid}`)) {
       return false;
     }
+    const lower = pUid.toLowerCase();
+    const upper = pUid.toUpperCase();
     if (
-      (pUid.toLowerCase().includes('sarojini') || pUid.toUpperCase().includes('SAROJINI81')) &&
-      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81'))
+      (lower.includes('sarojini') || upper.includes('SAROJINI81')) &&
+      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81') || archived.has('sarojini_devi'))
+    ) {
+      return false;
+    }
+    if (
+      (lower.includes('ramesh') || upper.includes('RAMESH76')) &&
+      (archived.has('demo-ramesh') || archived.has('dyad_ramesh_chand') || archived.has('RAMESH76') || archived.has('ramesh_chand'))
+    ) {
+      return false;
+    }
+    if (
+      lower.includes('kamla') &&
+      (archived.has('demo-kamla') || archived.has('kamla_gupta') || archived.has('dyad_kamla_gupta'))
     ) {
       return false;
     }
@@ -337,7 +351,7 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
 /**
  * Doctor discharges or permanently deletes a patient dyad from their roster.
  * Revokes active care surveillance, deletes or revokes the clinician grant in Firestore,
- * removes any pending invite, and archives the local dyad data.
+ * removes any pending invite, purges materialized cohort summaries, and archives local dyad data.
  */
 export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<void> {
   const uid = currentUid();
@@ -345,12 +359,19 @@ export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<
 
   // 1. Durably archive in HealthRepository and clear local storage keys
   HealthRepository.archiveDyad(cleanId);
+  HealthRepository.removeRegisteredPatient(cleanId);
 
   // 2. Cloud cleanup if Firestore is active
   if (db) {
     try {
       const batch = writeBatch(db);
       let opsCount = 0;
+
+      // Always remove materialized cohort summary for this patient and any alias
+      batch.delete(doc(db, 'cohortSummaries', cleanId));
+      batch.delete(doc(db, 'cohortSummaries', `dyad_${cleanId}`));
+      batch.delete(doc(db, 'cohortSummaries', cleanId.replace('dyad_', '')));
+      opsCount += 3;
 
       if (uid) {
         // Revoke grant doc in batch
@@ -384,12 +405,28 @@ export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<
         }
       } catch {}
 
-      // If Sarojini alias, delete the seeded Firestore invite
-      if (cleanId.toLowerCase().includes('sarojini') || cleanId.toUpperCase().includes('SAROJINI81')) {
+      // If Sarojini alias, delete all seeded Firestore items
+      const isSarojini = cleanId.toLowerCase().includes('sarojini') || cleanId.toUpperCase().includes('SAROJINI81');
+      if (isSarojini) {
+        batch.delete(doc(db, 'cohortSummaries', 'dyad_sarojini_devi'));
+        batch.delete(doc(db, 'cohortSummaries', 'demo-sarojini'));
         batch.delete(doc(db, 'dyadInvites', 'SAROJINI81'));
-        opsCount++;
+        opsCount += 3;
         if (uid) {
           batch.delete(doc(db, 'users', uid, 'dyadInvites', 'SAROJINI81'));
+          opsCount++;
+        }
+      }
+
+      // If Ramesh alias, delete all seeded Firestore items
+      const isRamesh = cleanId.toLowerCase().includes('ramesh') || cleanId.toUpperCase().includes('RAMESH76');
+      if (isRamesh) {
+        batch.delete(doc(db, 'cohortSummaries', 'dyad_ramesh_chand'));
+        batch.delete(doc(db, 'cohortSummaries', 'demo-ramesh'));
+        batch.delete(doc(db, 'dyadInvites', 'RAMESH76'));
+        opsCount += 3;
+        if (uid) {
+          batch.delete(doc(db, 'users', uid, 'dyadInvites', 'RAMESH76'));
           opsCount++;
         }
       }
@@ -401,4 +438,73 @@ export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<
       console.warn(`Discharge dyad cloud notice for ${cleanId}:`, err);
     }
   }
+
+  // 3. BFF API server-side DELETE via adminDb
+  if (typeof window !== 'undefined') {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (auth?.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      await fetch(`/api/clinic/cohort?patientUid=${encodeURIComponent(cleanId)}`, {
+        method: 'DELETE',
+        headers
+      });
+    } catch (e) {
+      console.warn('BFF delete call notice:', e);
+    }
+  }
 }
+
+/**
+ * Permanently purges all seeded demo/sample patient dyads (Sarojini Devi, Ramesh Chand, Kamla Gupta)
+ * across local storage, client Firestore, and server-side materialized cohort summaries.
+ */
+export async function purgeAllDemoDyads(): Promise<void> {
+  // 1. Purge locally from storage
+  HealthRepository.purgeAllDemoDyadsFromStorage?.();
+
+  // 2. Client Firestore cleanup
+  if (db) {
+    try {
+      const batch = writeBatch(db);
+      const demoUids = [
+        'dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81',
+        'dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76',
+        'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta'
+      ];
+      const uid = currentUid();
+      for (const id of demoUids) {
+        batch.delete(doc(db, 'cohortSummaries', id));
+        const code = id.replace('dyad_', '');
+        batch.delete(doc(db, 'dyadInvites', code));
+        if (uid) {
+          batch.delete(doc(db, 'users', id, 'clinicianGrants', uid));
+          batch.delete(doc(db, 'users', uid, 'dyadInvites', code));
+        }
+      }
+      await withRetry(() => batch.commit());
+    } catch (err) {
+      console.warn('Client Firestore demo purge notice:', err);
+    }
+  }
+
+  // 3. Server-side BFF purge via adminDb
+  if (typeof window !== 'undefined') {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (auth?.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      await fetch('/api/clinic/cohort?purgeDummies=true', {
+        method: 'DELETE',
+        headers
+      });
+    } catch (e) {
+      console.warn('BFF demo purge notice:', e);
+    }
+  }
+}
+

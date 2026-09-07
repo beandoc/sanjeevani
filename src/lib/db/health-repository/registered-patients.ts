@@ -109,6 +109,22 @@ export function archiveDyad(patientUid: string): void {
       toAdd.add('dyad_SAROJINI81');
     }
 
+    // If it's a Ramesh alias, archive all known demo/seed variants so it cannot ghost back
+    if (cleanId.toLowerCase().includes('ramesh') || cleanId.toUpperCase().includes('RAMESH76')) {
+      toAdd.add('demo-ramesh');
+      toAdd.add('dyad_ramesh_chand');
+      toAdd.add('ramesh_chand');
+      toAdd.add('RAMESH76');
+      toAdd.add('dyad_RAMESH76');
+    }
+
+    // If it's a Kamla alias
+    if (cleanId.toLowerCase().includes('kamla')) {
+      toAdd.add('demo-kamla');
+      toAdd.add('kamla_gupta');
+      toAdd.add('dyad_kamla_gupta');
+    }
+
     localStorage.setItem(STORAGE_KEYS.ARCHIVED_DYADS, JSON.stringify(Array.from(toAdd)));
 
     // Clean up from registered patients
@@ -117,6 +133,16 @@ export function archiveDyad(patientUid: string): void {
       removeRegisteredPatient('demo-sarojini');
       removeRegisteredPatient('dyad_sarojini_devi');
       removeRegisteredPatient('SAROJINI81');
+    }
+    if (cleanId.toLowerCase().includes('ramesh') || cleanId.toUpperCase().includes('RAMESH76')) {
+      removeRegisteredPatient('demo-ramesh');
+      removeRegisteredPatient('dyad_ramesh_chand');
+      removeRegisteredPatient('RAMESH76');
+    }
+    if (cleanId.toLowerCase().includes('kamla')) {
+      removeRegisteredPatient('demo-kamla');
+      removeRegisteredPatient('kamla_gupta');
+      removeRegisteredPatient('dyad_kamla_gupta');
     }
 
     // Clean up invites
@@ -285,3 +311,26 @@ export function getDyadInvite(inviteCode: string) {
   const list = getDyadInvites();
   return list.find((i) => i.inviteCode.toUpperCase() === inviteCode.trim().toUpperCase()) || null;
 }
+
+export function purgeAllDemoDyadsFromStorage(): void {
+  const demoIds = [
+    'demo-sarojini',
+    'dyad_sarojini_devi',
+    'sarojini_devi',
+    'SAROJINI81',
+    'dyad_SAROJINI81',
+    'demo-ramesh',
+    'dyad_ramesh_chand',
+    'ramesh_chand',
+    'RAMESH76',
+    'dyad_RAMESH76',
+    'demo-kamla',
+    'kamla_gupta',
+    'dyad_kamla_gupta'
+  ];
+  for (const id of demoIds) {
+    archiveDyad(id);
+    removeRegisteredPatient(id);
+  }
+}
+

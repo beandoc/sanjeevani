@@ -234,6 +234,10 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
 
   const archived = new Set(HealthRepository.getArchivedDyads());
   const isNotArchived = (uid: string) => {
+    if (!uid) return false;
+    const lower = uid.toLowerCase();
+    const upper = uid.toUpperCase();
+
     if (
       archived.has(uid) ||
       archived.has(uid.replace('dyad_', '')) ||
@@ -242,8 +246,20 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
       return false;
     }
     if (
-      (uid.toLowerCase().includes('sarojini') || uid.toUpperCase().includes('SAROJINI81')) &&
-      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81'))
+      (lower.includes('sarojini') || upper.includes('SAROJINI81')) &&
+      (archived.has('demo-sarojini') || archived.has('dyad_sarojini_devi') || archived.has('SAROJINI81') || archived.has('sarojini_devi'))
+    ) {
+      return false;
+    }
+    if (
+      (lower.includes('ramesh') || upper.includes('RAMESH76')) &&
+      (archived.has('demo-ramesh') || archived.has('dyad_ramesh_chand') || archived.has('RAMESH76') || archived.has('ramesh_chand'))
+    ) {
+      return false;
+    }
+    if (
+      lower.includes('kamla') &&
+      (archived.has('demo-kamla') || archived.has('kamla_gupta') || archived.has('dyad_kamla_gupta'))
     ) {
       return false;
     }
@@ -278,6 +294,10 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
       );
 
       if (roster.length === 0 && invites.length === 0) {
+        const localRegistered = HealthRepository.getRegisteredPatients();
+        if (localRegistered && localRegistered.length > 0) {
+          return [];
+        }
         return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));
       }
 
@@ -387,7 +407,11 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
 
       return dedupedRows;
     } catch (err) {
-      console.warn('Could not load cohort roster, falling back to demo cohort:', err);
+      console.warn('Could not load cohort roster, checking fallback:', err);
+      const localRegistered = HealthRepository.getRegisteredPatients();
+      if (localRegistered && localRegistered.length > 0) {
+        return [];
+      }
       return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));
     }
   })();
@@ -433,3 +457,18 @@ export function summarizeCohort(rows: CohortRow[]): CohortSummary {
 
   return { totalPatients: rows.length, byRiskBand, redFlagCount, reassessmentDueCount };
 }
+
+export function isDemoDyad(patientUid: string): boolean {
+  if (!patientUid) return false;
+  const lower = patientUid.toLowerCase();
+  const upper = patientUid.toUpperCase();
+  return (
+    lower.startsWith('demo-') ||
+    lower.includes('sarojini') ||
+    lower.includes('ramesh') ||
+    lower.includes('kamla') ||
+    upper.includes('SAROJINI81') ||
+    upper.includes('RAMESH76')
+  );
+}
+

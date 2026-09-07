@@ -22,16 +22,38 @@ import {
   Zap,
   ShieldCheck,
   HeartHandshake,
-  ChevronRight
+  ChevronRight,
+  UserMinus,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
-import { loadCohortRoster, summarizeCohort, RISK_BAND_STYLE, type CohortRow } from '@/lib/analytics/cohort';
+import {
+  loadCohortRoster,
+  summarizeCohort,
+  RISK_BAND_STYLE,
+  invalidateCohortCache,
+  isDemoDyad,
+  type CohortRow
+} from '@/lib/analytics/cohort';
 import type { RiskBand } from '@/lib/analytics/trajectory';
 import { cn } from '@/lib/utils';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { ClinicianQueryDashboard } from '@/components/clinician/clinician-query-dashboard';
 import { useToast } from '@/hooks/use-toast';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import {
+  dischargeOrDeletePatientDyad,
+  purgeAllDemoDyads,
   requestReassessment,
   subscribeToReassessmentAlerts,
   dismissReassessmentAlert,
@@ -78,17 +100,70 @@ function getActionableAlert(alertSnippet: string | null | undefined): string | n
 export function DoctorCohortDashboard() {
   const [rows, setRows] = useState<CohortRow[] | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPurgingDummies, setIsPurgingDummies] = useState(false);
+  const [dischargingUids, setDischargingUids] = useState<Set<string>>(new Set());
   const [alerts, setAlerts] = useState<ReassessmentAlert[]>([]);
   const [requestingUids, setRequestingUids] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const { toast } = useToast();
 
+  const hasDemoPatients = useMemo(() => {
+    if (!rows) return false;
+    return rows.some((r) => isDemoDyad(r.patientUid) || isDemoDyad(r.displayName));
+  }, [rows]);
+
   const load = async () => {
     setIsRefreshing(true);
     const data = await loadCohortRoster();
     setRows(data);
     setIsRefreshing(false);
+  };
+
+  const handlePurgeDummies = async () => {
+    setIsPurgingDummies(true);
+    try {
+      await purgeAllDemoDyads();
+      invalidateCohortCache();
+      await load();
+      toast({
+        title: 'Demo Patients Purged',
+        description: 'Seeded dummy patients (Sarojini Devi, Ramesh Chand) have been permanently removed.'
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Purge Failed',
+        description: 'Could not purge demo records. Please try again.'
+      });
+    } finally {
+      setIsPurgingDummies(false);
+    }
+  };
+
+  const handleDischargePatient = async (patientUid: string, displayName: string) => {
+    setDischargingUids((prev) => new Set([...prev, patientUid]));
+    try {
+      await dischargeOrDeletePatientDyad(patientUid);
+      invalidateCohortCache();
+      await load();
+      toast({
+        title: 'Patient Discharged',
+        description: `${displayName} has been removed from your active roster.`
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Discharge Failed',
+        description: 'Failed to remove patient. Please try again.'
+      });
+    } finally {
+      setDischargingUids((prev) => {
+        const next = new Set(prev);
+        next.delete(patientUid);
+        return next;
+      });
+    }
   };
 
   useEffect(() => {
@@ -423,6 +498,27 @@ export function DoctorCohortDashboard() {
         </CardHeader>
 
         <CardContent className="p-3 pt-1">
+          {hasDemoPatients && (
+            <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-xs">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>
+                  Sample dummy patients detected in worklist (Smt. Sarojini Devi, Shri Ramesh Chand).
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-7 text-xs font-semibold gap-1.5 rounded-lg shrink-0 w-full sm:w-auto"
+                onClick={handlePurgeDummies}
+                disabled={isPurgingDummies}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {isPurgingDummies ? 'Purging…' : 'Purge Dummy Patients'}
+              </Button>
+            </div>
+          )}
+
           {filteredRows.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
@@ -535,6 +631,37 @@ export function DoctorCohortDashboard() {
                         >
                           <CalendarClock className="w-3.5 h-3.5" />
                         </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={`Discharge / Remove ${row.displayName}`}
+                              disabled={dischargingUids.has(row.patientUid)}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 rounded-md"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-2xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Discharge {row.displayName}?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-xs leading-relaxed">
+                                This will remove {row.displayName} from your active clinical worklist, revoke clinician grants, purge summaries, and archive their local record.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                                onClick={() => handleDischargePatient(row.patientUid, row.displayName)}
+                              >
+                                Discharge Patient
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
 
                         <Button asChild size="sm" className="h-7 text-xs font-semibold gap-1 px-2.5 rounded-md shadow-2xs">
                           <Link href={`/clinic/dyad/${row.patientUid}`}>
