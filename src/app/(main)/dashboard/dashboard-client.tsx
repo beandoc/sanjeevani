@@ -125,13 +125,19 @@ const iconMap: { [key: string]: React.ElementType } = {
   'Foot Care': Footprints,
 };
 
-function getConditionMatchLabel(moduleId: string): string {
+function getConditionMatchLabel(
+  moduleId: string,
+  conditionMatchTag?: string,
+  patient?: PatientDependenceProfile | null
+): string {
+  if (conditionMatchTag) return conditionMatchTag;
   const id = moduleId.toLowerCase();
-  if (id.includes('hypertension')) return 'Matches: Hypertension & BP Safety';
-  if (id.includes('alzheimer') || id.includes('dementia')) return 'Matches: Dementia / Alzheimer\'s Care';
-  if (id.includes('bed-bound') || id.includes('bedmaking')) return 'Matches: Bedbound Mobility & Ulcer Care';
-  if (id.includes('fall')) return 'Matches: High Fall Risk Vigilance';
-  if (id.includes('medication')) return 'Matches: Medication Administration & Beers Safety';
+  const patientName = patient?.name || 'Patient';
+  if (id.includes('hypertension')) return `Matches: ${patientName}'s Hypertension`;
+  if (id.includes('alzheimer') || id.includes('dementia')) return `Matches: ${patientName}'s Dementia Care`;
+  if (id.includes('bed-bound') || id.includes('bedmaking')) return `Matches: Bedbound Mobility & Ulcer Care`;
+  if (id.includes('fall')) return `Matches: High Fall Risk Vigilance`;
+  if (id.includes('medication')) return `Matches: Medication Safety & Beers List`;
   return 'Condition-Tailored Protocol';
 }
 
@@ -167,9 +173,11 @@ export default function DashboardClient() {
       try {
         await hydrateLocalCacheFromCloud(currentUserUid);
         if (isMounted) {
-          setPatientProfile(HealthRepository.getPatientProfile());
+          const pt = HealthRepository.getPatientProfile();
+          const meds = HealthRepository.getMedications();
+          setPatientProfile(pt);
           setCaregiver(HealthRepository.getCaregiverAttributes());
-          setMedications(HealthRepository.getMedications());
+          setMedications(meds);
           setVitals(HealthRepository.getVitals());
           setAppointments(HealthRepository.getAppointments());
           setCareGap(
@@ -177,6 +185,7 @@ export default function DashboardClient() {
               ? HealthRepository.getCareGapEvaluation()
               : null
           );
+          setPersonalizedPath(getPersonalizedPath(skillLevel, caregivingScenario, role, pt, meds));
         }
       } catch (err) {
         console.warn('Dashboard cloud hydration notice:', err);
@@ -190,20 +199,21 @@ export default function DashboardClient() {
   }, [currentUserUid]);
 
   useEffect(() => {
-    const path = getPersonalizedPath(skillLevel, caregivingScenario, role);
+    const pt = HealthRepository.getPatientProfile();
+    const meds = HealthRepository.getMedications();
+    setMedications(meds);
+    setVitals(HealthRepository.getVitals());
+    setAppointments(HealthRepository.getAppointments());
+    setCaregiver(HealthRepository.getCaregiverAttributes());
+    setPatientProfile(pt);
+
+    const path = getPersonalizedPath(skillLevel, caregivingScenario, role, pt, meds);
     setPersonalizedPath(path);
 
     const assessments = HealthRepository.getZaritAssessments();
     if (assessments.length > 0) {
       setLatestZarit(assessments[0]);
     }
-
-    const meds = HealthRepository.getMedications();
-    setMedications(meds);
-    setVitals(HealthRepository.getVitals());
-    setAppointments(HealthRepository.getAppointments());
-    setCaregiver(HealthRepository.getCaregiverAttributes());
-    setPatientProfile(HealthRepository.getPatientProfile());
 
     setCareGap(
       HealthRepository.hasStoredDyadProfile()
@@ -669,7 +679,7 @@ export default function DashboardClient() {
                       </Badge>
                     </div>
                     <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-                      Clinically aligned for <strong>{caregivingScenario}</strong> &bull; Tailored to Vishal Gaurav&apos;s diagnoses &amp; mobility.
+                      Clinically aligned for <strong>{caregivingScenario}</strong> &bull; Tailored to {patientProfile?.name || 'your care recipient'}&apos;s diagnoses &amp; mobility.
                     </CardDescription>
                   </div>
                 </div>
@@ -693,7 +703,7 @@ export default function DashboardClient() {
                 {personalizedPath?.suggestedModules.map((module) => {
                   const Icon = iconMap[module.category] || BookOpenCheck;
                   const progress = moduleProgress[module.id] || 0;
-                  const matchLabel = getConditionMatchLabel(module.id);
+                  const matchLabel = module.conditionMatchTag || getConditionMatchLabel(module.id, module.conditionMatchTag, patientProfile);
 
                   return (
                     <Link

@@ -99,12 +99,12 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-rose-500/15 via-transparent to-transparent pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3.5 min-w-0">
             <div className="relative h-12 w-12 rounded-xl bg-rose-600/25 border border-rose-500/50 flex items-center justify-center font-black text-rose-200 text-lg shrink-0 shadow-inner">
-              VG
+              {(patientName || 'SD').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-extrabold text-base sm:text-xl text-white tracking-tight">
-                  {patientName || 'Vishal gaurav'}
+                  {patientName || 'Smt. Sarojini Devi'}
                 </span>
                 <Badge variant="outline" className="text-[10px] font-mono border-rose-400/50 text-rose-200 bg-rose-500/20">
                   80 Yrs · Male

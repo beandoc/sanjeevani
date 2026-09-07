@@ -70,6 +70,110 @@ describe('Clinical Recommendation Rules Engine Tests', () => {
     assert.strictEqual(topModule.moduleId, 'fall-prevention');
     assert.ok(output.topRecommendations[0].rawScore > output.topRecommendations[1].rawScore);
   });
+
+  test('Bed-bound patient profile must elevate bed-bound-care to critical priority with condition match', () => {
+    const output = ClinicalRecommendationEngine.evaluate({
+      role: 'caregiver',
+      skillLevel: 'beginner',
+      caregivingScenario: 'General Frailty',
+      lastZarit: null,
+      patientProfile: {
+        name: 'Smt. Sarojini Devi',
+        age: 81,
+        primaryConditions: ['Hypertension'],
+        katzAdl: {
+          bathing: false,
+          dressing: false,
+          toileting: false,
+          transferring: false,
+          continence: true,
+          feeding: true
+        },
+        lawtonIadl: {} as any,
+        cognitiveBehavioralLoad: 'none',
+        fallHistoryLast6Months: 0,
+        isBedBound: true
+      }
+    });
+
+    const topModule = output.topRecommendations[0];
+    assert.strictEqual(topModule.moduleId, 'bed-bound-care');
+    assert.strictEqual(topModule.urgency, 'critical');
+    assert.ok(topModule.conditionMatchTag?.includes('Bedbound'));
+    assert.ok(topModule.clinicalRationale[0].includes('bed-bound'));
+  });
+
+  test('Patient with recurrent falls must elevate fall-prevention to critical priority', () => {
+    const output = ClinicalRecommendationEngine.evaluate({
+      role: 'caregiver',
+      skillLevel: 'intermediate',
+      caregivingScenario: 'Multiple Chronic Conditions',
+      lastZarit: null,
+      patientProfile: {
+        name: 'Shri Rameshwaram',
+        age: 82,
+        primaryConditions: ['Severe Osteoporosis'],
+        katzAdl: { bathing: true, dressing: true, toileting: true, transferring: false, continence: true, feeding: true },
+        lawtonIadl: {} as any,
+        cognitiveBehavioralLoad: 'none',
+        fallHistoryLast6Months: 3,
+        isBedBound: false
+      }
+    });
+
+    const fallModule = output.topRecommendations.find((m) => m.moduleId === 'fall-prevention');
+    assert.ok(fallModule);
+    assert.strictEqual(fallModule.urgency, 'critical');
+    assert.ok(fallModule.conditionMatchTag?.includes('3 recent falls'));
+  });
+
+  test('Patient with Hypertension diagnosis must match hypertension-caregiver module', () => {
+    const output = ClinicalRecommendationEngine.evaluate({
+      role: 'caregiver',
+      skillLevel: 'beginner',
+      caregivingScenario: 'General Frailty',
+      lastZarit: null,
+      patientProfile: {
+        name: 'Vishal Gaurav',
+        age: 79,
+        primaryConditions: ['Hypertension', 'Mild Cognitive Decline'],
+        katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+        lawtonIadl: {} as any,
+        cognitiveBehavioralLoad: 'none',
+        fallHistoryLast6Months: 0,
+        isBedBound: false
+      }
+    });
+
+    const htModule = output.topRecommendations.find((m) => m.moduleId === 'hypertension-caregiver');
+    assert.ok(htModule);
+    assert.ok(htModule.conditionMatchTag?.includes('Hypertension'));
+    assert.ok(htModule.clinicalRationale[0].includes('Hypertension'));
+  });
+
+  test('Patient on 5+ medications must elevate medication management with polypharmacy alert', () => {
+    const dummyMeds = [
+      { id: '1', name: 'Amlodipine 5mg', dosage: '5mg', frequency: 'OD', timeOfDay: ['morning' as const], foodRelation: 'after' as const },
+      { id: '2', name: 'Telmisartan 40mg', dosage: '40mg', frequency: 'OD', timeOfDay: ['morning' as const], foodRelation: 'after' as const },
+      { id: '3', name: 'Metformin 500mg', dosage: '500mg', frequency: 'BD', timeOfDay: ['morning' as const, 'bedtime' as const], foodRelation: 'with' as const },
+      { id: '4', name: 'Atorvastatin 20mg', dosage: '20mg', frequency: 'OD', timeOfDay: ['bedtime' as const], foodRelation: 'after' as const },
+      { id: '5', name: 'Pantoprazole 40mg', dosage: '40mg', frequency: 'OD', timeOfDay: ['morning' as const], foodRelation: 'before' as const },
+      { id: '6', name: 'Aspirin 75mg', dosage: '75mg', frequency: 'OD', timeOfDay: ['afternoon' as const], foodRelation: 'after' as const }
+    ];
+
+    const output = ClinicalRecommendationEngine.evaluate({
+      role: 'caregiver',
+      skillLevel: 'beginner',
+      caregivingScenario: 'General Frailty',
+      lastZarit: null,
+      medications: dummyMeds
+    });
+
+    const medModule = output.topRecommendations.find((m) => m.moduleId === 'medication-management-caregiver');
+    assert.ok(medModule);
+    assert.ok(medModule.conditionMatchTag?.includes('Polypharmacy'));
+    assert.ok(medModule.clinicalRationale[0].includes('6 active medicines'));
+  });
 });
 
 describe('Beers Criteria & STOPP Interaction Engine Tests', () => {
