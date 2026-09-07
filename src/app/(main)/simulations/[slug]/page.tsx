@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,

@@ -196,7 +196,7 @@ export default function DashboardClient() {
       isMounted = false;
       unsub();
     };
-  }, [currentUserUid]);
+  }, [currentUserUid, caregivingScenario, role, skillLevel]);
 
   useEffect(() => {
     const pt = HealthRepository.getPatientProfile();
