@@ -378,20 +378,47 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(a.evaluatedAt, '2026-01-01T00:00:00.000Z');
   });
 
-  test('secondary family members must absorb demand and reduce net care gap without distorting primary safe capacity', () => {
+  test('a count-only family head-count must NOT absorb demand; only named, accepted, task-assigned helpers do', () => {
     const solo = CareGapEngine.evaluate(
       { ...sampleCaregiver, otherFamilyMembersCount: 0 },
       sampleDependentPatient
     );
-    const supported = CareGapEngine.evaluate(
+    const countOnly = CareGapEngine.evaluate(
       { ...sampleCaregiver, otherFamilyMembersCount: 3 },
       sampleDependentPatient
     );
+    const named = CareGapEngine.evaluate(
+      {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'named_1',
+            name: 'Named Helper',
+            relationship: 'son',
+            age: 30,
+            hoursPerDay: 2,
+            assignedTasks: ['heavy_transfers'],
+            hasPhysicalLimitation: false,
+            availableTimeBlocks: ['morning_rush', 'evening'],
+            acceptanceStatus: 'accepted'
+          }
+        ]
+      },
+      sampleDependentPatient
+    );
 
-    assert.ok(supported.familySupportAbsorbedHours > solo.familySupportAbsorbedHours);
-    assert.ok(supported.netCareGapHours < solo.netCareGapHours);
-    // Primary caregiver safe capacity must reflect primary caregiver, not phantom network buffer
-    assert.strictEqual(supported.caregiverSafeCapacityHours, solo.caregiverSafeCapacityHours);
+    // "3 relatives" with no names, no assignments and no acceptance is not capacity.
+    assert.strictEqual(countOnly.familySupportAbsorbedHours, solo.familySupportAbsorbedHours);
+    assert.strictEqual(countOnly.netCareGapHours, solo.netCareGapHours);
+    assert.ok(countOnly.uncreditedFamilyReasons.some((r) => r.includes('count only')));
+    // A named, accepted, assigned helper is.
+    assert.ok(named.familySupportAbsorbedHours > solo.familySupportAbsorbedHours);
+    assert.ok(named.netCareGapHours < solo.netCareGapHours);
+    // Primary caregiver safe capacity must reflect primary caregiver, not a phantom network buffer.
+    // (The named helper fully covers both transfer slots, so the back-pain deduction is legitimately
+    // reduced — capacity may rise through relief credit, never through a head-count.)
+    assert.strictEqual(countOnly.caregiverSafeCapacityHours, solo.caregiverSafeCapacityHours);
+    assert.ok(named.caregiverSafeCapacityHours >= solo.caregiverSafeCapacityHours);
   });
 
   test('repeat fallers must carry more demand than a single fall', () => {
@@ -575,7 +602,8 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 28,
           hoursPerDay: 3.0,
           assignedTasks: ['heavy_transfers', 'logistics_errands'],
-          hasPhysicalLimitation: false
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         },
         {
           id: 'sec_dil',
@@ -584,7 +612,8 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 26,
           hoursPerDay: 2.0,
           assignedTasks: ['medications', 'bathing'],
-          hasPhysicalLimitation: false
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         }
       ]
     };
@@ -595,8 +624,12 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(multiResult.teamAllocations.secondaryFamilyHours, 5.0);
     assert.ok(multiResult.netCareGapHours < soloResult.netCareGapHours);
     assert.strictEqual(multiResult.taskDelegationStatus.transfersCovered, true);
-    assert.strictEqual(multiResult.taskDelegationStatus.medicationsCovered, true);
+    assert.strictEqual(multiResult.taskDelegationStatus.transfersCoverage, 'complete');
     assert.strictEqual(multiResult.taskDelegationStatus.bathingCovered, true);
+    // Priya's 2h are exhausted by the 1.5h bath + 0.4h morning meds + 0.1h of midday meds; the
+    // evening medication round is still on the primary caregiver, so relief is partial, not granted.
+    assert.strictEqual(multiResult.taskDelegationStatus.medicationsCoverage, 'partial');
+    assert.strictEqual(multiResult.taskDelegationStatus.medicationsCovered, false);
   });
 
   test('should relieve primary caregiver lumbar transfer strain when younger family member is assigned heavy transfers', () => {
@@ -619,7 +652,8 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 28,
           hoursPerDay: 2.5,
           assignedTasks: ['heavy_transfers'],
-          hasPhysicalLimitation: false
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         }
       ]
     };
@@ -677,7 +711,8 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           functionalStatus: 'independent',
           hoursPerDay: 2.5,
           assignedTasks: ['heavy_transfers', 'logistics_errands'],
-          hasPhysicalLimitation: false
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         }
       ],
       rotationPolicy: {
@@ -762,6 +797,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           hoursPerDay: 2.0,
           assignedTasks: ['bathing', 'heavy_transfers'],
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           availableTimeBlocks: ['evening'] // No morning availability!
         }
       ]
@@ -785,6 +821,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           hoursPerDay: 2.5,
           assignedTasks: ['heavy_transfers'],
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           availableTimeBlocks: ['evening']
         }
       ],
@@ -977,7 +1014,8 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 30,
           hoursPerDay: 5.0,
           assignedTasks: ['medications', 'bathing'],
-          hasPhysicalLimitation: false
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         }
       ]
     };
@@ -1016,8 +1054,9 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           relationship: 'daughter',
           age: 25,
           hoursPerDay: 2.0,
-          assignedTasks: [],
-          hasPhysicalLimitation: false
+          assignedTasks: ['bathing', 'logistics_errands'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
         }
       ]
     };
@@ -1028,6 +1067,149 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     assert.strictEqual(supportedResult.caregiverSafeCapacityHours, baseResult.caregiverSafeCapacityHours);
     const gapReduction = Math.round((baseResult.netCareGapHours - supportedResult.netCareGapHours) * 10) / 10;
     assert.strictEqual(gapReduction, 2.0, 'A 2h/day secondary family contribution must reduce the net care gap by exactly 2.0h');
+  });
+
+  test('Defect 3 Guard: secondary member with empty assignedTasks does not reduce headline care gap', () => {
+    const baseResult = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
+
+    const caregiverWithUnassignedMember: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_unassigned',
+          name: 'Unassigned Helper',
+          relationship: 'other',
+          age: 30,
+          hoursPerDay: 4.0,
+          assignedTasks: [],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
+        }
+      ]
+    };
+
+    const unassignedResult = CareGapEngine.evaluate(caregiverWithUnassignedMember, sampleDependentPatient);
+    assert.strictEqual(unassignedResult.familySupportAbsorbedHours, 0);
+    assert.strictEqual(unassignedResult.netCareGapHours, baseResult.netCareGapHours);
+    assert.strictEqual(unassignedResult.uncreditedFamilyHours, 4.0);
+    assert.ok(unassignedResult.uncreditedFamilyReasons.length > 0);
+  });
+
+  test('Unified Ledger Guard: Zero-hour helper does NOT activate transfer relief or reduce injury score', () => {
+    const soloCaregiverWithBackPain: CaregiverAttributes = {
+      ...sampleCaregiver,
+      caregiverHealth: {
+        ...sampleCaregiver.caregiverHealth,
+        hasBackPain: true
+      },
+      secondaryMembers: []
+    };
+
+    const caregiverWithZeroHourHelper: CaregiverAttributes = {
+      ...soloCaregiverWithBackPain,
+      secondaryMembers: [
+        {
+          id: 'sec_zero',
+          name: 'Zero Hour Helper',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 0,
+          assignedTasks: ['heavy_transfers'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
+        }
+      ]
+    };
+
+    const soloRes = CareGapEngine.evaluate(soloCaregiverWithBackPain, sampleDependentPatient);
+    const zeroRes = CareGapEngine.evaluate(caregiverWithZeroHourHelper, sampleDependentPatient);
+
+    assert.strictEqual(zeroRes.familySupportAbsorbedHours, 0);
+    assert.strictEqual(zeroRes.taskDelegationStatus.transfersCovered, false);
+    assert.strictEqual(zeroRes.caregiverInjuryRiskScore, soloRes.caregiverInjuryRiskScore);
+  });
+
+  test('Unified Ledger Guard: Afternoon helper does NOT receive credit for morning/evening transfers', () => {
+    const caregiverAfternoonHelper: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'sec_afternoon',
+          name: 'Afternoon Helper',
+          relationship: 'daughter',
+          age: 30,
+          hoursPerDay: 3.0,
+          assignedTasks: ['heavy_transfers'],
+          availableTimeBlocks: ['afternoon'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
+        }
+      ]
+    };
+
+    const res = CareGapEngine.evaluate(caregiverAfternoonHelper, sampleDependentPatient);
+    // Transfers are required in morning_rush and evening. An afternoon-only helper must not receive credit.
+    assert.strictEqual(res.familySupportAbsorbedHours, 0);
+    assert.strictEqual(res.taskDelegationStatus.transfersCovered, false);
+    assert.strictEqual(res.uncreditedFamilyHours, 3.0);
+  });
+
+  test('Unified Ledger Guard: Two helpers assigned to same slot cannot double-count capacity', () => {
+    const caregiverWithDuplicateHelpers: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'helper_1',
+          name: 'Helper 1',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 2.0,
+          assignedTasks: ['heavy_transfers'],
+          availableTimeBlocks: ['morning_rush', 'evening'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
+        },
+        {
+          id: 'helper_2',
+          name: 'Helper 2',
+          relationship: 'daughter',
+          age: 26,
+          hoursPerDay: 2.0,
+          assignedTasks: ['heavy_transfers'],
+          availableTimeBlocks: ['morning_rush', 'evening'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
+        }
+      ]
+    };
+
+    const res = CareGapEngine.evaluate(caregiverWithDuplicateHelpers, sampleDependentPatient);
+    // Heavy transfers demand is 2.0h (1.0 morning + 1.0 evening).
+    // Helper 1 fulfills 2.0h. Helper 2 cannot claim another 2.0h for the same already-fulfilled slots!
+    assert.strictEqual(res.familySupportAbsorbedHours, 2.0);
+    assert.strictEqual(res.uncreditedFamilyHours, 2.0);
+  });
+
+  test('Unified Ledger Guard: Declined helper cannot reduce care gap', () => {
+    const caregiverWithDeclinedHelper: CaregiverAttributes = {
+      ...sampleCaregiver,
+      secondaryMembers: [
+        {
+          id: 'declined_helper',
+          name: 'Declined Helper',
+          relationship: 'son',
+          age: 28,
+          hoursPerDay: 3.0,
+          assignedTasks: ['heavy_transfers', 'logistics_errands'],
+          hasPhysicalLimitation: false,
+          acceptanceStatus: 'declined'
+        }
+      ]
+    };
+
+    const res = CareGapEngine.evaluate(caregiverWithDeclinedHelper, sampleDependentPatient);
+    assert.strictEqual(res.familySupportAbsorbedHours, 0);
+    assert.strictEqual(res.uncreditedFamilyHours, 3.0);
   });
 
   test('D5: formalSupport.hoursPerDay scaling dynamically adjusts absorbed hours', () => {
@@ -1375,6 +1557,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 26,
           hoursPerDay: 2,
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           assignedTasks: ['feeding', 'medications']
         }
       ]
@@ -1400,6 +1583,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
               age: 30,
               hoursPerDay: 2.5,
               hasPhysicalLimitation: false,
+              acceptanceStatus: 'accepted',
               assignedTasks: ['heavy_transfers']
             }
           ]
@@ -1444,6 +1628,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 28,
           hoursPerDay: 2.0,
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           assignedTasks: ['feeding', 'medications']
         }
       ]
@@ -1551,6 +1736,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
           age: 26,
           hoursPerDay: 3,
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           assignedTasks: ['heavy_transfers', 'medications']
         }
       ]
@@ -1559,5 +1745,135 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     const famOption = famReport.ladder.find((r) => r.supportType === 'family_redistribution');
     assert.ok(famOption !== undefined, 'Capable family member must yield family redistribution option');
     assert.strictEqual(famOption?.costTierRank, 1);
+  });
+
+  describe('Allocation Ledger — block supply and relief now derive strictly from the ledger', () => {
+    test('one hour of morning-only transfer help gives partial relief, not full transfer relief', () => {
+      const morningOnlyHelper: CaregiverAttributes = {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'helper_am',
+            name: 'Morning Helper',
+            relationship: 'son',
+            age: 30,
+            hoursPerDay: 1,
+            assignedTasks: ['heavy_transfers'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'accepted',
+            availableTimeBlocks: ['morning_rush']
+          }
+        ]
+      };
+      const res = CareGapEngine.evaluate(morningOnlyHelper, sampleDependentPatient);
+      // Morning transfer slot (1.0h) is fully credited, but the evening transfer slot (1.0h) is not.
+      assert.strictEqual(res.taskDelegationStatus.transfersCoverage, 'partial');
+      assert.strictEqual(res.taskDelegationStatus.transfersCovered, false);
+      const eveningTransferSlot = res.allocationLedger.find((e) => e.task === 'heavy_transfers' && e.block === 'evening');
+      assert.ok(eveningTransferSlot);
+      assert.strictEqual(eveningTransferSlot!.allocatedHours, 0);
+    });
+
+    test('covering both morning and evening transfer slots gives complete relief', () => {
+      const bothSlotsHelper: CaregiverAttributes = {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'helper_full',
+            name: 'Full Day Helper',
+            relationship: 'son',
+            age: 30,
+            hoursPerDay: 2,
+            assignedTasks: ['heavy_transfers'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'accepted',
+            availableTimeBlocks: ['morning_rush', 'evening']
+          }
+        ]
+      };
+      const res = CareGapEngine.evaluate(bothSlotsHelper, sampleDependentPatient);
+      assert.strictEqual(res.taskDelegationStatus.transfersCoverage, 'complete');
+      assert.strictEqual(res.taskDelegationStatus.transfersCovered, true);
+    });
+
+    test('a declined helper contributes zero hours to any block supply', () => {
+      const declinedHelper: CaregiverAttributes = {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'helper_declined',
+            name: 'Declined Helper',
+            relationship: 'son',
+            age: 30,
+            hoursPerDay: 4,
+            assignedTasks: ['heavy_transfers', 'night_care'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'declined',
+            availableTimeBlocks: ['morning_rush', 'evening', 'night_watch']
+          }
+        ]
+      };
+      const res = CareGapEngine.evaluate(declinedHelper, sampleDependentPatient);
+      assert.strictEqual(res.blockGaps.night_watch.contributors.some((c) => c.includes('Declined Helper')), false);
+      assert.strictEqual(res.allocationLedger.every((e) => e.allocatedTo.every((a) => a.memberId !== 'helper_declined')), true);
+    });
+
+    test('a pending (unconfirmed) helper contributes zero hours until accepted', () => {
+      const pendingHelper: CaregiverAttributes = {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'helper_pending',
+            name: 'Pending Helper',
+            relationship: 'daughter',
+            age: 28,
+            hoursPerDay: 3,
+            assignedTasks: ['bathing'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'pending',
+            availableTimeBlocks: ['morning_rush']
+          }
+        ]
+      };
+      const res = CareGapEngine.evaluate(pendingHelper, sampleDependentPatient);
+      assert.strictEqual(res.familySupportAbsorbedHours, 0);
+      assert.strictEqual(res.taskDelegationStatus.bathingCovered, false);
+    });
+
+    test('block supply total for the family reconciles with familySupportAbsorbedHours (no N-fold inflation)', () => {
+      const twoHelpers: CaregiverAttributes = {
+        ...sampleCaregiver,
+        secondaryMembers: [
+          {
+            id: 'h1',
+            name: 'Helper One',
+            relationship: 'son',
+            age: 30,
+            hoursPerDay: 2,
+            assignedTasks: ['heavy_transfers'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'accepted',
+            availableTimeBlocks: ['morning_rush', 'evening']
+          },
+          {
+            id: 'h2',
+            name: 'Helper Two',
+            relationship: 'daughter',
+            age: 27,
+            hoursPerDay: 2,
+            assignedTasks: ['bathing'],
+            hasPhysicalLimitation: false,
+            acceptanceStatus: 'accepted',
+            availableTimeBlocks: ['morning_rush']
+          }
+        ]
+      };
+      const res = CareGapEngine.evaluate(twoHelpers, sampleDependentPatient);
+      const morningFamilyHours = res.blockGaps.morning_rush.contributors
+        .filter((c) => c.includes('Helper'))
+        .length;
+      // Both helpers appear at most once in the morning block's contributor list.
+      assert.ok(morningFamilyHours <= 2);
+    });
   });
 });

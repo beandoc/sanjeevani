@@ -675,3 +675,190 @@ describe('drafts — owner-only, no clinician access', () => {
   });
 });
 
+
+describe('clinicalAuthorization — clinician-only write, and post-approval tampering is rejected by the app-level hash check', () => {
+  const VALID_AUTH_RECORD = {
+    hashVersion: 'sha256-canonical-json-v1',
+    blueprintId: 'bp_1',
+    planHash: 'a'.repeat(64),
+    authorizedAt: new Date().toISOString(),
+    authorizedByUid: CLINICIAN_UID,
+    authorizedByName: 'Dr. Vivek'
+  };
+
+  it('a granted clinician CAN create the clinicalAuthorization record with their own uid as author', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+    await assertSucceeds(
+      setDoc(doc(clinician, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), VALID_AUTH_RECORD)
+    );
+  });
+
+  it('a clinician CANNOT write authorizedByUid as someone else\'s uid (forged authorship)', async () => {
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+    await assertFails(
+      setDoc(doc(clinician, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), {
+        ...VALID_AUTH_RECORD,
+        authorizedByUid: OTHER_CLINICIAN_UID
+      })
+    );
+  });
+
+  it('the owning caregiver CANNOT create or update the clinicalAuthorization record — the P0 forgery path', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), VALID_AUTH_RECORD)
+    );
+  });
+
+  it('the owning caregiver CAN still read the authorization record (needed to render the "authorized" badge)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), VALID_AUTH_RECORD);
+    });
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(getDoc(doc(caregiver, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current')));
+  });
+
+  it('an ungranted clinician CANNOT write the clinicalAuthorization record for a real caregiver uid', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+    await assertFails(
+      setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), {
+        ...VALID_AUTH_RECORD,
+        authorizedByUid: OTHER_CLINICIAN_UID
+      })
+    );
+  });
+
+  it(
+    'POST-APPROVAL TAMPERING: after a clinician authorizes a plan, the caregiver editing authoredInstructions ' +
+      'is still permitted by the rules (caregivers may edit their own blueprint content), but the plan hash on ' +
+      'the separate clinicalAuthorization record no longer matches — this is what the app-level ' +
+      'verifyClinicalAuthorization() catches and firestore.rules alone cannot',
+    async () => {
+      const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+      const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+
+      // Clinician signs the plan.
+      await assertSucceeds(
+        setDoc(doc(clinician, 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'), VALID_AUTH_RECORD)
+      );
+
+      // Caregiver saves caregiverAttributes with the SAME clinicalReview object carried forward
+      // (rules require this — see caregiverAttributes create/update predicate) while changing
+      // authoredInstructions underneath it. This write must succeed at the rules layer...
+      const originalReview = { decision: 'issued_by_clinician', reviewedAt: new Date().toISOString(), reviewedBy: 'Dr. Vivek', policyVersion: '1', decisionSupportStatus: 'ready_for_clinician_review' };
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'), {
+          name: 'Primary Caregiver',
+          careBlueprint: {
+            id: 'bp_1',
+            authoredInstructions: [{ id: 'i1', timingWindow: 'morning_rush', instruction: 'Original safe instruction', indication: 'X', authoredBy: 'Dr. Vivek' }],
+            clinicalReview: originalReview
+          }
+        });
+      });
+      await assertSucceeds(
+        setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'), {
+          name: 'Primary Caregiver',
+          careBlueprint: {
+            id: 'bp_1',
+            authoredInstructions: [{ id: 'i1', timingWindow: 'morning_rush', instruction: 'TAMPERED: two-person pivot transfer, no PT/OT assessment', indication: 'X', authoredBy: 'Dr. Vivek' }],
+            clinicalReview: originalReview // unchanged — this is exactly what the rules allow through
+          }
+        })
+      );
+
+      // ...which is precisely why authorization must never be trusted from clinicalReview alone:
+      // the clinicalAuthorization record's planHash ('a'.repeat(64), fixed above) reflects the
+      // ORIGINAL content and will not match a hash recomputed over the tampered instructions.
+      // (verifyClinicalAuthorization in src/lib/clinical/clinical-authorization.ts performs that
+      // comparison client-side; tests/clinical-authorization.test.ts exercises it directly.)
+      let authSnap: Awaited<ReturnType<typeof getDoc>> | undefined;
+      let attrsSnap: Awaited<ReturnType<typeof getDoc>> | undefined;
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        authSnap = await getDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'clinicalAuthorization', 'current'));
+        attrsSnap = await getDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'));
+      });
+      const authData = authSnap?.data() as { planHash?: string } | undefined;
+      const attrsData = attrsSnap?.data() as { careBlueprint?: { authoredInstructions?: Array<{ instruction?: string }> } } | undefined;
+      expect(authData?.planHash).toBe(VALID_AUTH_RECORD.planHash);
+      expect(attrsData?.careBlueprint?.authoredInstructions?.[0]?.instruction).toContain('TAMPERED');
+      // The stored planHash was never updated by this caregiver write (rules forbid the caregiver
+      // from touching clinicalAuthorization at all), so it is now stale relative to live content —
+      // exactly the state verifyClinicalAuthorization() detects as `planStatus: 'stale'`.
+    }
+  );
+
+  it('the caregiver CANNOT create clinicalReview from nothing (must originate from a clinician write elsewhere)', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'caregiverAttributes', 'current'), {
+        name: 'Primary Caregiver',
+        careBlueprint: {
+          id: 'bp_self',
+          clinicalReview: { decision: 'issued_by_clinician', reviewedAt: new Date().toISOString(), reviewedBy: 'Self', policyVersion: '1', decisionSupportStatus: 'ready_for_clinician_review' }
+        }
+      })
+    );
+  });
+});
+
+describe('exportAuditLog — append-only, owner or granted clinician only', () => {
+  const VALID_AUDIT_ENTRY = {
+    channel: 'whatsapp_text',
+    exportedAt: new Date().toISOString(),
+    exportedByUid: CAREGIVER_UID,
+    exportedByRole: 'caregiver',
+    recipientLabel: 'Family group',
+    redacted: true,
+    consentGiven: true,
+    recipientConfirmed: true,
+    contentLength: 500
+  };
+
+  it('the owning caregiver CAN write their own export audit entry', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry1'), VALID_AUDIT_ENTRY)
+    );
+  });
+
+  it('a caregiver CANNOT write an audit entry claiming someone else exported it', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry2'), {
+        ...VALID_AUDIT_ENTRY,
+        exportedByUid: OTHER_CLINICIAN_UID
+      })
+    );
+  });
+
+  it('an audit entry CANNOT be updated or deleted (append-only)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'exportAuditLog', 'entry1'), VALID_AUDIT_ENTRY);
+    });
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry1'), { ...VALID_AUDIT_ENTRY, redacted: false }));
+    await assertFails(deleteDoc(doc(caregiver, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry1')));
+  });
+
+  it('an ungranted clinician CANNOT read or write the export audit log', async () => {
+    const otherClinician = testEnv.authenticatedContext(OTHER_CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+    await assertFails(getDocs(collection(otherClinician, 'users', CAREGIVER_UID, 'exportAuditLog')));
+    await assertFails(setDoc(doc(otherClinician, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry3'), VALID_AUDIT_ENTRY));
+  });
+
+  it('a granted clinician CAN read the export audit log', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', CAREGIVER_UID, 'exportAuditLog', 'entry1'), VALID_AUDIT_ENTRY);
+    });
+    const clinician = testEnv.authenticatedContext(CLINICIAN_UID, CLINICIAN_CLAIMS).firestore();
+    await assertSucceeds(getDocs(collection(clinician, 'users', CAREGIVER_UID, 'exportAuditLog')));
+  });
+
+  it('a stranger CANNOT write an export audit entry without consentGiven/recipientConfirmed both true', async () => {
+    const caregiver = testEnv.authenticatedContext(CAREGIVER_UID).firestore();
+    await assertFails(
+      setDoc(doc(caregiver, 'users', CAREGIVER_UID, 'exportAuditLog', 'entry4'), { ...VALID_AUDIT_ENTRY, consentGiven: false })
+    );
+  });
+});

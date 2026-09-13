@@ -105,6 +105,21 @@ export interface DiurnalScheduleConflict {
   recommendation: string;
 }
 
+export type TaskCoverageLevel = 'none' | 'partial' | 'complete';
+
+export interface AllocationLedgerEntry {
+  task: CareTask;
+  block: DiurnalTimeBlock;
+  demandHours: number;
+  allocatedHours: number;
+  allocatedTo: Array<{ memberId: string; memberName: string; hours: number }>;
+}
+
+/** Members contribute capacity only once they have explicitly accepted their assignment. */
+export function isMemberAccepted(member: Pick<SecondaryFamilyMember, 'acceptanceStatus'>): boolean {
+  return member.acceptanceStatus === 'accepted';
+}
+
 export interface AssistiveDeviceInventory {
   hospitalBed: 'none' | 'manual_adjustable' | 'motorized_multichannel';
   airWaterMattress: boolean;
@@ -134,16 +149,21 @@ export interface SecondaryFamilyMember {
   assignedTasks: CareTask[];
   hasPhysicalLimitation: boolean;
   availableTimeBlocks?: DiurnalTimeBlock[];
+  acceptanceStatus?: 'pending' | 'accepted' | 'declined';
 }
 
 export interface EmergencyLogistics {
-  hospitalDistanceKm: number;
-  travelTimeMinutes: number;
-  fourWheelerAvailableAtHome: boolean;
+  hospitalDistanceKm?: number;
+  travelTimeMinutes?: number;
+  fourWheelerAvailableAtHome?: boolean;
   vehicleDetails?: string;
   designatedEmergencyDriver?: string;
   preferredHospitalName?: string;
   ambulanceContact?: string;
+  isVerified?: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  goalsOfCareEscalationPreference?: 'full_escalation' | 'hospital_review_before_transfer' | 'comfort_focused' | 'not_documented';
 }
 
 export interface MonthlyRotationPolicy {
@@ -151,6 +171,43 @@ export interface MonthlyRotationPolicy {
   primaryCaregiverRespiteDaysPerMonth: number;
   weekendShiftLeader?: string;
   nightShiftArrangement: 'formal_24h_staff' | 'formal_night_nurse' | 'family_rotation' | 'primary_solo';
+}
+
+export interface ClinicianAuthoredInstruction {
+  id: string;
+  timingWindow: 'morning_rush' | 'afternoon' | 'evening' | 'night_watch' | 'as_needed';
+  clinicalDomain?: 'vital_monitoring' | 'skin_repositioning' | 'mobility_transfer' | 'nutrition_hydration' | 'medication_administration' | 'environmental_safety';
+  title?: string;
+  /** Exact action the caregiver performs. */
+  instruction: string;
+  /** Why this directive exists for this patient. */
+  indication: string;
+  parameters?: string;
+  /** When NOT to do it / when to stop and escalate. */
+  exceptions?: string;
+  prescribedBy?: string;
+  authoredBy?: string;
+  reviewedAt?: string;
+  reviewDate?: string;
+  /** How often the directive must be re-reviewed by a clinician. */
+  reviewIntervalDays?: number;
+  /** ISO date after which the directive is no longer valid without re-review. */
+  expiresAt?: string;
+  /**
+   * Set only by the clinician's explicit per-directive acceptance in the blueprint dialog. A
+   * generated draft is never issued without this being true.
+   */
+  acceptedByClinician?: boolean;
+  acceptedAt?: string;
+  /** Whether the text started as an engine draft or was typed by the clinician. */
+  source?: 'draft_generated' | 'clinician_authored';
+  /**
+   * True when the directive concerns a patient-specific manual-handling method that must not be
+   * specified without a PT/OT assessment. The dialog blocks issue until the clinician either
+   * records that assessment or rewrites the directive as a referral.
+   */
+  requiresPtOtAssessment?: boolean;
+  ptOtAssessmentRecorded?: boolean;
 }
 
 export interface ClinicalCareBlueprint {
@@ -165,6 +222,7 @@ export interface ClinicalCareBlueprint {
   recommendedAssistiveDevices: AssistiveDeviceInventory;
   recommendedRespiteDaysPerMonth: number;
   status: 'draft_prescribed' | 'adopted_by_family' | 'modified_by_family';
+  authoredInstructions?: ClinicianAuthoredInstruction[];
   clinicalReview?: {
     decision: 'issued_by_clinician' | 'family_modified_pending_review' | 'clinician_revised';
     reviewedAt: string;
@@ -208,6 +266,24 @@ export interface CaregiverAttributes {
   };
   careBlueprint?: ClinicalCareBlueprint;
   assessmentMetadata?: ClinicalAssessmentMetadata;
+  /** Validated Zarit Burden Interview psychometric assessment result (ZBI-22, ZBI-12, or ZBI-4). */
+  zbiAssessment?: {
+    score: number;
+    tier: 'ZBI22' | 'ZBI12' | 'ZBI4';
+    assessedAt: string;
+    severityBand: 'normal' | 'amber' | 'red' | 'critical_red';
+    assessorName?: string;
+    assessorRole?: string;
+    source?: string;
+    assessmentId?: string;
+  };
+  /** WHO ICOPE caregiver mental health, confidence, and safeguarding screening. */
+  caregiverScreening?: {
+    confidenceLevel?: 'low' | 'moderate' | 'high';
+    psychologicalDistressReported?: boolean;
+    safeguardingOrNeglectRisk?: 'none_identified' | 'concern_flagged';
+    notes?: string;
+  };
   notes?: string;
   /**
    * ISO timestamp stamped by the persistence layer on every write. Carried on the record so an
@@ -321,15 +397,28 @@ export interface CareGapEvaluationResult {
   };
 
   taskDelegationStatus: {
+    /** True only when every transfer slot with demand is fully covered (staff or ledger). */
     transfersCovered: boolean;
     transfersCoveredBy: string[];
+    /** Partial means some, but not all, transfer demand is covered — relief is NOT granted. */
+    transfersCoverage: TaskCoverageLevel;
     medicationsCovered: boolean;
     medicationsCoveredBy: string[];
+    medicationsCoverage: TaskCoverageLevel;
     nightCareCovered: boolean;
     nightCareCoveredBy: string[];
+    nightCareCoverage: TaskCoverageLevel;
     bathingCovered: boolean;
     bathingCoveredBy: string[];
+    bathingCoverage: TaskCoverageLevel;
   };
+
+  /**
+   * The residual allocation ledger: every task × time-block demand unit and exactly who was
+   * credited against it. Block supplies, task relief, headline family capacity and the shift
+   * roster are all derived from these entries — nothing else may credit family hours.
+   */
+  allocationLedger: AllocationLedgerEntry[];
 
   assistiveDeviceStatus: {
     hasHospitalBed: boolean;
@@ -377,7 +466,26 @@ export interface CareGapEvaluationResult {
   // Standardized Biomechanical Lumbar Strain Index (0–100 score, based on NIOSH lifting criteria)
   caregiverInjuryRiskScore: number;
   caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
+  /** Qualitative manual-handling hazard tier for bounded planning without spurious precision. */
+  manualHandlingHazardTier: 'low' | 'moderate' | 'high' | 'severe';
+  /** Flag indicating whether dependent transfers require clinical PT/OT or SPHM specialist referral. */
+  requiresClinicalPtOtReferral: boolean;
+
+  /**
+   * Estimated Care-Capacity Strain: operational capacity & biomechanical schedule model tier.
+   * Note: This is an operational task/schedule strain estimate, NOT a diagnostic psychometric
+   * assessment of caregiver burden or clinical burnout (which requires validated tools like ZBI).
+   */
+  estimatedCareCapacityStrain: 'low' | 'moderate' | 'high' | 'critical';
+  /** Backwards-compatibility alias for estimatedCareCapacityStrain. */
   caregiverBurnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
+
+  /** Family hours credited from eligible task and time coverage. */
+  eligibleFamilyCoveredHours: number;
+  /** Family hours uncredited due to lack of assigned tasks, physical limitation, or timing mismatch. */
+  uncreditedFamilyHours: number;
+  /** Clinical reasons why entered family hours could not be credited against patient care demand. */
+  uncreditedFamilyReasons: string[];
 
   clinicalFindings: string[];
   provenance: {
@@ -687,6 +795,9 @@ export class CareGapEngine {
     const patientCareDemandHours = Math.round(demandHours * 10) / 10;
 
     // 4. Compute Formal / Ancillary Support Hours Absorbed
+    // Multi-family rotation is informal family care coordination with 0 formal nominal hours.
+    // Retain it in selectedTypes so team-support checks recognize the family arrangement,
+    // while its 0 formal nominal hours ensure zero artificial formal hours are absorbed.
     const selectedTypes = resolveSupportTypes(safeCaregiver.formalSupport);
     let rawAbsorbed = 0;
 
@@ -695,7 +806,7 @@ export class CareGapEngine {
       const hasConfiguredHours = typeof configuredHours === 'number' && !isNaN(configuredHours);
 
       const contributions = selectedTypes.map((t) => {
-        const spec = CARE_GAP_MODEL_PARAMS.formalProductivityFactors[t] || { nominalHours: 12, productivityFactor: 10.0 / 12 };
+        const spec = CARE_GAP_MODEL_PARAMS.formalProductivityFactors[t] || { nominalHours: 0, productivityFactor: 0 };
         const shiftHours = hasConfiguredHours
           ? Math.min(spec.nominalHours, Math.max(0, configuredHours))
           : spec.nominalHours;
@@ -711,43 +822,172 @@ export class CareGapEngine {
     const formalSupportAbsorbedHours =
       Math.round(Math.min(patientCareDemandHours * MAX_ABSORBABLE_FRACTION, rawAbsorbed) * 10) / 10;
 
-    // 4b. Secondary Family Members Support Network & Task Absorption
+    // 4b. Unified Residual Allocation Ledger
+    // Break demand into discrete task-by-time-block units.
+    // Maintain a single residual demand balance.
+    // Credit only actual, positive-duration compatible assignments.
+    // Prevent duplicate fulfillment across members.
+    // Derive transfer relief and headline capacity strictly from these ledger assignments.
+    type TaskBlockDemandSlot = AllocationLedgerEntry;
+
+    const demandSlots: TaskBlockDemandSlot[] = [
+      // Heavy Transfers: Morning wake-up/chair transfer (1.0h) & evening bed transfer (1.0h)
+      { task: 'heavy_transfers', block: 'morning_rush', demandHours: !safeKatz.transferring ? 1.0 : 0, allocatedHours: 0, allocatedTo: [] },
+      { task: 'heavy_transfers', block: 'evening', demandHours: !safeKatz.transferring ? 1.0 : 0, allocatedHours: 0, allocatedTo: [] },
+
+      // Bathing: Morning personal hygiene
+      { task: 'bathing', block: 'morning_rush', demandHours: !safeKatz.bathing ? 1.5 : 0, allocatedHours: 0, allocatedTo: [] },
+
+      // Feeding: Breakfast, lunch, dinner
+      { task: 'feeding', block: 'morning_rush', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
+      { task: 'feeding', block: 'afternoon', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
+      { task: 'feeding', block: 'evening', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.1, allocatedHours: 0, allocatedTo: [] },
+
+      // Medications: Morning, midday, evening administration
+      { task: 'medications', block: 'morning_rush', demandHours: !safeIadl.medicationManagement ? 0.4 : 0.2, allocatedHours: 0, allocatedTo: [] },
+      { task: 'medications', block: 'afternoon', demandHours: !safeIadl.medicationManagement ? 0.3 : 0.1, allocatedHours: 0, allocatedTo: [] },
+      { task: 'medications', block: 'evening', demandHours: !safeIadl.medicationManagement ? 0.3 : 0.2, allocatedHours: 0, allocatedTo: [] },
+
+      // Logistics & Errands: Midday clinic/pharmacy/groceries (1.5h) & evening logistics (0.5h)
+      { task: 'logistics_errands', block: 'afternoon', demandHours: (!safeIadl.shopping || !safeIadl.transportation || !safeIadl.finances || !safeIadl.housekeeping) ? 1.5 : 0.3, allocatedHours: 0, allocatedTo: [] },
+      { task: 'logistics_errands', block: 'evening', demandHours: (!safeIadl.shopping || !safeIadl.transportation || !safeIadl.finances || !safeIadl.housekeeping) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
+
+      // Night Care: Nocturnal repositioning, continence, agitation
+      { task: 'night_care', block: 'night_watch', demandHours: (safePatient.isBedBound || !safeKatz.continence || safePatient.cognitiveBehavioralLoad !== 'none') ? 2.0 : 0, allocatedHours: 0, allocatedTo: [] }
+    ];
+
+    const uncreditedFamilyReasons: string[] = [];
     const secondaryMembers = safeCaregiver.secondaryMembers || [];
     let rawFamilyHours = 0;
-    for (const member of secondaryMembers) {
-      rawFamilyHours += Math.max(0, member.hoursPerDay || 0);
-    }
-    if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0) {
-      rawFamilyHours = Math.min(2.5, (safeCaregiver.otherFamilyMembersCount ?? 0) * 1.0);
+    let totalEligibleFamilyHours = 0;
+
+    if (secondaryMembers.length > 0) {
+      for (const member of secondaryMembers) {
+        const memberRawHours = Math.max(0, member.hoursPerDay || 0);
+        rawFamilyHours += memberRawHours;
+
+        if (memberRawHours <= 0) {
+          uncreditedFamilyReasons.push(`${member.name || 'Helper'}: Has 0 entered available hours.`);
+          continue;
+        }
+
+        if (member.acceptanceStatus === 'declined') {
+          uncreditedFamilyReasons.push(`${member.name || 'Helper'}: Has declined care circle assignment.`);
+          continue;
+        }
+
+        // Pending or never-confirmed assignments are intentions, not capacity. Only an explicit
+        // acceptance is credited, so a plan cannot lean on hours nobody has agreed to give.
+        if (!isMemberAccepted(member)) {
+          uncreditedFamilyReasons.push(
+            `${member.name || 'Helper'} (${memberRawHours}h/day): assignment ${member.acceptanceStatus === 'pending' ? 'pending' : 'not yet'} accepted — not credited until confirmed.`
+          );
+          continue;
+        }
+
+        if (!member.assignedTasks || member.assignedTasks.length === 0) {
+          uncreditedFamilyReasons.push(
+            `${member.name || 'Helper'} (${memberRawHours}h/day) cannot reduce care gap without specific assigned tasks matching patient deficits.`
+          );
+          continue;
+        }
+
+        const availableBlocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
+          ? member.availableTimeBlocks
+          : (['morning_rush', 'afternoon', 'evening'] as DiurnalTimeBlock[]);
+
+        let remainingMemberHours = memberRawHours;
+
+        for (const slot of demandSlots) {
+          if (remainingMemberHours <= 0) break;
+
+          if (!member.assignedTasks.includes(slot.task)) continue;
+          if (!availableBlocks.includes(slot.block)) continue;
+
+          // Physical tasks require physical capability
+          if ((slot.task === 'heavy_transfers' || slot.task === 'bathing') && (member.hasPhysicalLimitation || member.age >= 60)) {
+            continue;
+          }
+
+          const residualDemand = Math.max(0, slot.demandHours - slot.allocatedHours);
+          if (residualDemand <= 0) continue;
+
+          const credit = Math.min(remainingMemberHours, residualDemand);
+          if (credit > 0) {
+            slot.allocatedHours += credit;
+            slot.allocatedTo.push({
+              memberId: member.id,
+              memberName: member.name || member.relationship.replace(/_/g, ' '),
+              hours: credit
+            });
+            remainingMemberHours -= credit;
+            totalEligibleFamilyHours += credit;
+          }
+        }
+
+        if (remainingMemberHours > 0.05) {
+          uncreditedFamilyReasons.push(
+            `${member.name || 'Helper'}: ${Math.round(remainingMemberHours * 10) / 10}h uncredited due to lack of residual demand in assigned slots, schedule mismatch, or physical restrictions.`
+          );
+        }
+      }
+    } else if ((safeCaregiver.otherFamilyMembersCount ?? 0) > 0) {
+      // A head-count with no named, accepted, task-assigned members is not capacity. It used to be
+      // worth up to 2.5 estimated hours, which let an unnamed "3 relatives" shrink the care gap.
+      uncreditedFamilyReasons.push(
+        `${safeCaregiver.otherFamilyMembersCount} other family member(s) recorded by count only — add them as named helpers with accepted task assignments to credit their hours.`
+      );
     }
 
     const remainingDemandAfterStaff = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
-    const familySupportAbsorbedHours = Math.round(Math.min(remainingDemandAfterStaff, rawFamilyHours) * 10) / 10;
+    const familySupportAbsorbedHours = Math.round(Math.min(remainingDemandAfterStaff, totalEligibleFamilyHours) * 10) / 10;
+    const eligibleFamilyCoveredHours = familySupportAbsorbedHours;
+    const uncreditedFamilyHours = Math.max(0, Math.round((rawFamilyHours - totalEligibleFamilyHours) * 10) / 10);
 
-    // Task Delegation Relief Analysis across Staff and Capable Family
+    // Unified Task Delegation Relief derived strictly from the ledger.
+    //
+    // Relief is only granted when EVERY demand slot for the task is fully covered. One hour of
+    // morning transfer help used to switch on full-day transfer relief (and drop the manual-
+    // handling score from 95 to 65) while the evening transfer stayed with the primary caregiver.
+    const coverageFor = (task: CareTask): TaskCoverageLevel => {
+      const slots = demandSlots.filter((s) => s.task === task && s.demandHours > 0);
+      if (slots.length === 0) return 'complete';
+      const fullyCovered = slots.every((s) => s.allocatedHours >= s.demandHours - 0.01);
+      if (fullyCovered) return 'complete';
+      return slots.some((s) => s.allocatedHours > 0) ? 'partial' : 'none';
+    };
+
     const transfersCoveredByStaff = selectedTypes.some(performsHeavyTransfers);
-    const transfersCoveredByFamilyMembers = secondaryMembers
-      .filter((m) => !m.hasPhysicalLimitation && m.age < 60 && m.assignedTasks.includes('heavy_transfers'))
-      .map((m) => m.name || m.relationship.replace('_', ' '));
-    const isTransfersRelieved = transfersCoveredByStaff || transfersCoveredByFamilyMembers.length > 0;
+    const transfersCoverage: TaskCoverageLevel = transfersCoveredByStaff ? 'complete' : coverageFor('heavy_transfers');
+    const isTransfersRelieved = transfersCoverage === 'complete';
 
     const bathingCoveredByStaff = selectedTypes.some((t) => t === 'paid_attendant_12h' || t === 'paid_attendant_24h' || t === 'trained_nurse_12h' || t === 'trained_nurse_24h');
-    const bathingCoveredByFamilyMembers = secondaryMembers
-      .filter((m) => !m.hasPhysicalLimitation && m.assignedTasks.includes('bathing'))
-      .map((m) => m.name || m.relationship.replace('_', ' '));
-    const isBathingRelieved = bathingCoveredByStaff || bathingCoveredByFamilyMembers.length > 0;
+    const bathingCoverage: TaskCoverageLevel = bathingCoveredByStaff ? 'complete' : coverageFor('bathing');
+    const isBathingRelieved = bathingCoverage === 'complete';
 
     const nightCareCoveredByStaff = selectedTypes.some((t) => t.includes('24h'));
-    const nightCareCoveredByFamilyMembers = secondaryMembers
-      .filter((m) => m.assignedTasks.includes('night_care'))
-      .map((m) => m.name || m.relationship.replace('_', ' '));
-    const isNightCareRelieved = nightCareCoveredByStaff || nightCareCoveredByFamilyMembers.length > 0;
+    const nightCareCoverage: TaskCoverageLevel = nightCareCoveredByStaff ? 'complete' : coverageFor('night_care');
+    const isNightCareRelieved = nightCareCoverage === 'complete';
 
-    const medsCoveredByStaff = (safeCaregiver.formalSupport?.handlesMedicationWoundCare ?? false) || selectedTypes.some((t) => t.includes('nurse'));
-    const medsCoveredByFamilyMembers = secondaryMembers
-      .filter((m) => m.assignedTasks.includes('medications'))
-      .map((m) => m.name || m.relationship.replace('_', ' '));
-    const isMedsRelieved = medsCoveredByStaff || medsCoveredByFamilyMembers.length > 0;
+    const medicationsCoveredByStaff = selectedTypes.some((t) => t.includes('nurse'));
+    const medicationsCoverage: TaskCoverageLevel = medicationsCoveredByStaff ? 'complete' : coverageFor('medications');
+    const isMedsRelieved = medicationsCoverage === 'complete';
+
+    const getSlotCoveredMemberNames = (task: CareTask) => {
+      const memberIds = new Set(
+        demandSlots
+          .filter((s) => s.task === task)
+          .flatMap((s) => s.allocatedTo.map((a) => a.memberId))
+      );
+      return secondaryMembers
+        .filter((m) => memberIds.has(m.id))
+        .map((m) => m.name || m.relationship.replace('_', ' '));
+    };
+
+    const transfersCoveredByFamilyMembers = getSlotCoveredMemberNames('heavy_transfers');
+    const bathingCoveredByFamilyMembers = getSlotCoveredMemberNames('bathing');
+    const nightCareCoveredByFamilyMembers = getSlotCoveredMemberNames('night_care');
+    const medsCoveredByFamilyMembers = getSlotCoveredMemberNames('medications');
 
     // Diurnal Time-Block Coverage & Schedule Conflict Detection
     let morningCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
@@ -757,15 +997,20 @@ export class CareGapEngine {
 
     const diurnalConflicts: DiurnalScheduleConflict[] = [];
 
+    // A block counts as family-covered only when the ledger actually credited hours into it — a
+    // declared availability window from a pending, declined or unassigned member is not coverage.
+    for (const slot of demandSlots) {
+      if (slot.allocatedHours <= 0) continue;
+      if (slot.block === 'morning_rush') morningCovered = true;
+      else if (slot.block === 'afternoon') afternoonCovered = true;
+      else if (slot.block === 'evening') eveningCovered = true;
+      else if (slot.block === 'night_watch') nightCovered = true;
+    }
+
     for (const member of secondaryMembers) {
       const availableBlocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
         ? member.availableTimeBlocks
         : ['morning_rush', 'evening'];
-
-      if (availableBlocks.includes('morning_rush')) morningCovered = true;
-      if (availableBlocks.includes('afternoon')) afternoonCovered = true;
-      if (availableBlocks.includes('evening')) eveningCovered = true;
-      if (availableBlocks.includes('night_watch')) nightCovered = true;
 
       const scheduleStr = (member.workCommitmentSchedule || member.occupation || '').toLowerCase();
       const isDaytimeJob = scheduleStr.includes('full') || scheduleStr.includes('9am') || scheduleStr.includes('9-') || scheduleStr.includes('10am') || scheduleStr.includes('10-');
@@ -827,10 +1072,12 @@ export class CareGapEngine {
     if (safeHealth.hasInsomnia) healthDeduction += isNightCareRelieved ? 0.3 : 1.0;
     if (safeCaregiver.age >= 65) healthDeduction += 1.5;
 
-    const caregiverSafeCapacityHours = Math.max(
-      1.0,
-      Math.round((capacityHours - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
-    );
+    const caregiverSafeCapacityHours = safeCaregiver.dailyHoursCommitted <= 0
+      ? 0
+      : Math.max(
+          1.0,
+          Math.round((capacityHours - funcDeduction - kinshipDeduction - healthDeduction) * 10) / 10
+        );
 
     // 6. Net Care Gap (Deficit in Hours/Day for the Primary Caregiver)
     const totalAvailableCapacityHours = Math.round(
@@ -1009,21 +1256,28 @@ export class CareGapEngine {
       }
     }
 
-    // Secondary Family Supply — each member's share of the pooled absorbed hours is proportional
-    // to what they committed, so the block totals reconcile with familySupportAbsorbedHours.
-    if (rawFamilyHours > 0 && familySupportAbsorbedHours > 0 && secondaryMembers.length > 0) {
-      const absorbedShare = Math.min(1, familySupportAbsorbedHours / rawFamilyHours);
-      for (const member of secondaryMembers) {
-        const mHours = Math.max(0, member.hoursPerDay || 0);
-        if (mHours <= 0) continue;
-        const blocks = member.availableTimeBlocks && member.availableTimeBlocks.length > 0
-          ? member.availableTimeBlocks
-          : (['morning_rush', 'evening'] as DiurnalTimeBlock[]);
-        spreadAcrossBlocks(blocks, mHours * absorbedShare, `${member.name || member.relationship} (${mHours}h)`);
+    // Secondary Family Supply — read straight off the ledger. Each credited allocation lands in
+    // the block whose demand it satisfied, so a declined or pending helper (never credited) can
+    // no longer appear as night-block supply, and no member is spread across blocks they were not
+    // credited in. When headline absorption was capped below the ledger total (formal staff
+    // already covering most demand) the same cap is applied proportionally so block totals
+    // reconcile with familySupportAbsorbedHours.
+    const ledgerFamilyTotal = demandSlots.reduce((sum, s) => sum + s.allocatedHours, 0);
+    const familyBlockScale = ledgerFamilyTotal > 0 ? Math.min(1, familySupportAbsorbedHours / ledgerFamilyTotal) : 0;
+    if (familyBlockScale > 0) {
+      const perMemberBlock = new Map<string, { name: string; hours: number }>();
+      for (const slot of demandSlots) {
+        for (const a of slot.allocatedTo) {
+          const key = `${a.memberId}::${slot.block}`;
+          const cur = perMemberBlock.get(key) || { name: a.memberName, hours: 0 };
+          cur.hours += a.hours * familyBlockScale;
+          perMemberBlock.set(key, cur);
+        }
       }
-    }
-    if (secondaryMembers.length === 0 && (safeCaregiver.otherFamilyMembersCount ?? 0) > 0 && familySupportAbsorbedHours > 0) {
-      spreadAcrossBlocks(['morning_rush', 'evening'], familySupportAbsorbedHours, 'Family Network');
+      for (const [key, v] of perMemberBlock) {
+        const block = key.split('::')[1] as DiurnalTimeBlock;
+        creditBlock(block, v.hours, `${v.name} (${Math.round(v.hours * 10) / 10}h)`);
+      }
     }
 
     // Primary Caregiver Safe Capacity Supply
@@ -1093,28 +1347,40 @@ export class CareGapEngine {
       unmetGapHours
     };
 
-    const taskDelegationStatus = {
+    const taskDelegationStatus: CareGapEvaluationResult['taskDelegationStatus'] = {
       transfersCovered: isTransfersRelieved,
       transfersCoveredBy: [
         ...(transfersCoveredByStaff ? ['Formal Attendant / Nurse'] : []),
         ...transfersCoveredByFamilyMembers
       ],
+      transfersCoverage,
       medicationsCovered: isMedsRelieved,
       medicationsCoveredBy: [
-        ...(medsCoveredByStaff ? ['Clinical Nurse'] : []),
+        ...(medicationsCoveredByStaff ? ['Clinical Nurse'] : []),
         ...medsCoveredByFamilyMembers
       ],
+      medicationsCoverage,
       nightCareCovered: isNightCareRelieved,
       nightCareCoveredBy: [
         ...(nightCareCoveredByStaff ? ['24h Night Staff'] : []),
         ...nightCareCoveredByFamilyMembers
       ],
+      nightCareCoverage,
       bathingCovered: isBathingRelieved,
       bathingCoveredBy: [
         ...(bathingCoveredByStaff ? ['Attendant / Nurse'] : []),
         ...bathingCoveredByFamilyMembers
-      ]
+      ],
+      bathingCoverage
     };
+
+    const allocationLedger: AllocationLedgerEntry[] = demandSlots.map((s) => ({
+      task: s.task,
+      block: s.block,
+      demandHours: Math.round(s.demandHours * 100) / 100,
+      allocatedHours: Math.round(s.allocatedHours * 100) / 100,
+      allocatedTo: s.allocatedTo.map((a) => ({ ...a, hours: Math.round(a.hours * 100) / 100 }))
+    }));
 
     // 7. Care Gap Severity Classification
     let careGapSeverity: CareGapEvaluationResult['careGapSeverity'] = 'sustainable';
@@ -1140,6 +1406,9 @@ export class CareGapEngine {
       nocturnalSleepInterruptions,
       caregiverInjuryRiskScore,
       caregiverInjuryRiskCategory,
+      manualHandlingHazardTier,
+      requiresClinicalPtOtReferral,
+      clinicalReferralNotice,
       ergonomicMechanisms
     } = biomechanicalAssessment;
 
@@ -1172,6 +1441,35 @@ export class CareGapEngine {
       caregiverBurnoutRiskLevel = 'high';
     } else if (netCareGapHours > 0.0 || caregiverInjuryRiskScore > INJURY_MODERATE_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'moderate';
+    }
+
+    const estimatedCareCapacityStrain = caregiverBurnoutRiskLevel;
+
+    if (requiresClinicalPtOtReferral && clinicalReferralNotice) {
+      clinicalFindings.push(`Manual Handling Clinical Referral: ${clinicalReferralNotice}`);
+      prescriptions.push({
+        id: 'rx_pt_ot_transfer_referral',
+        title: 'Occupational Therapy / Physiotherapy Transfer Assessment',
+        action: 'Refer to an Occupational Therapist (OT), Physiotherapist (PT), or certified Safe Patient Handling and Mobility (SPHM) specialist for an individualized transfer, equipment, and sling assessment.',
+        impact: 'Protects caregiver musculoskeletal integrity and minimizes patient fall and shear injury risks during dependent transfers.',
+        urgency: caregiverInjuryRiskCategory === 'severe' || caregiverInjuryRiskCategory === 'high' ? 'urgent' : 'priority'
+      });
+    }
+
+    if (safeCaregiver.zbiAssessment) {
+      clinicalFindings.push(
+        `Validated Psychometric Zarit Burden Interview (${safeCaregiver.zbiAssessment.tier}): Score ${safeCaregiver.zbiAssessment.score} (${safeCaregiver.zbiAssessment.severityBand.replace('_', ' ')}).`
+      );
+    } else {
+      clinicalFindings.push(
+        'Caregiver Capacity Strain is an operational workload model based on hours deficit and manual handling. Psychometric caregiver burden assessment (ZBI-22/12) is pending; schedule clinical burden screening per WHO ICOPE guidelines.'
+      );
+    }
+
+    if (uncreditedFamilyHours > 0) {
+      clinicalFindings.push(
+        `Family Network Allocation: ${eligibleFamilyCoveredHours} hrs/day credited toward direct care dependencies; ${uncreditedFamilyHours} hrs/day uncredited due to absence of assigned tasks matching active patient deficits, physical restrictions, or diurnal schedule clashes.`
+      );
     }
 
     // 9. Clinical Findings & Prescriptions
@@ -1316,6 +1614,7 @@ export class CareGapEngine {
       netCareGapHours,
       teamAllocations,
       taskDelegationStatus,
+      allocationLedger,
       assistiveDeviceStatus: {
         hasHospitalBed: safeDevices.hospitalBed !== 'none',
         bedType: safeDevices.hospitalBed,
@@ -1341,7 +1640,13 @@ export class CareGapEngine {
       nocturnalSleepInterruptions,
       caregiverInjuryRiskScore,
       caregiverInjuryRiskCategory,
+      manualHandlingHazardTier,
+      requiresClinicalPtOtReferral,
+      estimatedCareCapacityStrain,
       caregiverBurnoutRiskLevel,
+      eligibleFamilyCoveredHours,
+      uncreditedFamilyHours,
+      uncreditedFamilyReasons,
       clinicalFindings,
       provenance: {
         careGapModel: CLINICAL_PROVENANCE.careGapHeuristic,
@@ -1365,9 +1670,10 @@ export * from './shift-allocator';
 export function generateWhatsAppCareDigest(
   caregiver: CaregiverAttributes,
   patient: PatientDependenceProfile,
-  evaluation: CareGapEvaluationResult
+  evaluation: CareGapEvaluationResult,
+  options?: { redacted?: boolean }
 ): string {
-  return ShiftAllocator.generateWhatsAppCareDigest(caregiver, patient, evaluation);
+  return ShiftAllocator.generateWhatsAppCareDigest(caregiver, patient, evaluation, undefined, options);
 }
 
 /**
@@ -1378,7 +1684,8 @@ export function generateWhatsAppCareDigest(
 export function generateCareRosterIcs(
   caregiver: CaregiverAttributes,
   patient: PatientDependenceProfile,
-  evaluation: CareGapEvaluationResult
+  evaluation: CareGapEvaluationResult,
+  options?: { redacted?: boolean; authorization?: { planAuthorized: boolean; emergencyVerified: boolean } }
 ): string {
-  return ShiftAllocator.generateCareRosterIcs(caregiver, patient, evaluation);
+  return ShiftAllocator.generateCareRosterIcs(caregiver, patient, evaluation, undefined, new Date(), options);
 }

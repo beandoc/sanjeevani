@@ -1354,12 +1354,18 @@ export default function OnboardingIntakePage() {
                   </Badge>
                 </div>
 
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Lifting Strain (NIOSH)</span>
-                  <span className={cn('text-2xl font-black font-mono', evaluation.liftingIndex > 2.0 ? 'text-rose-600' : evaluation.liftingIndex > 1.0 ? 'text-amber-600' : 'text-emerald-600')}>
-                    {evaluation.liftingIndex.toFixed(1)} LI
+                <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs flex flex-col justify-center">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Manual Handling Concern</span>
+                  <span className={cn('text-xs font-bold leading-tight mt-1', evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high' ? 'text-rose-600' : evaluation.manualHandlingHazardTier === 'moderate' ? 'text-amber-600' : 'text-emerald-600')}>
+                    {evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high'
+                      ? 'High concern — formal handling assessment required'
+                      : evaluation.manualHandlingHazardTier === 'moderate'
+                      ? 'Elevated manual-handling concern'
+                      : 'Lower observed concern'}
                   </span>
-                  <span className="text-[10px] text-muted-foreground block">{evaluation.caregiverInjuryRiskScore}% injury risk</span>
+                  <span className="text-[10px] text-muted-foreground block mt-0.5">
+                    {evaluation.requiresClinicalPtOtReferral ? '⚠️ PT/OT referral indicated' : 'Routine ergonomic guidance'}
+                  </span>
                 </div>
               </div>
 

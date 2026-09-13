@@ -278,6 +278,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
             hoursPerDay: 4,
             assignedTasks: ['medications' as const, 'feeding' as const],
             hasPhysicalLimitation: false,
+            acceptanceStatus: 'accepted' as const,
             availableTimeBlocks: ['afternoon' as const, 'evening' as const]
           }
         ],

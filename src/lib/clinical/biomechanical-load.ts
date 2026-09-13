@@ -48,6 +48,12 @@ export interface BiomechanicalAssessmentResult {
   caregiverInjuryRiskScore: number;
   /** Clinical Risk Tier based on RNLE / MAPO index thresholds. */
   caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
+  /** Qualitative manual-handling hazard tier for bounded planning without spurious precision. */
+  manualHandlingHazardTier: 'low' | 'moderate' | 'high' | 'severe';
+  /** Flag indicating whether dependent transfers require an OT/PT or Safe Patient Handling clinical assessment. */
+  requiresClinicalPtOtReferral: boolean;
+  /** Clinical referral recommendation text for manual handling. */
+  clinicalReferralNotice?: string;
   /** Flag if lifting forces exceed standard NIOSH safety limits */
   isSafetyLimitExceeded: boolean;
   /** Clinical ergonomic explanations detailing equipment discounts and physical mechanics */
@@ -270,7 +276,21 @@ export function calculateBiomechanicalLoad(
     caregiverInjuryRiskCategory = 'moderate';
   }
 
+  const manualHandlingHazardTier = caregiverInjuryRiskCategory;
   const isSafetyLimitExceeded = liftingIndex > 1.0 || spinalCompressionKN > NIOSH_SPINAL_COMPRESSION_ACTION_LIMIT_KN;
+
+  // CDC RNLE / NIOSH Patient Handling Scope Disclaimer:
+  // The Revised NIOSH Lifting Equation was principally developed for two-handed manual lifting of stable,
+  // inanimate objects. NIOSH explicitly excluded general patient-handling tasks because patients are variable,
+  // non-rigid, and may move unpredictably. Calculated values are qualitative indicators, not exact bio-physics.
+  ergonomicMechanisms.push(
+    'CDC/NIOSH Scope Note: The NIOSH RNLE was developed for inanimate objects; human patient transfers involve unpredictable biomechanics. Quantitative values represent bounded planning heuristics.'
+  );
+
+  const requiresClinicalPtOtReferral = !patient.katzAdl.transferring || patient.isBedBound || manualHandlingHazardTier === 'high' || manualHandlingHazardTier === 'severe';
+  const clinicalReferralNotice = requiresClinicalPtOtReferral
+    ? 'Patient is dependent in transfers or bed-bound. Route to an Occupational Therapist (OT), Physiotherapist (PT), or certified Safe Patient Handling and Mobility (SPHM) specialist for an individualized transfer, equipment, and sling assessment.'
+    : undefined;
 
   return {
     liftingIndex,
@@ -279,6 +299,9 @@ export function calculateBiomechanicalLoad(
     nocturnalSleepInterruptions,
     caregiverInjuryRiskScore,
     caregiverInjuryRiskCategory,
+    manualHandlingHazardTier,
+    requiresClinicalPtOtReferral,
+    clinicalReferralNotice,
     isSafetyLimitExceeded,
     ergonomicMechanisms
   };

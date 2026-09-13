@@ -56,6 +56,8 @@ export * from './care-circle';
 export * from './appointments';
 export * from './account';
 export * from './alerts';
+export * from './clinical-authorization';
+export * from './export-audit';
 export * from './dyad-invites';
 export * from './access';
 export * from './dyad-subscriptions';

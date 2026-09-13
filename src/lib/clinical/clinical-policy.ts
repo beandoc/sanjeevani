@@ -8,8 +8,8 @@
  */
 
 export const CLINICAL_POLICY = {
-  version: '2026.08.28.1',
-  reviewedAt: '2026-08-28',
+  version: '2026.09.13.1',
+  reviewedAt: '2026-09-13',
   reviewCadenceDays: 180,
   assessmentFreshnessDays: 30,
   comprehensiveGeriatricAssessmentDomains: [
@@ -27,7 +27,12 @@ export const CLINICAL_POLICY = {
     unresolvedNightGap: 120,
     unresolvedMorningGap: 60,
     residualGapPerHour: 15,
-    liftingIndex: 25,
+    /**
+     * Manual-handling penalty by qualitative hazard tier. The NIOSH lifting equation was not
+     * designed for patient transfers, so the exact lifting index is reported for context only and
+     * never weighs a staffing decision; the auditable tier does.
+     */
+    manualHandlingHazardTier: { low: 0, moderate: 15, high: 40, severe: 75 },
     costTier: 8
   }
 } as const;

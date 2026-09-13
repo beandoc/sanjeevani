@@ -19,6 +19,7 @@ export function subscribeToDyadClinicalData(patientUid: string, callback: () => 
     onSnapshot(doc(db, 'users', patientUid, 'patientProfile', 'current'), callback, callback),
     onSnapshot(doc(db, 'users', patientUid, 'medications', 'current'), callback, callback),
     onSnapshot(doc(db, 'users', patientUid, 'careCircle', 'current'), callback, callback),
+    onSnapshot(doc(db, 'users', patientUid, 'clinicalAuthorization', 'current'), callback, callback),
     onSnapshot(collection(db, 'users', patientUid, 'moduleProgress'), callback, callback)
   ];
   return () => unsubscribers.forEach((unsubscribe) => unsubscribe());

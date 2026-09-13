@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,21 +14,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Stethoscope,
-  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   Bed,
   Clock,
   Send,
   Activity,
-  FileSignature
+  FileSignature,
+  Plus,
+  Trash2,
+  ClipboardCheck
 } from 'lucide-react';
 import {
   CaregiverAttributes,
   PatientDependenceProfile,
   ClinicalCareBlueprint,
+  ClinicianAuthoredInstruction,
   AssistiveDeviceInventory,
   DEFAULT_ASSISTIVE_DEVICES
 } from '@/lib/clinical/care-gap-engine';
@@ -37,12 +41,28 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import {
+  INSTRUCTION_DOMAIN_OPTIONS,
+  INSTRUCTION_TIMING_OPTIONS,
+  acceptInstruction,
+  buildDraftInstructions,
+  editInstruction,
+  newBlankInstruction,
+  validateAllForIssue
+} from '@/lib/clinical/blueprint-instruction-drafts';
 
 interface DoctorCareBlueprintDialogProps {
   patientName: string;
   caregiver: CaregiverAttributes | null;
   patientProfile: PatientDependenceProfile | null;
+  /**
+   * Receives the blueprint with every instruction explicitly accepted. The caller is responsible
+   * for persisting it AND writing the clinician-only authorization record (plan hash) — see the
+   * dyad page's `handleBlueprintIssued`.
+   */
   onBlueprintIssued: (blueprint: ClinicalCareBlueprint) => Promise<void>;
+  /** Signed-in clinician's display name; seeds the author field. */
+  clinicianDisplayName?: string;
   trigger?: React.ReactNode;
 }
 
@@ -51,6 +71,7 @@ export function DoctorCareBlueprintDialog({
   caregiver,
   patientProfile,
   onBlueprintIssued,
+  clinicianDisplayName,
   trigger
 }: DoctorCareBlueprintDialogProps) {
   const { toast } = useToast();
@@ -127,27 +148,13 @@ export function DoctorCareBlueprintDialog({
   const activeOption: SimulatedStaffingOption =
     report.ladder.find((r) => r.rung === selectedRung) || report.ladder[1] || report.ladder[0];
 
-  // Customizable Precautions
-  const defaultPrecautions = [
-    ...(safeCaregiver.caregiverHealth.hasBackPain || safeCaregiver.age >= 60
-      ? ['Primary caregiver must NOT perform solo manual bed-to-chair lifts (use 2-person assist or transfer aids).']
-      : []),
-    ...(safePatient.isBedBound
-      ? ['Create an individualized repositioning plan, often every 2-3 hours depending on skin status, comfort, perfusion, and support surface.']
-      : []),
-    ...(safePatient.fallHistoryLast6Months >= 1
-      ? ['High Fall Hazard: review bedside commode, footwear, lighting, and non-slip bathroom grab rails for fit and feasibility.']
-      : []),
-    ...(report.acuityAssessment.dominantSkillTier === 'nurse'
-      ? ['Clinical Nursing Review: confirm wound dressing plan, catheter drainage hygiene, escalation signs, and local nursing scope of practice.']
-      : []),
-    'Maintain daily blood pressure and vitals log prior to morning medication administration.'
-  ];
-
-  const [precautions, setPrecautions] = useState<string[]>(defaultPrecautions);
-  const [newPrecautionText, setNewPrecautionText] = useState('');
-  const [doctorName, setDoctorName] = useState('Dr. Vivek (Geriatric Specialist)');
+  const [doctorName, setDoctorName] = useState(clinicianDisplayName?.trim() || '');
   const [respiteDays, setRespiteDays] = useState(4);
+
+  useEffect(() => {
+    if (clinicianDisplayName && !doctorName) setDoctorName(clinicianDisplayName.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clinicianDisplayName]);
 
   // Assistive Devices
   const [devices, setDevices] = useState<AssistiveDeviceInventory>(
@@ -158,16 +165,60 @@ export function DoctorCareBlueprintDialog({
     }
   );
 
-  const handleAddPrecaution = () => {
-    if (newPrecautionText.trim()) {
-      setPrecautions([...precautions, newPrecautionText.trim()]);
-      setNewPrecautionText('');
-    }
-  };
+  // -------------------------------------------------------------------------------------------
+  // Instruction review. Drafts are generated when the dialog opens (never at issue time), shown
+  // as editable forms, and each must be explicitly accepted before the plan can be issued.
+  // -------------------------------------------------------------------------------------------
+  const [instructions, setInstructions] = useState<ClinicianAuthoredInstruction[]>([]);
+  const [draftsSeeded, setDraftsSeeded] = useState(false);
 
-  const handleRemovePrecaution = (index: number) => {
-    setPrecautions(precautions.filter((_, i) => i !== index));
-  };
+  useEffect(() => {
+    if (!open) {
+      setDraftsSeeded(false);
+      return;
+    }
+    if (draftsSeeded) return;
+    const nursingNote =
+      report.acuityAssessment.dominantSkillTier === 'nurse'
+        ? ['Nursing review needed: confirm wound-dressing plan, catheter hygiene and escalation signs with the visiting nurse.']
+        : [];
+    setInstructions(
+      buildDraftInstructions({
+        patient: safePatient,
+        caregiver: safeCaregiver,
+        devices,
+        authorName: doctorName.trim() || 'Clinician',
+        precautions: nursingNote
+      })
+    );
+    setDraftsSeeded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, draftsSeeded]);
+
+  // Author name edits propagate to every unissued directive.
+  useEffect(() => {
+    const name = doctorName.trim();
+    if (!name) return;
+    setInstructions((prev) => prev.map((i) => (i.authoredBy === name ? i : { ...i, authoredBy: name, prescribedBy: name })));
+  }, [doctorName]);
+
+  const validation = useMemo(() => validateAllForIssue(instructions), [instructions]);
+  const acceptedCount = instructions.filter((i) => i.acceptedByClinician).length;
+
+  const updateInstruction = (id: string, patch: Partial<ClinicianAuthoredInstruction>) =>
+    setInstructions((prev) => prev.map((i) => (i.id === id ? editInstruction(i, patch) : i)));
+  const toggleAccept = (id: string) =>
+    setInstructions((prev) =>
+      prev.map((i) => (i.id === id ? (i.acceptedByClinician ? { ...i, acceptedByClinician: false, acceptedAt: undefined } : acceptInstruction(i)) : i))
+    );
+  const removeInstruction = (id: string) => setInstructions((prev) => prev.filter((i) => i.id !== id));
+  const addInstruction = () => setInstructions((prev) => [...prev, newBlankInstruction(doctorName.trim() || 'Clinician')]);
+
+  const canIssue =
+    !isSubmitting &&
+    report.decisionSupportStatus !== 'requires_data_completion' &&
+    doctorName.trim().length > 0 &&
+    validation.valid;
 
   const handleIssueBlueprint = async () => {
     if (report.decisionSupportStatus === 'requires_data_completion') {
@@ -178,12 +229,37 @@ export function DoctorCareBlueprintDialog({
       });
       return;
     }
+    if (!doctorName.trim()) {
+      toast({ variant: 'destructive', title: 'Author Required', description: 'Enter the issuing clinician\'s name.' });
+      return;
+    }
+    if (!validation.valid) {
+      const firstProblem = Object.entries(validation.perInstruction).find(([, v]) => !v.valid);
+      toast({
+        variant: 'destructive',
+        title: instructions.length === 0 ? 'No Directives to Issue' : 'Directives Not Ready',
+        description: firstProblem
+          ? `"${instructions.find((i) => i.id === firstProblem[0])?.title || 'Untitled'}" is missing: ${firstProblem[1].problems.join(', ')}.`
+          : 'Add at least one directive and accept each one.'
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      const doc = doctorName.trim();
+      const authoredInstructions: ClinicianAuthoredInstruction[] = instructions.map((i) => ({
+        ...i,
+        authoredBy: doc,
+        prescribedBy: doc
+      }));
+      const precautions = authoredInstructions
+        .filter((i) => i.timingWindow === 'as_needed')
+        .map((i) => (i.title ? `${i.title}: ${i.instruction}` : i.instruction));
+
       const blueprint: ClinicalCareBlueprint = {
         id: `blueprint_${Date.now()}`,
-        prescribedByDoctor: doctorName.trim() || 'Dr. Vivek',
+        prescribedByDoctor: doc,
         prescribedAt: new Date().toISOString(),
         clinicalSummary: activeOption.clinicalJustification,
         recommendedSupportType: activeOption.supportType,
@@ -193,10 +269,13 @@ export function DoctorCareBlueprintDialog({
         recommendedAssistiveDevices: devices,
         recommendedRespiteDaysPerMonth: respiteDays,
         status: 'draft_prescribed',
+        authoredInstructions,
+        // Display hint only. Authorization is proven by the clinician-only record + plan hash
+        // written by the caller, never by this object (it lives in a caregiver-editable document).
         clinicalReview: {
           decision: 'issued_by_clinician',
           reviewedAt: new Date().toISOString(),
-          reviewedBy: doctorName.trim() || 'Dr. Vivek',
+          reviewedBy: doc,
           policyVersion: report.policyVersion,
           decisionSupportStatus: report.decisionSupportStatus
         }
@@ -335,46 +414,206 @@ export function DoctorCareBlueprintDialog({
             </div>
           </div>
 
-          {/* Clinical Safety Directives & Precautions */}
+          {/* Directive review — every instruction is an editable form requiring explicit acceptance */}
           <div className="space-y-3">
-            <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" /> Safety Notes & Precautions for Family
-            </Label>
-            <div className="space-y-2">
-              {precautions.map((item, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl border border-border/80 bg-card flex items-start justify-between gap-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-600 font-bold font-mono">#{idx + 1}</span>
-                    <span className="text-foreground leading-relaxed">{item}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePrecaution(idx)}
-                    className="text-muted-foreground hover:text-rose-600 text-xs font-bold px-1"
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                <ClipboardCheck className="w-3.5 h-3.5" /> Directives for the Family — Review & Accept Each
+              </Label>
+              <Badge variant={validation.valid ? 'default' : 'outline'} className={cn('text-[10px] font-mono', validation.valid && 'bg-emerald-600 text-white')}>
+                {acceptedCount}/{instructions.length} accepted
+              </Badge>
+            </div>
+            <ClinicalSafetyNote>
+              Drafts below were generated from documented deficits only and carry no guideline attribution. Edit any text; editing clears
+              acceptance. Nothing is issued until every directive is accepted. No transfer method is drafted — record a PT/OT assessment
+              before writing one.
+            </ClinicalSafetyNote>
+
+            {instructions.length === 0 && (
+              <div className="p-4 rounded-xl border border-dashed border-border text-center text-xs text-muted-foreground">
+                No directives yet. Add one below — a plan cannot be issued without at least one accepted directive.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {instructions.map((inst, idx) => {
+                const v = validation.perInstruction[inst.id];
+                const accepted = !!inst.acceptedByClinician;
+                return (
+                  <div
+                    key={inst.id}
+                    className={cn(
+                      'p-3.5 rounded-2xl border space-y-2.5 text-xs',
+                      accepted ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border bg-card'
+                    )}
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-blue-600">#{idx + 1}</span>
+                        <Badge variant="outline" className="text-[9px] font-mono uppercase">
+                          {inst.source === 'draft_generated' ? 'engine draft' : 'clinician authored'}
+                        </Badge>
+                        {inst.requiresPtOtAssessment && (
+                          <Badge variant="destructive" className="text-[9px] font-mono gap-1">
+                            <AlertTriangle className="w-3 h-3" /> PT/OT assessment required for any method
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Remove directive"
+                        onClick={() => removeInstruction(inst.id)}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1 sm:col-span-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Title</Label>
+                        <Input
+                          value={inst.title || ''}
+                          onChange={(e) => updateInstruction(inst.id, { title: e.target.value })}
+                          placeholder="Short name for the wall sheet"
+                          className="h-8 text-xs font-semibold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Timing</Label>
+                        <select
+                          value={inst.timingWindow}
+                          onChange={(e) => updateInstruction(inst.id, { timingWindow: e.target.value as ClinicianAuthoredInstruction['timingWindow'] })}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          {INSTRUCTION_TIMING_OPTIONS.map((o) => (
+                            <option key={o.id} value={o.id}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Domain</Label>
+                        <select
+                          value={inst.clinicalDomain || ''}
+                          onChange={(e) => updateInstruction(inst.id, { clinicalDomain: (e.target.value || undefined) as ClinicianAuthoredInstruction['clinicalDomain'] })}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="">—</option>
+                          {INSTRUCTION_DOMAIN_OPTIONS.map((o) => (
+                            <option key={o.id} value={o.id}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Indication — why this patient needs it</Label>
+                      <Input
+                        value={inst.indication}
+                        onChange={(e) => updateInstruction(inst.id, { indication: e.target.value })}
+                        placeholder="e.g. Katz transfer dependence documented on 2026-09-01"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Exact action the caregiver performs</Label>
+                      <Textarea
+                        value={inst.instruction}
+                        onChange={(e) => updateInstruction(inst.id, { instruction: e.target.value })}
+                        rows={3}
+                        className="text-xs leading-relaxed"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Exceptions — when NOT to do it / when to stop and call</Label>
+                        <Input
+                          value={inst.exceptions || ''}
+                          onChange={(e) => updateInstruction(inst.id, { exceptions: e.target.value })}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Parameters (optional)</Label>
+                        <Input
+                          value={inst.parameters || ''}
+                          onChange={(e) => updateInstruction(inst.id, { parameters: e.target.value })}
+                          placeholder="Thresholds, frequency, equipment"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-3 pt-1 border-t border-border/50">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground font-semibold">Review every (days)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={inst.reviewIntervalDays ?? ''}
+                          onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            updateInstruction(inst.id, { reviewIntervalDays: Number.isFinite(n) && n > 0 ? Math.min(365, n) : undefined });
+                          }}
+                          className="h-8 w-24 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono pb-2">
+                        Author: {inst.authoredBy || '—'} · Reviewed {inst.reviewDate || '—'} · Expires {inst.expiresAt || '—'}
+                      </div>
+                    </div>
+
+                    {inst.requiresPtOtAssessment && (
+                      <label className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/30 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!inst.ptOtAssessmentRecorded}
+                          onChange={(e) => updateInstruction(inst.id, { ptOtAssessmentRecorded: e.target.checked })}
+                          className="mt-0.5"
+                        />
+                        <span className="text-[11px] leading-tight">
+                          A physiotherapist/occupational therapist has assessed this patient&apos;s transfers and taught the family the method.
+                          Only then may the action above describe a specific technique.
+                        </span>
+                      </label>
+                    )}
+
+                    {v && !v.valid && !accepted && v.problems.filter((p) => p !== 'explicit clinician acceptance').length > 0 && (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                        Missing: {v.problems.filter((p) => p !== 'explicit clinician acceptance').join(', ')}
+                      </p>
+                    )}
+
+                    <label
+                      className={cn(
+                        'flex items-center gap-2 p-2 rounded-lg border cursor-pointer',
+                        accepted ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-border bg-muted/30'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={accepted}
+                        disabled={!accepted && !!v && v.problems.some((p) => p !== 'explicit clinician acceptance')}
+                        onChange={() => toggleAccept(inst.id)}
+                      />
+                      <span className="text-[11px] font-semibold">
+                        I have read this directive in full and accept responsibility for issuing it to the family.
+                      </span>
+                    </label>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <Input
-                value={newPrecautionText}
-                onChange={(e) => setNewPrecautionText(e.target.value)}
-                placeholder="Add custom safety note for the family..."
-                className="h-9 text-xs"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddPrecaution();
-                  }
-                }}
-              />
-              <Button type="button" size="sm" variant="outline" onClick={handleAddPrecaution} className="text-xs shrink-0">
-                + Add Note
-              </Button>
-            </div>
+            <Button type="button" size="sm" variant="outline" onClick={addInstruction} className="text-xs gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> Add directive
+            </Button>
           </div>
 
           {/* Suggested Assistive Devices */}
@@ -453,7 +692,7 @@ export function DoctorCareBlueprintDialog({
               <Input
                 value={doctorName}
                 onChange={(e) => setDoctorName(e.target.value)}
-                placeholder="Dr. Vivek, MD (Geriatric Medicine)"
+                placeholder="Issuing clinician's full name and role"
                 className="h-9 text-xs font-medium"
               />
             </div>
@@ -478,12 +717,12 @@ export function DoctorCareBlueprintDialog({
           </Button>
           <Button
             onClick={handleIssueBlueprint}
-            disabled={isSubmitting || report.decisionSupportStatus === 'requires_data_completion'}
+            disabled={!canIssue}
             size="sm"
             className="gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>{isSubmitting ? 'Issuing...' : 'Issue Reviewed Care Blueprint'}</span>
+            <span>{isSubmitting ? 'Issuing...' : `Issue Plan (${acceptedCount}/${instructions.length} directives accepted)`}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

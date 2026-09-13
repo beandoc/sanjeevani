@@ -134,6 +134,7 @@ describe('Multi-Tier Staffing Recommender Engine Tests', () => {
           age: 28,
           hoursPerDay: 2,
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           assignedTasks: ['heavy_transfers', 'medications']
         }
       ]

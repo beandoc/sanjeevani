@@ -22,8 +22,9 @@ const member = (over: Partial<SecondaryFamilyMember> & { id: string }): Secondar
   relationship: 'son',
   age: 30,
   hoursPerDay: 4,
-  assignedTasks: [],
+  assignedTasks: ['logistics_errands'],
   hasPhysicalLimitation: false,
+  acceptanceStatus: 'accepted',
   functionalStatus: 'independent',
   availableTimeBlocks: ['evening'],
   ...over
@@ -81,8 +82,11 @@ describe('Care roster regressions', () => {
           name: 'Frail Uncle',
           age: 72,
           hasPhysicalLimitation: true,
+          acceptanceStatus: 'accepted',
           functionalStatus: 'has_limitations',
-          assignedTasks: [],
+          // Rostering now follows the engine ledger, so the member needs an accepted assignment
+          // the ledger can credit; the point of the test is that the *forbidden* tasks never leak in.
+          assignedTasks: ['feeding', 'medications', 'heavy_transfers', 'bathing'],
           availableTimeBlocks: ['morning_rush']
         })
       ]
@@ -105,6 +109,7 @@ describe('Care roster regressions', () => {
           id: 'barred',
           age: 70,
           hasPhysicalLimitation: true,
+          acceptanceStatus: 'accepted',
           careRestrictions: 'no medication, no night duty',
           availableTimeBlocks: ['night_watch']
         })

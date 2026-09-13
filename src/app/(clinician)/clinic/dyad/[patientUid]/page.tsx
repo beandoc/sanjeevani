@@ -70,8 +70,17 @@ import {
   savePatientProfileFor,
   getAppointmentsFor,
   subscribeToDyadClinicalData,
-  dischargeOrDeletePatientDyad
+  dischargeOrDeletePatientDyad,
+  getClinicalAuthorizationFor,
+  saveClinicalAuthorizationFor
 } from '@/lib/firebase/clinical-sync';
+import {
+  buildEmergencyVerificationRecord,
+  buildPlanAuthorizationRecord,
+  getEmergencyLogisticsCompleteness,
+  type ClinicalAuthorizationRecord,
+  type GoalsOfCareEscalationPreference
+} from '@/lib/clinical/clinical-authorization';
 import { HealthRepository, type MedicationItem, type VitalRecord, type AppointmentRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory, EmergencyLogistics } from '@/lib/clinical/care-gap-engine';
@@ -165,6 +174,7 @@ export default function DyadDetailPage() {
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
+  const [clinicalAuthorization, setClinicalAuthorization] = useState<ClinicalAuthorizationRecord | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
   const [showCdssDetails, setShowCdssDetails] = useState(false);
 
@@ -196,6 +206,8 @@ export default function DyadDetailPage() {
   const [emerHelpline, setEmerHelpline] = useState('108');
   const [emerAddress, setEmerAddress] = useState('');
   const [isSavingEmergency, setIsSavingEmergency] = useState(false);
+  const [emerGoalsOfCare, setEmerGoalsOfCare] = useState<GoalsOfCareEscalationPreference>('not_documented');
+  const [emerVerifiedWithFamily, setEmerVerifiedWithFamily] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -210,7 +222,7 @@ export default function DyadDetailPage() {
   const load = async () => {
     if (!patientUid) return;
     try {
-      const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult] = await Promise.all([
+      const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult, authResult] = await Promise.all([
         getZaritAssessmentsFor(patientUid).catch(() => []),
         getFunctionScoresFor(patientUid).catch(() => []),
         getPatientDisplayName(patientUid).catch(() => 'Patient Dyad'),
@@ -218,8 +230,10 @@ export default function DyadDetailPage() {
         getVitalsFor(patientUid).catch(() => []),
         getCaregiverAttributesFor(patientUid).catch(() => null),
         getPatientProfileFor(patientUid).catch(() => null),
-        getAppointmentsFor(patientUid).catch(() => [])
+        getAppointmentsFor(patientUid).catch(() => []),
+        getClinicalAuthorizationFor(patientUid).catch(() => null)
       ]);
+      setClinicalAuthorization(authResult);
       let assessments = assessmentsResult;
       const functionScores = functionScoresResult;
       let name = nameResult;
@@ -405,6 +419,18 @@ export default function DyadDetailPage() {
       setMedications(meds);
       setVitals(vitalRecords);
       setAppointments(appts);
+      if (assessments[0] && cgAttrs) {
+        const latest = assessments[0];
+        cgAttrs.zbiAssessment = {
+          score: latest.totalScore,
+          tier: latest.tier,
+          assessedAt: latest.completedAt,
+          severityBand: latest.severityBand,
+          assessorName: 'Clinical Staff',
+          assessorRole: 'Geriatric Specialist',
+          source: latest.provenance?.score?.source || 'Canonical Clinical History'
+        };
+      }
       setCaregiver(cgAttrs);
       setPatientProfile(prof);
 
@@ -575,6 +601,35 @@ export default function DyadDetailPage() {
         return;
       }
       setCaregiver(updatedCaregiver);
+
+      // Bind the signed content to a clinician-only record. Without this write the plan is saved
+      // but is NOT authorized — every surface will show it as awaiting sign-off, which is correct.
+      if (!user?.uid) {
+        toast({
+          variant: 'destructive',
+          title: 'Plan Saved — NOT Authorized',
+          description: 'You are not signed in as a clinician, so no authorization record could be written. The family will see this plan as awaiting sign-off.'
+        });
+      } else {
+        const record = buildPlanAuthorizationRecord({
+          blueprint,
+          clinicianUid: user.uid,
+          clinicianName: blueprint.prescribedByDoctor || clinicianLabel,
+          policyVersion: blueprint.clinicalReview?.policyVersion,
+          existingEmergencyVerification: clinicalAuthorization?.emergencyVerification
+        });
+        const authResult = await saveClinicalAuthorizationFor(patientUid, record);
+        if (authResult.saved) {
+          setClinicalAuthorization(record);
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Plan Saved — Authorization NOT Recorded',
+            description: `The clinician authorization record was rejected (${authResult.error || 'unknown error'}). The plan will show as awaiting sign-off until you re-issue it.`
+          });
+        }
+      }
+
       if (patientProfile) {
         const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
         await savePatientProfileFor(patientUid, updatedProfile);
@@ -687,7 +742,10 @@ export default function DyadDetailPage() {
     setEmerDriver(el?.designatedEmergencyDriver || caregiver?.name || '');
     setEmerHospital(el?.preferredHospitalName || '');
     setEmerHelpline(el?.ambulanceContact || '108');
-    setEmerAddress(patientProfile?.homeCareAddress || 'H-402, Green Park Society, New Delhi');
+    setEmerAddress(patientProfile?.homeCareAddress || '');
+    setEmerGoalsOfCare(el?.goalsOfCareEscalationPreference || patientProfile?.goalsOfCare?.escalationPreference || 'not_documented');
+    // Verification is re-asserted on every save; a stored flag never pre-ticks the box.
+    setEmerVerifiedWithFamily(false);
     setIsEmergencyModalOpen(true);
   };
 
@@ -695,15 +753,40 @@ export default function DyadDetailPage() {
     e.preventDefault();
     setIsSavingEmergency(true);
     try {
+      const parseOptionalNumber = (raw: string, max: number): number | undefined => {
+        const t = raw.trim();
+        if (!t) return undefined;
+        const n = Number(t);
+        return Number.isFinite(n) && n >= 0 && n <= max ? n : undefined;
+      };
+      const verifying = emerVerifiedWithFamily && !!user?.uid;
       const updatedLogistics: EmergencyLogistics = {
-        hospitalDistanceKm: Number(emerDist) || 0,
-        travelTimeMinutes: Number(emerTransitTime) || 0,
+        hospitalDistanceKm: parseOptionalNumber(emerDist, 500),
+        travelTimeMinutes: parseOptionalNumber(emerTransitTime, 720),
         fourWheelerAvailableAtHome: emerFourWheeler,
         vehicleDetails: emerVehicleDetails.trim() || undefined,
         designatedEmergencyDriver: emerDriver.trim() || undefined,
         preferredHospitalName: emerHospital.trim() || undefined,
-        ambulanceContact: emerHelpline.trim() || '108'
+        ambulanceContact: emerHelpline.trim() || undefined,
+        goalsOfCareEscalationPreference: emerGoalsOfCare,
+        // Display hints only; the clinician-only authorization record is what surfaces trust.
+        isVerified: verifying,
+        verifiedAt: verifying ? new Date().toISOString() : undefined,
+        verifiedBy: verifying ? clinicianLabel : undefined
       };
+
+      if (verifying) {
+        const completeness = getEmergencyLogisticsCompleteness(updatedLogistics);
+        if (!completeness.complete) {
+          toast({
+            variant: 'destructive',
+            title: 'Cannot Verify — Details Missing',
+            description: `Verification needs: ${completeness.missing.join(', ')}. Save without verifying, or complete them.`
+          });
+          setIsSavingEmergency(false);
+          return;
+        }
+      }
 
       const updatedCaregiver: CaregiverAttributes = {
         ...(caregiver || {
@@ -782,10 +865,34 @@ export default function DyadDetailPage() {
         setPatientProfile(updatedProfile);
       }
 
-      toast({
-        title: 'Emergency Logistics Saved',
-        description: 'Hospital proximity and rapid transit setpoints have been updated.'
-      });
+      if (verifying && user?.uid) {
+        const record = buildEmergencyVerificationRecord({
+          logistics: updatedLogistics,
+          clinicianUid: user.uid,
+          clinicianName: clinicianLabel,
+          goalsOfCareEscalationPreference: emerGoalsOfCare,
+          existing: clinicalAuthorization
+        });
+        const authResult = await saveClinicalAuthorizationFor(patientUid, record);
+        if (authResult.saved) {
+          setClinicalAuthorization(record);
+          toast({
+            title: 'Emergency Logistics Verified',
+            description: 'Hospital, driver, contact and escalation preference are now bound to your clinician verification record.'
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Logistics Saved — Verification NOT Recorded',
+            description: `The verification record was rejected (${authResult.error || 'unknown error'}). The bedside sheet stays locked until verification succeeds.`
+          });
+        }
+      } else {
+        toast({
+          title: 'Emergency Logistics Saved',
+          description: 'Saved as unverified. Tick "verified with the family" to bind these details to a clinician verification record.'
+        });
+      }
       setIsEmergencyModalOpen(false);
       await load();
     } catch (err) {
@@ -934,7 +1041,9 @@ export default function DyadDetailPage() {
                   </span>
                   <span className="hidden sm:inline text-border">•</span>
                   <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    {latestAssessment ? `ZBI Strain: ${latestAssessment.totalScore}/88 (${latestAssessment.tier})` : 'ZBI: Score Intake Needed'}
+                    {latestAssessment
+                      ? `ZBI Strain: ${latestAssessment.totalScore}/${latestAssessment.maxScore || (latestAssessment.tier === 'ZBI22' ? 88 : latestAssessment.tier === 'ZBI12' ? 48 : 16)} (${latestAssessment.tier})`
+                      : 'ZBI: Score Intake Needed'}
                   </span>
                 </div>
               </div>
@@ -983,6 +1092,7 @@ export default function DyadDetailPage() {
               />
 
               <DoctorCareBlueprintDialog
+                clinicianDisplayName={user?.displayName || undefined}
                 patientName={cleanPatientName}
                 caregiver={caregiver}
                 patientProfile={patientProfile}
@@ -1304,6 +1414,9 @@ export default function DyadDetailPage() {
               caregiver={caregiver}
               patient={patientProfile}
               onSave={handleSaveCaregiverMatrix}
+              clinicalAuthorization={clinicalAuthorization}
+              actorRole="clinician"
+              actorUid={user?.uid ?? null}
             />
           </div>
         )}
@@ -1766,12 +1879,40 @@ export default function DyadDetailPage() {
                           />
                         </div>
                       </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Goals-of-Care Escalation Preference (agreed with patient/family)</Label>
+                        <select
+                          value={emerGoalsOfCare}
+                          onChange={(e) => setEmerGoalsOfCare(e.target.value as GoalsOfCareEscalationPreference)}
+                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="not_documented">Not yet documented</option>
+                          <option value="full_escalation">Full escalation — transfer to hospital for any deterioration</option>
+                          <option value="hospital_review_before_transfer">Call clinic / hospital for review before transfer</option>
+                          <option value="comfort_focused">Comfort-focused — avoid transfer unless for comfort</option>
+                        </select>
+                      </div>
+                      <label className="flex items-start gap-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={emerVerifiedWithFamily}
+                          onChange={(e) => setEmerVerifiedWithFamily(e.target.checked)}
+                          className="mt-0.5"
+                          disabled={!user?.uid}
+                        />
+                        <span className="text-[11px] leading-tight">
+                          <span className="font-bold">I have verified these details with the family.</span> Saving with this ticked binds the
+                          hospital, driver, contact and escalation preference to a clinician verification record as {clinicianLabel}. If the
+                          family later edits any of them, verification lapses automatically.
+                          {!user?.uid && <span className="block text-rose-600 mt-1">Sign in as a clinician to verify.</span>}
+                        </span>
+                      </label>
                       <DialogFooter className="pt-2 border-t border-border/50">
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsEmergencyModalOpen(false)}>
                           Cancel
                         </Button>
                         <Button type="submit" size="sm" disabled={isSavingEmergency} className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                          {isSavingEmergency ? 'Saving...' : 'Save Logistics'}
+                          {isSavingEmergency ? 'Saving...' : emerVerifiedWithFamily ? 'Save & Verify Logistics' : 'Save Logistics (Unverified)'}
                         </Button>
                       </DialogFooter>
                     </form>

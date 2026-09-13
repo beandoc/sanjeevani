@@ -329,22 +329,22 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Manual-Handling Risk</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Manual-Handling Hazard</span>
                   <Badge
-                    variant={evaluation.liftingIndex >= 2.0 ? 'destructive' : evaluation.liftingIndex >= 1.0 ? 'secondary' : 'outline'}
+                    variant={evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high' ? 'destructive' : evaluation.manualHandlingHazardTier === 'moderate' ? 'secondary' : 'outline'}
                     className="text-[9px] font-mono capitalize"
                   >
-                    {evaluation.caregiverInjuryRiskCategory || 'low'} hazard
+                    {evaluation.manualHandlingHazardTier || evaluation.caregiverInjuryRiskCategory || 'low'}
                   </Badge>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-black ${evaluation.liftingIndex >= 2.0 ? 'text-rose-600' : evaluation.liftingIndex >= 1.0 ? 'text-amber-600' : 'text-primary'}`}>
-                    {typeof evaluation.liftingIndex === 'number' ? evaluation.liftingIndex.toFixed(1) : (evaluation.caregiverInjuryRiskScore / 40).toFixed(1)}
+                  <span className={`text-2xl font-black capitalize ${evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high' ? 'text-rose-600' : evaluation.manualHandlingHazardTier === 'moderate' ? 'text-amber-600' : 'text-primary'}`}>
+                    {evaluation.manualHandlingHazardTier || evaluation.caregiverInjuryRiskCategory || 'low'}
                   </span>
-                  <span className="text-xs text-muted-foreground font-semibold">LI flag</span>
+                  <span className="text-xs text-muted-foreground font-semibold">Tier</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Planning estimate: {evaluation.spinalCompressionKN ?? 2.4} kN • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
+                  {evaluation.requiresClinicalPtOtReferral ? 'OT/PT referral indicated for transfer safety' : 'Standard manual handling precautions'} • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
                 </p>
               </CardContent>
             </Card>
@@ -507,15 +507,15 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Caregiver Lifting Index:</span>
-                          <span className="font-semibold text-foreground">
-                            {option.simulatedResult.liftingIndex.toFixed(1)} LI
+                          <span className="text-muted-foreground">Manual Handling:</span>
+                          <span className="font-semibold text-foreground capitalize">
+                            {option.simulatedResult.manualHandlingHazardTier || option.simulatedResult.caregiverInjuryRiskCategory} hazard
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Burnout Tier:</span>
+                          <span className="text-muted-foreground">Capacity Strain:</span>
                           <Badge variant="outline" className="text-[9px] capitalize py-0">
-                            {option.simulatedResult.caregiverBurnoutRiskLevel}
+                            {option.simulatedResult.estimatedCareCapacityStrain || option.simulatedResult.caregiverBurnoutRiskLevel}
                           </Badge>
                         </div>
                       </div>

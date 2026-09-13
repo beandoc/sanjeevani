@@ -36,7 +36,8 @@ import {
   CareGapEvaluationResult,
   CareGapEngine,
   SecondaryFamilyMember,
-  MonthlyRotationPolicy
+  MonthlyRotationPolicy,
+  isMemberAccepted
 } from './care-gap-engine';
 import { resolveSupportTypes, performsHeavyTransfers, performsMedicationOrWoundCare } from './formal-support';
 import { StaffingRecommender, StaffingRecommendationReport } from './staffing-recommender';
@@ -189,6 +190,26 @@ function icsFold(block: string): string {
     })
     .join('\r\n') + '\r\n';
 }
+
+/**
+ * Options shared by the WhatsApp digest and .ics exports.
+ *
+ * `authorization` is the verdict from `verifyClinicalAuthorization` (the clinician-only signed
+ * record). When it is omitted the export must NOT claim clinician authorization or emergency
+ * verification, because `careBlueprint.clinicalReview` and `emergencyLogistics.isVerified` sit
+ * inside a caregiver-editable document and cannot be trusted on their own.
+ */
+export interface CareExportOptions {
+  redacted?: boolean;
+  authorization?: { planAuthorized: boolean; emergencyVerified: boolean };
+}
+
+const initials = (name: string) =>
+  (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('.');
 
 export class ShiftAllocator {
   /**
@@ -437,10 +458,14 @@ export class ShiftAllocator {
       dailyHours: Math.round(val.dailyHours * 10) / 10,
       assignedBlocks: Array.from(val.blocks),
       peakLiftingRisk: val.role === 'primary_caregiver'
-        ? `${baseEval.liftingIndex.toFixed(1)} LI (${baseEval.caregiverInjuryRiskCategory} hazard)`
+        ? baseEval.manualHandlingHazardTier === 'severe' || baseEval.manualHandlingHazardTier === 'high'
+          ? 'High concern—formal handling assessment required'
+          : baseEval.manualHandlingHazardTier === 'moderate'
+          ? 'Elevated manual-handling concern'
+          : 'Lower observed concern'
         : val.lifts
         ? 'Shares manual-handling load — brief on transfer technique'
-        : 'Low Physical Risk'
+        : 'Lower observed concern'
     }));
 
     return {
@@ -512,17 +537,36 @@ export class ShiftAllocator {
       });
     }
 
+    // Secondary family candidates come from the engine's allocation ledger, not from raw declared
+    // hours: a member is rostered only for hours the ledger actually credited (accepted assignment,
+    // positive duration, compatible block, residual demand) and only in the blocks it credited
+    // them in. This keeps the roster, the block supplies and the headline capacity in agreement.
+    const ledgerByMember = new Map<string, { hours: number; blocks: Set<DiurnalTimeBlock>; tasks: Set<CareTask> }>();
+    for (const entry of baseEval.allocationLedger || []) {
+      for (const a of entry.allocatedTo) {
+        const cur = ledgerByMember.get(a.memberId) || { hours: 0, blocks: new Set(), tasks: new Set() };
+        cur.hours += a.hours;
+        cur.blocks.add(entry.block);
+        cur.tasks.add(entry.task);
+        ledgerByMember.set(a.memberId, cur);
+      }
+    }
+
     for (const member of caregiver.secondaryMembers || []) {
-      const hours = Math.max(0, member.hoursPerDay || 0);
-      if (hours <= 0) continue;
-      const availableBlocks = ShiftAllocator.memberBlocks(member);
+      if (!isMemberAccepted(member)) continue;
+      const credited = ledgerByMember.get(member.id);
+      const hours = credited ? Math.round(credited.hours * 100) / 100 : 0;
+      if (hours <= 0.05) continue;
+      const declaredBlocks = ShiftAllocator.memberBlocks(member);
+      const availableBlocks = declaredBlocks.filter((b) => credited!.blocks.has(b));
+      if (availableBlocks.length === 0) continue;
       const capableTasks = ALL_TASKS.filter((t) => ShiftAllocator.isMemberEligible(member, t).eligible);
       candidates.push({
         id: member.id,
         name: member.name || member.relationship.replace(/_/g, ' '),
         role: 'secondary_family',
         source: 'secondary',
-        designatedTasks: (member.assignedTasks || []).filter((t) => capableTasks.includes(t)),
+        designatedTasks: Array.from(credited!.tasks).filter((t) => capableTasks.includes(t)),
         capableTasks,
         availableBlocks,
         remainingDailyHours: hours,
@@ -751,9 +795,14 @@ export class ShiftAllocator {
     patient: PatientDependenceProfile,
     evaluation: CareGapEvaluationResult,
     roster?: CareShiftRoster,
-    now: Date = new Date()
+    now: Date = new Date(),
+    options?: CareExportOptions
   ): string {
     const activeRoster = roster || ShiftAllocator.allocate(caregiver, patient, evaluation, undefined, now);
+    const redacted = !!options?.redacted;
+    const emergencyVerified = options?.authorization?.emergencyVerified === true;
+    const displayName = (name: string) => (redacted ? `${initials(name)}.` : name);
+    const patientLabel = redacted ? `${initials(patient.name)} (Patient)` : patient.name;
 
     const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
     const formatIcsDate = (d: Date) =>
@@ -782,7 +831,9 @@ export class ShiftAllocator {
 
         const tasksStr = shift.assignedTasks.map((t) => t.replace(/_/g, ' ')).join(', ') || 'Patient Monitoring & Personal Care';
         const uid = `sanjeevani-shift-${blockKey}-${icsSlug(shift.assignedMemberId)}-${shiftIdx}@sanjeevani.health`;
-        const ambulance = caregiver.emergencyLogistics?.ambulanceContact || '108';
+        const ambulance = emergencyVerified && caregiver.emergencyLogistics?.ambulanceContact
+          ? caregiver.emergencyLogistics.ambulanceContact
+          : '108 (Not Verified)';
 
         vevents += icsFold(`BEGIN:VEVENT
 UID:${uid}
@@ -790,10 +841,10 @@ DTSTAMP:${dtstamp}
 DTSTART:${formatIcsDate(startDate)}
 DTEND:${formatIcsDate(endDate)}
 RRULE:FREQ=DAILY;COUNT=${cycleDays}
-SUMMARY:${icsEscape(`Sanjeevani Care Shift: ${meta.label} — ${shift.assignedMemberName}`)}
-DESCRIPTION:${icsEscape(`Patient: ${patient.name}`)}\\n${icsEscape(`Assigned Caregiver: ${shift.assignedMemberName} (${shift.role.replace(/_/g, ' ')})`)}\\n${icsEscape(`Assigned Tasks: ${tasksStr}`)}\\n${icsEscape(`Committed Hours: ${shift.hoursAllocated}h`)}\\n${icsEscape(`Time Window: ${meta.timeRange}`)}\\n${icsEscape(`Emergency Ambulance: ${ambulance}`)}
-ATTENDEE;CN=${icsEscape(shift.assignedMemberName)}:mailto:${icsSlug(shift.assignedMemberId)}@care.sanjeevani.local
-STATUS:CONFIRMED
+SUMMARY:${icsEscape(`Sanjeevani Care Shift: ${meta.label} — ${displayName(shift.assignedMemberName)} [Proposed]`)}
+DESCRIPTION:${icsEscape(`Patient: ${patientLabel}`)}\\n${icsEscape(`Assigned Caregiver: ${displayName(shift.assignedMemberName)} (${shift.role.replace(/_/g, ' ')})`)}\\n${icsEscape(`Status: Proposed Shift — Subject to Caregiver Confirmation`)}\\n${icsEscape(`Assigned Tasks: ${tasksStr}`)}\\n${icsEscape(`Committed Hours: ${shift.hoursAllocated}h`)}\\n${icsEscape(`Time Window: ${meta.timeRange}`)}\\n${icsEscape(`Emergency Ambulance: ${ambulance}`)}
+ATTENDEE;CN=${icsEscape(displayName(shift.assignedMemberName))}:mailto:${icsSlug(shift.assignedMemberId)}@care.sanjeevani.local
+STATUS:TENTATIVE
 TRANSP:OPAQUE
 END:VEVENT`);
       });
@@ -816,9 +867,9 @@ UID:sanjeevani-respite-${idx}-${respDate.getTime()}@sanjeevani.health
 DTSTAMP:${dtstamp}
 DTSTART:${formatIcsDate(respDate)}
 DTEND:${formatIcsDate(respEnd)}
-SUMMARY:${icsEscape(`🌿 Respite Day for ${caregiver.name} (${resp.reliefAssignee})`)}
-DESCRIPTION:${icsEscape(resp.orderText)}\\n${icsEscape(`Tasks: ${resp.specificTasks.join(', ')}`)}\\nPrimary Caregiver Relief Guaranteed
-STATUS:CONFIRMED
+SUMMARY:${icsEscape(`🌿 Proposed Respite Window for ${displayName(caregiver.name)} (${displayName(resp.reliefAssignee)})`)}
+DESCRIPTION:${icsEscape(resp.orderText)}\\n${icsEscape(`Tasks: ${resp.specificTasks.join(', ')}`)}\\nProposed Respite Window — Subject to relief assignee confirmation and clinical handover
+STATUS:TENTATIVE
 END:VEVENT`);
     });
 
@@ -827,7 +878,7 @@ VERSION:2.0
 PRODID:-//Sanjeevani Care//Kutumbh Care Matrix//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-CALNAME:${icsEscape(`Sanjeevani Care Circle Roster - ${patient.name}`)}
+X-WR-CALNAME:${icsEscape(`Sanjeevani Care Circle Roster - ${patientLabel}`)}
 X-WR-TIMEZONE:Asia/Kolkata
 ${vevents}END:VCALENDAR`.trim();
   }
@@ -839,7 +890,8 @@ ${vevents}END:VCALENDAR`.trim();
     caregiver: CaregiverAttributes,
     patient: PatientDependenceProfile,
     evaluation: CareGapEvaluationResult,
-    roster?: CareShiftRoster
+    roster?: CareShiftRoster,
+    options?: CareExportOptions
   ): string {
     const activeRoster = roster || ShiftAllocator.allocate(caregiver, patient, evaluation);
 
@@ -850,14 +902,37 @@ ${vevents}END:VCALENDAR`.trim();
       nightShiftArrangement: 'family_rotation'
     };
 
-    const emergency = caregiver.emergencyLogistics || {
-      hospitalDistanceKm: 4.5,
-      travelTimeMinutes: 15,
-      fourWheelerAvailableAtHome: true,
-      designatedEmergencyDriver: 'Designated Driver',
-      preferredHospitalName: 'Nearest Geriatric Emergency Hospital',
-      ambulanceContact: '108'
-    };
+    // Only the signed clinician record (passed in by the caller) may claim authorization. The
+    // caregiver-editable review marker on the blueprint is deliberately not consulted.
+    const isClinicianApproved = options?.authorization?.planAuthorized === true;
+    const clinicalReviewHeader = isClinicianApproved
+      ? `✅ *CLINICIAN REVIEWED & AUTHORIZED CARE PLAN*`
+      : `⚠️ *DRAFT CARE CIRCLE PLAN — PENDING CLINICIAN REVIEW & AUTHORIZATION*`;
+
+    const el = caregiver.emergencyLogistics;
+    const isEmergencyVerified = options?.authorization?.emergencyVerified === true && !!el?.preferredHospitalName;
+
+    let emergencyProtocolText = '';
+    if (isEmergencyVerified) {
+      const distanceStr = el.hospitalDistanceKm != null ? `${el.hospitalDistanceKm} km` : 'distance unverified';
+      const timeStr = el.travelTimeMinutes != null ? `~${el.travelTimeMinutes} mins` : '';
+      const distTime = [distanceStr, timeStr].filter(Boolean).join(', ');
+      emergencyProtocolText = `🚑 *EMERGENCY PROTOCOL (VERIFIED ✅)*
+• Hospital: *${el.preferredHospitalName}* (${distTime})
+• Transport: *${el.fourWheelerAvailableAtHome ? 'Four-Wheeler at Home' : 'Ambulance / Commercial Cab'}* | Driver: *${el.designatedEmergencyDriver || 'Confirmed Keyholder'}*
+• Goals of Care Escalation: *${el.goalsOfCareEscalationPreference ? el.goalsOfCareEscalationPreference.replace(/_/g, ' ').toUpperCase() : 'DOCUMENTED IN RECORD'}*
+• Ambulance Helpline: *${el.ambulanceContact || '108 / 102'}*`;
+    } else {
+      const hospitalDisplay = el?.preferredHospitalName
+        ? `${el.preferredHospitalName} (Pending Clinical Verification ⚠️)`
+        : 'NOT VERIFIED — Confirm with treating doctor';
+      emergencyProtocolText = `🚑 *EMERGENCY PROTOCOL (NOT VERIFIED ⚠️)*
+• Preferred Hospital: *${hospitalDisplay}*
+• Transport & Driver: *${el?.designatedEmergencyDriver ? `${el.designatedEmergencyDriver}${el.fourWheelerAvailableAtHome ? ' (Four-Wheeler)' : ''}` : 'NOT CONFIRMED'}*
+• Escalation Preference: *${el?.goalsOfCareEscalationPreference ? el.goalsOfCareEscalationPreference.replace(/_/g, ' ') : 'NOT DOCUMENTED'}*
+• Emergency Helpline: *${el?.ambulanceContact || '108 (National Ambulance)'}*
+⚠️ _Action Required: Confirm hospital, driver, and escalation preference before emergency use._`;
+    }
 
     const formatBlockShifts = (blockKey: DiurnalTimeBlock) => {
       const meta = DIURNAL_BLOCK_META[blockKey];
@@ -866,12 +941,16 @@ ${vevents}END:VCALENDAR`.trim();
         return `${meta.icon} *${meta.label} (${meta.timeRange})*\n  ⚠️ _No coverage assigned (Unmet Gap)_`;
       }
       const lines = shifts.map(
-        (s) =>
-          `  • *${s.assignedMemberName}* (${s.role.replace(/_/g, ' ')}, ${s.hoursAllocated}h): ${
+        (s) => {
+          const memberLabel = options?.redacted
+            ? `${s.assignedMemberName.split(' ').map(w => w[0]).join('.')}.`
+            : s.assignedMemberName;
+          return `  • *${memberLabel}* (${s.role.replace(/_/g, ' ')}, ${s.hoursAllocated}h) [Proposed]: ${
             s.assignedTasks.length > 0
               ? s.assignedTasks.map((t) => t.replace(/_/g, ' ')).join(', ')
               : 'supervision & presence'
-          }`
+          }`;
+        }
       );
       return `${meta.icon} *${meta.label} (${meta.timeRange})*\n${lines.join('\n')}`;
     };
@@ -881,21 +960,34 @@ ${vevents}END:VCALENDAR`.trim();
       .join('\n\n');
 
     const respiteOrdersText = activeRoster.respiteOrders.length > 0
-      ? activeRoster.respiteOrders.map((r) => `• *Day ${r.dayNumber}:* ${r.orderText}`).join('\n')
+      ? activeRoster.respiteOrders.map((r) => `• *Day ${r.dayNumber}:* ${r.orderText} (Proposed Relief Window)`).join('\n')
       : '• No respite days currently prescribed — raise with the treating clinician.';
 
     const uncoveredGapsText = activeRoster.uncoveredGaps.length > 0
       ? activeRoster.uncoveredGaps
           .map((g) => `• ⚠️ *${DIURNAL_BLOCK_META[g.block].label}${g.kind === 'unowned_task' ? ` — no owner for ${g.task.replace(/_/g, ' ')}` : ''}:* ${g.recommendedStaffingOrder}`)
           .join('\n')
-      : '• All diurnal blocks fully covered by Care Circle and assigned staff ✅';
+      : '• All diurnal blocks covered by Care Circle and assigned members ✅';
+
+    const hazardTier = (evaluation.manualHandlingHazardTier || evaluation.caregiverInjuryRiskCategory).toUpperCase();
+    const ptOtNote = evaluation.requiresClinicalPtOtReferral ? ' | ⚠️ OT/PT Transfer Assessment Indicated' : '';
+    const strainTier = (evaluation.estimatedCareCapacityStrain || evaluation.caregiverBurnoutRiskLevel).toUpperCase();
+
+    const patientDisplayName = options?.redacted
+      ? `${patient.name.split(' ').map(w => w[0]).join('.')} (Patient)`
+      : `${patient.name} (Age ${patient.age})`;
+    const caregiverDisplayName = options?.redacted
+      ? `${caregiver.name.split(' ').map(w => w[0]).join('.')} (${caregiver.kinship})`
+      : `${caregiver.name} (${caregiver.kinship}, ${caregiver.dailyHoursCommitted}h committed)`;
 
     return `🏥 *SANJEEVANI / KUTUMBH CARE CIRCLE PLAN & SHIFT ROSTER*
+${clinicalReviewHeader}
 ━━━━━━━━━━━━━━━━━━━━
-👤 *Patient:* ${patient.name} (Age ${patient.age})
-🤝 *Primary Caregiver:* ${caregiver.name} (${caregiver.kinship}, ${caregiver.dailyHoursCommitted}h committed)
+👤 *Patient:* ${patientDisplayName}
+🤝 *Primary Caregiver:* ${caregiverDisplayName}
 📊 *Care Demand:* ${evaluation.patientCareDemandHours}h/day | *Care Gap:* ${evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h Deficit ⚠️` : '0h (Fully Covered ✅)'}
-🩺 *NIOSH Lifting Index:* ${evaluation.liftingIndex.toFixed(1)} LI (${evaluation.caregiverInjuryRiskCategory} hazard)
+🩺 *Manual Handling Hazard:* ${hazardTier} HAZARD${ptOtNote}
+📈 *Estimated Capacity Strain:* ${strainTier} (Operational Schedule Model)
 
 📋 *DIURNAL SHIFT ALLOCATIONS (${activeRoster.cycleDays}-DAY ${rotation.rotationInterval.toUpperCase()} ROTATION)*
 ${rosterText}
@@ -903,14 +995,26 @@ ${rosterText}
 🗓️ *RESPITE ORDERS & RELIEF SCHEDULE*
 ${respiteOrdersText}
 
-🚨 *UNCOVERED GAPS & CLINICAL ORDERS*
+🚨 *UNCOVERED GAPS & PLANNING RECOMMENDATIONS*
 ${uncoveredGapsText}
 
-🚑 *EMERGENCY PROTOCOL*
-• Hospital: *${emergency.preferredHospitalName || 'AIIMS / Local Emergency'}* (${emergency.hospitalDistanceKm} km, ~${emergency.travelTimeMinutes} mins)
-• Transport: *${emergency.fourWheelerAvailableAtHome ? 'Car at Home' : 'Cab / Auto Required'}* | Driver: *${emergency.designatedEmergencyDriver || 'Key Holder'}*
-• Ambulance Helpline: *${emergency.ambulanceContact || '108'}*
+${emergencyProtocolText}
 ━━━━━━━━━━━━━━━━━━━━
-_Generated via Sanjeevani Geriatric Care Engine v${evaluation.engineVersion}_`;
+_Generated via Sanjeevani Geriatric Care Engine v${evaluation.engineVersion} • Clinical review required before execution._`;
   }
 }
+
+export const generateWhatsAppCareDigest = (
+  caregiver: CaregiverAttributes,
+  patient: PatientDependenceProfile,
+  evaluation: CareGapEvaluationResult,
+  options?: CareExportOptions
+) => ShiftAllocator.generateWhatsAppCareDigest(caregiver, patient, evaluation, undefined, options);
+
+export const generateCareRosterIcs = (
+  caregiver: CaregiverAttributes,
+  patient: PatientDependenceProfile,
+  evaluation: CareGapEvaluationResult,
+  options?: CareExportOptions,
+  now: Date = new Date()
+) => ShiftAllocator.generateCareRosterIcs(caregiver, patient, evaluation, undefined, now, options);
