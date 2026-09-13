@@ -886,9 +886,13 @@ export function CaregiverSupportMatrix({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 my-2 text-xs">
-                {/* LIVE SIMULATION STRIP */}
-                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5">
+              {/* LIVE SIMULATION STRIP — sticky to the top of the dialog's scroll area so the
+                  running impact numbers stay visible while the clinician scrolls through sections
+                  1-5 below filling in the form. Pulled out of the space-y-4 flow and given its own
+                  solid backdrop (spanning the dialog's own horizontal padding via negative margins)
+                  so section content scrolling underneath never shows through the translucent tint. */}
+              <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-2.5 bg-background text-xs">
+                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                       <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
@@ -952,7 +956,9 @@ export function CaregiverSupportMatrix({
                     </div>
                   </div>
                 </div>
+              </div>
 
+              <div className="space-y-4 my-2 text-xs">
                 {/* SECTION 1: PRIMARY CAREGIVER IDENTITY */}
                 <div className="space-y-3 p-3.5 rounded-2xl border border-border/70 bg-card">
                   <p className="font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">

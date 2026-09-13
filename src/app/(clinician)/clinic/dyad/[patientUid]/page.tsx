@@ -921,7 +921,8 @@ export default function DyadDetailPage() {
   // Extract clean patient name and dyad identifiers
   const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
-  const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${(patientUid || '').replace('demo-', '').toUpperCase()}`;
+  const dyadFullCode = dyadCodeMatch ? dyadCodeMatch[1] : (patientUid || '').replace('demo-', '').toUpperCase();
+  const dyadTag = `Dyad #${dyadFullCode.slice(0, 8)}`;
 
   const handleDischargeDyad = async () => {
     setIsDischarging(true);
@@ -1022,7 +1023,11 @@ export default function DyadDetailPage() {
                   <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate">
                     {cleanPatientName}
                   </h1>
-                  <Badge variant="outline" className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5">
+                  <Badge
+                    variant="outline"
+                    title={`Full dyad ID: ${dyadFullCode}`}
+                    className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5"
+                  >
                     {dyadTag}
                   </Badge>
                   <Badge variant="secondary" className="text-xs font-normal">
