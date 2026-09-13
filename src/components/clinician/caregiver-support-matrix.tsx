@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -1705,6 +1706,17 @@ export function CaregiverSupportMatrix({
           </div>
         )}
 
+        {/* Split into two sub-tabs so a single dense card doesn't force the clinician to scroll
+            through caregiver overview, shift roster, demand distribution, task delegation, and
+            emergency logistics all at once — "Overview" is the at-a-glance snapshot, "Care Demand
+            & Coverage" is the detailed breakdown clinicians dig into for plan review. */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
+            <TabsTrigger value="overview" className="text-xs font-semibold">Overview</TabsTrigger>
+            <TabsTrigger value="demand" className="text-xs font-semibold">Care Demand &amp; Coverage</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6 mt-4">
         {/* ROW 1: FOUR GENEROUSLY-SPACED KEY METRIC CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Primary Caregiver */}
@@ -2058,7 +2070,9 @@ export function CaregiverSupportMatrix({
             )}
           </div>
         )}
+          </TabsContent>
 
+          <TabsContent value="demand" className="space-y-6 mt-4">
         {/* ROW 2: VISUAL STACKED ALLOCATION BAR */}
         <div className="p-5 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -2266,6 +2280,8 @@ export function CaregiverSupportMatrix({
             </div>
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
 
       <ConsentedExportDialogs
