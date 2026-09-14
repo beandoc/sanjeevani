@@ -514,9 +514,8 @@ service cloud.firestore {
     // grant relationship, so read access here cannot itself expose grants.
     match /dyadInvites/{inviteCode} {
       // Direct lookup by a known code (claim flow) — codes are short-lived,
-      // unguessable random tokens, so a get-by-known-code is safe for any
-      // authenticated user.
-      allow get: if isAuthenticated();
+      // unguessable random tokens, so a get-by-known-code is safe.
+      allow get: if true;
       // Listing/querying is restricted to invites the requester has a
       // legitimate reason to see: the clinician who issued them, or the
       // caregiver whose own Firebase Auth phone number matches the invite's
