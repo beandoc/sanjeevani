@@ -77,6 +77,8 @@ interface CaregiverSupportMatrixProps {
   clinicalAuthorization?: ClinicalAuthorizationRecord | null;
   actorRole?: 'clinician' | 'caregiver';
   actorUid?: string | null;
+  /** Supplied by the dyad workflow when a clinician is viewing a shared record. */
+  isCarePlanningReady?: boolean;
 }
 
 /**
@@ -165,7 +167,8 @@ export function CaregiverSupportMatrix({
   onSave,
   clinicalAuthorization = null,
   actorRole = 'caregiver',
-  actorUid = null
+  actorUid = null,
+  isCarePlanningReady: carePlanningReady = true
 }: CaregiverSupportMatrixProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -315,7 +318,7 @@ export function CaregiverSupportMatrix({
   // engine's own dataQuality check stays silent, because the fake profile is complete.
   const hasCaregiverProfile = !!caregiver;
   const hasPatientProfile = !!patient;
-  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile;
+  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile && carePlanningReady;
 
   // Memoized so identity is stable across renders when the source `caregiver`/
   // `patient` haven't actually changed — currentPatient in particular was a
@@ -410,6 +413,13 @@ export function CaregiverSupportMatrix({
       hasArthritis,
       hasDiabetes,
       hasInsomnia
+    },
+    // Capacity is a time-sensitive, self/family-reported input. Stamp its
+    // collection point so the workflow can distinguish an actual check-in
+    // from registration defaults and ask the clinician to review it when due.
+    assessmentMetadata: {
+      assessedAt: currentCaregiver.assessmentMetadata?.assessedAt || new Date().toISOString(),
+      source: actorRole === 'clinician' ? 'clinician_assisted' : 'caregiver_reported'
     },
     notes: notes.trim() || undefined,
     formalSupport: {

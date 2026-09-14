@@ -43,12 +43,15 @@ import {
   syncPatientProfile,
   syncCaregiverAttributes,
   getCaregiverAttributesFor,
-  getPatientProfileFor
+  getPatientProfileFor,
+  getFunctionScoresFor,
+  getZaritAssessmentsFor
 } from '@/lib/firebase/clinical-sync';
 import { auth } from '@/lib/firebase/client';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 import { ClinicalSafetyAssessmentPanel } from '@/components/clinical/clinical-safety-assessment-panel';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 interface CaregiverDyadProfilerProps {
   defaultTab?: 'caregiver' | 'patient' | 'gap';
@@ -58,6 +61,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patient, setPatient] = useState<PatientDependenceProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>(defaultTab);
+  const [functionAssessmentCount, setFunctionAssessmentCount] = useState(0);
+  const [burdenAssessmentCount, setBurdenAssessmentCount] = useState(0);
   const { toast } = useToast();
 
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
@@ -100,8 +105,10 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
     if (uid) {
       Promise.all([
         getCaregiverAttributesFor(uid).catch(() => null),
-        getPatientProfileFor(uid).catch(() => null)
-      ]).then(([remoteCg, remotePt]) => {
+        getPatientProfileFor(uid).catch(() => null),
+        getFunctionScoresFor(uid).catch(() => []),
+        getZaritAssessmentsFor(uid).catch(() => [])
+      ]).then(([remoteCg, remotePt, functionScores, burdenAssessments]) => {
         if (remoteCg) {
           setCaregiver(remoteCg);
           HealthRepository.saveCaregiverAttributes(remoteCg);
@@ -110,6 +117,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
           setPatient(remotePt);
           HealthRepository.savePatientProfile(remotePt);
         }
+        setFunctionAssessmentCount(functionScores.length);
+        setBurdenAssessmentCount(burdenAssessments.length);
       });
     }
   }, []);
@@ -127,16 +136,31 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
     [caregiver, patient, evaluation]
   );
 
+  const workflow = useMemo(
+    () => getDyadWorkflow({ patient, caregiver, functionAssessmentCount, burdenAssessmentCount }),
+    [patient, caregiver, functionAssessmentCount, burdenAssessmentCount]
+  );
+
   if (!caregiver || !patient || !evaluation) return null;
 
   const handleSave = async () => {
-    HealthRepository.saveCaregiverAttributes(caregiver);
+    // A saved capacity check-in is evidence of what the caregiver reported
+    // today; do not let an unedited registration default masquerade as one.
+    const checkedInCaregiver: CaregiverAttributes = {
+      ...caregiver,
+      assessmentMetadata: {
+        assessedAt: new Date().toISOString(),
+        source: 'caregiver_reported'
+      }
+    };
+    setCaregiver(checkedInCaregiver);
+    HealthRepository.saveCaregiverAttributes(checkedInCaregiver);
     HealthRepository.savePatientProfile(patient);
     // Durably mirrors edits to Firestore so a clinician with an active grant
     // sees the updated profile & care matrix, not just the onboarding snapshot.
     const [ptSync, cgSync] = await Promise.all([
       syncPatientProfile(patient),
-      syncCaregiverAttributes(caregiver)
+      syncCaregiverAttributes(checkedInCaregiver)
     ]);
     const queued = ptSync.queued || cgSync.queued;
     toast({
@@ -196,7 +220,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 Caregiver Dyad Profiler & Care Gap Engine
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                A clinician-reviewed planning model using documented function, caregiver capacity, and available support. It does not replace assessment or clinical judgment.
+                Keep the doctor and family on one shared record. Your updates sync to the dyad workspace for clinical review.
               </CardDescription>
             </div>
 
@@ -209,21 +233,12 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
           <div className="flex p-1 bg-muted/70 rounded-xl gap-1.5 mt-4 max-w-lg">
             <button
               type="button"
-              onClick={() => setActiveTab('gap')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'gap' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              1. Care Gap Analysis
-            </button>
-            <button
-              type="button"
               onClick={() => setActiveTab('caregiver')}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'caregiver' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              2. Caregiver Attributes
+              1. Your capacity
             </button>
             <button
               type="button"
@@ -232,10 +247,29 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 activeTab === 'patient' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              3. Patient Dependence (ADL)
+              2. Home & patient
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('gap')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'gap' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              3. Shared care plan
             </button>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="border-blue-500/20 bg-blue-500/5 shadow-xs">
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div>
+            <p className="text-xs font-bold text-foreground">Shared care pathway · {workflow.completedSteps}/{workflow.totalSteps} documented</p>
+            <p className="text-xs text-muted-foreground mt-1"><strong>{workflow.nextOwner === 'caregiver' ? 'Your next step:' : 'Next clinical step:'}</strong> {workflow.nextAction}</p>
+          </div>
+          <Badge variant="outline" className="text-[10px] shrink-0 border-blue-500/30 text-blue-700">{DYAD_WORKFLOW_LABEL[workflow.stage]}</Badge>
+        </CardContent>
       </Card>
 
       {/* TAB 1: Care Gap Overview & Staffing Recommendation */}

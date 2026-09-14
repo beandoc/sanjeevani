@@ -37,6 +37,7 @@ import {
 } from '@/lib/analytics/cohort';
 import type { RiskBand } from '@/lib/analytics/trajectory';
 import { cn } from '@/lib/utils';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { ClinicianQueryDashboard } from '@/components/clinician/clinician-query-dashboard';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ import {
   purgeAllDemoDyads,
   requestReassessment,
   subscribeToReassessmentAlerts,
+  subscribeToCohortClinicalData,
   dismissReassessmentAlert,
   type ReassessmentAlert
 } from '@/lib/firebase/clinical-sync';
@@ -171,6 +173,21 @@ export function DoctorCohortDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!rows?.length) return;
+    return subscribeToCohortClinicalData(rows.map((row) => row.patientUid), () => {
+      invalidateCohortCache();
+      void (async () => {
+        setIsRefreshing(true);
+        setRows(await loadCohortRoster(true));
+        setIsRefreshing(false);
+      })();
+    });
+    // The subscription must follow the actual roster. `load` only changes
+    // state and is intentionally omitted to avoid resubscribing per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
+  useEffect(() => {
     let initialFired = false;
     const unsubscribe = subscribeToReassessmentAlerts((nextAlerts) => {
       setAlerts(nextAlerts);
@@ -248,7 +265,7 @@ export function DoctorCohortDashboard() {
     const qocWarnings = rows.filter((r) => r.hasQocWarning).length;
     const bedBoundCount = rows.filter((r) => r.isBedBound).length;
     const highFallRisk = rows.filter((r) => (r.fallHistory || 0) >= 1).length;
-    const soloCaregivers = rows.filter((r) => r.formalSupportHours === 0).length;
+    const soloCaregivers = rows.filter((r) => r.workflow?.isCarePlanningReady && r.formalSupportHours === 0).length;
     const respiteNeeded = rows.filter((r) => r.respitePrescription?.needed).length;
     const dailyRedFlags = rows.filter((r) => (r.dailyLogSignals || []).some((signal) => signal.severity === 'urgent')).length;
     const dueForReassessment = rows.filter(
@@ -532,6 +549,13 @@ export function DoctorCohortDashboard() {
             <div className="divide-y divide-border/40">
               {filteredRows.map((row) => {
                 const actionableAlert = getActionableAlert(row.latestAlertSnippet);
+                const workflow = row.workflow || getDyadWorkflow({
+                  patient: null,
+                  caregiver: null,
+                  functionAssessmentCount: 0,
+                  burdenAssessmentCount: 0
+                });
+                const isIntakeInProgress = !workflow.isCarePlanningReady;
 
                 return (
                   <div
@@ -542,8 +566,8 @@ export function DoctorCohortDashboard() {
                     <div className="flex-1 min-w-0 space-y-1">
                       {/* Line 1: Identity + Key High-Risk Tags + Caregiver */}
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', RISK_BAND_STYLE[row.riskBand])}>
-                          {RISK_BAND_LABEL[row.riskBand]}
+                        <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', isIntakeInProgress ? 'bg-slate-500 text-white' : RISK_BAND_STYLE[row.riskBand])}>
+                          {isIntakeInProgress ? 'Intake in progress' : RISK_BAND_LABEL[row.riskBand]}
                         </Badge>
                         <span className="text-xs sm:text-sm font-semibold text-foreground">{row.displayName}</span>
 
@@ -561,12 +585,13 @@ export function DoctorCohortDashboard() {
                         <span className="text-border text-[10px] hidden sm:inline">•</span>
 
                         <span className="text-[11px] text-muted-foreground truncate">
-                          Caregiver: <strong className="text-foreground font-medium">{row.caregiverName || 'Family'}</strong>
+                          Caregiver: <strong className="text-foreground font-medium">{row.caregiverName || 'Not yet documented'}</strong>
                           {row.caregiverKinship && ` (${row.caregiverKinship})`}
-                          {' · '}
-                          <span className={cn(row.formalSupportHours === 0 ? 'text-amber-600 font-semibold' : 'text-foreground/80 font-medium')}>
-                            {formatFormalSupport(row.formalSupportType, row.formalSupportHours)}
-                          </span>
+                          {!isIntakeInProgress && <>{' · '}
+                            <span className={cn(row.formalSupportHours === 0 ? 'text-amber-600 font-semibold' : 'text-foreground/80 font-medium')}>
+                              {formatFormalSupport(row.formalSupportType, row.formalSupportHours)}
+                            </span>
+                          </>}
                         </span>
                       </div>
 
@@ -578,14 +603,19 @@ export function DoctorCohortDashboard() {
                           </span>
                         )}
 
-                        {actionableAlert && (
+                        {isIntakeInProgress ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                            <Activity className="w-2.5 h-2.5 shrink-0" />
+                            {workflow.completedSteps}/{workflow.totalSteps} documented · {DYAD_WORKFLOW_LABEL[workflow.stage]}: {workflow.nextAction}
+                          </span>
+                        ) : actionableAlert && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
                             <span className="truncate max-w-[240px] sm:max-w-xs">{actionableAlert}</span>
                           </span>
                         )}
 
-                        {row.respitePrescription?.needed && (
+                        {workflow.isRespiteEvaluationReady && row.respitePrescription?.needed && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
                             <HeartHandshake className="w-2.5 h-2.5 shrink-0" />
                             <span>Respite: {row.respitePrescription.recommendedDaysPerMonth}d/mo rec.</span>
@@ -597,6 +627,9 @@ export function DoctorCohortDashboard() {
                     {/* Right: Metrics + Quick Actions */}
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/30 border border-border/50 text-[11px] font-mono">
+                        {isIntakeInProgress ? (
+                          <><span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">Next</span><span className="font-semibold text-foreground">{workflow.nextOwner}</span></>
+                        ) : <>
                         <span className="text-[9px] text-muted-foreground font-sans font-semibold uppercase">ZBI</span>
                         <span className={cn('font-bold', row.latestBurdenPct && row.latestBurdenPct > 50 ? 'text-red-600' : 'text-foreground')}>
                           {row.latestBurdenPct !== null ? `${row.latestBurdenPct}%` : '—'}
@@ -608,6 +641,7 @@ export function DoctorCohortDashboard() {
                             <span className="font-semibold text-foreground">{row.lastVitalBp}</span>
                           </>
                         )}
+                        </>}
                       </div>
 
                       <div className="flex items-center gap-0.5">

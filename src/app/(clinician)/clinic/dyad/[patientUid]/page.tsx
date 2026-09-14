@@ -94,6 +94,7 @@ import { useAuthUser } from '@/hooks/use-auth-user';
 import { cn } from '@/lib/utils';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 function PanelSkeleton({ className }: { className?: string }) {
   return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
@@ -166,7 +167,7 @@ export default function DyadDetailPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isDischarging, setIsDischarging] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
-  const [activeTab, setActiveTab] = useState<DyadTab>('matrix');
+  const [activeTab, setActiveTab] = useState<DyadTab>('overview');
   const [displayName, setDisplayName] = useState<string>('');
   const [trajectory, setTrajectory] = useState<TrajectoryResult | null>(null);
   const [latestAssessment, setLatestAssessment] = useState<ZaritEvaluationResult | null>(null);
@@ -831,6 +832,16 @@ export default function DyadDetailPage() {
     [caregiver, patientProfile, vitals, appointments, medications]
   );
 
+  const workflow = useMemo(
+    () => getDyadWorkflow({
+      patient: patientProfile,
+      caregiver,
+      functionAssessmentCount: trajectory?.functionSeries.length || 0,
+      burdenAssessmentCount: trajectory?.burdenSeries.length || 0
+    }),
+    [patientProfile, caregiver, trajectory]
+  );
+
   if (!isMounted || !patientUid || !trajectory) {
     return <p className="text-sm text-muted-foreground p-6">Loading dyad…</p>;
   }
@@ -1101,6 +1112,33 @@ export default function DyadDetailPage() {
         </div>
       </div>
 
+      {/* Care must move through a documented sequence. This is intentionally
+          separate from risk: an intake is not a low-risk care plan. */}
+      <Card className="border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-card to-indigo-500/5 shadow-xs">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-blue-600 text-white text-[10px] uppercase">Care pathway</Badge>
+                <span className="text-sm font-bold">{workflow.completedSteps} of {workflow.totalSteps} steps documented</span>
+                <span className="text-xs text-muted-foreground">Current: {DYAD_WORKFLOW_LABEL[workflow.stage]}</span>
+              </div>
+              <p className="text-xs text-foreground/80 mt-1.5"><strong>{workflow.nextOwner === 'clinician' ? 'Doctor action:' : workflow.nextOwner === 'caregiver' ? 'Caregiver action:' : 'Shared action:'}</strong> {workflow.nextAction}</p>
+            </div>
+            <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setActiveTab(workflow.stage === 'care_matrix' ? 'matrix' : 'overview')}>
+              {workflow.stage === 'care_matrix' ? 'Open care matrix' : 'Open assessments'}
+            </Button>
+          </div>
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {[
+              ['Registration', workflow.completedSteps >= 1], ['Home', workflow.completedSteps >= 2],
+              ['Function', workflow.completedSteps >= 3], ['Caregiver', workflow.completedSteps >= 4],
+              ['Matrix', workflow.completedSteps >= 5], ['Monitor', workflow.completedSteps >= 6]
+            ].map(([label, done]) => <div key={label as string} className={cn('rounded-lg px-2 py-1.5 text-center text-[10px] font-semibold border', done ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted/40 text-muted-foreground border-border/60')}>{done ? '✓ ' : ''}{label as string}</div>)}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Discharged Dyad Advisory Banner */}
       {isArchived && (
         <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-950/20 p-3 sm:px-4 text-xs shadow-2xs flex items-center justify-between gap-3">
@@ -1122,7 +1160,7 @@ export default function DyadDetailPage() {
       )}
 
       {/* Quality of Care Warning Banner / Compact CDSS Advisory Bar */}
-      {careGapResult.qualityOfCareWarnings.length > 0 && (() => {
+      {workflow.isCarePlanningReady && careGapResult.qualityOfCareWarnings.length > 0 && (() => {
         const clinicalAlerts = careGapResult.qualityOfCareWarnings.filter(
           (w) => !/^Decision-support limitation:\s*/i.test(w)
         );
@@ -1335,6 +1373,7 @@ export default function DyadDetailPage() {
               patientUid={patientUid}
               caregiver={caregiver}
               patient={patientProfile}
+              isCarePlanningReady={workflow.isCarePlanningReady}
               onSave={handleSaveCaregiverMatrix}
               clinicalAuthorization={clinicalAuthorization}
               actorRole="clinician"

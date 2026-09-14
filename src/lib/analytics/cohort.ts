@@ -33,6 +33,7 @@ import {
   type ClinicalSignal,
   type RespitePrescription
 } from '@/lib/clinical/care-intelligence';
+import { getDyadWorkflow, type DyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 export interface CohortRow {
   patientUid: string;
@@ -60,6 +61,8 @@ export interface CohortRow {
   lastDailyLogDate?: string | null;
   dailyLogSignals?: ClinicalSignal[];
   respitePrescription?: RespitePrescription;
+  /** Documentation state, not a clinical risk score. Drives safe worklist copy. */
+  workflow?: DyadWorkflow;
 }
 
 // A dyad that was escalating at last contact and has since gone quiet ranks
@@ -124,6 +127,11 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
       recommendedHoursPerWeek: 12,
       recommendedSupport: 'Planned weekly half-day respite and backup family roster',
       reasons: ['Rising caregiver burden (42%).']
+    },
+    workflow: {
+      stage: 'longitudinal_monitoring', completedSteps: 6, totalSteps: 6,
+      isCarePlanningReady: true, isRespiteEvaluationReady: true,
+      nextOwner: 'shared', nextAction: 'Continue remote check-ins; review changes in function and caregiver burden together.', missing: []
     }
   },
   {
@@ -158,6 +166,11 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
       recommendedHoursPerWeek: 0,
       recommendedSupport: 'Monthly backup caregiver coverage',
       reasons: []
+    },
+    workflow: {
+      stage: 'longitudinal_monitoring', completedSteps: 6, totalSteps: 6,
+      isCarePlanningReady: true, isRespiteEvaluationReady: true,
+      nextOwner: 'shared', nextAction: 'Continue remote check-ins; review changes in function and caregiver burden together.', missing: []
     }
   }
 ];
@@ -170,6 +183,19 @@ export function invalidateCohortCache(): void {
   cachedCohortRows = null;
   cacheExpiry = 0;
   inFlightCohortPromise = null;
+}
+
+/** Older materialized summaries did not record workflow readiness. Treating
+ * them as clinically complete is unsafe; they are refreshed from source data
+ * on the next client aggregation. */
+function normalizeSummaryRow(row: CohortRow): CohortRow {
+  if (row.workflow) return row;
+  return {
+    ...row,
+    hasQocWarning: false,
+    respitePrescription: undefined,
+    workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
+  };
 }
 
 /**
@@ -232,7 +258,9 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
         if (bffRes.ok) {
           const data = await bffRes.json();
           if (Array.isArray(data?.rows) && data.rows.length > 0) {
-            const bffRows = (data.rows as CohortRow[]).filter((r) => isNotArchived(r.patientUid));
+            const bffRows = (data.rows as CohortRow[])
+              .map(normalizeSummaryRow)
+              .filter((r) => isNotArchived(r.patientUid));
             bffRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
             return bffRows;
           }
@@ -279,11 +307,24 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             ]);
             const trajectory = computeTrajectory(assessments, functionScores);
             const latest = trajectory.burdenSeries[trajectory.burdenSeries.length - 1];
-            const careGap = CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments);
-            const hasQocWarning = careGap.qualityOfCareWarnings.length > 0;
+            const workflow = getDyadWorkflow({
+              patient: patientProfile,
+              caregiver,
+              functionAssessmentCount: functionScores.length,
+              burdenAssessmentCount: assessments.length
+            });
+            // Never produce a staffing gap or a respite prescription from the
+            // registration/default profile. These are only meaningful after a
+            // functional baseline and caregiver capacity check have been saved.
+            const careGap = workflow.isCarePlanningReady
+              ? CareGapEngine.evaluate(caregiver, patientProfile, new Date(), vitals, appointments)
+              : null;
+            const hasQocWarning = Boolean(careGap?.qualityOfCareWarnings.length);
             const latestVital = vitals?.[0];
             const dailyLogSignals = analyzeDailyCareLogs(dailyLogs);
-            const respitePrescription = prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile);
+            const respitePrescription = workflow.isRespiteEvaluationReady && careGap
+              ? prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile)
+              : undefined;
             return {
               patientUid,
               displayName,
@@ -305,11 +346,12 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               fallHistory: patientProfile?.fallHistoryLast6Months || 0,
               lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
               lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
-              latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap.qualityOfCareWarnings[0] : null),
+              latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap?.qualityOfCareWarnings[0] || null : null),
               dailyLogCount: dailyLogs.length,
               lastDailyLogDate: dailyLogs[0]?.date || null,
               dailyLogSignals,
-              respitePrescription
+              respitePrescription,
+              workflow
             } satisfies CohortRow;
           } catch {
             return {
@@ -322,7 +364,8 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               latestAssessmentAgeDays: null,
               latestTier: null,
               latestCompletedAt: null,
-              hasQocWarning: false
+              hasQocWarning: false,
+              workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
             } satisfies CohortRow;
           }
         })
@@ -427,4 +470,3 @@ export function isDemoDyad(patientUid: string): boolean {
     upper.includes('RAMESH76')
   );
 }
-
