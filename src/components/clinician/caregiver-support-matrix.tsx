@@ -34,7 +34,8 @@ import {
   Share2,
   Download,
   Printer,
-  Bed
+  Bed,
+  Home
 } from 'lucide-react';
 import {
   CaregiverAttributes,
@@ -253,6 +254,23 @@ export function CaregiverSupportMatrix({
     caregiver?.emergencyLogistics?.ambulanceContact || '108 / 102 (National Helpline)'
   );
 
+  // Home Layout & Environment State
+  const [houseAddress, setHouseAddress] = useState(
+    caregiver?.homeEnvironment?.houseAddress || patient?.homeCareAddress || ''
+  );
+  const [landmark, setLandmark] = useState(
+    caregiver?.homeEnvironment?.landmark || ''
+  );
+  const [hasDedicatedRoom, setHasDedicatedRoom] = useState(
+    caregiver?.homeEnvironment?.hasDedicatedRoom ?? true
+  );
+  const [hasAttachedBathroom, setHasAttachedBathroom] = useState(
+    caregiver?.homeEnvironment?.hasAttachedBathroom ?? true
+  );
+  const [floorLevel, setFloorLevel] = useState<'ground' | 'upper_with_lift' | 'upper_stairs_only'>(
+    caregiver?.homeEnvironment?.floorLevel || 'ground'
+  );
+
   // Formal Support Form State. Stored as a list so this surface round-trips the same
   // multi-select the onboarding and dyad-profiler screens write. Reading only `.type` here used
   // to silently collapse a combined team (attendant + medical assistant) down to one hire on
@@ -372,6 +390,14 @@ export function CaregiverSupportMatrix({
       verifiedBy: currentCaregiver.emergencyLogistics?.verifiedBy,
       goalsOfCareEscalationPreference: currentCaregiver.emergencyLogistics?.goalsOfCareEscalationPreference || currentPatient.goalsOfCare?.escalationPreference
     },
+    homeEnvironment: {
+      houseAddress: houseAddress.trim() || undefined,
+      landmark: landmark.trim() || undefined,
+      hasDedicatedRoom,
+      hasAttachedBathroom,
+      floorLevel,
+      elevatorAccessible: floorLevel !== 'upper_stairs_only'
+    },
     rotationPolicy: {
       rotationInterval,
       primaryCaregiverRespiteDaysPerMonth: Number(respiteDaysPerMonth) || 0,
@@ -398,6 +424,7 @@ export function CaregiverSupportMatrix({
 
   const simulatedPatient: PatientDependenceProfile = {
     ...currentPatient,
+    homeCareAddress: houseAddress.trim() || currentPatient.homeCareAddress,
     assistiveDevices: {
       hospitalBed,
       airWaterMattress,
@@ -488,6 +515,12 @@ export function CaregiverSupportMatrix({
     setEmergencyDriver(cg?.emergencyLogistics?.designatedEmergencyDriver || '');
     setPreferredHospital(cg?.emergencyLogistics?.preferredHospitalName || '');
     setAmbulanceContact(cg?.emergencyLogistics?.ambulanceContact || '108');
+
+    setHouseAddress(cg?.homeEnvironment?.houseAddress || pt?.homeCareAddress || '');
+    setLandmark(cg?.homeEnvironment?.landmark || '');
+    setHasDedicatedRoom(cg?.homeEnvironment?.hasDedicatedRoom ?? true);
+    setHasAttachedBathroom(cg?.homeEnvironment?.hasAttachedBathroom ?? true);
+    setFloorLevel(cg?.homeEnvironment?.floorLevel || 'ground');
 
     setSupportTypes(resolveSupportTypes(cg?.formalSupport));
     setSupportHours(cg?.formalSupport?.hoursPerDay ?? 0);
@@ -876,90 +909,91 @@ export function CaregiverSupportMatrix({
                 <Edit3 className="w-3.5 h-3.5" /> Configure Matrix
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
-                  <Users2 className="w-4 h-4 text-primary" />
-                  Configure Monthly Care Support Matrix & Assistive Infrastructure
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Model family helper diurnal shifts, assistive beds & suction gear, 12h/24h nursing, monthly respite rotas, and emergency transit readiness.
-                </DialogDescription>
-              </DialogHeader>
+            <DialogContent className="flex flex-col w-[95vw] sm:max-w-3xl max-h-[92dvh] h-[92dvh] sm:h-[88vh] p-0 overflow-hidden gap-0 border-border/80 shadow-2xl rounded-3xl">
+              {/* FIXED HEADER: Always visible at top with right padding to clear the Close X button */}
+              <div className="p-4 sm:p-6 pb-3 border-b border-border/60 shrink-0 bg-background pr-12">
+                <DialogHeader className="text-left space-y-1">
+                  <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <Users2 className="w-4 h-4 text-primary" />
+                    Configure Monthly Care Support Matrix & Assistive Infrastructure
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                    Model family helper diurnal shifts, assistive beds & suction gear, 12h/24h nursing, monthly respite rotas, and emergency transit readiness.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-              {/* LIVE SIMULATION STRIP — sticky to the top of the dialog's scroll area so the
-                  running impact numbers stay visible while the clinician scrolls through sections
-                  1-5 below filling in the form. Pulled out of the space-y-4 flow and given its own
-                  solid backdrop (spanning the dialog's own horizontal padding via negative margins)
-                  so section content scrolling underneath never shows through the translucent tint. */}
-              <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1 pb-2.5 bg-background text-xs">
-                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                      <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
-                    </span>
-                    <Badge
-                      className={cn(
-                        'text-[10px] font-bold uppercase',
-                        simulatedEval.caregiverBurnoutRiskLevel === 'critical'
-                          ? 'bg-red-600 text-white'
-                          : simulatedEval.caregiverBurnoutRiskLevel === 'high'
-                          ? 'bg-amber-600 text-white'
-                          : simulatedEval.caregiverBurnoutRiskLevel === 'moderate'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-emerald-600 text-white'
-                      )}
-                    >
-                      {(simulatedEval.estimatedCareCapacityStrain || simulatedEval.caregiverBurnoutRiskLevel).toUpperCase()} Capacity Strain
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
-                      <span className="text-sm font-black text-foreground">{simulatedEval.patientCareDemandHours}h/day</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {(simulatedEval.formalSupportAbsorbedHours + simulatedEval.familySupportAbsorbedHours).toFixed(1)}h/day
+              {/* DEDICATED SCROLLABLE BODY: Pure block layout scroll container ensures sticky positioning works 100% on iOS Safari, Android Chrome, and Desktop */}
+              <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {/* LIVE SIMULATION STRIP — sticky to the top of the scroll container */}
+                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md px-4 sm:px-6 py-2.5 border-b border-border/70 shadow-xs">
+                  <div className="p-3 sm:p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                        <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
                       </span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
-                      <span
+                      <Badge
                         className={cn(
-                          'text-sm font-black',
-                          simulatedEval.netCareGapHours > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'
+                          'text-[10px] font-bold uppercase',
+                          simulatedEval.caregiverBurnoutRiskLevel === 'critical'
+                            ? 'bg-red-600 text-white'
+                            : simulatedEval.caregiverBurnoutRiskLevel === 'high'
+                            ? 'bg-amber-600 text-white'
+                            : simulatedEval.caregiverBurnoutRiskLevel === 'moderate'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-emerald-600 text-white'
                         )}
                       >
-                        {simulatedEval.netCareGapHours > 0 ? `${simulatedEval.netCareGapHours}h Deficit` : '0.0h (Equilibrium)'}
-                      </span>
+                        {(simulatedEval.estimatedCareCapacityStrain || simulatedEval.caregiverBurnoutRiskLevel).toUpperCase()} Capacity Strain
+                      </Badge>
                     </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Manual Handling</span>
-                      <span
-                        className={cn(
-                          'text-xs font-black capitalize',
-                          simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
-                            ? 'text-red-600 dark:text-red-400'
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
+                        <span className="text-sm font-black text-foreground">{simulatedEval.patientCareDemandHours}h/day</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          {(simulatedEval.formalSupportAbsorbedHours + simulatedEval.familySupportAbsorbedHours).toFixed(1)}h/day
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
+                        <span
+                          className={cn(
+                            'text-sm font-black',
+                            simulatedEval.netCareGapHours > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'
+                          )}
+                        >
+                          {simulatedEval.netCareGapHours > 0 ? `${simulatedEval.netCareGapHours}h Deficit` : '0.0h (Equilibrium)'}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Manual Handling</span>
+                        <span
+                          className={cn(
+                            'text-xs font-black capitalize',
+                            simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
+                              ? 'text-red-600 dark:text-red-400'
+                              : simulatedEval.manualHandlingHazardTier === 'moderate'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          )}
+                        >
+                          {simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
+                            ? 'High Concern'
                             : simulatedEval.manualHandlingHazardTier === 'moderate'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-emerald-600 dark:text-emerald-400'
-                        )}
-                      >
-                        {simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
-                          ? 'High Concern'
-                          : simulatedEval.manualHandlingHazardTier === 'moderate'
-                          ? 'Elevated Concern'
-                          : 'Lower Concern'}
-                      </span>
+                            ? 'Elevated Concern'
+                            : 'Lower Concern'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 my-2 text-xs">
+                <div className="p-4 sm:p-6 space-y-4 text-xs">
                 {/* SECTION 1: PRIMARY CAREGIVER IDENTITY */}
                 <div className="space-y-3 p-3.5 rounded-2xl border border-border/70 bg-card">
                   <p className="font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -1630,17 +1664,88 @@ export function CaregiverSupportMatrix({
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <DialogFooter className="pt-2 border-t border-border/50">
-                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="text-xs">
-                  Cancel
-                </Button>
-                <Button type="button" size="sm" onClick={handleSaveModal} disabled={isSaving} className="text-xs font-bold bg-primary gap-1.5 shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {isSaving ? 'Saving Matrix…' : 'Prescribe & Save Monthly Matrix'}
-                </Button>
-              </DialogFooter>
+                {/* SECTION 7: HOME LAYOUT & FALL PREVENTION ENVIRONMENT */}
+                <div className="space-y-3 p-3.5 rounded-2xl border border-sky-500/30 bg-sky-500/5">
+                  <p className="font-bold text-sky-800 dark:text-sky-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Home className="w-3.5 h-3.5 text-sky-600" /> 7. Home Layout & Fall Prevention Environment
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">House Address</Label>
+                      <Input
+                        value={houseAddress}
+                        onChange={(e) => setHouseAddress(e.target.value)}
+                        placeholder="e.g. Flat 402, Shanti Niketan, Bandra"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Landmark</Label>
+                      <Input
+                        value={landmark}
+                        onChange={(e) => setLandmark(e.target.value)}
+                        placeholder="e.g. Near Lilavati Hospital / Petrol Pump"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Patient Bedroom Status</Label>
+                      <select
+                        value={hasDedicatedRoom ? 'dedicated' : 'shared'}
+                        onChange={(e) => setHasDedicatedRoom(e.target.value === 'dedicated')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="dedicated">Dedicated Room (Private Recovery)</option>
+                        <option value="shared">Shared Room (Multi-occupant)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Bathroom Access</Label>
+                      <select
+                        value={hasAttachedBathroom ? 'attached' : 'corridor'}
+                        onChange={(e) => setHasAttachedBathroom(e.target.value === 'attached')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="attached">Attached Bathroom (Low Fall Risk)</option>
+                        <option value="corridor">Separate / Down Corridor (Fall Hazard)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Floor Level & Lift</Label>
+                      <select
+                        value={floorLevel}
+                        onChange={(e) => setFloorLevel(e.target.value as 'ground' | 'upper_with_lift' | 'upper_stairs_only')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="ground">Ground Floor (Wheelchair / Stretcher Ready)</option>
+                        <option value="upper_with_lift">Upper Floor with Elevator / Lift</option>
+                        <option value="upper_stairs_only">Upper Floor — Stairs Only (Transit Risk)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              {/* FIXED FOOTER: Always accessible at bottom, never buried under 6 sections */}
+              <div className="p-3 sm:p-4 border-t border-border/60 shrink-0 bg-background/95 backdrop-blur-sm">
+                <DialogFooter className="flex-row justify-end gap-2 sm:gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="text-xs">
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSaveModal} disabled={isSaving} className="text-xs font-bold bg-primary gap-1.5 shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isSaving ? 'Saving Matrix…' : 'Prescribe & Save Monthly Matrix'}
+                  </Button>
+                </DialogFooter>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

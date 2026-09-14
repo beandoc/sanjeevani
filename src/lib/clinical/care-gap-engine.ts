@@ -232,6 +232,15 @@ export interface ClinicalCareBlueprint {
   };
 }
 
+export interface HomeEnvironment {
+  houseAddress?: string;
+  landmark?: string;
+  hasDedicatedRoom?: boolean;
+  hasAttachedBathroom?: boolean;
+  floorLevel?: 'ground' | 'upper_with_lift' | 'upper_stairs_only';
+  elevatorAccessible?: boolean;
+}
+
 export interface CaregiverAttributes {
   name: string;
   age: number;
@@ -244,6 +253,7 @@ export interface CaregiverAttributes {
   otherFamilyMembersCount?: number;
   secondaryMembers?: SecondaryFamilyMember[];
   emergencyLogistics?: EmergencyLogistics;
+  homeEnvironment?: HomeEnvironment;
   rotationPolicy?: MonthlyRotationPolicy;
   assistiveDevices?: AssistiveDeviceInventory;
   financialStatus?: 'manageable' | 'moderate_strain' | 'severe_toxicity';
@@ -526,6 +536,14 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
     hoursPerDay: 0,
     handlesHeavyTransfers: false,
     handlesMedicationWoundCare: false
+  },
+  homeEnvironment: {
+    houseAddress: 'Bandra West, Mumbai',
+    landmark: 'Near Lilavati Hospital',
+    hasDedicatedRoom: true,
+    hasAttachedBathroom: true,
+    floorLevel: 'ground',
+    elevatorAccessible: true
   }
 };
 
