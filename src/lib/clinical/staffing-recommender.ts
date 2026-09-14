@@ -56,7 +56,10 @@ export interface SimulatedStaffingOption {
     liftingIndex: number;
     spinalCompressionKN: number;
     caregiverInjuryRiskScore: number;
+    caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
+    manualHandlingHazardTier: 'low' | 'moderate' | 'high' | 'severe';
     caregiverBurnoutRiskLevel: 'low' | 'moderate' | 'high' | 'critical';
+    estimatedCareCapacityStrain: 'low' | 'moderate' | 'high' | 'critical';
     careGapSeverity: 'sustainable' | 'mild_deficit' | 'high_deficit' | 'critical_overload';
   };
   affordabilityFit: string;
@@ -401,13 +404,13 @@ export class StaffingRecommender {
       const sim = CareGapEngine.evaluate(cand.modifiedCaregiver, safePatient, now);
 
       // Multi-Criterion Optimization Function:
-      // Minimize: (1) Unresolved safety blocks -> (2) Residual gap -> (3) Lifting Index -> (4) Cost Rank
+      // Minimize: (1) Unresolved safety blocks -> (2) Residual gap -> (3) Manual-handling hazard tier -> (4) Cost Rank
       const unresolvedNightGap = sim.blockGaps.night_watch.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedNightGap : 0;
       const unresolvedMorningGap = sim.blockGaps.morning_rush.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedMorningGap : 0;
       const safetyPenalty = unresolvedNightGap + unresolvedMorningGap;
 
       const gapPenalty = sim.netCareGapHours * CLINICAL_POLICY.staffingRanking.residualGapPerHour;
-      const ergonomicPenalty = sim.liftingIndex * CLINICAL_POLICY.staffingRanking.liftingIndex;
+      const ergonomicPenalty = CLINICAL_POLICY.staffingRanking.manualHandlingHazardTier[sim.manualHandlingHazardTier] ?? 0;
       const costPenalty = cand.costTierRank * CLINICAL_POLICY.staffingRanking.costTier;
 
       const rankScore = Math.round(safetyPenalty + gapPenalty + ergonomicPenalty + costPenalty);
@@ -420,7 +423,10 @@ export class StaffingRecommender {
           liftingIndex: sim.liftingIndex,
           spinalCompressionKN: sim.spinalCompressionKN,
           caregiverInjuryRiskScore: sim.caregiverInjuryRiskScore,
+          caregiverInjuryRiskCategory: sim.caregiverInjuryRiskCategory,
+          manualHandlingHazardTier: sim.manualHandlingHazardTier,
           caregiverBurnoutRiskLevel: sim.caregiverBurnoutRiskLevel,
+          estimatedCareCapacityStrain: sim.estimatedCareCapacityStrain,
           careGapSeverity: sim.careGapSeverity
         },
         rankScore
@@ -441,13 +447,18 @@ export class StaffingRecommender {
     // 2. Recommended: Best overall clinical and ergonomic score (rankScore leader)
     const recommendedCand = simulatedCandidates[0];
 
-    // 3. Optimal: Maximum clinical and ergonomic protection (lowest residual gap and lowest lifting index)
-    const optimalCand = [...simulatedCandidates].sort((a, b) => {
+    // 3. Optimal: Maximum clinical and ergonomic protection (lowest residual gap, then lowest
+    //    qualitative manual-handling hazard tier, then cost).
+    const HAZARD_ORDER = { low: 0, moderate: 1, high: 2, severe: 3 } as const;
+    const byProtection = [...simulatedCandidates].sort((a, b) => {
       if (a.simulatedResult.netCareGapHours !== b.simulatedResult.netCareGapHours) {
         return a.simulatedResult.netCareGapHours - b.simulatedResult.netCareGapHours;
       }
-      return a.simulatedResult.liftingIndex - b.simulatedResult.liftingIndex;
-    })[0];
+      const hz = HAZARD_ORDER[a.simulatedResult.manualHandlingHazardTier] - HAZARD_ORDER[b.simulatedResult.manualHandlingHazardTier];
+      if (hz !== 0) return hz;
+      return a.costTierRank - b.costTierRank;
+    });
+    const optimalCand = byProtection[0];
 
     const ladder: SimulatedStaffingOption[] = [
       {
@@ -464,9 +475,11 @@ export class StaffingRecommender {
       }
     ];
 
-    // Deduplicate ladder entries if recommended and optimal coincide
+    // Deduplicate ladder entries if recommended and optimal coincide. The alternative must be the
+    // next-most-protective option (by gap, then hazard tier), not merely the next by rank score —
+    // otherwise "optimal" could carry a larger residual gap than "recommended".
     if (ladder[1].title === ladder[2].title && simulatedCandidates.length > 2) {
-      const altOptimal = simulatedCandidates.find((c) => c.title !== ladder[1].title);
+      const altOptimal = byProtection.find((c) => c.title !== ladder[1].title);
       if (altOptimal) {
         ladder[2] = { ...altOptimal, rung: 'optimal' };
       }

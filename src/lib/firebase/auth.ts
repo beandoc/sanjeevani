@@ -19,6 +19,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
+  signInWithCustomToken,
   RecaptchaVerifier,
   onAuthStateChanged,
   signOut as firebaseSignOut,
@@ -134,6 +135,41 @@ export async function verifyCaregiverOtp(
   await ensureUserProfile(cred.user.uid, 'caregiver', { phoneNumber: cred.user.phoneNumber });
   const linkedInvite = await autoClaimInviteByPhone(cred.user.phoneNumber);
   return { user: cred.user, linkedInvite };
+}
+
+export async function signInWithInviteCode(inviteCode: string): Promise<{
+  user: User;
+  patientName: string;
+  caregiverName?: string;
+  clinicianLabel?: string;
+}> {
+  if (!auth) throw new Error('Firebase Auth is not initialized.');
+
+  const cleanCode = inviteCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleanCode) {
+    throw new Error('Please enter a valid 8-character invite code.');
+  }
+
+  // 1. Call server API to verify code, provision/retrieve user, and mint custom token
+  const res = await fetch('/api/auth/code-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: cleanCode })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.customToken) {
+    throw new Error(data.error || 'Invalid or expired invite code. Please check with your clinician.');
+  }
+
+  // 2. Sign in with the custom token
+  const cred = await signInWithCustomToken(auth, data.customToken);
+  return {
+    user: cred.user,
+    patientName: data.patientName || 'Patient',
+    caregiverName: data.caregiverName,
+    clinicianLabel: data.clinicianLabel
+  };
 }
 
 /* ------------------------------------------------------------------ *

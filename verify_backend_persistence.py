@@ -92,7 +92,7 @@ def test_database_persistence():
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         test_patient_id,
-        "Smt. Sarojini Devi",
+        "Smt. Savitri Sharma",
         81,
         json.dumps(["Hypertension", "Post-Stroke Dysphagia", "Severe Osteoarthritis"]),
         2, # 2/6 Katz
@@ -107,7 +107,7 @@ def test_database_persistence():
     """, (
         test_caregiver_id,
         test_patient_id,
-        "Suresh Kumar",
+        "Anand Sharma",
         "son",
         "paid_attendant_24h",
         24.0,

@@ -148,5 +148,38 @@ describe('Firestore Security Rules Compliance Audit', () => {
     assert.ok(cohortBlock.includes('resource.data.clinicianUid == request.auth.uid'));
     assert.ok(cohortBlock.includes('allow write: if false;'));
   });
+
+  test('should secure clinicalAuthorization as clinician-only and prevent forgery in caregiverAttributes', () => {
+    assert.ok(rulesContent.includes('match /clinicalAuthorization/{docId}'));
+    const authBlock = rulesContent.slice(
+      rulesContent.indexOf('match /clinicalAuthorization/{docId}'),
+      rulesContent.indexOf('match /exportAuditLog/{entryId}')
+    );
+    assert.ok(authBlock.includes('request.resource.data.authorizedByUid == request.auth.uid'));
+    assert.ok(authBlock.includes('request.resource.data.planHash is string'));
+    assert.ok(authBlock.includes('request.resource.data.authorizedAt is string'));
+    assert.ok(authBlock.includes('request.resource.data.hashVersion is string'));
+    // A family caregiver (owner, no grant) is never in the create/update predicate.
+    assert.ok(!/allow create, update:[^;]*isOwner\(userId\)/.test(authBlock));
+
+    const cgBlock = rulesContent.slice(
+      rulesContent.indexOf('match /caregiverAttributes/{docId}'),
+      rulesContent.indexOf('match /clinicalAuthorization/{docId}')
+    );
+    assert.ok(cgBlock.includes('emergencyLogistics.isVerified != true'));
+    assert.ok(cgBlock.includes('clinicalReview == null'));
+  });
+
+  test('should secure exportAuditLog as append-only for owner or granted clinician', () => {
+    assert.ok(rulesContent.includes('match /exportAuditLog/{entryId}'));
+    const block = rulesContent.slice(
+      rulesContent.indexOf('match /exportAuditLog/{entryId}'),
+      rulesContent.indexOf('match /exportAuditLog/{entryId}') + 900
+    );
+    assert.ok(block.includes('allow update, delete: if false;'));
+    assert.ok(block.includes('request.resource.data.exportedByUid == request.auth.uid'));
+    assert.ok(block.includes("request.resource.data.consentGiven == true"));
+    assert.ok(block.includes("request.resource.data.recipientConfirmed == true"));
+  });
 });
 

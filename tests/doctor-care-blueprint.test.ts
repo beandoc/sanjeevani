@@ -12,7 +12,7 @@ import { buildFormalSupport } from '../src/lib/clinical/formal-support';
 
 describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
   const dependentPatient: PatientDependenceProfile = {
-    name: 'Smt. Sarojini Devi',
+    name: 'Smt. Savitri Sharma',
     age: 78,
     primaryConditions: ['Post-Stroke Hemiparesis', 'Hypertension'],
     katzAdl: {
@@ -79,7 +79,7 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
     const recommended = report.ladder.find((r) => r.rung === 'recommended')!;
 
     const blueprint: ClinicalCareBlueprint = {
-      id: 'blueprint_sarojini_101',
+      id: 'blueprint_patient_101',
       prescribedByDoctor: 'Dr. Vivek, MD (Geriatrician)',
       prescribedAt: new Date().toISOString(),
       clinicalSummary: recommended.clinicalJustification,
@@ -120,7 +120,7 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
     const recommended = report.ladder.find((r) => r.rung === 'recommended')!;
 
     const blueprint: ClinicalCareBlueprint = {
-      id: 'blueprint_sarojini_101',
+      id: 'blueprint_patient_101',
       prescribedByDoctor: 'Dr. Vivek, MD (Geriatrician)',
       prescribedAt: new Date().toISOString(),
       clinicalSummary: recommended.clinicalJustification,

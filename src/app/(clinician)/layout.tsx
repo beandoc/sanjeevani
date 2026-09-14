@@ -92,6 +92,17 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
   const isDashboardActive = pathname === '/dashboard';
   const isModulesActive = pathname.startsWith('/modules');
 
+  // "Family View" needs to preview the dyad the clinician actually has open, not their own
+  // account's generic /dashboard (which has no relationship to whichever patient was being
+  // viewed). Pull patientUid straight out of the current route when inside a dyad workspace.
+  const openDyadMatch = pathname.match(/^\/clinic\/dyad\/([^/]+)/);
+  const openDyadPatientUid = openDyadMatch ? decodeURIComponent(openDyadMatch[1]) : null;
+  const familyViewHref = openDyadPatientUid ? `/clinic/dyad/${openDyadPatientUid}/family-view` : '/dashboard';
+  const familyViewLabel = openDyadPatientUid ? 'Family View' : 'My Family View';
+  const familyViewTitle = openDyadPatientUid
+    ? "Read-only preview of what this patient's family caregiver sees in their Care Circle"
+    : 'Your own caregiver dashboard, if this clinician account also has a family dyad';
+
   const clinicianName = user?.displayName || 'Dr. Vivek Sharma';
   const initials = clinicianName
     .split(' ')
@@ -191,14 +202,15 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
               <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
             </button>
 
-            {/* Switch to Family View */}
-            <Link href="/dashboard" className="hidden sm:inline-flex">
+            {/* Family View — contextual to the currently open dyad when there is one (see
+                openDyadPatientUid above); otherwise falls back to this clinician's own /dashboard. */}
+            <Link href={familyViewHref} className="hidden sm:inline-flex" title={familyViewTitle}>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-8 text-xs font-semibold gap-1.5 border-border/80 bg-background/80 hover:bg-muted/60 hover:text-primary transition-all shadow-2xs"
               >
-                <span>Family View</span>
+                <span>{familyViewLabel}</span>
                 <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
             </Link>

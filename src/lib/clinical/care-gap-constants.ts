@@ -133,7 +133,10 @@ export const FORMAL_PRODUCTIVITY_FACTORS: Record<FormalSupportType, FormalSuppor
   trained_nurse_12h: { nominalHours: 12, productivityFactor: 10.0 / 12 }, // 10.0h / 12h = 0.833
   paid_attendant_12h: { nominalHours: 12, productivityFactor: 10.0 / 12 }, // 10.0h / 12h = 0.833
   medical_assistant: { nominalHours: 6, productivityFactor: 1.0 }, // 6.0h / 6h = 1.000
-  multi_family_rotation: { nominalHours: 8, productivityFactor: 6.0 / 8 }, // 6.0h / 8h = 0.750
+  // Multi-family rotation is informal family care coordination, NOT paid formal external staff.
+  // Treating it as a flat 6h of formal capacity double-counts against secondary family member hours
+  // and dangerously masks severe understaffing. Family capacity must be derived from actual eligible task coverage.
+  multi_family_rotation: { nominalHours: 0, productivityFactor: 0 },
   none: { nominalHours: 0, productivityFactor: 0 }
 };
 

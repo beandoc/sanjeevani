@@ -152,9 +152,11 @@ export default function DashboardClient() {
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
   const [currentUserUid, setCurrentUserUid] = useState<string>('');
+  const [mounted, setMounted] = useState<boolean>(false);
   const [reassessmentRequest, setReassessmentRequest] = useState<{ requestedAt: string; requestedBy: string; status: string } | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     if (!auth) return;
     const unsub = auth.onAuthStateChanged((user) => {
       setCurrentUserUid(user?.uid || '');
@@ -351,8 +353,8 @@ export default function DashboardClient() {
                       {completedActionsCount} of {totalActionsCount} Complete ({actionProgressPercent}%)
                     </Badge>
                   </div>
-                  <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-                    Core daily bedside routines, medication administration, and safety surveillance for {patientProfile?.name || HealthRepository.getPatientProfile().name}.
+                  <CardDescription className="text-xs sm:text-sm text-muted-foreground" suppressHydrationWarning>
+                    Core daily bedside routines, medication administration, and safety surveillance{mounted && (patientProfile?.name || HealthRepository.getPatientProfile().name) ? ` for ${patientProfile?.name || HealthRepository.getPatientProfile().name}` : ''}.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -437,14 +439,14 @@ export default function DashboardClient() {
 
           <DailyCareLogPanel
             patientUid={currentUserUid || undefined}
-            patientName={HealthRepository.getPatientProfile().name}
+            patientName={mounted ? (patientProfile?.name || HealthRepository.getPatientProfile().name) : ''}
             mode="readonly"
             title="Family Daily Update"
           />
 
           <CareIntelligencePanel
             patientUid={currentUserUid || undefined}
-            patientName={patientProfile?.name || HealthRepository.getPatientProfile().name}
+            patientName={mounted ? (patientProfile?.name || HealthRepository.getPatientProfile().name) : ''}
             latestZarit={latestZarit}
             careGap={careGap}
             caregiver={caregiver}
@@ -678,8 +680,8 @@ export default function DashboardClient() {
                         Condition-Matched
                       </Badge>
                     </div>
-                    <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-                      Clinically aligned for <strong>{caregivingScenario}</strong> &bull; Tailored to {patientProfile?.name || 'your care recipient'}&apos;s diagnoses &amp; mobility.
+                    <CardDescription className="text-xs sm:text-sm text-muted-foreground" suppressHydrationWarning>
+                      Clinically aligned for <strong>{caregivingScenario}</strong> &bull; Tailored to {mounted && patientProfile?.name ? patientProfile.name : 'your care recipient'}&apos;s diagnoses &amp; mobility.
                     </CardDescription>
                   </div>
                 </div>

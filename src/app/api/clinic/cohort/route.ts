@@ -118,6 +118,28 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Hardcoded seed/demo dyad uids. Recursive deletion under `purgeDummies` is intentionally
+ * restricted to exactly this list — never to whatever a client passes in — so "purge demo data"
+ * can never be used to mass-delete real patients.
+ */
+const KNOWN_DUMMY_UIDS = [
+  'dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81',
+  'dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76',
+  'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta'
+];
+
+/**
+ * True once this clinician has (or ever had, via a grant doc) documented access to this uid.
+ * Required before a single-patient discharge is allowed to permanently delete that dyad's
+ * records — without this, any authenticated clinician could pass an arbitrary `patientUid` and
+ * destroy a colleague's patient data they were never granted access to.
+ */
+async function clinicianHasGrantFor(db: FirebaseFirestore.Firestore, uid: string, clinicianUid: string): Promise<boolean> {
+  const snap = await db.collection('users').doc(uid).collection('clinicianGrants').doc(clinicianUid).get();
+  return snap.exists;
+}
+
 export async function DELETE(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown-ip';
   const userAgent = request.headers.get('user-agent') || 'unknown-ua';
@@ -129,49 +151,70 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const patientUid = searchParams.get('patientUid');
+    const patientUid = searchParams.get('patientUid')?.trim() || null;
     const purgeDummies = searchParams.get('purgeDummies') === 'true';
 
     const db = adminDb();
-    const batch = db.batch();
-    let opsCount = 0;
 
-    const uidsToDelete: string[] = [];
+    const uidsToDelete = new Set<string>();
+
     if (patientUid) {
-      uidsToDelete.push(patientUid);
-      uidsToDelete.push(patientUid.replace('dyad_', ''));
-      uidsToDelete.push(`dyad_${patientUid}`);
-    }
+      const candidates = [patientUid, patientUid.replace('dyad_', ''), `dyad_${patientUid}`];
+      const isKnownDummy = candidates.some((c) => KNOWN_DUMMY_UIDS.includes(c));
 
-    const isSarojini = patientUid && (patientUid.toLowerCase().includes('sarojini') || patientUid.toUpperCase().includes('SAROJINI81'));
-    const isRamesh = patientUid && (patientUid.toLowerCase().includes('ramesh') || patientUid.toUpperCase().includes('RAMESH76'));
+      // A real (non-demo) patient can only be discharged/deleted by a clinician who currently
+      // holds, or has ever held, a grant for that specific dyad — never by uid alone.
+      if (!isKnownDummy) {
+        const grantChecks = await Promise.all(candidates.map((c) => clinicianHasGrantFor(db, c, authUser.uid)));
+        if (!grantChecks.some(Boolean)) {
+          logAuditEvent({
+            timestamp: new Date().toISOString(),
+            eventType: 'CLINICAL_COHORT_WRITE',
+            actorUid: authUser.uid,
+            actorRole: 'clinician',
+            ip,
+            userAgent,
+            status: 'BLOCKED',
+            details: { reason: 'no_grant_for_discharge_target', patientUid }
+          });
+          return NextResponse.json({ error: 'No documented access to this patient dyad.' }, { status: 403 });
+        }
+      }
 
-    if (purgeDummies || isSarojini) {
-      uidsToDelete.push('dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81');
-    }
+      candidates.forEach((c) => uidsToDelete.add(c));
 
-    if (purgeDummies || isRamesh) {
-      uidsToDelete.push('dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76');
+      const isSarojini = patientUid.toLowerCase().includes('sarojini') || patientUid.toUpperCase().includes('SAROJINI81');
+      const isRamesh = patientUid.toLowerCase().includes('ramesh') || patientUid.toUpperCase().includes('RAMESH76');
+      if (isSarojini) ['dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81'].forEach((u) => uidsToDelete.add(u));
+      if (isRamesh) ['dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76'].forEach((u) => uidsToDelete.add(u));
     }
 
     if (purgeDummies) {
-      uidsToDelete.push('demo-kamla');
+      KNOWN_DUMMY_UIDS.forEach((u) => uidsToDelete.add(u));
     }
 
-    const uniqueUids = Array.from(new Set(uidsToDelete));
+    const uniqueUids = Array.from(uidsToDelete);
 
+    // Recursively delete the user's ENTIRE document tree — patientProfile, caregiverAttributes,
+    // zaritAssessments, vitals, medications, appointments, dailyCareLogs, careCircle,
+    // clinicianGrants, moduleProgress, clinicalAuthorization, exportAuditLog, everything — plus
+    // the users/{uid} doc itself. The previous version only deleted the cohortSummaries cache
+    // and dyadInvites/clinicianGrants pointers, which unlinked a dyad from a clinician's roster
+    // without ever deleting the underlying clinical data; "Purge Dummy Patients" reported success
+    // while the seeded demo PHI-shaped records remained in Firestore indefinitely.
+    const deletionResults = await Promise.allSettled(
+      uniqueUids.map((id) => db.recursiveDelete(db.collection('users').doc(id)))
+    );
+    const failedDeletes = uniqueUids.filter((_, i) => deletionResults[i].status === 'rejected');
+
+    const batch = db.batch();
+    let opsCount = 0;
     for (const id of uniqueUids) {
       batch.delete(db.collection('cohortSummaries').doc(id));
       opsCount++;
-
-      const cleanCode = id.replace('dyad_', '');
-      batch.delete(db.collection('dyadInvites').doc(cleanCode));
-      opsCount++;
-
-      batch.delete(db.collection('users').doc(id).collection('clinicianGrants').doc(authUser.uid));
+      batch.delete(db.collection('dyadInvites').doc(id.replace('dyad_', '')));
       opsCount++;
     }
-
     if (opsCount > 0) {
       await batch.commit();
     }
@@ -183,9 +226,16 @@ export async function DELETE(request: NextRequest) {
       actorRole: 'clinician',
       ip,
       userAgent,
-      status: 'SUCCESS',
-      details: { action: 'discharge_delete_patient', deletedUids: uniqueUids }
+      status: failedDeletes.length > 0 ? 'FAILURE' : 'SUCCESS',
+      details: { action: 'discharge_delete_patient_recursive', deletedUids: uniqueUids, failedUids: failedDeletes }
     });
+
+    if (failedDeletes.length > 0) {
+      return NextResponse.json(
+        { success: false, deleted: uniqueUids.filter((u) => !failedDeletes.includes(u)), failed: failedDeletes },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true, deleted: uniqueUids });
   } catch (err: unknown) {

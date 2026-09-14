@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -26,7 +27,6 @@ import {
   Sparkles,
   Plus,
   Trash2,
-  Moon,
   Stethoscope,
   Car,
   Calendar,
@@ -35,9 +35,7 @@ import {
   Download,
   Printer,
   Bed,
-  Copy,
-  ExternalLink,
-  Sunrise
+  Home
 } from 'lucide-react';
 import {
   CaregiverAttributes,
@@ -50,11 +48,16 @@ import {
   AssistiveDeviceInventory,
   DEFAULT_ASSISTIVE_DEVICES,
   DiurnalTimeBlock,
-  DIURNAL_TIME_BLOCKS,
-  generateWhatsAppCareDigest,
-  generateCareRosterIcs
+  DIURNAL_TIME_BLOCKS
 } from '@/lib/clinical/care-gap-engine';
 import { ShiftAllocator, DIURNAL_BLOCK_META, type CareShiftRoster } from '@/lib/clinical/shift-allocator';
+import {
+  describeEmergencyVerification,
+  describePlanAuthorization,
+  verifyClinicalAuthorization,
+  type ClinicalAuthorizationRecord
+} from '@/lib/clinical/clinical-authorization';
+import { ConsentedExportDialogs } from '@/components/sharing/consented-export-dialogs';
 import { buildFormalSupport, resolveSupportTypes, toggleSupportType } from '@/lib/clinical/formal-support';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -66,6 +69,16 @@ interface CaregiverSupportMatrixProps {
   caregiver: CaregiverAttributes | null;
   patient: PatientDependenceProfile | null;
   onSave: (attrs: CaregiverAttributes, devices?: AssistiveDeviceInventory) => Promise<boolean>;
+  /**
+   * Clinician-only signed record (`clinicalAuthorization/current`). The wall sheet, the
+   * "authorized" chips and the export headers are driven by verifying this against the live
+   * document — never by `careBlueprint.clinicalReview` or `emergencyLogistics.isVerified`.
+   */
+  clinicalAuthorization?: ClinicalAuthorizationRecord | null;
+  actorRole?: 'clinician' | 'caregiver';
+  actorUid?: string | null;
+  /** Supplied by the dyad workflow when a clinician is viewing a shared record. */
+  isCarePlanningReady?: boolean;
 }
 
 /**
@@ -151,15 +164,20 @@ export function CaregiverSupportMatrix({
   patientUid,
   caregiver,
   patient,
-  onSave
+  onSave,
+  clinicalAuthorization = null,
+  actorRole = 'caregiver',
+  actorUid = null,
+  isCarePlanningReady: carePlanningReady = true
 }: CaregiverSupportMatrixProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Sharing & Export Dialog States
+  // Sharing & Export Dialog States (the dialogs themselves live in ConsentedExportDialogs)
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isPrintSheetOpen, setIsPrintSheetOpen] = useState(false);
+  const [isCalendarConsentOpen, setIsCalendarConsentOpen] = useState(false);
 
   // Primary Caregiver Form State
   const [firstName, setFirstName] = useState(() => {
@@ -170,11 +188,11 @@ export function CaregiverSupportMatrix({
     const parts = (caregiver?.name || '').trim().split(/\s+/);
     return parts.slice(1).join(' ') || '';
   });
-  const [age, setAge] = useState(caregiver?.age || 54);
+  const [age, setAge] = useState<number | string>(caregiver?.age ?? '');
   const [kinship, setKinship] = useState<CaregiverAttributes['kinship']>(caregiver?.kinship || 'spouse');
   const [coResidence, setCoResidence] = useState<CaregiverAttributes['coResidence']>(caregiver?.coResidence || 'lives_together');
   const [employment, setEmployment] = useState<CaregiverAttributes['employment']>(caregiver?.employment || 'homemaker');
-  const [committedHours, setCommittedHours] = useState(caregiver?.dailyHoursCommitted || 8);
+  const [committedHours, setCommittedHours] = useState<number | string>(caregiver?.dailyHoursCommitted ?? '');
 
   // Secondary Family Network Form State
   const [secondaryMembers, setSecondaryMembers] = useState<SecondaryFamilyMember[]>(() => {
@@ -239,6 +257,23 @@ export function CaregiverSupportMatrix({
     caregiver?.emergencyLogistics?.ambulanceContact || '108 / 102 (National Helpline)'
   );
 
+  // Home Layout & Environment State
+  const [houseAddress, setHouseAddress] = useState(
+    caregiver?.homeEnvironment?.houseAddress || patient?.homeCareAddress || ''
+  );
+  const [landmark, setLandmark] = useState(
+    caregiver?.homeEnvironment?.landmark || ''
+  );
+  const [hasDedicatedRoom, setHasDedicatedRoom] = useState(
+    caregiver?.homeEnvironment?.hasDedicatedRoom ?? true
+  );
+  const [hasAttachedBathroom, setHasAttachedBathroom] = useState(
+    caregiver?.homeEnvironment?.hasAttachedBathroom ?? true
+  );
+  const [floorLevel, setFloorLevel] = useState<'ground' | 'upper_with_lift' | 'upper_stairs_only'>(
+    caregiver?.homeEnvironment?.floorLevel || 'ground'
+  );
+
   // Formal Support Form State. Stored as a list so this surface round-trips the same
   // multi-select the onboarding and dyad-profiler screens write. Reading only `.type` here used
   // to silently collapse a combined team (attendant + medical assistant) down to one hire on
@@ -283,7 +318,7 @@ export function CaregiverSupportMatrix({
   // engine's own dataQuality check stays silent, because the fake profile is complete.
   const hasCaregiverProfile = !!caregiver;
   const hasPatientProfile = !!patient;
-  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile;
+  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile && carePlanningReady;
 
   // Memoized so identity is stable across renders when the source `caregiver`/
   // `patient` haven't actually changed — currentPatient in particular was a
@@ -312,15 +347,37 @@ export function CaregiverSupportMatrix({
     ...currentEval.dataQuality.limitations
   ];
 
+  // Clinical Governance & Verification Gating.
+  // Both flags come from verifying the clinician-only signed record against the live document:
+  // the plan hash must match the current blueprint content and the emergency hash must match the
+  // current logistics. A family edit to either silently drops the corresponding flag to false.
+  const authVerdict = useMemo(
+    () => verifyClinicalAuthorization(clinicalAuthorization, currentCaregiver),
+    [clinicalAuthorization, currentCaregiver]
+  );
+  const isPlanClinicianApproved = authVerdict.planAuthorized;
+  const isEmergencyVerified = authVerdict.emergencyVerified;
+  const isDataComplete = currentEval.dataQuality.completeness !== 'insufficient';
+  const hasAuthoredInstructions = !!(
+    currentCaregiver.careBlueprint?.authoredInstructions &&
+    currentCaregiver.careBlueprint.authoredInstructions.length > 0
+  );
+
+  // Bedside wall sheet is STRICTLY locked until plan is clinician-approved, has structured clinician-authored instructions, emergency details are verified, and clinical data is complete
+  const isBedsideSheetEnabled = isDyadDocumented && isPlanClinicianApproved && hasAuthoredInstructions && isEmergencyVerified && isDataComplete;
+
+  const parsedAge = age === '' ? 0 : Number(age);
+  const parsedCommittedHours = committedHours === '' ? 0 : Number(committedHours);
+
   // Live Simulated Caregiver & Patient
   const simulatedCaregiver: CaregiverAttributes = {
     ...currentCaregiver,
     name: `${firstName.trim()} ${lastName.trim()}`.trim() || 'Primary Caregiver',
-    age: Number(age) || 54,
+    age: !isNaN(parsedAge) && parsedAge > 0 ? parsedAge : 0,
     kinship,
     coResidence,
     employment,
-    dailyHoursCommitted: Number(committedHours) || 8,
+    dailyHoursCommitted: !isNaN(parsedCommittedHours) && parsedCommittedHours > 0 ? parsedCommittedHours : 0,
     secondaryMembers,
     otherFamilyMembersCount: secondaryMembers.length,
     emergencyLogistics: {
@@ -330,7 +387,19 @@ export function CaregiverSupportMatrix({
       vehicleDetails,
       designatedEmergencyDriver: emergencyDriver,
       preferredHospitalName: preferredHospital,
-      ambulanceContact
+      ambulanceContact,
+      isVerified: currentCaregiver.emergencyLogistics?.isVerified ?? false,
+      verifiedAt: currentCaregiver.emergencyLogistics?.verifiedAt,
+      verifiedBy: currentCaregiver.emergencyLogistics?.verifiedBy,
+      goalsOfCareEscalationPreference: currentCaregiver.emergencyLogistics?.goalsOfCareEscalationPreference || currentPatient.goalsOfCare?.escalationPreference
+    },
+    homeEnvironment: {
+      houseAddress: houseAddress.trim() || undefined,
+      landmark: landmark.trim() || undefined,
+      hasDedicatedRoom,
+      hasAttachedBathroom,
+      floorLevel,
+      elevatorAccessible: floorLevel !== 'upper_stairs_only'
     },
     rotationPolicy: {
       rotationInterval,
@@ -345,6 +414,13 @@ export function CaregiverSupportMatrix({
       hasDiabetes,
       hasInsomnia
     },
+    // Capacity is a time-sensitive, self/family-reported input. Stamp its
+    // collection point so the workflow can distinguish an actual check-in
+    // from registration defaults and ask the clinician to review it when due.
+    assessmentMetadata: {
+      assessedAt: currentCaregiver.assessmentMetadata?.assessedAt || new Date().toISOString(),
+      source: actorRole === 'clinician' ? 'clinician_assisted' : 'caregiver_reported'
+    },
     notes: notes.trim() || undefined,
     formalSupport: {
       // buildFormalSupport keeps `type` and `types[]` consistent with each other; the explicit
@@ -358,6 +434,7 @@ export function CaregiverSupportMatrix({
 
   const simulatedPatient: PatientDependenceProfile = {
     ...currentPatient,
+    homeCareAddress: houseAddress.trim() || currentPatient.homeCareAddress,
     assistiveDevices: {
       hospitalBed,
       airWaterMattress,
@@ -429,11 +506,11 @@ export function CaregiverSupportMatrix({
     const parts = (cg?.name || '').trim().split(/\s+/).filter(Boolean);
     setFirstName(parts[0] || '');
     setLastName(parts.slice(1).join(' '));
-    setAge(cg?.age ?? 54);
+    setAge(cg?.age ?? '');
     setKinship(cg?.kinship || 'spouse');
     setCoResidence(cg?.coResidence || 'lives_together');
     setEmployment(cg?.employment || 'homemaker');
-    setCommittedHours(cg?.dailyHoursCommitted ?? 8);
+    setCommittedHours(cg?.dailyHoursCommitted ?? '');
     setSecondaryMembers(cg?.secondaryMembers ? [...cg.secondaryMembers] : []);
 
     setRotationInterval(cg?.rotationPolicy?.rotationInterval || 'biweekly');
@@ -448,6 +525,12 @@ export function CaregiverSupportMatrix({
     setEmergencyDriver(cg?.emergencyLogistics?.designatedEmergencyDriver || '');
     setPreferredHospital(cg?.emergencyLogistics?.preferredHospitalName || '');
     setAmbulanceContact(cg?.emergencyLogistics?.ambulanceContact || '108');
+
+    setHouseAddress(cg?.homeEnvironment?.houseAddress || pt?.homeCareAddress || '');
+    setLandmark(cg?.homeEnvironment?.landmark || '');
+    setHasDedicatedRoom(cg?.homeEnvironment?.hasDedicatedRoom ?? true);
+    setHasAttachedBathroom(cg?.homeEnvironment?.hasAttachedBathroom ?? true);
+    setFloorLevel(cg?.homeEnvironment?.floorLevel || 'ground');
 
     setSupportTypes(resolveSupportTypes(cg?.formalSupport));
     setSupportHours(cg?.formalSupport?.hoursPerDay ?? 0);
@@ -510,7 +593,10 @@ export function CaregiverSupportMatrix({
       hoursPerDay: 2.0,
       assignedTasks: [],
       hasPhysicalLimitation: false,
-      availableTimeBlocks: ['morning_rush', 'evening']
+      availableTimeBlocks: ['morning_rush', 'evening'],
+      // Capacity is credited only once the helper has confirmed. Defaulting to 'pending' means a
+      // freshly added relative never reduces the care gap before anyone has asked them.
+      acceptanceStatus: 'pending'
     };
     setSecondaryMembers([...secondaryMembers, newMember]);
   };
@@ -666,6 +752,34 @@ export function CaregiverSupportMatrix({
   };
 
   const handleSaveModal = async () => {
+    // Bounds mirror the limits shown on the inputs; the form used to enforce only "> 0" in code.
+    const fail = (title: string, description: string) => {
+      toast({ variant: 'destructive', title, description });
+      return false;
+    };
+    const nameOk = `${firstName.trim()} ${lastName.trim()}`.trim().length > 0;
+    if (!nameOk && !fail('Caregiver Name Required', 'Enter the primary caregiver\'s name — a blank name would be saved as "Primary Caregiver".')) return;
+    if ((simulatedCaregiver.age <= 0 || simulatedCaregiver.age > 120) &&
+      !fail('Caregiver Age Out of Range', 'Enter an age between 1 and 120 for the primary caregiver.')) return;
+    if ((simulatedCaregiver.dailyHoursCommitted <= 0 || simulatedCaregiver.dailyHoursCommitted > 24) &&
+      !fail('Committed Hours Out of Range', 'Enter daily committed care hours between 0.5 and 24.')) return;
+    for (const m of secondaryMembers) {
+      const label = m.name.trim() || 'A helper';
+      if (!m.name.trim() && !fail('Helper Name Required', 'Every secondary family member needs a name before saving.')) return;
+      if ((!Number.isFinite(m.age) || m.age < 1 || m.age > 120) &&
+        !fail('Helper Age Out of Range', `${label}: enter an age between 1 and 120.`)) return;
+      if ((!Number.isFinite(m.hoursPerDay) || m.hoursPerDay < 0 || m.hoursPerDay > 24) &&
+        !fail('Helper Hours Out of Range', `${label}: committed hours must be between 0 and 24.`)) return;
+    }
+    if (simulatedEval.dataQuality.status === 'requires_data_completion') {
+      toast({
+        variant: 'destructive',
+        title: 'Clinical Data Incomplete',
+        description: `Cannot save care plan until required inputs are completed: ${simulatedEval.dataQuality.missingFields.join(', ')}.`
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const ok = await onSave(simulatedCaregiver, simulatedPatient.assistiveDevices);
@@ -699,25 +813,7 @@ export function CaregiverSupportMatrix({
 
   const rosterBlockOrder: DiurnalTimeBlock[] = ['morning_rush', 'afternoon', 'evening', 'night_watch'];
 
-  // WhatsApp Digest Share Handler
-  const whatsAppText = isDyadDocumented
-    ? generateWhatsAppCareDigest(currentCaregiver, currentPatient, currentEval)
-    : 'Document the patient profile and caregiver matrix before sharing a care plan. This keeps placeholder data from being sent to the family as a real roster.';
-
-  const handleCopyWhatsAppText = () => {
-    navigator.clipboard.writeText(whatsAppText);
-    toast({
-      title: 'Copied to Clipboard!',
-      description: 'WhatsApp Care Circle digest is ready to paste into family chat.'
-    });
-  };
-
-  const handleOpenWhatsAppUrl = () => {
-    const encoded = encodeURIComponent(whatsAppText);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-  };
-
-  // ICS Calendar Download Handler
+  // Exports are handled by ConsentedExportDialogs (consent, recipient, redaction, audit log).
   const handleDownloadIcs = () => {
     if (!isDyadDocumented) {
       toast({
@@ -727,20 +823,7 @@ export function CaregiverSupportMatrix({
       });
       return;
     }
-    const icsContent = generateCareRosterIcs(currentCaregiver, currentPatient, currentEval);
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `sanjeevani-care-roster-${patientUid}.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast({
-      title: 'Calendar Roster Downloaded (.ics)',
-      description: 'Import into Google Calendar or Apple Calendar to sync shift and respite reminders.'
-    });
+    setIsCalendarConsentOpen(true);
   };
 
   const totalDemand = Math.max(0.1, currentEval.patientCareDemandHours);
@@ -794,9 +877,37 @@ export function CaregiverSupportMatrix({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setIsPrintSheetOpen(true)}
-            disabled={!isDyadDocumented}
-            title={isDyadDocumented ? undefined : 'Document the dyad before printing a bedside sheet'}
+            onClick={() => {
+              if (!isBedsideSheetEnabled) {
+                toast({
+                  variant: 'destructive',
+                  title: 'Bedside Wall Sheet Locked',
+                  description: !isDyadDocumented
+                    ? 'Document the patient and caregiver profile first.'
+                    : !isDataComplete
+                    ? `Required clinical data incomplete: ${currentEval.dataQuality.missingFields.join(', ')}.`
+                    : !isPlanClinicianApproved
+                    ? `Plan: ${describePlanAuthorization(authVerdict.planStatus)}. ${authVerdict.reasons[0] || ''}`
+                    : !hasAuthoredInstructions
+                    ? 'The authorized plan has no clinician-accepted directives to print.'
+                    : `Emergency: ${describeEmergencyVerification(authVerdict.emergencyStatus)}. ${authVerdict.reasons.find((r) => /[Ee]mergency/.test(r)) || ''}`
+                });
+                return;
+              }
+              setIsPrintSheetOpen(true);
+            }}
+            disabled={!isBedsideSheetEnabled}
+            title={
+              !isBedsideSheetEnabled
+                ? !isDyadDocumented
+                  ? 'Document the dyad before printing a bedside sheet'
+                  : !isDataComplete
+                  ? 'Complete required assessments before printing'
+                  : !isPlanClinicianApproved
+                  ? 'Requires clinician-approved care plan before generating wall sheet'
+                  : 'Requires verified emergency logistics before printing'
+                : 'Print Bedside Wall Sheet'
+            }
             className="h-8 text-xs gap-1.5 font-bold hover:bg-muted disabled:opacity-50"
           >
             <Printer className="w-3.5 h-3.5" /> Bedside Wall Sheet
@@ -808,76 +919,91 @@ export function CaregiverSupportMatrix({
                 <Edit3 className="w-3.5 h-3.5" /> Configure Matrix
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
-                  <Users2 className="w-4 h-4 text-primary" />
-                  Configure Monthly Care Support Matrix & Assistive Infrastructure
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Model family helper diurnal shifts, assistive beds & suction gear, 12h/24h nursing, monthly respite rotas, and emergency transit readiness.
-                </DialogDescription>
-              </DialogHeader>
+            <DialogContent className="flex flex-col w-[95vw] sm:max-w-3xl max-h-[92dvh] h-[92dvh] sm:h-[88vh] p-0 overflow-hidden gap-0 border-border/80 shadow-2xl rounded-3xl">
+              {/* FIXED HEADER: Always visible at top with right padding to clear the Close X button */}
+              <div className="p-4 sm:p-6 pb-3 border-b border-border/60 shrink-0 bg-background pr-12">
+                <DialogHeader className="text-left space-y-1">
+                  <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <Users2 className="w-4 h-4 text-primary" />
+                    Configure Monthly Care Support Matrix & Assistive Infrastructure
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                    Model family helper diurnal shifts, assistive beds & suction gear, 12h/24h nursing, monthly respite rotas, and emergency transit readiness.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-              <div className="space-y-4 my-2 text-xs">
-                {/* LIVE SIMULATION STRIP */}
-                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                      <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
-                    </span>
-                    <Badge
-                      className={cn(
-                        'text-[10px] font-bold uppercase',
-                        simulatedEval.caregiverBurnoutRiskLevel === 'critical'
-                          ? 'bg-red-600 text-white'
-                          : simulatedEval.caregiverBurnoutRiskLevel === 'high'
-                          ? 'bg-amber-600 text-white'
-                          : simulatedEval.caregiverBurnoutRiskLevel === 'moderate'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-emerald-600 text-white'
-                      )}
-                    >
-                      {simulatedEval.caregiverBurnoutRiskLevel} Burnout Risk
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
-                      <span className="text-sm font-black text-foreground">{simulatedEval.patientCareDemandHours}h/day</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {(simulatedEval.formalSupportAbsorbedHours + simulatedEval.familySupportAbsorbedHours).toFixed(1)}h/day
+              {/* DEDICATED SCROLLABLE BODY: Pure block layout scroll container ensures sticky positioning works 100% on iOS Safari, Android Chrome, and Desktop */}
+              <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                {/* LIVE SIMULATION STRIP — sticky to the top of the scroll container */}
+                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md px-4 sm:px-6 py-2.5 border-b border-border/70 shadow-xs">
+                  <div className="p-3 sm:p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                        <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
                       </span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
-                      <span
+                      <Badge
                         className={cn(
-                          'text-sm font-black',
-                          simulatedEval.netCareGapHours > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'
+                          'text-[10px] font-bold uppercase',
+                          simulatedEval.caregiverBurnoutRiskLevel === 'critical'
+                            ? 'bg-red-600 text-white'
+                            : simulatedEval.caregiverBurnoutRiskLevel === 'high'
+                            ? 'bg-amber-600 text-white'
+                            : simulatedEval.caregiverBurnoutRiskLevel === 'moderate'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-emerald-600 text-white'
                         )}
                       >
-                        {simulatedEval.netCareGapHours > 0 ? `${simulatedEval.netCareGapHours}h Deficit` : '0.0h (Equilibrium)'}
-                      </span>
+                        {(simulatedEval.estimatedCareCapacityStrain || simulatedEval.caregiverBurnoutRiskLevel).toUpperCase()} Capacity Strain
+                      </Badge>
                     </div>
-                    <div className="p-2 rounded-xl bg-card border border-border/60">
-                      <span className="text-[10px] text-muted-foreground block">Spine Injury Strain</span>
-                      <span
-                        className={cn(
-                          'text-sm font-black',
-                          simulatedEval.caregiverInjuryRiskScore > 50 ? 'text-amber-600' : 'text-emerald-600'
-                        )}
-                      >
-                        {simulatedEval.caregiverInjuryRiskScore}%
-                      </span>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
+                        <span className="text-sm font-black text-foreground">{simulatedEval.patientCareDemandHours}h/day</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          {(simulatedEval.formalSupportAbsorbedHours + simulatedEval.familySupportAbsorbedHours).toFixed(1)}h/day
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
+                        <span
+                          className={cn(
+                            'text-sm font-black',
+                            simulatedEval.netCareGapHours > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'
+                          )}
+                        >
+                          {simulatedEval.netCareGapHours > 0 ? `${simulatedEval.netCareGapHours}h Deficit` : '0.0h (Equilibrium)'}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Manual Handling</span>
+                        <span
+                          className={cn(
+                            'text-xs font-black capitalize',
+                            simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
+                              ? 'text-red-600 dark:text-red-400'
+                              : simulatedEval.manualHandlingHazardTier === 'moderate'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          )}
+                        >
+                          {simulatedEval.manualHandlingHazardTier === 'severe' || simulatedEval.manualHandlingHazardTier === 'high'
+                            ? 'High Concern'
+                            : simulatedEval.manualHandlingHazardTier === 'moderate'
+                            ? 'Elevated Concern'
+                            : 'Lower Concern'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                <div className="p-4 sm:p-6 space-y-4 text-xs">
                 {/* SECTION 1: PRIMARY CAREGIVER IDENTITY */}
                 <div className="space-y-3 p-3.5 rounded-2xl border border-border/70 bg-card">
                   <p className="font-bold text-foreground uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -896,7 +1022,15 @@ export function CaregiverSupportMatrix({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Age (Years)</Label>
-                      <Input type="number" value={age} onChange={(e) => setAge(Number(e.target.value))} className="h-8 text-xs" />
+                      <Input
+                        type="number"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="h-8 text-xs font-mono"
+                        placeholder="Required"
+                        min={1}
+                        max={120}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Kinship</Label>
@@ -946,8 +1080,12 @@ export function CaregiverSupportMatrix({
                       <Input
                         type="number"
                         value={committedHours}
-                        onChange={(e) => setCommittedHours(Number(e.target.value))}
+                        onChange={(e) => setCommittedHours(e.target.value === '' ? '' : Number(e.target.value))}
                         className="h-8 text-xs font-mono"
+                        placeholder="Hours"
+                        min={0.5}
+                        max={24}
+                        step={0.5}
                       />
                     </div>
                   </div>
@@ -1116,6 +1254,8 @@ export function CaregiverSupportMatrix({
                                     </select>
                                     <Input
                                       type="number"
+                                      min={1}
+                                      max={120}
                                       value={member.age}
                                       onChange={(e) => handleUpdateSecondaryMember(member.id, { age: Number(e.target.value) })}
                                       placeholder="Age"
@@ -1137,6 +1277,8 @@ export function CaregiverSupportMatrix({
                                   <Input
                                     type="number"
                                     step="0.5"
+                                    min={0}
+                                    max={24}
                                     value={member.hoursPerDay}
                                     onChange={(e) => handleUpdateSecondaryMember(member.id, { hoursPerDay: Number(e.target.value) })}
                                     placeholder="Hrs/day"
@@ -1154,6 +1296,36 @@ export function CaregiverSupportMatrix({
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
+                            </div>
+
+                            {/* Assignment acceptance — only 'accepted' contributes capacity or is rostered. */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+                              <Label className="text-[10px] text-muted-foreground font-semibold">Assignment status:</Label>
+                              {(['pending', 'accepted', 'declined'] as const).map((st) => {
+                                const current = member.acceptanceStatus || 'pending';
+                                const selected = current === st;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={st}
+                                    onClick={() => handleUpdateSecondaryMember(member.id, { acceptanceStatus: st })}
+                                    className={cn(
+                                      'px-2 py-1 rounded-md text-[10px] font-semibold border transition-all capitalize',
+                                      selected && st === 'accepted' && 'bg-emerald-600 text-white border-emerald-600',
+                                      selected && st === 'pending' && 'bg-amber-500 text-white border-amber-500',
+                                      selected && st === 'declined' && 'bg-rose-600 text-white border-rose-600',
+                                      !selected && 'bg-card text-muted-foreground border-border/70 hover:bg-muted'
+                                    )}
+                                  >
+                                    {st}
+                                  </button>
+                                );
+                              })}
+                              <span className="text-[10px] text-muted-foreground">
+                                {(member.acceptanceStatus || 'pending') === 'accepted'
+                                  ? 'Hours are credited and this helper can be rostered.'
+                                  : 'Not credited until the helper confirms they accept these tasks.'}
+                              </span>
                             </div>
 
                             {/* Diurnal Time Availability Windows */}
@@ -1502,23 +1674,132 @@ export function CaregiverSupportMatrix({
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <DialogFooter className="pt-2 border-t border-border/50">
-                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="text-xs">
-                  Cancel
-                </Button>
-                <Button type="button" size="sm" onClick={handleSaveModal} disabled={isSaving} className="text-xs font-bold bg-primary gap-1.5 shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {isSaving ? 'Saving Matrix…' : 'Prescribe & Save Monthly Matrix'}
-                </Button>
-              </DialogFooter>
+                {/* SECTION 7: HOME LAYOUT & FALL PREVENTION ENVIRONMENT */}
+                <div className="space-y-3 p-3.5 rounded-2xl border border-sky-500/30 bg-sky-500/5">
+                  <p className="font-bold text-sky-800 dark:text-sky-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Home className="w-3.5 h-3.5 text-sky-600" /> 7. Home Layout & Fall Prevention Environment
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">House Address</Label>
+                      <Input
+                        value={houseAddress}
+                        onChange={(e) => setHouseAddress(e.target.value)}
+                        placeholder="e.g. Flat 402, Shanti Niketan, Bandra"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Landmark</Label>
+                      <Input
+                        value={landmark}
+                        onChange={(e) => setLandmark(e.target.value)}
+                        placeholder="e.g. Near Lilavati Hospital / Petrol Pump"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Patient Bedroom Status</Label>
+                      <select
+                        value={hasDedicatedRoom ? 'dedicated' : 'shared'}
+                        onChange={(e) => setHasDedicatedRoom(e.target.value === 'dedicated')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="dedicated">Dedicated Room (Private Recovery)</option>
+                        <option value="shared">Shared Room (Multi-occupant)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Bathroom Access</Label>
+                      <select
+                        value={hasAttachedBathroom ? 'attached' : 'corridor'}
+                        onChange={(e) => setHasAttachedBathroom(e.target.value === 'attached')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="attached">Attached Bathroom (Low Fall Risk)</option>
+                        <option value="corridor">Separate / Down Corridor (Fall Hazard)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Floor Level & Lift</Label>
+                      <select
+                        value={floorLevel}
+                        onChange={(e) => setFloorLevel(e.target.value as 'ground' | 'upper_with_lift' | 'upper_stairs_only')}
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      >
+                        <option value="ground">Ground Floor (Wheelchair / Stretcher Ready)</option>
+                        <option value="upper_with_lift">Upper Floor with Elevator / Lift</option>
+                        <option value="upper_stairs_only">Upper Floor — Stairs Only (Transit Risk)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              {/* FIXED FOOTER: Always accessible at bottom, never buried under 6 sections */}
+              <div className="p-3 sm:p-4 border-t border-border/60 shrink-0 bg-background/95 backdrop-blur-sm">
+                <DialogFooter className="flex-row justify-end gap-2 sm:gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="text-xs">
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSaveModal} disabled={isSaving} className="text-xs font-bold bg-primary gap-1.5 shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isSaving ? 'Saving Matrix…' : 'Prescribe & Save Monthly Matrix'}
+                  </Button>
+                </DialogFooter>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
       </CardHeader>
 
       <CardContent className="p-5 sm:p-6 space-y-6">
+        {/* CLINICAL AUTHORIZATION STATUS — verified against the clinician-only signed record. */}
+        {isDyadDocumented && currentCaregiver.careBlueprint && (
+          <div
+            className={cn(
+              'p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs',
+              authVerdict.bedsideSheetAuthorized
+                ? 'border-emerald-500/40 bg-emerald-500/5'
+                : authVerdict.planStatus === 'stale' || authVerdict.emergencyStatus === 'stale'
+                ? 'border-rose-500/40 bg-rose-500/5'
+                : 'border-amber-500/40 bg-amber-500/5'
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <ShieldCheck
+                className={cn('w-4 h-4', authVerdict.planAuthorized ? 'text-emerald-600' : 'text-amber-600')}
+              />
+              <span className="font-bold">Plan: {describePlanAuthorization(authVerdict.planStatus)}</span>
+              {authVerdict.authorizedByName && (
+                <span className="text-muted-foreground">
+                  by {authVerdict.authorizedByName} · {authVerdict.authorizedAt?.slice(0, 10)}
+                </span>
+              )}
+              <span className="text-border hidden sm:inline">•</span>
+              <span className="font-bold">Emergency: {describeEmergencyVerification(authVerdict.emergencyStatus)}</span>
+              {authVerdict.verifiedByName && (
+                <span className="text-muted-foreground">
+                  by {authVerdict.verifiedByName} · {authVerdict.verifiedAt?.slice(0, 10)}
+                </span>
+              )}
+            </div>
+            {!authVerdict.bedsideSheetAuthorized && authVerdict.reasons.length > 0 && (
+              <span className="text-[11px] text-muted-foreground sm:max-w-md sm:text-right">
+                {authVerdict.reasons[0]}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* DATA PROVENANCE GATE.
             Clinical figures below are computed from the stored dyad. Until both records exist
             they would be derived from neutral placeholders, so say so plainly rather than
@@ -1540,6 +1821,17 @@ export function CaregiverSupportMatrix({
           </div>
         )}
 
+        {/* Split into two sub-tabs so a single dense card doesn't force the clinician to scroll
+            through caregiver overview, shift roster, demand distribution, task delegation, and
+            emergency logistics all at once — "Overview" is the at-a-glance snapshot, "Care Demand
+            & Coverage" is the detailed breakdown clinicians dig into for plan review. */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
+            <TabsTrigger value="overview" className="text-xs font-semibold">Overview</TabsTrigger>
+            <TabsTrigger value="demand" className="text-xs font-semibold">Care Demand &amp; Coverage</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6 mt-4">
         {/* ROW 1: FOUR GENEROUSLY-SPACED KEY METRIC CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Primary Caregiver */}
@@ -1689,11 +1981,11 @@ export function CaregiverSupportMatrix({
             </div>
           </div>
 
-          {/* Card 4: Care Equilibrium & Burnout Risk */}
+          {/* Card 4: Care Equilibrium & Estimated Capacity Strain */}
           <div className="p-4 sm:p-5 rounded-2xl border border-border/70 bg-card space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-primary" /> Care Gap Estimate
+                <Activity className="w-4 h-4 text-primary" /> Estimated Capacity Strain
               </span>
               <Badge
                 className={cn(
@@ -1707,25 +1999,87 @@ export function CaregiverSupportMatrix({
                     : 'bg-emerald-600 text-white'
                 )}
               >
-                {currentEval.caregiverBurnoutRiskLevel} Risk
+                {(currentEval.estimatedCareCapacityStrain || currentEval.caregiverBurnoutRiskLevel).toUpperCase()} Strain
               </Badge>
             </div>
             <div>
               <p className={cn('text-base font-black font-mono', currentEval.netCareGapHours > 0 ? 'text-red-600' : 'text-emerald-600')}>
                 {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'No Estimated Gap'}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Manual-handling risk flag: <strong className="text-foreground font-mono">{currentEval.caregiverInjuryRiskScore}%</strong>
-              </p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                <span>
+                  Manual handling:{' '}
+                  <strong className="text-foreground">
+                    {currentEval.manualHandlingHazardTier === 'severe' || currentEval.manualHandlingHazardTier === 'high'
+                      ? 'High concern—formal handling assessment required'
+                      : currentEval.manualHandlingHazardTier === 'moderate'
+                      ? 'Elevated manual-handling concern'
+                      : 'Lower observed concern'}
+                  </strong>
+                </span>
+                {currentEval.requiresClinicalPtOtReferral && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                    OT/PT Referral
+                  </span>
+                )}
+              </div>
             </div>
             <div className="w-full bg-muted rounded-full h-2 overflow-hidden mt-1">
               <div
                 className={cn(
                   'h-full transition-all rounded-full',
-                  currentEval.caregiverInjuryRiskScore > 50 ? 'bg-red-500' : 'bg-emerald-500'
+                  currentEval.manualHandlingHazardTier === 'severe' || currentEval.manualHandlingHazardTier === 'high'
+                    ? 'bg-red-500 w-full'
+                    : currentEval.manualHandlingHazardTier === 'moderate'
+                    ? 'bg-amber-500 w-3/5'
+                    : 'bg-emerald-500 w-1/4'
                 )}
-                style={{ width: `${Math.min(100, currentEval.caregiverInjuryRiskScore)}%` }}
               />
+            </div>
+            <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+              {currentCaregiver.zbiAssessment ? (
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">
+                      {currentCaregiver.zbiAssessment.tier === 'ZBI22'
+                        ? 'ZBI-22 (Full Scale)'
+                        : currentCaregiver.zbiAssessment.tier === 'ZBI12'
+                        ? 'ZBI-12 (Short Form)'
+                        : 'ZBI-4 (Rapid Triage)'}
+                      : {currentCaregiver.zbiAssessment.score}/
+                      {currentCaregiver.zbiAssessment.tier === 'ZBI22'
+                        ? 88
+                        : currentCaregiver.zbiAssessment.tier === 'ZBI12'
+                        ? 48
+                        : 16}
+                    </span>
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase',
+                        currentCaregiver.zbiAssessment.severityBand === 'critical_red' ||
+                          currentCaregiver.zbiAssessment.severityBand === 'red'
+                          ? 'bg-red-100 text-red-800'
+                          : currentCaregiver.zbiAssessment.severityBand === 'amber'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      )}
+                    >
+                      {currentCaregiver.zbiAssessment.severityBand.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-muted-foreground flex items-center justify-between">
+                    <span>Assessed: {new Date(currentCaregiver.zbiAssessment.assessedAt).toLocaleDateString()}</span>
+                    <span>
+                      Source:{' '}
+                      {currentCaregiver.zbiAssessment.assessorName
+                        ? `${currentCaregiver.zbiAssessment.assessorName} (${currentCaregiver.zbiAssessment.assessorRole || 'Assessor'})`
+                        : currentCaregiver.zbiAssessment.source || 'Clinical Record'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span>ZBI psychometric burden screening pending (WHO ICOPE)</span>
+              )}
             </div>
           </div>
         </div>
@@ -1831,7 +2185,9 @@ export function CaregiverSupportMatrix({
             )}
           </div>
         )}
+          </TabsContent>
 
+          <TabsContent value="demand" className="space-y-6 mt-4">
         {/* ROW 2: VISUAL STACKED ALLOCATION BAR */}
         <div className="p-5 rounded-2xl bg-muted/30 border border-border/70 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -2039,33 +2395,22 @@ export function CaregiverSupportMatrix({
             </div>
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
 
-      {/* WHATSAPP CARE DIGEST MODAL */}
-      <Dialog open={isWhatsAppOpen} onOpenChange={setIsWhatsAppOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-              <Share2 className="w-5 h-5" />
-              WhatsApp Care Circle Plan & Roster Digest
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Instant summary formatted with shift allocations, respite days, and emergency contacts for the family WhatsApp group.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="p-3 bg-muted rounded-xl font-mono text-xs whitespace-pre-wrap max-h-[50vh] overflow-y-auto border border-border/60 select-all">
-            {whatsAppText}
-          </div>
-          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={handleCopyWhatsAppText} className="text-xs gap-1.5 font-bold w-full sm:w-auto">
-              <Copy className="w-3.5 h-3.5" /> Copy Text
-            </Button>
-            <Button size="sm" onClick={handleOpenWhatsAppUrl} className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 w-full sm:w-auto">
-              <ExternalLink className="w-3.5 h-3.5" /> Open in WhatsApp
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConsentedExportDialogs
+        patientUid={patientUid}
+        caregiver={currentCaregiver}
+        patient={currentPatient}
+        evaluation={isDyadDocumented ? currentEval : null}
+        authorization={{ planAuthorized: isPlanClinicianApproved, emergencyVerified: isEmergencyVerified }}
+        actor={{ uid: actorUid, role: actorRole }}
+        whatsAppOpen={isWhatsAppOpen}
+        onWhatsAppOpenChange={setIsWhatsAppOpen}
+        calendarOpen={isCalendarConsentOpen}
+        onCalendarOpenChange={setIsCalendarConsentOpen}
+      />
 
       {/* 1-PAGE BEDSIDE WALL SHEET PRINT PREVIEW MODAL */}
       <Dialog open={isPrintSheetOpen} onOpenChange={setIsPrintSheetOpen}>
@@ -2080,82 +2425,160 @@ export function CaregiverSupportMatrix({
             </DialogDescription>
           </DialogHeader>
 
-          <div id="bedside-wall-sheet" className="p-6 bg-white text-slate-900 rounded-2xl border-2 border-slate-900 space-y-4 font-sans text-xs">
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3">
-              <div>
-                <h2 className="text-xl font-black uppercase tracking-tight text-slate-900">
-                  Sanjeevani Bedside Care Plan & Shift Roster
-                </h2>
-                <p className="text-xs font-bold text-slate-600">
-                  Patient: {currentPatient.name} (Age {currentPatient.age}) • Primary: {currentCaregiver.name} ({currentCaregiver.kinship})
-                </p>
-              </div>
-              <div className="text-right font-mono text-[11px] font-bold">
-                <span className="p-1 rounded bg-slate-900 text-white">EMERGENCY 108</span>
-              </div>
-            </div>
-
-            {/* Emergency Hospital Banner */}
-            <div className="p-3 bg-red-50 border-2 border-red-500 rounded-xl flex items-center justify-between text-xs font-bold text-red-900">
-              <div>
-                <span>🚨 EMERGENCY HOSPITAL: </span>
-                <span className="text-sm font-black">{currentCaregiver.emergencyLogistics?.preferredHospitalName || 'AIIMS Emergency'}</span>
-                <span className="font-normal text-slate-700"> ({currentCaregiver.emergencyLogistics?.hospitalDistanceKm} km / {currentCaregiver.emergencyLogistics?.travelTimeMinutes} mins)</span>
-              </div>
-              <div>
-                <span>DRIVER: {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() || currentCaregiver.name || 'Not designated'}</span>
-              </div>
-            </div>
-
-            {/* Daily Schedule Grids */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 border border-slate-300 rounded-xl space-y-1.5 bg-slate-50">
-                <p className="font-black uppercase tracking-wider text-slate-900 text-[11px] flex items-center gap-1">
-                  <Sunrise className="w-3.5 h-3.5 text-amber-600" /> Morning Routine (07:00 - 10:00)
-                </p>
-                <ul className="list-disc list-inside space-y-0.5 text-slate-800 text-[11px]">
-                  <li>Check blood pressure & morning sugar</li>
-                  <li>Sponge bath, diaper change & skin inspection</li>
-                  <li>Pivot transfer with belt to armchair</li>
-                  <li>Morning medications with breakfast</li>
-                </ul>
-              </div>
-
-              <div className="p-3 border border-slate-300 rounded-xl space-y-1.5 bg-slate-50">
-                <p className="font-black uppercase tracking-wider text-slate-900 text-[11px] flex items-center gap-1">
-                  <Moon className="w-3.5 h-3.5 text-purple-600" /> Night Watch Routine (22:00 - 06:00)
-                </p>
-                <ul className="list-disc list-inside space-y-0.5 text-slate-800 text-[11px]">
-                  <li>2-hourly repositioning & ripple mattress check</li>
-                  <li>Night diaper check & fluid intake stop at 20:00</li>
-                  <li>Bed rails locked & night light on for sundowning</li>
-                  <li>Lead: {currentCaregiver.rotationPolicy?.nightShiftArrangement?.replace(/_/g, ' ') || 'Family Rotation'}</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Assistive Devices in Room */}
-            <div className="p-3 border border-slate-300 rounded-xl bg-slate-50 space-y-1">
-              <p className="font-bold uppercase text-[10px] text-slate-600">Equipment in Room:</p>
-              <p className="text-xs text-slate-900 font-semibold">
-                {[
-                  currentEval.assistiveDeviceStatus.hasHospitalBed ? `Hospital Bed (${currentEval.assistiveDeviceStatus.bedType.replace('_', ' ')})` : 'Standard Bed',
-                  currentEval.assistiveDeviceStatus.hasAirWaterMattress ? 'Alternating Ripple Mattress' : null,
-                  currentEval.assistiveDeviceStatus.hasWheelchair ? 'Wheelchair' : null,
-                  currentEval.assistiveDeviceStatus.hasSuctionApparatus ? 'Suction Machine' : null,
-                  currentEval.assistiveDeviceStatus.hasTransferAids ? 'Transfer Gait Belt' : null
-                ].filter(Boolean).join(' • ')}
+          {!isBedsideSheetEnabled ? (
+            <div className="p-8 text-center space-y-3 bg-amber-50 border border-amber-300 rounded-2xl">
+              <AlertTriangle className="w-8 h-8 text-amber-600 mx-auto" />
+              <h3 className="font-bold text-sm text-amber-900">Bedside Wall Sheet Locked</h3>
+              <p className="text-xs text-amber-800 max-w-md mx-auto">
+                {!isDyadDocumented
+                  ? 'Please document patient and caregiver profiles first.'
+                  : !isDataComplete
+                  ? `Required clinical inputs are missing: ${currentEval.dataQuality.missingFields.join(', ')}.`
+                  : !isPlanClinicianApproved
+                  ? `${describePlanAuthorization(authVerdict.planStatus)}. ${authVerdict.reasons.find((r) => !/[Ee]mergency/.test(r)) || ''}`
+                  : !hasAuthoredInstructions
+                  ? 'No structured, clinician-authored care instructions on file. The bedside sheet renders only explicit clinician instructions (timing, indication, parameters, exceptions, author, and review date) to avoid inventing clinical directives.'
+                  : `${describeEmergencyVerification(authVerdict.emergencyStatus)}. ${authVerdict.reasons.find((r) => /[Ee]mergency/.test(r)) || ''}`}
               </p>
+              {authVerdict.planStatus === 'stale' && (
+                <p className="text-[11px] text-amber-900 max-w-md mx-auto font-semibold">
+                  The plan on file was edited after the clinician signed it. Ask the treating clinician to re-review and re-issue.
+                </p>
+              )}
             </div>
-          </div>
+          ) : (
+            <div id="bedside-wall-sheet" className="p-6 bg-white text-slate-900 rounded-2xl border-2 border-slate-900 space-y-4 font-sans text-xs">
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3">
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-slate-900">
+                    Sanjeevani Bedside Care Plan & Shift Roster
+                  </h2>
+                  <p className="text-xs font-bold text-slate-600">
+                    Patient: {currentPatient.name} (Age {currentPatient.age}) • Primary: {currentCaregiver.name} ({currentCaregiver.kinship})
+                  </p>
+                </div>
+                <div className="text-right font-mono text-[11px] font-bold">
+                  <span className="p-1 rounded bg-slate-900 text-white">
+                    {currentCaregiver.emergencyLogistics?.ambulanceContact || 'EMERGENCY 108'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Emergency Hospital Banner */}
+              <div
+                className={cn(
+                  'p-3 rounded-xl border-2 flex items-center justify-between text-xs font-bold',
+                  isEmergencyVerified
+                    ? 'bg-red-50 border-red-500 text-red-900'
+                    : 'bg-amber-50 border-amber-500 text-amber-900'
+                )}
+              >
+                <div>
+                  <span>🚨 EMERGENCY HOSPITAL: </span>
+                  <span className="text-sm font-black">
+                    {clinicalAuthorization?.emergencyVerification?.snapshot.preferredHospitalName || currentCaregiver.emergencyLogistics?.preferredHospitalName || 'NOT VERIFIED'}
+                  </span>
+                  {currentCaregiver.emergencyLogistics?.hospitalDistanceKm != null && (
+                    <span className="font-normal text-slate-700">
+                      {' '}
+                      ({currentCaregiver.emergencyLogistics.hospitalDistanceKm} km
+                      {currentCaregiver.emergencyLogistics.travelTimeMinutes != null ? ` / ~${currentCaregiver.emergencyLogistics.travelTimeMinutes} mins` : ''})
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div>DRIVER: {clinicalAuthorization?.emergencyVerification?.snapshot.designatedEmergencyDriver || currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() || 'Not designated'}</div>
+                  <div className="text-[10px] font-normal text-slate-700">
+                    Escalation: {(clinicalAuthorization?.emergencyVerification?.goalsOfCareEscalationPreference || currentCaregiver.emergencyLogistics?.goalsOfCareEscalationPreference || 'not documented').replace(/_/g, ' ').toUpperCase()}
+                  </div>
+                  {authVerdict.verifiedByName && (
+                    <div className="text-[9px] font-mono font-normal text-slate-600">
+                      Verified {authVerdict.verifiedAt?.slice(0, 10)} by {authVerdict.verifiedByName}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Daily Schedule Grids - Structured Clinician-Authored Instructions */}
+              <div className="space-y-3">
+                <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between border-b border-slate-300 pb-1">
+                  <span>CLINICIAN-AUTHORED CARE INSTRUCTIONS</span>
+                  <span className="font-mono text-[10px] text-slate-500">Each directive accepted individually by the issuing clinician</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {currentCaregiver.careBlueprint?.authoredInstructions?.map((inst) => (
+                    <div key={inst.id} className="p-3 border border-slate-300 rounded-xl space-y-1.5 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black uppercase tracking-wider text-slate-900 text-[11px]">
+                          {inst.title}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-200 text-slate-800">
+                          {inst.timingWindow.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-800">
+                        <span className="font-bold text-slate-900">Indication: </span>
+                        {inst.indication}
+                      </p>
+                      <p className="text-[11px] text-slate-800">
+                        <span className="font-bold text-slate-900">Directive: </span>
+                        {inst.instruction}
+                      </p>
+                      {inst.parameters && inst.parameters !== inst.instruction && (
+                        <p className="text-[10px] text-slate-700">
+                          <span className="font-bold">Parameters: </span>
+                          {inst.parameters}
+                        </p>
+                      )}
+                      {inst.exceptions && (
+                        <p className="text-[10px] text-amber-900 bg-amber-50 p-1.5 rounded border border-amber-200">
+                          <span className="font-bold">⚠️ Exceptions / Red Flags: </span>
+                          {inst.exceptions}
+                        </p>
+                      )}
+                      <div className="text-[9px] font-mono text-slate-500 pt-1 border-t border-slate-200 flex justify-between flex-wrap gap-x-2">
+                        <span>Author: {inst.authoredBy}</span>
+                        <span>Reviewed: {inst.reviewDate}</span>
+                        {inst.expiresAt && <span>Re-review by: {inst.expiresAt}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Assistive Devices in Room */}
+              <div className="p-3 border border-slate-300 rounded-xl bg-slate-50 space-y-1">
+                <p className="font-bold uppercase text-[10px] text-slate-600">Equipment in Room:</p>
+                <p className="text-xs text-slate-900 font-semibold">
+                  {[
+                    currentEval.assistiveDeviceStatus.hasHospitalBed ? `Hospital Bed (${currentEval.assistiveDeviceStatus.bedType.replace('_', ' ')})` : 'Standard Bed',
+                    currentEval.assistiveDeviceStatus.hasAirWaterMattress ? 'Alternating Ripple Mattress' : null,
+                    currentEval.assistiveDeviceStatus.hasWheelchair ? 'Wheelchair' : null,
+                    currentEval.assistiveDeviceStatus.hasSuctionApparatus ? 'Suction Machine' : null,
+                    currentEval.assistiveDeviceStatus.hasTransferAids ? 'Transfer Gait Belt' : null
+                  ].filter(Boolean).join(' • ')}
+                </p>
+              </div>
+
+              {/* Clinician Sign-off & Concordance Notice */}
+              <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-[10px] text-blue-900 flex items-center justify-between">
+                <span>
+                  ✅ Authorized by {authVerdict.authorizedByName || currentCaregiver.careBlueprint?.prescribedByDoctor || 'the issuing clinician'} on {authVerdict.authorizedAt?.slice(0, 10) || '—'}. Any change to these instructions after that date voids this sheet.
+                </span>
+                <span className="font-mono text-[9px] text-blue-700">Plan {authVerdict.livePlanHash?.slice(0, 12) || '—'} · Ref {currentPatient.name ? currentPatient.name.slice(0, 3).toUpperCase() : 'PT'}-{new Date().toISOString().slice(0, 10)}</span>
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <Button
               size="sm"
+              disabled={!isBedsideSheetEnabled}
               onClick={() => {
                 window.print();
               }}
-              className="text-xs font-bold gap-1.5 bg-primary"
+              className="text-xs font-bold gap-1.5 bg-primary disabled:opacity-50"
             >
               <Printer className="w-3.5 h-3.5" /> Print Bedside Wall Sheet
             </Button>

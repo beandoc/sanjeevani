@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST, GET, DELETE } from '@/app/api/auth/session/route';
+import { POST as codeLoginPost } from '@/app/api/auth/code-login/route';
 import { GET as cohortGet } from '@/app/api/clinic/cohort/route';
 
 describe('Auth Hardening & Bypass Elimination (Phase 1)', () => {
@@ -95,6 +96,30 @@ describe('Auth Hardening & Bypass Elimination (Phase 1)', () => {
       expect(res.status).toBe(200);
       const setCookieHeader = res.headers.get('set-cookie');
       expect(setCookieHeader).toContain('__session=;');
+    });
+  });
+
+  describe('POST /api/auth/code-login', () => {
+    it('rejects short or empty invite codes with 400', async () => {
+      const req = new NextRequest('http://localhost:3000/api/auth/code-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'AB' })
+      });
+      const res = await codeLoginPost(req);
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBeDefined();
+    });
+
+    it('rejects missing payload with 400', async () => {
+      const req = new NextRequest('http://localhost:3000/api/auth/code-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const res = await codeLoginPost(req);
+      expect(res.status).toBe(400);
     });
   });
 });

@@ -43,12 +43,15 @@ import {
   syncPatientProfile,
   syncCaregiverAttributes,
   getCaregiverAttributesFor,
-  getPatientProfileFor
+  getPatientProfileFor,
+  getFunctionScoresFor,
+  getZaritAssessmentsFor
 } from '@/lib/firebase/clinical-sync';
 import { auth } from '@/lib/firebase/client';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 import { ClinicalSafetyAssessmentPanel } from '@/components/clinical/clinical-safety-assessment-panel';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 interface CaregiverDyadProfilerProps {
   defaultTab?: 'caregiver' | 'patient' | 'gap';
@@ -58,6 +61,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
   const [patient, setPatient] = useState<PatientDependenceProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'caregiver' | 'patient' | 'gap'>(defaultTab);
+  const [functionAssessmentCount, setFunctionAssessmentCount] = useState(0);
+  const [burdenAssessmentCount, setBurdenAssessmentCount] = useState(0);
   const { toast } = useToast();
 
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
@@ -100,8 +105,10 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
     if (uid) {
       Promise.all([
         getCaregiverAttributesFor(uid).catch(() => null),
-        getPatientProfileFor(uid).catch(() => null)
-      ]).then(([remoteCg, remotePt]) => {
+        getPatientProfileFor(uid).catch(() => null),
+        getFunctionScoresFor(uid).catch(() => []),
+        getZaritAssessmentsFor(uid).catch(() => [])
+      ]).then(([remoteCg, remotePt, functionScores, burdenAssessments]) => {
         if (remoteCg) {
           setCaregiver(remoteCg);
           HealthRepository.saveCaregiverAttributes(remoteCg);
@@ -110,6 +117,8 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
           setPatient(remotePt);
           HealthRepository.savePatientProfile(remotePt);
         }
+        setFunctionAssessmentCount(functionScores.length);
+        setBurdenAssessmentCount(burdenAssessments.length);
       });
     }
   }, []);
@@ -127,16 +136,31 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
     [caregiver, patient, evaluation]
   );
 
+  const workflow = useMemo(
+    () => getDyadWorkflow({ patient, caregiver, functionAssessmentCount, burdenAssessmentCount }),
+    [patient, caregiver, functionAssessmentCount, burdenAssessmentCount]
+  );
+
   if (!caregiver || !patient || !evaluation) return null;
 
   const handleSave = async () => {
-    HealthRepository.saveCaregiverAttributes(caregiver);
+    // A saved capacity check-in is evidence of what the caregiver reported
+    // today; do not let an unedited registration default masquerade as one.
+    const checkedInCaregiver: CaregiverAttributes = {
+      ...caregiver,
+      assessmentMetadata: {
+        assessedAt: new Date().toISOString(),
+        source: 'caregiver_reported'
+      }
+    };
+    setCaregiver(checkedInCaregiver);
+    HealthRepository.saveCaregiverAttributes(checkedInCaregiver);
     HealthRepository.savePatientProfile(patient);
     // Durably mirrors edits to Firestore so a clinician with an active grant
     // sees the updated profile & care matrix, not just the onboarding snapshot.
     const [ptSync, cgSync] = await Promise.all([
       syncPatientProfile(patient),
-      syncCaregiverAttributes(caregiver)
+      syncCaregiverAttributes(checkedInCaregiver)
     ]);
     const queued = ptSync.queued || cgSync.queued;
     toast({
@@ -196,7 +220,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 Caregiver Dyad Profiler & Care Gap Engine
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                A clinician-reviewed planning model using documented function, caregiver capacity, and available support. It does not replace assessment or clinical judgment.
+                Keep the doctor and family on one shared record. Your updates sync to the dyad workspace for clinical review.
               </CardDescription>
             </div>
 
@@ -209,21 +233,12 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
           <div className="flex p-1 bg-muted/70 rounded-xl gap-1.5 mt-4 max-w-lg">
             <button
               type="button"
-              onClick={() => setActiveTab('gap')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'gap' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              1. Care Gap Analysis
-            </button>
-            <button
-              type="button"
               onClick={() => setActiveTab('caregiver')}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'caregiver' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              2. Caregiver Attributes
+              1. Your capacity
             </button>
             <button
               type="button"
@@ -232,10 +247,29 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 activeTab === 'patient' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              3. Patient Dependence (ADL)
+              2. Home & patient
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('gap')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'gap' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              3. Shared care plan
             </button>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card className="border-blue-500/20 bg-blue-500/5 shadow-xs">
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div>
+            <p className="text-xs font-bold text-foreground">Shared care pathway · {workflow.completedSteps}/{workflow.totalSteps} documented</p>
+            <p className="text-xs text-muted-foreground mt-1"><strong>{workflow.nextOwner === 'caregiver' ? 'Your next step:' : 'Next clinical step:'}</strong> {workflow.nextAction}</p>
+          </div>
+          <Badge variant="outline" className="text-[10px] shrink-0 border-blue-500/30 text-blue-700">{DYAD_WORKFLOW_LABEL[workflow.stage]}</Badge>
+        </CardContent>
       </Card>
 
       {/* TAB 1: Care Gap Overview & Staffing Recommendation */}
@@ -329,22 +363,22 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Manual-Handling Risk</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Manual-Handling Hazard</span>
                   <Badge
-                    variant={evaluation.liftingIndex >= 2.0 ? 'destructive' : evaluation.liftingIndex >= 1.0 ? 'secondary' : 'outline'}
+                    variant={evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high' ? 'destructive' : evaluation.manualHandlingHazardTier === 'moderate' ? 'secondary' : 'outline'}
                     className="text-[9px] font-mono capitalize"
                   >
-                    {evaluation.caregiverInjuryRiskCategory || 'low'} hazard
+                    {evaluation.manualHandlingHazardTier || evaluation.caregiverInjuryRiskCategory || 'low'}
                   </Badge>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-black ${evaluation.liftingIndex >= 2.0 ? 'text-rose-600' : evaluation.liftingIndex >= 1.0 ? 'text-amber-600' : 'text-primary'}`}>
-                    {typeof evaluation.liftingIndex === 'number' ? evaluation.liftingIndex.toFixed(1) : (evaluation.caregiverInjuryRiskScore / 40).toFixed(1)}
+                  <span className={`text-2xl font-black capitalize ${evaluation.manualHandlingHazardTier === 'severe' || evaluation.manualHandlingHazardTier === 'high' ? 'text-rose-600' : evaluation.manualHandlingHazardTier === 'moderate' ? 'text-amber-600' : 'text-primary'}`}>
+                    {evaluation.manualHandlingHazardTier || evaluation.caregiverInjuryRiskCategory || 'low'}
                   </span>
-                  <span className="text-xs text-muted-foreground font-semibold">LI flag</span>
+                  <span className="text-xs text-muted-foreground font-semibold">Tier</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Planning estimate: {evaluation.spinalCompressionKN ?? 2.4} kN • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
+                  {evaluation.requiresClinicalPtOtReferral ? 'OT/PT referral indicated for transfer safety' : 'Standard manual handling precautions'} • {evaluation.nocturnalSleepInterruptions ?? 0} nocturnal wakes
                 </p>
               </CardContent>
             </Card>
@@ -507,15 +541,15 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Caregiver Lifting Index:</span>
-                          <span className="font-semibold text-foreground">
-                            {option.simulatedResult.liftingIndex.toFixed(1)} LI
+                          <span className="text-muted-foreground">Manual Handling:</span>
+                          <span className="font-semibold text-foreground capitalize">
+                            {option.simulatedResult.manualHandlingHazardTier || option.simulatedResult.caregiverInjuryRiskCategory} hazard
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Burnout Tier:</span>
+                          <span className="text-muted-foreground">Capacity Strain:</span>
                           <Badge variant="outline" className="text-[9px] capitalize py-0">
-                            {option.simulatedResult.caregiverBurnoutRiskLevel}
+                            {option.simulatedResult.estimatedCareCapacityStrain || option.simulatedResult.caregiverBurnoutRiskLevel}
                           </Badge>
                         </div>
                       </div>

@@ -57,8 +57,7 @@ import {
   AssistiveDeviceInventory,
   DEFAULT_ASSISTIVE_DEVICES,
   FormalSupportType,
-  generateWhatsAppCareDigest,
-  generateCareRosterIcs
+  type SecondaryFamilyMember
 } from '@/lib/clinical/care-gap-engine';
 import {
   getCaregiverAttributesFor,
@@ -67,8 +66,15 @@ import {
   savePatientProfileFor,
   syncCareCircle,
   getCareCircleFor,
-  subscribeToDyadClinicalData
+  subscribeToDyadClinicalData,
+  getClinicalAuthorizationFor
 } from '@/lib/firebase/clinical-sync';
+import {
+  describePlanAuthorization,
+  verifyClinicalAuthorization,
+  type ClinicalAuthorizationRecord
+} from '@/lib/clinical/clinical-authorization';
+import { ConsentedExportDialogs } from '@/components/sharing/consented-export-dialogs';
 // Code-split: 2000+ lines, and this page's own "matrix" tab already covers
 // its own loading state visually (see the skeleton below).
 const CaregiverSupportMatrix = dynamic(() =>
@@ -93,6 +99,9 @@ export default function CareCirclePage() {
 
   const [caregiverAttrs, setCaregiverAttrs] = useState<CaregiverAttributes>(() => HealthRepository.getCaregiverAttributes());
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile>(() => HealthRepository.getPatientProfile());
+  // Clinician-only signed record; read-only for the family. Null when signed out or never issued.
+  const [clinicalAuthorization, setClinicalAuthorization] = useState<ClinicalAuthorizationRecord | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [tasks, setTasks] = useState<CareCircleTask[]>(() => HealthRepository.getCareCircleTasks());
   const [members, setMembers] = useState<CareCircleMember[]>(() => HealthRepository.getCareCircleMembers());
@@ -124,10 +133,12 @@ export default function CareCirclePage() {
 
     async function loadDyadData() {
       try {
-        const [remoteAttrs, remoteProfile] = await Promise.all([
+        const [remoteAttrs, remoteProfile, remoteAuth] = await Promise.all([
           getCaregiverAttributesFor(uid),
-          getPatientProfileFor(uid)
+          getPatientProfileFor(uid),
+          getClinicalAuthorizationFor(uid)
         ]);
+        setClinicalAuthorization(remoteAuth);
         if (remoteAttrs) {
           setCaregiverAttrs(remoteAttrs);
           HealthRepository.saveCaregiverAttributes(remoteAttrs);
@@ -424,33 +435,27 @@ export default function CareCirclePage() {
   const respiteDays = caregiverAttrs.rotationPolicy?.primaryCaregiverRespiteDaysPerMonth ?? 4;
   const weekendLead = caregiverAttrs.rotationPolicy?.weekendShiftLeader || 'Family Lead';
 
-  // Export Roster Calendar
-  const handleExportIcs = () => {
-    try {
-      if (!currentEval) {
-        toast({
-          variant: 'destructive',
-          title: 'Complete Patient Setup First',
-          description: 'Roster export needs a real patient and caregiver profile, not demo defaults.'
-        });
-        return;
-      }
-      const ics = generateCareRosterIcs(caregiverAttrs, patientProfile, currentEval);
-      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `kutumbh_care_roster_${new Date().toISOString().slice(0, 10)}.ics`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+  /**
+   * A helper confirming (or declining) their assignment. This is the only place a family member's
+   * capacity becomes real: the engine credits hours and the roster lists them only once accepted.
+   */
+  const handleSetAcceptance = async (memberId: string, status: NonNullable<SecondaryFamilyMember['acceptanceStatus']>) => {
+    const updated: CaregiverAttributes = {
+      ...caregiverAttrs,
+      secondaryMembers: (caregiverAttrs.secondaryMembers || []).map((m) =>
+        m.id === memberId ? { ...m, acceptanceStatus: status } : m
+      )
+    };
+    const ok = await handleSaveMatrix(updated, updated.assistiveDevices);
+    if (ok) {
+      const name = updated.secondaryMembers?.find((m) => m.id === memberId)?.name || 'Helper';
       toast({
-        title: 'iCalendar Roster Exported',
-        description: 'Synced with Google Calendar / Apple Calendar.',
+        title: status === 'accepted' ? `${name} accepted their assignment` : status === 'declined' ? `${name} declined` : `${name} marked pending`,
+        description:
+          status === 'accepted'
+            ? 'Their hours now count toward the care gap and they can be rostered.'
+            : 'Their hours are not counted until they accept.'
       });
-    } catch {
-      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not generate calendar file.' });
     }
   };
 
@@ -504,9 +509,7 @@ export default function CareCirclePage() {
     });
   };
 
-  const waDigestText = currentEval
-    ? generateWhatsAppCareDigest(caregiverAttrs, patientProfile, currentEval)
-    : 'Complete patient setup before sharing a care roster. This prevents demo data from being sent as a real care plan.';
+  const authVerdict = verifyClinicalAuthorization(clinicalAuthorization, caregiverAttrs);
 
   const activeDevicesCount = Object.values(caregiverAttrs.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES).filter(
     (v) => v === true || (typeof v === 'string' && v !== 'none')
@@ -535,61 +538,36 @@ export default function CareCirclePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportIcs}
+            onClick={() => setIsCalendarOpen(true)}
             className="gap-1.5 text-xs font-bold shadow-xs"
           >
             <Calendar className="w-3.5 h-3.5 text-primary" />
             <span>Calendar (.ics)</span>
           </Button>
 
-          <Dialog open={isWhatsAppOpen} onOpenChange={setIsWhatsAppOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">
-                <Share2 className="w-3.5 h-3.5" />
-                <span>WhatsApp Roster</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg rounded-3xl">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-headline flex items-center gap-2">
-                  <Share2 className="w-5 h-5 text-emerald-600" />
-                  WhatsApp Care Plan Digest
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Copy and send this pre-formatted digest to your family WhatsApp care group.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="p-4 rounded-2xl bg-muted/60 border border-border/80 font-mono text-xs whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed">
-                {waDigestText}
-              </div>
-
-              <DialogFooter className="gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(waDigestText);
-                    toast({ title: 'Copied to Clipboard', description: 'Paste it into your family WhatsApp group.' });
-                  }}
-                  className="gap-1.5 text-xs"
-                >
-                  <Copy className="w-3.5 h-3.5" /> Copy Text
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    window.open(`https://wa.me/?text=${encodeURIComponent(waDigestText)}`, '_blank');
-                  }}
-                  className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <Share2 className="w-3.5 h-3.5" /> Open WhatsApp
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button
+            size="sm"
+            onClick={() => setIsWhatsAppOpen(true)}
+            className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>WhatsApp Roster</span>
+          </Button>
         </div>
       </div>
+
+      <ConsentedExportDialogs
+        patientUid={user?.uid || 'local-caregiver'}
+        caregiver={caregiverAttrs}
+        patient={patientProfile}
+        evaluation={currentEval}
+        authorization={{ planAuthorized: authVerdict.planAuthorized, emergencyVerified: authVerdict.emergencyVerified }}
+        actor={{ uid: user?.uid ?? null, role: 'caregiver' }}
+        whatsAppOpen={isWhatsAppOpen}
+        onWhatsAppOpenChange={setIsWhatsAppOpen}
+        calendarOpen={isCalendarOpen}
+        onCalendarOpenChange={setIsCalendarOpen}
+      />
 
       {/* Live Dyad Health & Rotation Status Pills */}
       {!hasStoredDyadProfile && (
@@ -711,6 +689,19 @@ export default function CareCirclePage() {
                         >
                           {blueprint.status === 'adopted_by_family' ? '✓ Adopted by Family' : 'Pending Family Adoption'}
                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px] font-mono',
+                            authVerdict.planAuthorized
+                              ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300'
+                              : authVerdict.planStatus === 'stale'
+                              ? 'border-rose-500/50 text-rose-700 dark:text-rose-300'
+                              : 'border-amber-500/50 text-amber-700 dark:text-amber-300'
+                          )}
+                        >
+                          {describePlanAuthorization(authVerdict.planStatus)}
+                        </Badge>
                       </div>
                       <CardDescription className="text-xs">
                         Drafted or issued by <strong>{blueprint.prescribedByDoctor}</strong> on{' '}
@@ -792,6 +783,9 @@ export default function CareCirclePage() {
             caregiver={caregiverAttrs}
             patient={patientProfile}
             onSave={handleSaveMatrix}
+            clinicalAuthorization={clinicalAuthorization}
+            actorRole="caregiver"
+            actorUid={user?.uid ?? null}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -838,6 +832,34 @@ export default function CareCirclePage() {
                           <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md shrink-0">
                             {member.hoursPerDay}h / day
                           </span>
+                        </div>
+
+                        {/* Assignment acceptance — only accepted helpers count toward the care gap. */}
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] font-mono capitalize',
+                              member.acceptanceStatus === 'accepted' && 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300',
+                              member.acceptanceStatus === 'declined' && 'border-rose-500/50 text-rose-700 dark:text-rose-300',
+                              (!member.acceptanceStatus || member.acceptanceStatus === 'pending') && 'border-amber-500/50 text-amber-700 dark:text-amber-300'
+                            )}
+                          >
+                            {member.acceptanceStatus || 'pending'}
+                          </Badge>
+                          {member.acceptanceStatus !== 'accepted' && (
+                            <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => void handleSetAcceptance(member.id, 'accepted')}>
+                              Mark accepted
+                            </Button>
+                          )}
+                          {member.acceptanceStatus !== 'declined' && (
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-muted-foreground" onClick={() => void handleSetAcceptance(member.id, 'declined')}>
+                              Declined
+                            </Button>
+                          )}
+                          {member.acceptanceStatus !== 'accepted' && (
+                            <span className="text-muted-foreground">Hours not counted until accepted.</span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
@@ -983,25 +1005,27 @@ export default function CareCirclePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Preferred Hospital:</span>
                     <span className="font-bold text-foreground truncate max-w-[140px]">
-                      {caregiverAttrs.emergencyLogistics?.preferredHospitalName || 'AIIMS / Local Emergency'}
+                      {caregiverAttrs.emergencyLogistics?.preferredHospitalName || 'Not Verified'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Transit Distance:</span>
                     <span className="font-bold text-foreground">
-                      {caregiverAttrs.emergencyLogistics?.hospitalDistanceKm || 5} km ({caregiverAttrs.emergencyLogistics?.travelTimeMinutes || 20} mins)
+                      {caregiverAttrs.emergencyLogistics?.hospitalDistanceKm != null
+                        ? `${caregiverAttrs.emergencyLogistics.hospitalDistanceKm} km (~${caregiverAttrs.emergencyLogistics.travelTimeMinutes ?? 15} mins)`
+                        : 'Not verified'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Dedicated Driver:</span>
                     <span className="font-bold text-foreground truncate max-w-[140px]">
-                      {caregiverAttrs.emergencyLogistics?.designatedEmergencyDriver || 'Key Holder'}
+                      {caregiverAttrs.emergencyLogistics?.designatedEmergencyDriver || 'Not Confirmed'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">4-Wheeler at Home:</span>
-                    <Badge variant={caregiverAttrs.emergencyLogistics?.fourWheelerAvailableAtHome ? 'default' : 'secondary'} className="text-[10px]">
-                      {caregiverAttrs.emergencyLogistics?.fourWheelerAvailableAtHome ? 'Yes (Parked)' : 'Cab / Auto'}
+                    <span className="text-muted-foreground">Verification Status:</span>
+                    <Badge variant={caregiverAttrs.emergencyLogistics?.isVerified ? 'default' : 'secondary'} className="text-[10px]">
+                      {caregiverAttrs.emergencyLogistics?.isVerified ? 'Verified ✅' : 'Pending Verification ⚠️'}
                     </Badge>
                   </div>
                 </CardContent>

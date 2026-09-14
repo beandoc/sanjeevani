@@ -30,6 +30,7 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
         age: 24,
         hoursPerDay: 2,
         hasPhysicalLimitation: false,
+        acceptanceStatus: 'accepted',
         workCommitmentSchedule: 'Full-time IT job (09:00 - 18:00)',
         availableTimeBlocks: ['evening', 'night_watch'],
         assignedTasks: ['heavy_transfers', 'medications']
@@ -41,6 +42,7 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
         age: 67,
         hoursPerDay: 2,
         hasPhysicalLimitation: true,
+        acceptanceStatus: 'accepted',
         availableTimeBlocks: ['morning_rush', 'afternoon'],
         assignedTasks: ['feeding', 'medications']
       }
@@ -54,7 +56,7 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
   };
 
   const basePatient: PatientDependenceProfile = {
-    name: 'Smt. Sarojini Devi',
+    name: 'Smt. Savitri Sharma',
     age: 81,
     primaryConditions: ['Hypertension', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
     katzAdl: {
@@ -153,5 +155,16 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
     assert.ok(digest.includes('Night Watch'));
     assert.ok(digest.includes('RESPITE ORDERS & RELIEF SCHEDULE'));
     assert.ok(digest.includes('EMERGENCY PROTOCOL'));
+    assert.ok(digest.includes('PLANNING RECOMMENDATIONS'));
+  });
+
+  test('WhatsApp Digest: Redacted mode masks patient and caregiver full names', () => {
+    const evalResult = CareGapEngine.evaluate(baseCaregiver, basePatient);
+    const redactedDigest = ShiftAllocator.generateWhatsAppCareDigest(baseCaregiver, basePatient, evalResult, undefined, { redacted: true });
+
+    assert.ok(!redactedDigest.includes(basePatient.name));
+    assert.ok(redactedDigest.includes('(Patient)'));
+    assert.ok(!redactedDigest.includes(baseCaregiver.name));
+    assert.ok(redactedDigest.includes('(son)'));
   });
 });

@@ -188,7 +188,7 @@ export function ClinicalSummaryPrint({
         <p className="text-slate-800">
           Patient requires an estimated <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance.
           {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff is estimated to relieve ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
-          Primary caregiver capacity is estimated at <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong>. Manual-handling risk score: <strong>{careGapEval.caregiverInjuryRiskScore}%</strong>.
+          Primary caregiver capacity is estimated at <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong>. Manual-handling concern tier: <strong>{careGapEval.manualHandlingHazardTier === 'severe' || careGapEval.manualHandlingHazardTier === 'high' ? 'High concern — formal assessment required' : careGapEval.manualHandlingHazardTier === 'moderate' ? 'Elevated manual-handling concern' : 'Lower observed concern'}</strong>{careGapEval.requiresClinicalPtOtReferral ? ' (PT/OT safe-patient-handling assessment indicated)' : ''}.
         </p>
         <div className="flex items-center gap-2 pt-1 border-t border-amber-200 text-[11px] text-slate-700">
           <span><strong>Assistive Devices:</strong> {[

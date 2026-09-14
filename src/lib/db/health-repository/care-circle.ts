@@ -34,7 +34,7 @@ export function getCareCircleMembers(): CareCircleMember[] {
     }
     const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
     const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
-    if (ptName && ptName !== 'Smt. Sarojini Devi') {
+    if (ptName) {
       return [];
     }
   } catch (e) {
@@ -62,7 +62,7 @@ export function getCareCircleTasks(): CareCircleTask[] {
     }
     const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
     const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
-    if (ptName && ptName !== 'Smt. Sarojini Devi') {
+    if (ptName) {
       return [];
     }
   } catch (e) {

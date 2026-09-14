@@ -70,8 +70,17 @@ import {
   savePatientProfileFor,
   getAppointmentsFor,
   subscribeToDyadClinicalData,
-  dischargeOrDeletePatientDyad
+  dischargeOrDeletePatientDyad,
+  getClinicalAuthorizationFor,
+  saveClinicalAuthorizationFor
 } from '@/lib/firebase/clinical-sync';
+import {
+  buildEmergencyVerificationRecord,
+  buildPlanAuthorizationRecord,
+  getEmergencyLogisticsCompleteness,
+  type ClinicalAuthorizationRecord,
+  type GoalsOfCareEscalationPreference
+} from '@/lib/clinical/clinical-authorization';
 import { HealthRepository, type MedicationItem, type VitalRecord, type AppointmentRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory, EmergencyLogistics } from '@/lib/clinical/care-gap-engine';
@@ -85,6 +94,7 @@ import { useAuthUser } from '@/hooks/use-auth-user';
 import { cn } from '@/lib/utils';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 function PanelSkeleton({ className }: { className?: string }) {
   return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
@@ -157,7 +167,7 @@ export default function DyadDetailPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isDischarging, setIsDischarging] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
-  const [activeTab, setActiveTab] = useState<DyadTab>('matrix');
+  const [activeTab, setActiveTab] = useState<DyadTab>('overview');
   const [displayName, setDisplayName] = useState<string>('');
   const [trajectory, setTrajectory] = useState<TrajectoryResult | null>(null);
   const [latestAssessment, setLatestAssessment] = useState<ZaritEvaluationResult | null>(null);
@@ -165,6 +175,7 @@ export default function DyadDetailPage() {
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [caregiver, setCaregiver] = useState<CaregiverAttributes | null>(null);
+  const [clinicalAuthorization, setClinicalAuthorization] = useState<ClinicalAuthorizationRecord | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
   const [showCdssDetails, setShowCdssDetails] = useState(false);
 
@@ -196,6 +207,8 @@ export default function DyadDetailPage() {
   const [emerHelpline, setEmerHelpline] = useState('108');
   const [emerAddress, setEmerAddress] = useState('');
   const [isSavingEmergency, setIsSavingEmergency] = useState(false);
+  const [emerGoalsOfCare, setEmerGoalsOfCare] = useState<GoalsOfCareEscalationPreference>('not_documented');
+  const [emerVerifiedWithFamily, setEmerVerifiedWithFamily] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -210,7 +223,7 @@ export default function DyadDetailPage() {
   const load = async () => {
     if (!patientUid) return;
     try {
-      const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult] = await Promise.all([
+      const [assessmentsResult, functionScoresResult, nameResult, medsResult, vitalRecordsResult, cgAttrsResult, profResult, apptsResult, authResult] = await Promise.all([
         getZaritAssessmentsFor(patientUid).catch(() => []),
         getFunctionScoresFor(patientUid).catch(() => []),
         getPatientDisplayName(patientUid).catch(() => 'Patient Dyad'),
@@ -218,8 +231,10 @@ export default function DyadDetailPage() {
         getVitalsFor(patientUid).catch(() => []),
         getCaregiverAttributesFor(patientUid).catch(() => null),
         getPatientProfileFor(patientUid).catch(() => null),
-        getAppointmentsFor(patientUid).catch(() => [])
+        getAppointmentsFor(patientUid).catch(() => []),
+        getClinicalAuthorizationFor(patientUid).catch(() => null)
       ]);
+      setClinicalAuthorization(authResult);
       let assessments = assessmentsResult;
       const functionScores = functionScoresResult;
       let name = nameResult;
@@ -230,90 +245,7 @@ export default function DyadDetailPage() {
       const appts = apptsResult;
 
       if (patientUid.startsWith('demo-')) {
-        if (patientUid.includes('sarojini') || patientUid.includes('8102')) {
-          name = 'Smt. Sarojini Devi (Dyad #8102)';
-          assessments = [
-            calculateZaritScore(
-              { zbi_1: 3, zbi_2: 3, zbi_3: 4, zbi_4: 3, zbi_5: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3, zbi_22: 4 },
-              'ZBI22'
-            ),
-            calculateZaritScore(
-              { zbi_1: 2, zbi_2: 2, zbi_3: 3, zbi_4: 2, zbi_5: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2, zbi_22: 3 },
-              'ZBI22'
-            )
-          ];
-          if (!cgAttrs) {
-            cgAttrs = {
-              name: 'Suresh Kumar',
-              age: 78,
-              gender: 'male',
-              kinship: 'spouse',
-              coResidence: 'lives_together',
-              education: 'graduate',
-              employment: 'retired',
-              caregiverHealth: {
-                hasBackPain: true,
-                hasHypertension: true,
-                hasArthritis: true,
-                hasDiabetes: false,
-                hasInsomnia: true
-              },
-              dailyHoursCommitted: 14,
-              monthlyOutOfPocketBurden: 'moderate_strain',
-              formalTrainingReceived: false,
-              formalSupport: {
-                type: 'none',
-                types: [],
-                hoursPerDay: 0,
-                handlesHeavyTransfers: false,
-                handlesMedicationWoundCare: false
-              }
-            };
-          }
-          if (!prof) {
-            prof = {
-              name: 'Smt. Sarojini Devi',
-              age: 78,
-              primaryConditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
-              katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: false, feeding: true },
-              lawtonIadl: {
-                telephone: false,
-                shopping: false,
-                mealPreparation: false,
-                housekeeping: false,
-                laundry: false,
-                transportation: false,
-                medicationManagement: false,
-                finances: false
-              },
-              cognitiveBehavioralLoad: 'wandering_agitation',
-              fallHistoryLast6Months: 2,
-              isBedBound: true,
-              weightKg: 62,
-              heightCm: 155,
-              updatedAt: new Date().toISOString(),
-              assistiveDevices: {
-                hospitalBed: 'manual_adjustable',
-                airWaterMattress: true,
-                wheelchair: true,
-                suctionApparatus: false,
-                transferAids: true
-              }
-            };
-          }
-          if (meds.length === 0) {
-            meds = [
-              { id: 'med_sarojini_1', name: 'Amlodipine', dosage: '5mg', frequency: 'morning', timeOfDay: ['morning'], foodRelation: 'after', indication: 'Hypertension', duration: 'Continuous' },
-              { id: 'med_sarojini_2', name: 'Atorvastatin', dosage: '20mg', frequency: 'bedtime', timeOfDay: ['bedtime'], foodRelation: 'after', indication: 'Stroke Secondary Prevention', duration: 'Continuous' },
-              { id: 'med_sarojini_3', name: 'Paracetamol', dosage: '650mg', frequency: 'afternoon', timeOfDay: ['afternoon'], foodRelation: 'after', indication: 'Osteoarthritis Pain SOS', duration: 'SOS' }
-            ];
-          }
-          if (vitalRecords.length === 0) {
-            vitalRecords = [
-              { id: 'vital_sarojini_1', date: new Date().toISOString(), bp: '168/102', pulse: '84', spo2: '94%', sleep: 'poor', createdAt: new Date().toISOString() }
-            ];
-          }
-        } else if (patientUid.includes('ramesh') || patientUid.includes('7641')) {
+        if (patientUid.includes('ramesh') || patientUid.includes('7641')) {
           name = 'Shri Ramesh Chand (Dyad #7641)';
           assessments = [
             calculateZaritScore(
@@ -405,6 +337,18 @@ export default function DyadDetailPage() {
       setMedications(meds);
       setVitals(vitalRecords);
       setAppointments(appts);
+      if (assessments[0] && cgAttrs) {
+        const latest = assessments[0];
+        cgAttrs.zbiAssessment = {
+          score: latest.totalScore,
+          tier: latest.tier,
+          assessedAt: latest.completedAt,
+          severityBand: latest.severityBand,
+          assessorName: 'Clinical Staff',
+          assessorRole: 'Geriatric Specialist',
+          source: latest.provenance?.score?.source || 'Canonical Clinical History'
+        };
+      }
       setCaregiver(cgAttrs);
       setPatientProfile(prof);
 
@@ -575,6 +519,35 @@ export default function DyadDetailPage() {
         return;
       }
       setCaregiver(updatedCaregiver);
+
+      // Bind the signed content to a clinician-only record. Without this write the plan is saved
+      // but is NOT authorized — every surface will show it as awaiting sign-off, which is correct.
+      if (!user?.uid) {
+        toast({
+          variant: 'destructive',
+          title: 'Plan Saved — NOT Authorized',
+          description: 'You are not signed in as a clinician, so no authorization record could be written. The family will see this plan as awaiting sign-off.'
+        });
+      } else {
+        const record = buildPlanAuthorizationRecord({
+          blueprint,
+          clinicianUid: user.uid,
+          clinicianName: blueprint.prescribedByDoctor || clinicianLabel,
+          policyVersion: blueprint.clinicalReview?.policyVersion,
+          existingEmergencyVerification: clinicalAuthorization?.emergencyVerification
+        });
+        const authResult = await saveClinicalAuthorizationFor(patientUid, record);
+        if (authResult.saved) {
+          setClinicalAuthorization(record);
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Plan Saved — Authorization NOT Recorded',
+            description: `The clinician authorization record was rejected (${authResult.error || 'unknown error'}). The plan will show as awaiting sign-off until you re-issue it.`
+          });
+        }
+      }
+
       if (patientProfile) {
         const updatedProfile = { ...patientProfile, assistiveDevices: blueprint.recommendedAssistiveDevices };
         await savePatientProfileFor(patientUid, updatedProfile);
@@ -687,7 +660,10 @@ export default function DyadDetailPage() {
     setEmerDriver(el?.designatedEmergencyDriver || caregiver?.name || '');
     setEmerHospital(el?.preferredHospitalName || '');
     setEmerHelpline(el?.ambulanceContact || '108');
-    setEmerAddress(patientProfile?.homeCareAddress || 'H-402, Green Park Society, New Delhi');
+    setEmerAddress(patientProfile?.homeCareAddress || '');
+    setEmerGoalsOfCare(el?.goalsOfCareEscalationPreference || patientProfile?.goalsOfCare?.escalationPreference || 'not_documented');
+    // Verification is re-asserted on every save; a stored flag never pre-ticks the box.
+    setEmerVerifiedWithFamily(false);
     setIsEmergencyModalOpen(true);
   };
 
@@ -695,15 +671,40 @@ export default function DyadDetailPage() {
     e.preventDefault();
     setIsSavingEmergency(true);
     try {
+      const parseOptionalNumber = (raw: string, max: number): number | undefined => {
+        const t = raw.trim();
+        if (!t) return undefined;
+        const n = Number(t);
+        return Number.isFinite(n) && n >= 0 && n <= max ? n : undefined;
+      };
+      const verifying = emerVerifiedWithFamily && !!user?.uid;
       const updatedLogistics: EmergencyLogistics = {
-        hospitalDistanceKm: Number(emerDist) || 0,
-        travelTimeMinutes: Number(emerTransitTime) || 0,
+        hospitalDistanceKm: parseOptionalNumber(emerDist, 500),
+        travelTimeMinutes: parseOptionalNumber(emerTransitTime, 720),
         fourWheelerAvailableAtHome: emerFourWheeler,
         vehicleDetails: emerVehicleDetails.trim() || undefined,
         designatedEmergencyDriver: emerDriver.trim() || undefined,
         preferredHospitalName: emerHospital.trim() || undefined,
-        ambulanceContact: emerHelpline.trim() || '108'
+        ambulanceContact: emerHelpline.trim() || undefined,
+        goalsOfCareEscalationPreference: emerGoalsOfCare,
+        // Display hints only; the clinician-only authorization record is what surfaces trust.
+        isVerified: verifying,
+        verifiedAt: verifying ? new Date().toISOString() : undefined,
+        verifiedBy: verifying ? clinicianLabel : undefined
       };
+
+      if (verifying) {
+        const completeness = getEmergencyLogisticsCompleteness(updatedLogistics);
+        if (!completeness.complete) {
+          toast({
+            variant: 'destructive',
+            title: 'Cannot Verify — Details Missing',
+            description: `Verification needs: ${completeness.missing.join(', ')}. Save without verifying, or complete them.`
+          });
+          setIsSavingEmergency(false);
+          return;
+        }
+      }
 
       const updatedCaregiver: CaregiverAttributes = {
         ...(caregiver || {
@@ -782,10 +783,34 @@ export default function DyadDetailPage() {
         setPatientProfile(updatedProfile);
       }
 
-      toast({
-        title: 'Emergency Logistics Saved',
-        description: 'Hospital proximity and rapid transit setpoints have been updated.'
-      });
+      if (verifying && user?.uid) {
+        const record = buildEmergencyVerificationRecord({
+          logistics: updatedLogistics,
+          clinicianUid: user.uid,
+          clinicianName: clinicianLabel,
+          goalsOfCareEscalationPreference: emerGoalsOfCare,
+          existing: clinicalAuthorization
+        });
+        const authResult = await saveClinicalAuthorizationFor(patientUid, record);
+        if (authResult.saved) {
+          setClinicalAuthorization(record);
+          toast({
+            title: 'Emergency Logistics Verified',
+            description: 'Hospital, driver, contact and escalation preference are now bound to your clinician verification record.'
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Logistics Saved — Verification NOT Recorded',
+            description: `The verification record was rejected (${authResult.error || 'unknown error'}). The bedside sheet stays locked until verification succeeds.`
+          });
+        }
+      } else {
+        toast({
+          title: 'Emergency Logistics Saved',
+          description: 'Saved as unverified. Tick "verified with the family" to bind these details to a clinician verification record.'
+        });
+      }
       setIsEmergencyModalOpen(false);
       await load();
     } catch (err) {
@@ -807,6 +832,16 @@ export default function DyadDetailPage() {
     [caregiver, patientProfile, vitals, appointments, medications]
   );
 
+  const workflow = useMemo(
+    () => getDyadWorkflow({
+      patient: patientProfile,
+      caregiver,
+      functionAssessmentCount: trajectory?.functionSeries.length || 0,
+      burdenAssessmentCount: trajectory?.burdenSeries.length || 0
+    }),
+    [patientProfile, caregiver, trajectory]
+  );
+
   if (!isMounted || !patientUid || !trajectory) {
     return <p className="text-sm text-muted-foreground p-6">Loading dyad…</p>;
   }
@@ -814,7 +849,8 @@ export default function DyadDetailPage() {
   // Extract clean patient name and dyad identifiers
   const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
-  const dyadTag = dyadCodeMatch ? `Dyad #${dyadCodeMatch[1]}` : `Dyad #${(patientUid || '').replace('demo-', '').toUpperCase()}`;
+  const dyadFullCode = dyadCodeMatch ? dyadCodeMatch[1] : (patientUid || '').replace('demo-', '').toUpperCase();
+  const dyadTag = `Dyad #${dyadFullCode.slice(0, 8)}`;
 
   const handleDischargeDyad = async () => {
     setIsDischarging(true);
@@ -915,7 +951,11 @@ export default function DyadDetailPage() {
                   <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate">
                     {cleanPatientName}
                   </h1>
-                  <Badge variant="outline" className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5">
+                  <Badge
+                    variant="outline"
+                    title={`Full dyad ID: ${dyadFullCode}`}
+                    className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5"
+                  >
                     {dyadTag}
                   </Badge>
                   <Badge variant="secondary" className="text-xs font-normal">
@@ -934,7 +974,9 @@ export default function DyadDetailPage() {
                   </span>
                   <span className="hidden sm:inline text-border">•</span>
                   <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    {latestAssessment ? `ZBI Strain: ${latestAssessment.totalScore}/88 (${latestAssessment.tier})` : 'ZBI: Score Intake Needed'}
+                    {latestAssessment
+                      ? `ZBI Strain: ${latestAssessment.totalScore}/${latestAssessment.maxScore || (latestAssessment.tier === 'ZBI22' ? 88 : latestAssessment.tier === 'ZBI12' ? 48 : 16)} (${latestAssessment.tier})`
+                      : 'ZBI: Score Intake Needed'}
                   </span>
                 </div>
               </div>
@@ -983,6 +1025,7 @@ export default function DyadDetailPage() {
               />
 
               <DoctorCareBlueprintDialog
+                clinicianDisplayName={user?.displayName || undefined}
                 patientName={cleanPatientName}
                 caregiver={caregiver}
                 patientProfile={patientProfile}
@@ -1069,6 +1112,33 @@ export default function DyadDetailPage() {
         </div>
       </div>
 
+      {/* Care must move through a documented sequence. This is intentionally
+          separate from risk: an intake is not a low-risk care plan. */}
+      <Card className="border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-card to-indigo-500/5 shadow-xs">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-blue-600 text-white text-[10px] uppercase">Care pathway</Badge>
+                <span className="text-sm font-bold">{workflow.completedSteps} of {workflow.totalSteps} steps documented</span>
+                <span className="text-xs text-muted-foreground">Current: {DYAD_WORKFLOW_LABEL[workflow.stage]}</span>
+              </div>
+              <p className="text-xs text-foreground/80 mt-1.5"><strong>{workflow.nextOwner === 'clinician' ? 'Doctor action:' : workflow.nextOwner === 'caregiver' ? 'Caregiver action:' : 'Shared action:'}</strong> {workflow.nextAction}</p>
+            </div>
+            <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setActiveTab(workflow.stage === 'care_matrix' ? 'matrix' : 'overview')}>
+              {workflow.stage === 'care_matrix' ? 'Open care matrix' : 'Open assessments'}
+            </Button>
+          </div>
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {[
+              ['Registration', workflow.completedSteps >= 1], ['Home', workflow.completedSteps >= 2],
+              ['Function', workflow.completedSteps >= 3], ['Caregiver', workflow.completedSteps >= 4],
+              ['Matrix', workflow.completedSteps >= 5], ['Monitor', workflow.completedSteps >= 6]
+            ].map(([label, done]) => <div key={label as string} className={cn('rounded-lg px-2 py-1.5 text-center text-[10px] font-semibold border', done ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted/40 text-muted-foreground border-border/60')}>{done ? '✓ ' : ''}{label as string}</div>)}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Discharged Dyad Advisory Banner */}
       {isArchived && (
         <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-950/20 p-3 sm:px-4 text-xs shadow-2xs flex items-center justify-between gap-3">
@@ -1090,7 +1160,7 @@ export default function DyadDetailPage() {
       )}
 
       {/* Quality of Care Warning Banner / Compact CDSS Advisory Bar */}
-      {careGapResult.qualityOfCareWarnings.length > 0 && (() => {
+      {workflow.isCarePlanningReady && careGapResult.qualityOfCareWarnings.length > 0 && (() => {
         const clinicalAlerts = careGapResult.qualityOfCareWarnings.filter(
           (w) => !/^Decision-support limitation:\s*/i.test(w)
         );
@@ -1303,7 +1373,11 @@ export default function DyadDetailPage() {
               patientUid={patientUid}
               caregiver={caregiver}
               patient={patientProfile}
+              isCarePlanningReady={workflow.isCarePlanningReady}
               onSave={handleSaveCaregiverMatrix}
+              clinicalAuthorization={clinicalAuthorization}
+              actorRole="clinician"
+              actorUid={user?.uid ?? null}
             />
           </div>
         )}
@@ -1766,12 +1840,40 @@ export default function DyadDetailPage() {
                           />
                         </div>
                       </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Goals-of-Care Escalation Preference (agreed with patient/family)</Label>
+                        <select
+                          value={emerGoalsOfCare}
+                          onChange={(e) => setEmerGoalsOfCare(e.target.value as GoalsOfCareEscalationPreference)}
+                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="not_documented">Not yet documented</option>
+                          <option value="full_escalation">Full escalation — transfer to hospital for any deterioration</option>
+                          <option value="hospital_review_before_transfer">Call clinic / hospital for review before transfer</option>
+                          <option value="comfort_focused">Comfort-focused — avoid transfer unless for comfort</option>
+                        </select>
+                      </div>
+                      <label className="flex items-start gap-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={emerVerifiedWithFamily}
+                          onChange={(e) => setEmerVerifiedWithFamily(e.target.checked)}
+                          className="mt-0.5"
+                          disabled={!user?.uid}
+                        />
+                        <span className="text-[11px] leading-tight">
+                          <span className="font-bold">I have verified these details with the family.</span> Saving with this ticked binds the
+                          hospital, driver, contact and escalation preference to a clinician verification record as {clinicianLabel}. If the
+                          family later edits any of them, verification lapses automatically.
+                          {!user?.uid && <span className="block text-rose-600 mt-1">Sign in as a clinician to verify.</span>}
+                        </span>
+                      </label>
                       <DialogFooter className="pt-2 border-t border-border/50">
                         <Button type="button" variant="outline" size="sm" onClick={() => setIsEmergencyModalOpen(false)}>
                           Cancel
                         </Button>
                         <Button type="submit" size="sm" disabled={isSavingEmergency} className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                          {isSavingEmergency ? 'Saving...' : 'Save Logistics'}
+                          {isSavingEmergency ? 'Saving...' : emerVerifiedWithFamily ? 'Save & Verify Logistics' : 'Save Logistics (Unverified)'}
                         </Button>
                       </DialogFooter>
                     </form>

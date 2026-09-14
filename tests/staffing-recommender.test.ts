@@ -26,7 +26,7 @@ describe('Multi-Tier Staffing Recommender Engine Tests', () => {
   };
 
   const basePatient: PatientDependenceProfile = {
-    name: 'Smt. Sarojini Devi',
+    name: 'Smt. Savitri Sharma',
     age: 81,
     primaryConditions: ['Hypertension', 'Severe Osteoarthritis'],
     katzAdl: {
@@ -134,6 +134,7 @@ describe('Multi-Tier Staffing Recommender Engine Tests', () => {
           age: 28,
           hoursPerDay: 2,
           hasPhysicalLimitation: false,
+          acceptanceStatus: 'accepted',
           assignedTasks: ['heavy_transfers', 'medications']
         }
       ]
