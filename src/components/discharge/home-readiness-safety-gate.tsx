@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,11 +13,7 @@ import {
   Bed,
   Pill,
   Moon,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-  Stethoscope,
-  Info
+  XCircle
 } from 'lucide-react';
 import {
   HomeReadinessEngine,
@@ -36,8 +31,8 @@ export function HomeReadinessSafetyGate({
   onStatusChange
 }: Props) {
   // Input state
-  const [patientIsBedBound, setPatientIsBedBound] = useState(true);
-  const [patientFallRiskHigh, setPatientFallRiskHigh] = useState(true);
+  const [patientIsBedBound] = useState(true);
+  const [patientFallRiskHigh] = useState(true);
 
   // Infrastructure
   const [hasGroundFloorOrLift, setHasGroundFloorOrLift] = useState(true);
@@ -47,7 +42,7 @@ export function HomeReadinessSafetyGate({
   // Equipment
   const [hospitalBedDelivered, setHospitalBedDelivered] = useState(true);
   const [airOrWaterMattressInflated, setAirOrWaterMattressInflated] = useState(true);
-  const [transferAidsAvailable, setTransferAidsAvailable] = useState(true);
+  const [transferAidsAvailable] = useState(true);
   const [wheelchairOrCommodeAvailable, setWheelchairOrCommodeAvailable] = useState(true);
 
   // Medication
@@ -338,7 +333,7 @@ export function HomeReadinessSafetyGate({
               )}
             </div>
             <CardDescription className="text-xs">
-              Avoid the "first dose gap" where families don't know what to give on Day 0.
+              Avoid the &quot;first dose gap&quot; where families don&apos;t know what to give on Day 0.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3.5 text-xs">

@@ -18,11 +18,8 @@ import {
   HeartPulse,
   Moon,
   Activity,
-  AlertTriangle,
   CheckCircle2,
-  HelpCircle,
-  Sparkles,
-  ShieldAlert
+  Sparkles
 } from 'lucide-react';
 import {
   CaregiverOperationalPulse,
@@ -48,12 +45,12 @@ export function CaregiverDailyPulseModal({
 }: Props) {
   // Pulse fields
   const [sleepHours, setSleepHours] = useState<number>(5);
-  const [sleepDisrupted, setSleepDisrupted] = useState<boolean>(true);
+  const [sleepDisrupted] = useState<boolean>(true);
   const [canContinue, setCanContinue] = useState<CaregiverOperationalPulse['canContinueCaregivingToday']>(
     'yes_with_difficulty'
   );
   const [physicalStrain, setPhysicalStrain] = useState<number>(6);
-  const [confidence, setConfidence] = useState<number>(3);
+  const [confidence] = useState<number>(3);
   const [helpAttendance, setHelpAttendance] = useState<CaregiverOperationalPulse['didScheduledHelpArrive']>(
     'yes_on_time'
   );
@@ -150,25 +147,27 @@ export function CaregiverDailyPulseModal({
                 <Label className="font-bold">Can you comfortably continue caregiving today?</Label>
                 <RadioGroup
                   value={canContinue}
-                  onValueChange={(v) => setCanContinue(v as any)}
+                  onValueChange={(v) => setCanContinue(v as CaregiverOperationalPulse['canContinueCaregivingToday'])}
                   className="grid grid-cols-1 gap-2 pt-1"
                 >
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer hover:border-primary/50">
-                    <RadioGroupItem value="yes_confidently" />
-                    <span className="font-medium text-xs">Yes, feeling capable and confident</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer hover:border-primary/50">
-                    <RadioGroupItem value="yes_with_difficulty" />
-                    <span className="font-medium text-xs text-amber-600 dark:text-amber-400">
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card hover:border-primary/50">
+                    <RadioGroupItem value="yes_confidently" id="cc_confidently" />
+                    <Label htmlFor="cc_confidently" className="font-medium text-xs cursor-pointer">
+                      Yes, feeling capable and confident
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card hover:border-primary/50">
+                    <RadioGroupItem value="yes_with_difficulty" id="cc_difficulty" />
+                    <Label htmlFor="cc_difficulty" className="font-medium text-xs text-amber-600 dark:text-amber-400 cursor-pointer">
                       Struggling, but will manage today
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-destructive/40 bg-destructive/5 cursor-pointer hover:border-destructive">
-                    <RadioGroupItem value="cannot_continue_need_urgent_help" />
-                    <span className="font-bold text-xs text-destructive">
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-destructive/40 bg-destructive/5 hover:border-destructive">
+                    <RadioGroupItem value="cannot_continue_need_urgent_help" id="cc_urgent" />
+                    <Label htmlFor="cc_urgent" className="font-bold text-xs text-destructive cursor-pointer">
                       Cannot continue — urgent relief needed today
-                    </span>
-                  </label>
+                    </Label>
+                  </div>
                 </RadioGroup>
               </div>
 
@@ -211,25 +210,25 @@ export function CaregiverDailyPulseModal({
                 <Label className="font-bold">Did your planned helper / attendant show up?</Label>
                 <RadioGroup
                   value={helpAttendance}
-                  onValueChange={(v) => setHelpAttendance(v as any)}
+                  onValueChange={(v) => setHelpAttendance(v as CaregiverOperationalPulse['didScheduledHelpArrive'])}
                   className="grid grid-cols-2 gap-2 pt-1"
                 >
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer">
-                    <RadioGroupItem value="yes_on_time" />
-                    <span className="text-xs">Yes, on time</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer">
-                    <RadioGroupItem value="did_not_show_up" />
-                    <span className="text-xs text-destructive font-bold">Did not show up</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer">
-                    <RadioGroupItem value="arrived_late" />
-                    <span className="text-xs text-amber-600">Arrived late</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card cursor-pointer">
-                    <RadioGroupItem value="no_help_planned" />
-                    <span className="text-xs text-muted-foreground">No helper planned</span>
-                  </label>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card">
+                    <RadioGroupItem value="yes_on_time" id="ha_ontime" />
+                    <Label htmlFor="ha_ontime" className="text-xs cursor-pointer">Yes, on time</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card">
+                    <RadioGroupItem value="did_not_show_up" id="ha_noshow" />
+                    <Label htmlFor="ha_noshow" className="text-xs text-destructive font-bold cursor-pointer">Did not show up</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card">
+                    <RadioGroupItem value="arrived_late" id="ha_late" />
+                    <Label htmlFor="ha_late" className="text-xs text-amber-600 cursor-pointer">Arrived late</Label>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-card">
+                    <RadioGroupItem value="no_help_planned" id="ha_noplan" />
+                    <Label htmlFor="ha_noplan" className="text-xs text-muted-foreground cursor-pointer">No helper planned</Label>
+                  </div>
                 </RadioGroup>
               </div>
             </div>

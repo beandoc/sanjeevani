@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,15 +14,13 @@ import {
   Sunset,
   AlertTriangle,
   UserCheck,
-  ShieldCheck,
-  Plus
+  ShieldCheck
 } from 'lucide-react';
 import {
   DutyRosterEngine,
   RosterItem,
   CareRole,
-  ShiftTimeWindow,
-  TaskType
+  ShiftTimeWindow
 } from '@/lib/clinical/duty-roster-engine';
 
 const INITIAL_ROSTER: RosterItem[] = [

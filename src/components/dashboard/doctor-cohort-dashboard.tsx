@@ -184,7 +184,6 @@ export function DoctorCohortDashboard() {
     });
     // The subscription must follow the actual roster. `load` only changes
     // state and is intentionally omitted to avoid resubscribing per render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
   useEffect(() => {
