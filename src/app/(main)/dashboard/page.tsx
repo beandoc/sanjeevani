@@ -14,13 +14,15 @@ export default function DashboardPage() {
   const { role, caregivingScenario } = useProfile();
   const [caregiverName, setCaregiverName] = useState<string>('');
   const [patientName, setPatientName] = useState<string>('');
+  const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
+    setMounted(true);
     const updateNames = () => {
       const cg = HealthRepository.getCaregiverAttributes();
       const pt = HealthRepository.getPatientProfile();
 
-      if (cg?.name && !cg.name.includes('(You)') && cg.name !== 'Suresh Kumar') {
+      if (cg?.name && !cg.name.includes('(You)') && cg.name !== 'Primary Caregiver') {
         setCaregiverName(cg.name);
       } else if (auth?.currentUser?.displayName) {
         setCaregiverName(auth.currentUser.displayName);
@@ -51,7 +53,7 @@ export default function DashboardPage() {
     role === 'doctor' || role === 'professional'
       ? 'Welcome, Dr. Vivek!'
       : role === 'nurse'
-      ? patientName && patientName !== 'Smt. Sarojini Devi'
+      ? patientName
         ? `Nurse Portal • ${patientName}'s Care`
         : 'Welcome, Nursing Officer!'
       : caregiverName
@@ -99,12 +101,12 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-rose-500/15 via-transparent to-transparent pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3.5 min-w-0">
             <div className="relative h-12 w-12 rounded-xl bg-rose-600/25 border border-rose-500/50 flex items-center justify-center font-black text-rose-200 text-lg shrink-0 shadow-inner">
-              {(patientName || 'SD').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+              {((mounted && patientName) || 'CR').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-base sm:text-xl text-white tracking-tight">
-                  {patientName || 'Smt. Sarojini Devi'}
+                <span className="font-extrabold text-base sm:text-xl text-white tracking-tight" suppressHydrationWarning>
+                  {mounted && patientName ? patientName : 'Care Recipient'}
                 </span>
                 <Badge variant="outline" className="text-[10px] font-mono border-rose-400/50 text-rose-200 bg-rose-500/20">
                   80 Yrs · Male
@@ -188,12 +190,12 @@ export default function DashboardPage() {
               {/* Left Side: Avatar + Names + Conditions */}
               <div className="flex items-start gap-4 min-w-0">
                 <div className="relative h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-emerald-600/30 border-2 border-emerald-400/50 flex items-center justify-center font-black text-emerald-100 text-xl sm:text-2xl shrink-0 shadow-lg ring-4 ring-emerald-500/15">
-                  VG
+                  {((mounted && patientName) || 'CR').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="font-extrabold text-xl sm:text-2xl md:text-3xl text-white tracking-tight leading-none">
-                      {patientName || 'Vishal gaurav'}
+                    <h1 className="font-extrabold text-xl sm:text-2xl md:text-3xl text-white tracking-tight leading-none" suppressHydrationWarning>
+                      {mounted && patientName ? patientName : 'Care Recipient'}
                     </h1>
                     <Badge variant="outline" className="text-xs font-mono border-emerald-400/50 text-emerald-200 bg-emerald-500/20">
                       80 Yrs · Male
@@ -206,7 +208,7 @@ export default function DashboardPage() {
                     </Badge>
                   </div>
                   <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                    Primary Caregiver: <span className="font-bold text-white">{caregiverName || 'Abhishek Rai'}</span> (Sibling) • Diagnoses: <span className="text-emerald-200 font-medium">Hypertension, Dementia / Alzheimer&apos;s</span>
+                    Primary Caregiver: <span className="font-bold text-white" suppressHydrationWarning>{mounted && caregiverName ? caregiverName : 'Family Caregiver'}</span> • Diagnoses: <span className="text-emerald-200 font-medium">Hypertension, Dementia / Alzheimer&apos;s</span>
                   </p>
                   <div className="flex items-center gap-2 pt-0.5 text-xs text-emerald-200/80">
                     <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

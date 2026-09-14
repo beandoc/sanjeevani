@@ -48,15 +48,15 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
 
   try {
     // =========================================================================
-    // DYAD 1: Smt. Sarojini Devi (81y) & Suresh Kumar (78y spouse)
+    // DYAD 1: Smt. Savitri Sharma (81y) & Anand Sharma (54y son)
     // Acuity: Post-Stroke Hemiparesis, Severe Osteoarthritis, Hypertension, Bedbound
     // =========================================================================
-    const d1Uid = 'dyad_sarojini_devi';
-    const d1InviteCode = 'SAROJINI81';
+    const d1Uid = 'dyad_savitri_sharma';
+    const d1InviteCode = 'SAVITRI81';
     createdUids.push(d1Uid);
 
     const d1PatientProfile: PatientDependenceProfile = {
-      name: 'Smt. Sarojini Devi',
+      name: 'Smt. Savitri Sharma',
       age: 81,
       primaryConditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
       katzAdl: { bathing: false, dressing: false, toileting: false, transferring: false, continence: true, feeding: true },
@@ -70,8 +70,8 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
 
     const d1Caregiver: CaregiverAttributes = {
       ...DEFAULT_CAREGIVER_ATTRIBUTES,
-      name: 'Suresh Kumar',
-      kinship: 'spouse',
+      name: 'Anand Sharma',
+      kinship: 'son',
       dailyHoursCommitted: 14,
       formalSupport: {
         type: 'paid_attendant_12h',
@@ -83,7 +83,7 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
       caregiverHealth: {
         hasBackPain: true,
         hasHypertension: true,
-        hasArthritis: true,
+        hasArthritis: false,
         hasDiabetes: false,
         hasInsomnia: true
       }
@@ -94,10 +94,10 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
       dyadUid: d1Uid,
       clinicianUid: uid,
       clinicianLabel: 'Dr. Vivek',
-      patientName: 'Smt. Sarojini Devi',
+      patientName: 'Smt. Savitri Sharma',
       patientAge: 81,
       primaryConditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
-      caregiverName: 'Suresh Kumar',
+      caregiverName: 'Anand Sharma',
       caregiverPhone: '+919820012345',
       createdAt: new Date(now - 30 * dayMs).toISOString(),
       claimedAt: null,
@@ -145,7 +145,7 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
     ];
 
     const d1DailyLog: DailyCareLog = {
-      id: `log_sarojini_${new Date().toISOString().slice(0, 10)}`,
+      id: `log_savitri_${new Date().toISOString().slice(0, 10)}`,
       date: new Date().toISOString().slice(0, 10),
       shift: 'day',
       recordedByRole: 'nurse',
@@ -331,7 +331,7 @@ export async function seedRealDyadsToFirestore(): Promise<SeedResult> {
             grantedAt: d.invite.createdAt,
             revokedAt: null
           });
-          // Sarojini Devi's dyad is specifically assigned to Nurse Vidya
+          // Savitri Sharma's dyad is specifically assigned to Nurse Vidya
           // (matches the seeded daily log's recordedByName) — a real,
           // per-dyad staff grant, not blanket access to every patient.
           if (d.uid === d1Uid) {

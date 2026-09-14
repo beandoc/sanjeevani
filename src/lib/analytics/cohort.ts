@@ -83,50 +83,6 @@ export const RISK_BAND_STYLE: Record<RiskBand, string> = {
 
 const DEMO_COHORT_ROWS: CohortRow[] = [
   {
-    patientUid: 'demo-sarojini',
-    displayName: 'Smt. Sarojini Devi (Dyad #8102)',
-    riskBand: 'critical',
-    burdenTrendPerMonth: 4.2,
-    latestBurdenPct: 64,
-    hasRedFlag: true,
-    latestAssessmentAgeDays: 2,
-    latestTier: 'ZBI22',
-    latestCompletedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    hasQocWarning: true,
-    conditions: ['Post-Stroke Hemiparesis', 'Severe Osteoarthritis', 'Hypertension'],
-    caregiverName: 'Suresh Kumar',
-    caregiverKinship: 'Spouse (Solo 78y)',
-    caregiverPhone: '+919820012345',
-    formalSupportHours: 0,
-    formalSupportType: 'None (100% Family)',
-    isBedBound: true,
-    fallHistory: 2,
-    lastVitalBp: '168/102',
-    lastVitalSpo2: '94%',
-    latestAlertSnippet: 'Solo elderly spouse handling heavy nocturnal bed-turns. BP spike 168/102.',
-    dailyLogCount: 1,
-    lastDailyLogDate: new Date().toISOString().slice(0, 10),
-    dailyLogSignals: [
-      {
-        id: 'demo_delirium',
-        category: 'delirium',
-        severity: 'urgent',
-        title: 'Possible delirium or acute behavior change',
-        detail: 'Evening sundowning and low sleep reported in bedside handoff.',
-        source: 'daily_log',
-        date: new Date().toISOString().slice(0, 10)
-      }
-    ],
-    respitePrescription: {
-      needed: true,
-      urgency: 'urgent',
-      recommendedDaysPerMonth: 8,
-      recommendedHoursPerWeek: 24,
-      recommendedSupport: 'Formal respite attendant plus family night rotation this week',
-      reasons: ['High caregiver burden (64%).', 'No formal attendant support is recorded.']
-    }
-  },
-  {
     patientUid: 'demo-ramesh',
     displayName: 'Shri Ramesh Chand (Dyad #7641)',
     riskBand: 'deteriorating',

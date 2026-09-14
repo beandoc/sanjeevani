@@ -321,10 +321,10 @@ describe('Care roster regressions', () => {
   });
 
   test('D8: a name containing a comma does not split an iCalendar property', () => {
-    const commaNamed: CaregiverAttributes = { ...teamCaregiver, name: 'Devi, Sarojini' };
+    const commaNamed: CaregiverAttributes = { ...teamCaregiver, name: 'Devi, Savitri' };
     const evaluation = CareGapEngine.evaluate(commaNamed, dependentPatient);
     const ics = ShiftAllocator.generateCareRosterIcs(commaNamed, dependentPatient, evaluation);
-    assert.ok(ics.includes('Devi\\, Sarojini'));
+    assert.ok(ics.includes('Devi\\, Savitri'));
   });
 });
 

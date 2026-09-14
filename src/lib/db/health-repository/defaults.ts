@@ -79,7 +79,7 @@ export const DEFAULT_MEDICATIONS: MedicationItem[] = [
 export const DEFAULT_CIRCLE_MEMBERS: CareCircleMember[] = [
   {
     id: 'mem_1',
-    name: 'Suresh Kumar (You)',
+    name: 'Primary Caregiver (You)',
     role: 'Primary Caregiver',
     phone: '9821011223',
     isSelf: true,
@@ -107,7 +107,7 @@ export const DEFAULT_CIRCLE_TASKS: CareCircleTask[] = [
   {
     id: 'task_1',
     title: 'Morning Blood Pressure & Pulse Check',
-    assignedToName: 'Suresh Kumar (You)',
+    assignedToName: 'Primary Caregiver (You)',
     category: 'meds',
     time: '08:00 AM',
     isCompleted: false,

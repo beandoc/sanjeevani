@@ -54,7 +54,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
   describe('1. Patient Registration & Demographic Persistence', () => {
     it('should save and retrieve patient dependence profile with all Katz and Lawton ADLs', () => {
       const patientData = {
-        name: 'Smt. Sarojini Devi',
+        name: 'Smt. Savitri Sharma',
         age: 81,
         primaryConditions: ['Hypertension', 'Post-Stroke Hemiparesis', 'Severe Osteoarthritis'],
         katzAdl: {
@@ -83,7 +83,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
       HealthRepository.savePatientProfile(patientData);
       const retrieved = HealthRepository.getPatientProfile();
 
-      expect(retrieved.name).toBe('Smt. Sarojini Devi');
+      expect(retrieved.name).toBe('Smt. Savitri Sharma');
       expect(retrieved.age).toBe(81);
       expect(retrieved.primaryConditions).toHaveLength(3);
       expect(retrieved.katzAdl.bathing).toBe(false);
@@ -500,53 +500,53 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
       const seedResult = await seedRealDyadsToFirestore();
       expect(seedResult.success).toBe(true);
       expect(seedResult.dyadCount).toBe(2);
-      expect(seedResult.dyadUids).toContain('dyad_sarojini_devi');
+      expect(seedResult.dyadUids).toContain('dyad_savitri_sharma');
       expect(seedResult.dyadUids).toContain('dyad_ramesh_chand');
 
-      // 1. Verify Dyad 1 (Smt. Sarojini Devi) Baseline Profile
-      const sProfile = await getPatientProfileFor('dyad_sarojini_devi');
+      // 1. Verify Dyad 1 (Smt. Savitri Sharma) Baseline Profile
+      const sProfile = await getPatientProfileFor('dyad_savitri_sharma');
       expect(sProfile).not.toBeNull();
-      expect(sProfile?.name).toBe('Smt. Sarojini Devi');
+      expect(sProfile?.name).toBe('Smt. Savitri Sharma');
       expect(sProfile?.isBedBound).toBe(true);
       expect(sProfile?.fallHistoryLast6Months).toBe(2);
       expect(sProfile?.katzAdl.bathing).toBe(false);
       expect(sProfile?.katzAdl.feeding).toBe(true);
 
       // 2. Verify Dyad 1 Caregiver Matrix
-      const sCaregiver = await getCaregiverAttributesFor('dyad_sarojini_devi');
+      const sCaregiver = await getCaregiverAttributesFor('dyad_savitri_sharma');
       expect(sCaregiver).not.toBeNull();
-      expect(sCaregiver?.name).toBe('Suresh Kumar');
-      expect(sCaregiver?.kinship).toBe('spouse');
+      expect(sCaregiver?.name).toBe('Anand Sharma');
+      expect(sCaregiver?.kinship).toBe('son');
       expect(sCaregiver?.formalSupport?.hoursPerDay).toBe(12);
 
       // 3. Verify Dyad 1 Longitudinal Vitals
-      const sVitals = await getVitalsFor('dyad_sarojini_devi');
+      const sVitals = await getVitalsFor('dyad_savitri_sharma');
       expect(sVitals.length).toBeGreaterThanOrEqual(5);
       expect(sVitals[0].bp).toBe('136/84');
 
       // 4. Verify Dyad 1 Longitudinal Zarit Burden Assessments
-      const sZarit = await getZaritAssessmentsFor('dyad_sarojini_devi');
+      const sZarit = await getZaritAssessmentsFor('dyad_savitri_sharma');
       expect(sZarit.length).toBeGreaterThanOrEqual(2);
       expect(sZarit[0].tier).toBe('ZBI22');
       expect(sZarit[0].normalizedPercentage).toBeGreaterThanOrEqual(20);
 
       // 5. Verify Dyad 1 Longitudinal Function Evaluations
-      const sFunc = await getFunctionScoresFor('dyad_sarojini_devi');
+      const sFunc = await getFunctionScoresFor('dyad_savitri_sharma');
       expect(sFunc.length).toBeGreaterThanOrEqual(2);
       expect(sFunc[0].barthelScore).toBeDefined();
 
       // 6. Verify Dyad 1 Medications
-      const sMeds = await getMedicationsFor('dyad_sarojini_devi');
+      const sMeds = await getMedicationsFor('dyad_savitri_sharma');
       expect(sMeds.length).toBeGreaterThanOrEqual(4);
       expect(sMeds.some((m) => m.name === 'Amlodipine')).toBe(true);
 
       // 7. Verify Dyad 1 Bedside Care Sheet
-      const sLogs = await getDailyCareLogsFor('dyad_sarojini_devi');
+      const sLogs = await getDailyCareLogsFor('dyad_savitri_sharma');
       expect(sLogs.length).toBeGreaterThanOrEqual(1);
       expect(sLogs[0].meals.breakfast).toBeDefined();
 
       // 8. Test Appending New Longitudinal Observation
-      await recordVitalFor('dyad_sarojini_devi', {
+      await recordVitalFor('dyad_savitri_sharma', {
         id: 'v_new_test',
         date: new Date().toISOString(),
         bp: '130/82',
@@ -556,7 +556,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
         createdAt: new Date().toISOString()
       });
 
-      const updatedVitals = await getVitalsFor('dyad_sarojini_devi');
+      const updatedVitals = await getVitalsFor('dyad_savitri_sharma');
       expect(updatedVitals[0].bp).toBe('130/82');
     });
   });

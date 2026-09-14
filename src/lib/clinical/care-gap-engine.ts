@@ -514,7 +514,7 @@ export interface CareGapEvaluationResult {
 }
 
 export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
-  name: 'Suresh Kumar',
+  name: '',
   age: 54,
   gender: 'male',
   kinship: 'son',
@@ -538,8 +538,8 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
     handlesMedicationWoundCare: false
   },
   homeEnvironment: {
-    houseAddress: 'Bandra West, Mumbai',
-    landmark: 'Near Lilavati Hospital',
+    houseAddress: '',
+    landmark: '',
     hasDedicatedRoom: true,
     hasAttachedBathroom: true,
     floorLevel: 'ground',
@@ -548,9 +548,9 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
 };
 
 export const DEFAULT_PATIENT_PROFILE: PatientDependenceProfile = {
-  name: 'Smt. Sarojini Devi',
+  name: '',
   age: 81,
-  homeCareAddress: 'Bandra West, Mumbai, Maharashtra',
+  homeCareAddress: '',
   primaryConditions: ['Hypertension', 'Mild Cognitive Decline', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
   katzAdl: {
     bathing: false,

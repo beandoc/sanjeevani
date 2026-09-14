@@ -58,7 +58,7 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
   };
 
   const sampleDependentPatient: PatientDependenceProfile = {
-    name: 'Smt. Sarojini Devi',
+    name: 'Smt. Savitri Sharma',
     age: 81,
     primaryConditions: ['Hypertension', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
     katzAdl: {

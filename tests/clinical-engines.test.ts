@@ -78,7 +78,7 @@ describe('Clinical Recommendation Rules Engine Tests', () => {
       caregivingScenario: 'General Frailty',
       lastZarit: null,
       patientProfile: {
-        name: 'Smt. Sarojini Devi',
+        name: 'Smt. Savitri Sharma',
         age: 81,
         primaryConditions: ['Hypertension'],
         katzAdl: {

@@ -60,43 +60,8 @@ export async function POST(request: NextRequest) {
     const auth = adminAuth();
 
     const inviteRef = db.doc(`dyadInvites/${cleanCode}`);
-    let inviteSnap = await inviteRef.get();
+    const inviteSnap = await inviteRef.get();
 
-    // Auto-seed initial demo dyad SAROJINI81 if not yet seeded
-    if (!inviteSnap.exists && cleanCode === 'SAROJINI81') {
-      const demoInvite = {
-        inviteCode: 'SAROJINI81',
-        dyadUid: 'dyad_sarojini_devi',
-        clinicianUid: 'doctor-vivek-uid',
-        clinicianLabel: 'Dr. Vivek (Geriatrics)',
-        patientName: 'Sarojini Devi',
-        patientAge: 81,
-        primaryConditions: ['Parkinsons Disease', 'Post-Stroke Hemiparesis', 'Hypertension'],
-        caregiverName: 'Suresh Sharma',
-        caregiverPhone: '+919876543210',
-        caregiverEmail: 'sureshcaregiver@kutumbh.com',
-        createdAt: new Date().toISOString(),
-        claimedAt: null,
-        claimedByUid: null,
-        patientProfileDraft: {
-          name: 'Sarojini Devi',
-          age: 81,
-          primaryConditions: ['Parkinsons Disease', 'Post-Stroke Hemiparesis', 'Hypertension'],
-          katzAdl: {
-            bathing: false,
-            dressing: false,
-            toileting: false,
-            transferring: false,
-            continence: true,
-            feeding: true
-          },
-          cognitiveBehavioralLoad: 'mild',
-          fallHistoryLast6Months: 2
-        }
-      };
-      await inviteRef.set(demoInvite, { merge: true });
-      inviteSnap = await inviteRef.get();
-    }
 
     if (!inviteSnap.exists) {
       return NextResponse.json(
@@ -124,7 +89,7 @@ export async function POST(request: NextRequest) {
         const existingUser = await auth.getUser(invite.claimedByUid);
         targetUid = existingUser.uid;
         targetEmail = existingUser.email || `${cleanCode.toLowerCase()}caregiver@kutumbh.com`;
-      } catch (userErr: unknown) {
+      } catch {
         // If claimed user was pruned, re-create or fall through to fresh email resolution
         targetEmail = invite.caregiverEmail || `${cleanCode.toLowerCase()}caregiver@kutumbh.com`;
         let rec;

@@ -56,7 +56,7 @@ describe('Deterministic Shift Allocator & Multi-Generational Calendar Tests', ()
   };
 
   const basePatient: PatientDependenceProfile = {
-    name: 'Smt. Sarojini Devi',
+    name: 'Smt. Savitri Sharma',
     age: 81,
     primaryConditions: ['Hypertension', 'Severe Osteoarthritis', 'Post-Fall Frailty'],
     katzAdl: {

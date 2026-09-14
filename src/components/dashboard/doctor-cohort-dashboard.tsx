@@ -128,7 +128,7 @@ export function DoctorCohortDashboard() {
       await load();
       toast({
         title: 'Demo Patients Purged',
-        description: 'Seeded dummy patients (Sarojini Devi, Ramesh Chand) have been permanently removed.'
+        description: 'Seeded dummy patients have been permanently removed.'
       });
     } catch {
       toast({
@@ -436,7 +436,7 @@ export function DoctorCohortDashboard() {
                   >
                     Dismiss
                   </Button>
-                  <Link href={`/clinic/dyad/${alert.patientUid || 'demo-sarojini'}`}>
+                  <Link href={`/clinic/dyad/${alert.patientUid || ''}`}>
                     <Button size="sm" className="h-8 text-xs font-bold gap-1 bg-red-600 hover:bg-red-700 text-white">
                       <Stethoscope className="w-3.5 h-3.5" /> Open Dyad Workspace
                     </Button>
@@ -503,7 +503,7 @@ export function DoctorCohortDashboard() {
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                 <span>
-                  Sample dummy patients detected in worklist (Smt. Sarojini Devi, Shri Ramesh Chand).
+                  Sample dummy patients detected in worklist.
                 </span>
               </div>
               <Button

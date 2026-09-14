@@ -439,10 +439,10 @@ export default function LoginPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setInviteCode('SAROJINI81')}
+                    onClick={() => setInviteCode('RAMESH76')}
                     className="text-primary hover:underline font-mono font-semibold text-[10px] bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-md transition-colors"
                   >
-                    Load Seed Code: SAROJINI81
+                    Load Seed Code: RAMESH76
                   </button>
                 </div>
               </div>
@@ -557,12 +557,12 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setEmail('sureshcaregiver@kutumbh.com');
+                        setEmail('caregiver@kutumbh.com');
                         setPassword('test1234');
                       }}
                       className="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-[10px] font-semibold text-primary"
                     >
-                      Fill Suresh Caregiver
+                      Fill Demo Caregiver
                     </button>
                   )}
                   {selectedRole === 'nurse' && (

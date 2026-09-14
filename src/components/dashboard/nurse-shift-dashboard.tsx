@@ -353,8 +353,8 @@ export function NurseShiftDashboard() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Badge variant="outline" className="text-[10px] font-mono border-rose-500/30 text-rose-700 dark:text-rose-300">
-              Active Dyad: {patient.name} ({targetDyadUid.slice(0, 8)}...)
+            <Badge variant="outline" className="text-[10px] font-mono border-rose-500/30 text-rose-700 dark:text-rose-300" suppressHydrationWarning>
+              Active Dyad: {patient.name || 'Care Recipient'} ({targetDyadUid ? targetDyadUid.slice(0, 8) + '...' : 'Local'})
             </Badge>
           </div>
         </div>

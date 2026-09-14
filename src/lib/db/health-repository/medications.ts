@@ -18,7 +18,7 @@ export function getMedications(): MedicationItem[] {
       } else {
         const ptRaw = localStorage.getItem(STORAGE_KEYS.PATIENT_PROFILE);
         const ptName = ptRaw ? JSON.parse(ptRaw)?.name : null;
-        if (!ptName || ptName === 'Smt. Sarojini Devi') {
+        if (!ptName) {
           meds = DEFAULT_MEDICATIONS;
         }
       }
