@@ -248,8 +248,8 @@ service cloud.firestore {
       // Function scores are immutable clinical observations. Correcting a
       // score means recording a new one, not overwriting the previous.
       match /functionScores/{scoreId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
-        allow create: if (isOwner(userId) || hasActiveGrant(userId))
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || isDyadPlaceholder(userId);
+        allow create: if (isOwner(userId) || hasActiveGrant(userId) || (isAuthenticated() && isDoctorTier(request.auth.uid) && isDyadPlaceholder(userId)))
                       && request.resource.data.barthelScore is int
                       && request.resource.data.barthelScore >= 0
                       && request.resource.data.barthelScore <= 100

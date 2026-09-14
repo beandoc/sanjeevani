@@ -201,22 +201,6 @@ export async function createDyadInvite(input: {
         grantedAt: new Date().toISOString(),
         revokedAt: null
       });
-      // Initial materialized cohort summary document for instant single-read loading
-      batch.set(doc(db, 'cohortSummaries', dyadUid), {
-        patientUid: dyadUid,
-        displayName: input.patientName,
-        clinicianUid: uid,
-        riskBand: 'insufficient-data',
-        riskBandOrder: 3,
-        burdenTrendPerMonth: null,
-        latestBurdenPct: null,
-        hasRedFlag: false,
-        hasQocWarning: false,
-        conditions: input.primaryConditions || [],
-        caregiverName: input.caregiverName ?? null,
-        caregiverPhone: normalizePhoneNumber(input.caregiverPhone),
-        updatedAt: new Date().toISOString()
-      });
       await withRetry(() => batch.commit());
     } catch (cloudErr) {
       console.warn('Dyad cloud batch sync notice (local backup active):', cloudErr);
