@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   BookOpen,
   ArrowUpRight,
-  ChevronDown
+  ChevronDown,
+  HeartPulse
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +90,7 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
   };
 
   const isRosterActive = pathname.startsWith('/clinic/roster') || pathname.startsWith('/clinic/dyad');
+  const isTrajectoryActive = pathname.startsWith('/clinic/trajectory');
   const isDashboardActive = pathname === '/dashboard';
   const isModulesActive = pathname.startsWith('/modules');
 
@@ -161,6 +163,18 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>Patient Roster</span>
+              </Link>
+              <Link
+                href="/clinic/trajectory"
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5',
+                  isTrajectoryActive
+                    ? 'bg-primary/10 text-primary font-bold shadow-2xs border border-primary/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                )}
+              >
+                <HeartPulse className="w-3.5 h-3.5" />
+                <span>Scissors Trajectory</span>
               </Link>
               <Link
                 href="/dashboard"
@@ -247,6 +261,12 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
                   <Link href="/clinic/roster" className="flex items-center gap-2">
                     <Users className="w-3.5 h-3.5 text-muted-foreground" />
                     <span>Patient Clinical Roster</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="rounded-xl text-xs cursor-pointer">
+                  <Link href="/clinic/trajectory" className="flex items-center gap-2">
+                    <HeartPulse className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Scissors Trajectory Analytics</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="rounded-xl text-xs cursor-pointer">
