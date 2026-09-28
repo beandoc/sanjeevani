@@ -206,7 +206,8 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         caregiverPhone: formattedPhone,
         caregiverEmail,
         weightKg: patientWeight ? Number(patientWeight) : null,
-        heightCm: patientHeight ? Number(patientHeight) : null
+        heightCm: patientHeight ? Number(patientHeight) : null,
+        caregiverKinship
       });
 
       setGeneratedCaregiverEmail(caregiverEmail);
@@ -712,31 +713,53 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Caregiver Mobile Number</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground font-mono">
-                        +91
-                      </span>
-                      <Input
-                        type="tel"
-                        maxLength={10}
-                        placeholder="9820012345"
-                        value={caregiverPhone.replace(/\D/g, '').slice(-10)}
-                        onChange={(e) => setCaregiverPhone(e.target.value)}
-                        className="pl-12 h-10 sm:h-9 text-xs sm:text-sm font-mono tracking-wider"
-                      />
-                    </div>
+                    <Label className="text-xs font-semibold text-foreground">
+                      Relationship to Patient (Kinship)
+                    </Label>
+                    <select
+                      value={caregiverKinship}
+                      onChange={(e) => setCaregiverKinship(e.target.value as CaregiverAttributes['kinship'])}
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
+                    >
+                      <option value="spouse">Spouse (Wife / Husband)</option>
+                      <option value="son">Son</option>
+                      <option value="daughter">Daughter</option>
+                      <option value="daughter_in_law">Daughter-in-law</option>
+                      <option value="sibling">Sibling (Brother / Sister)</option>
+                      <option value="grandchild">Grandchild</option>
+                      <option value="paid_attendant">Paid Attendant / Care Aide</option>
+                      <option value="other">Other Relative / Friend</option>
+                    </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Caregiver Age</Label>
+                    <Label className="text-xs font-semibold text-foreground">
+                      Caregiver Age <span className="text-muted-foreground font-normal">(Years)</span>
+                    </Label>
                     <Input
                       type="number"
                       min={12}
                       max={110}
-                      placeholder="e.g. 42"
+                      placeholder="e.g. 52"
                       value={caregiverAge}
                       onChange={(e) => setCaregiverAge(e.target.value)}
                       className="h-10 sm:h-9 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Caregiver Mobile Number</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground font-mono">
+                      +91
+                    </span>
+                    <Input
+                      type="tel"
+                      maxLength={10}
+                      placeholder="9820012345"
+                      value={caregiverPhone.replace(/\D/g, '').slice(-10)}
+                      onChange={(e) => setCaregiverPhone(e.target.value)}
+                      className="pl-12 h-10 sm:h-9 text-xs sm:text-sm font-mono tracking-wider"
                     />
                   </div>
                 </div>

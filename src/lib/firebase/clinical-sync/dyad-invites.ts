@@ -109,6 +109,7 @@ export async function createDyadInvite(input: {
   clinicianLabel?: string | null;
   weightKg?: number | null;
   heightCm?: number | null;
+  caregiverKinship?: CaregiverAttributes['kinship'] | null;
 }): Promise<DyadInvite> {
   const uid = currentUid() || 'doctor-vivek-uid';
 
@@ -155,7 +156,8 @@ export async function createDyadInvite(input: {
 
   const initialCaregiverAttrs: CaregiverAttributes = {
     ...DEFAULT_CAREGIVER_ATTRIBUTES,
-    name: input.caregiverName || 'Primary Caregiver'
+    name: input.caregiverName || 'Primary Caregiver',
+    kinship: input.caregiverKinship || DEFAULT_CAREGIVER_ATTRIBUTES.kinship
   };
 
   // 1. ALWAYS persist immediately to HealthRepository local storage
