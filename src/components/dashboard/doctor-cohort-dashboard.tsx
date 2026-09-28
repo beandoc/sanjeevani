@@ -29,6 +29,7 @@ import {
 import Link from 'next/link';
 import {
   loadCohortRoster,
+  getCachedCohortRoster,
   summarizeCohort,
   RISK_BAND_STYLE,
   invalidateCohortCache,
@@ -100,7 +101,7 @@ function getActionableAlert(alertSnippet: string | null | undefined): string | n
 }
 
 export function DoctorCohortDashboard() {
-  const [rows, setRows] = useState<CohortRow[] | null>(null);
+  const [rows, setRows] = useState<CohortRow[] | null>(() => getCachedCohortRoster());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPurgingDummies, setIsPurgingDummies] = useState(false);
   const [dischargingUids, setDischargingUids] = useState<Set<string>>(new Set());
@@ -115,9 +116,9 @@ export function DoctorCohortDashboard() {
     return rows.some((r) => isDemoDyad(r.patientUid) || isDemoDyad(r.displayName));
   }, [rows]);
 
-  const load = async () => {
+  const load = async (force = false) => {
     setIsRefreshing(true);
-    const data = await loadCohortRoster();
+    const data = await loadCohortRoster(force);
     setRows(data);
     setIsRefreshing(false);
   };
@@ -127,7 +128,7 @@ export function DoctorCohortDashboard() {
     try {
       await purgeAllDemoDyads();
       invalidateCohortCache();
-      await load();
+      await load(true);
       toast({
         title: 'Demo Patients Purged',
         description: 'Seeded dummy patients have been permanently removed.'
@@ -148,7 +149,7 @@ export function DoctorCohortDashboard() {
     try {
       await dischargeOrDeletePatientDyad(patientUid);
       invalidateCohortCache();
-      await load();
+      await load(true);
       toast({
         title: 'Patient Discharged',
         description: `${displayName} has been removed from your active roster.`
@@ -172,19 +173,23 @@ export function DoctorCohortDashboard() {
     void load();
   }, []);
 
+  const patientUidsKey = useMemo(() => {
+    return (rows || []).map((row) => row.patientUid).sort().join(',');
+  }, [rows]);
+
   useEffect(() => {
-    if (!rows?.length) return;
-    return subscribeToCohortClinicalData(rows.map((row) => row.patientUid), () => {
+    if (!patientUidsKey) return;
+    const uids = patientUidsKey.split(',').filter(Boolean);
+    return subscribeToCohortClinicalData(uids, () => {
       invalidateCohortCache();
       void (async () => {
         setIsRefreshing(true);
-        setRows(await loadCohortRoster(true));
+        const fresh = await loadCohortRoster(true);
+        setRows(fresh);
         setIsRefreshing(false);
       })();
     });
-    // The subscription must follow the actual roster. `load` only changes
-    // state and is intentionally omitted to avoid resubscribing per render.
-  }, [rows]);
+  }, [patientUidsKey]);
 
   useEffect(() => {
     let initialFired = false;

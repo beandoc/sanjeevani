@@ -20,7 +20,8 @@ import {
   getVitalsFor,
   getAppointmentsFor,
   getDailyCareLogsFor,
-  syncCohortSummary
+  syncCohortSummary,
+  getCohortSummary
 } from '@/lib/firebase/clinical-sync';
 import { auth } from '@/lib/firebase/client';
 import { HealthRepository } from '@/lib/db/health-repository';
@@ -175,14 +176,51 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
   }
 ];
 
+const COHORT_STORAGE_KEY = 'sanjeevani_cohort_roster_cache';
 let cachedCohortRows: CohortRow[] | null = null;
 let cacheExpiry = 0;
 let inFlightCohortPromise: Promise<CohortRow[]> | null = null;
+
+export function getCachedCohortRoster(): CohortRow[] | null {
+  if (cachedCohortRows && cachedCohortRows.length > 0) return cachedCohortRows;
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(COHORT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        cachedCohortRows = parsed;
+        cacheExpiry = Date.now() + 60000;
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed reading persistent cohort cache:', e);
+  }
+  return null;
+}
+
+export function setCachedCohortRoster(rows: CohortRow[]): void {
+  cachedCohortRows = rows;
+  cacheExpiry = Date.now() + 60000;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify(rows));
+    } catch (e) {
+      console.warn('Failed writing persistent cohort cache:', e);
+    }
+  }
+}
 
 export function invalidateCohortCache(): void {
   cachedCohortRows = null;
   cacheExpiry = 0;
   inFlightCohortPromise = null;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(COHORT_STORAGE_KEY);
+    } catch {}
+  }
 }
 
 /** Older materialized summaries did not record workflow readiness. Treating
@@ -202,13 +240,19 @@ function normalizeSummaryRow(row: CohortRow): CohortRow {
  * Every active patient on the signed-in clinician's roster, with trajectory
  * risk already computed, sorted worst-first. Falls back to a fixed demo
  * cohort when there are zero real grants AND zero pre-registered invites.
- * Includes in-flight deduplication and 15s short-term memory caching to
- * prevent network flood storms.
+ * Includes in-flight deduplication and persistent storage caching for instant
+ * 0ms first-paints.
  */
 export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[]> {
   const now = Date.now();
   if (!forceRefresh && cachedCohortRows && now < cacheExpiry) {
     return cachedCohortRows;
+  }
+  if (!forceRefresh) {
+    const persistent = getCachedCohortRoster();
+    if (persistent && now < cacheExpiry) {
+      return persistent;
+    }
   }
   if (!forceRefresh && inFlightCohortPromise) {
     return inFlightCohortPromise;
@@ -249,8 +293,8 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
   };
 
   const fetchPromise = (async () => {
-    // 1. Fast path: Attempt BFF aggregation endpoint first
-    if (typeof window !== 'undefined' && !forceRefresh) {
+    // 1. Fast path: Attempt BFF aggregation endpoint first (only if session cookie exists)
+    if (typeof window !== 'undefined' && !forceRefresh && document.cookie.includes('__session=')) {
       try {
         const bffRes = await fetch('/api/clinic/cohort', {
           headers: { 'Content-Type': 'application/json' }
@@ -262,6 +306,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               .map(normalizeSummaryRow)
               .filter((r) => isNotArchived(r.patientUid));
             bffRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+            setCachedCohortRoster(bffRows);
             return bffRows;
           }
         }
@@ -295,6 +340,19 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
         roster.map(async ({ patientUid }) => {
           try {
             const matchedInvite = inviteMap.get(patientUid);
+
+            // Fast path: Check precomputed materialized summary to avoid 8 roundtrips
+            if (!forceRefresh) {
+              const precomputed = await getCohortSummary(patientUid);
+              if (precomputed && precomputed.workflow) {
+                return {
+                  ...precomputed,
+                  caregiverName: precomputed.caregiverName || matchedInvite?.caregiverName || null,
+                  caregiverPhone: precomputed.caregiverPhone || matchedInvite?.caregiverPhone || null
+                } satisfies CohortRow;
+              }
+            }
+
             const [assessments, functionScores, displayName, caregiver, patientProfile, vitals, appointments, dailyLogs] = await Promise.all([
               getZaritAssessmentsFor(patientUid),
               getFunctionScoresFor(patientUid),
@@ -418,8 +476,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
   inFlightCohortPromise = fetchPromise;
   try {
     const result = await fetchPromise;
-    cachedCohortRows = result;
-    cacheExpiry = Date.now() + 30000; // 30 seconds in-memory cache
+    setCachedCohortRoster(result);
     return result;
   } finally {
     inFlightCohortPromise = null;

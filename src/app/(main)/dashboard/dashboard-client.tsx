@@ -165,7 +165,7 @@ export default function DashboardClient() {
   }, []);
 
   useEffect(() => {
-    if (!currentUserUid) return;
+    if (!currentUserUid || role === 'doctor' || role === 'professional') return;
     const unsub = subscribeToReassessmentRequest(currentUserUid, (req) => {
       setReassessmentRequest(req);
     });
@@ -201,6 +201,7 @@ export default function DashboardClient() {
   }, [currentUserUid, caregivingScenario, role, skillLevel]);
 
   useEffect(() => {
+    if (role === 'doctor' || role === 'professional') return;
     const pt = HealthRepository.getPatientProfile();
     const meds = HealthRepository.getMedications();
     setMedications(meds);

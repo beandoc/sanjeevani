@@ -42,10 +42,8 @@ export default function DashboardPage() {
 
     updateNames();
     const unsub = auth?.onAuthStateChanged(() => updateNames());
-    const interval = setInterval(updateNames, 1500);
     return () => {
       unsub?.();
-      clearInterval(interval);
     };
   }, []);
 

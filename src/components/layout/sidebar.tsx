@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Sidebar,
   SidebarHeader,
@@ -33,12 +33,15 @@ import {
   Activity,
   Stethoscope,
   Search,
+  UserPlus
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
+import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
+import { invalidateCohortCache } from '@/lib/analytics/cohort';
 
 interface NavItem {
   href: string;
@@ -55,6 +58,7 @@ interface NavSection {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, setRole } = useProfile();
   const { isMobile, setOpenMobile } = useSidebar();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -106,6 +110,13 @@ export function AppSidebar() {
           label: 'Patients',
           icon: Stethoscope,
           badge: null,
+          isHighlighted: true
+        },
+        {
+          href: '#register-patient',
+          label: 'Register New Patient',
+          icon: UserPlus,
+          badge: 'New',
           isHighlighted: true
         },
         {
@@ -468,6 +479,36 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
                 {section.items.map((link) => {
+                  if (link.href === '#register-patient') {
+                    return (
+                      <SidebarMenuItem key={link.href}>
+                        <RegisterPatientDialog
+                          onRegistered={() => {
+                            invalidateCohortCache();
+                            router.refresh();
+                          }}
+                          trigger={
+                            <SidebarMenuButton
+                              tooltip={{ children: link.label }}
+                              className={cn(
+                                'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-semibold w-full flex items-center justify-between text-left cursor-pointer group',
+                                'bg-blue-600/20 text-blue-200 hover:bg-blue-600 hover:text-white border border-blue-500/40 shadow-xs'
+                              )}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <link.icon className="h-4 w-4 shrink-0 text-blue-300 group-hover:text-white transition-transform duration-200 group-hover:scale-110" />
+                                <span className="truncate">{link.label}</span>
+                              </div>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border bg-blue-500/25 text-blue-200 group-hover:bg-white/20 group-hover:text-white border-blue-400/40">
+                                + Add
+                              </span>
+                            </SidebarMenuButton>
+                          }
+                        />
+                      </SidebarMenuItem>
+                    );
+                  }
+
                   const active = isActive(link.href);
                   const activeStyle = isDoctor
                     ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/50 border border-blue-400/40'
