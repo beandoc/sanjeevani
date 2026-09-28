@@ -26,10 +26,8 @@ import {
   Check,
   Send,
   Info,
-  Users2,
   Stethoscope,
-  ArrowRight,
-  Activity
+  ArrowRight
 } from 'lucide-react';
 import {
   createDyadInvite,
@@ -506,19 +504,15 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
               {/* Step Badges */}
               <div className="flex items-center gap-1.5 pt-2.5 overflow-x-auto no-scrollbar">
                 <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 whitespace-nowrap">
-                  1. Patient
+                  1. Patient Details
                 </span>
                 <span className="text-muted-foreground/40 text-xs">›</span>
                 <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
-                  2. Caregiver
+                  2. Caregiver Contact & Linkage
                 </span>
-                <span className="text-muted-foreground/40 text-xs">›</span>
-                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25 whitespace-nowrap">
-                  3. Network
-                </span>
-                <span className="text-muted-foreground/40 text-xs">›</span>
-                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
-                  4. Baseline
+                <span className="text-muted-foreground/40 text-xs hidden sm:inline">•</span>
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                  Quick OPD Intake • Functional assessments can be done later
                 </span>
               </div>
             </div>
@@ -769,121 +763,16 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 </div>
               </div>
 
-              {/* SECTION 3: Multi-Caregiver Network & Formal Support Setup */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                    <div className="p-1 rounded-md bg-purple-500/10">
-                      <Users2 className="w-3.5 h-3.5" />
-                    </div>
-                    <span>3. Caregiver Role & Support Network</span>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] font-semibold border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/10">
-                    Calibrates Burnout Risk
-                  </Badge>
+              {/* Clinical Notice: Subsequent Assessment */}
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 text-xs text-muted-foreground flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <Stethoscope className="w-4 h-4" />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Primary Relationship (Kinship)</Label>
-                    <select
-                      value={caregiverKinship}
-                      onChange={(e) => setCaregiverKinship(e.target.value as CaregiverAttributes['kinship'])}
-                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
-                    >
-                      <option value="spouse">Spouse (Wife / Husband)</option>
-                      <option value="son">Son</option>
-                      <option value="daughter">Daughter</option>
-                      <option value="daughter_in_law">Daughter-in-law</option>
-                      <option value="sibling">Sibling</option>
-                      <option value="other">Other Relative / Attendant</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Secondary Family Support</Label>
-                    <select
-                      value={secondaryFamily}
-                      onChange={(e) => setSecondaryFamily(Number(e.target.value))}
-                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
-                    >
-                      <option value={0}>0 (Solo Elderly Caregiver — High Risk)</option>
-                      <option value={1}>1 Member (Son / Daughter assisting)</option>
-                      <option value={2}>2 Members (Shared Family Shift)</option>
-                      <option value={3}>3+ Members (Joint Family Network)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Formal Attendant / Support</Label>
-                    <select
-                      value={formalSupportType}
-                      onChange={(e) => setFormalSupportType(e.target.value as FormalSupportType)}
-                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
-                    >
-                      <option value="none">None (100% Family Burden)</option>
-                      <option value="paid_attendant_12h">Paid Day Attendant (10–12h/day)</option>
-                      <option value="paid_attendant_24h">Full 24h Live-in Attendant</option>
-                      <option value="trained_nurse_12h">Trained Nurse (12h Nursing/Transfers)</option>
-                      <option value="trained_nurse_24h">Trained Nurse (24h Intensive)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Attendant Hours / Day</Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 10"
-                      value={formalSupportHours}
-                      onChange={(e) => setFormalSupportHours(e.target.value)}
-                      className="h-10 sm:h-9 text-xs sm:text-sm font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 4: Baseline Functional & Fall Risk Assessment */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                    <div className="p-1 rounded-md bg-amber-500/10">
-                      <Activity className="w-3.5 h-3.5" />
-                    </div>
-                    <span>4. Baseline Functional & Fall Risk Assessment</span>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] font-semibold border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                    Persists to Firestore
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Mobility Status</Label>
-                    <select
-                      value={isBedBound ? 'yes' : 'no'}
-                      onChange={(e) => setIsBedBound(e.target.value === 'yes')}
-                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-semibold"
-                    >
-                      <option value="no">Ambulatory / Mobilized</option>
-                      <option value="yes">Bed-Bound (High Ulcer Risk)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-foreground">Falls (Last 6 Months)</Label>
-                    <select
-                      value={fallCount}
-                      onChange={(e) => setFallCount(Number(e.target.value))}
-                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
-                    >
-                      <option value={0}>0 Falls</option>
-                      <option value={1}>1 Fall</option>
-                      <option value={2}>2 Falls (High Risk)</option>
-                      <option value={3}>3+ Falls (Critical)</option>
-                    </select>
-                  </div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-foreground">Post-Registration Clinical Intake</p>
+                  <p className="text-[11px] leading-relaxed">
+                    Mobility status, fall risk, Katz ADL, and attendant shifts are safely defaulted and can be customized anytime from the patient’s Dyad Workspace after registration.
+                  </p>
                 </div>
               </div>
             </div>
