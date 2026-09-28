@@ -55,7 +55,8 @@ import {
   UserMinus,
   Edit3,
   LayoutDashboard,
-  ArrowRight
+  ArrowRight,
+  Eye
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -1531,7 +1532,7 @@ export default function DyadDetailPage() {
           </Badge>
         </button>
 
-        {/* Tab 6: Daily Bedside Updates */}
+        {/* Tab 6: Bedside Care Logs (Caregiver Feed) */}
         <button
           onClick={() => setActiveTab('dailyLogs')}
           className={cn(
@@ -1542,7 +1543,10 @@ export default function DyadDetailPage() {
           )}
         >
           <FileText className="w-4 h-4" />
-          <span>Daily Updates</span>
+          <span>Bedside Care Logs</span>
+          <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0.2', activeTab === 'dailyLogs' ? 'bg-white/20 text-white border-white/40' : 'text-muted-foreground')}>
+            Caregiver Feed
+          </Badge>
         </button>
 
         {/* Tab 7: Emergency Readiness & Logistics */}
@@ -1924,9 +1928,26 @@ export default function DyadDetailPage() {
             </Card>
           )}
 
-          {/* TAB 5: DAILY BEDSIDE UPDATES */}
+          {/* TAB 6: BEDSIDE CARE LOGS & SURVEILLANCE FEED */}
           {(activeTab === 'dailyLogs') && (
             <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 dark:bg-blue-950/20 p-3 sm:px-4 flex items-start gap-3 text-xs shadow-2xs">
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-foreground">
+                      Caregiver Bedside Surveillance Feed (Clinician Read-Only)
+                    </span>
+                    <Badge variant="outline" className="text-[10px] text-blue-700 dark:text-blue-300 border-blue-500/30">
+                      Logged from Home Portal / WhatsApp
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Doctors do not enter daily updates here. These logs (nutrition, hydration, sleep quality, bowel/bladder movements, pain, behavioral symptoms, and home incidents) are entered directly at bedside by the primary caregiver ({caregiver?.name || 'Caregiver'}) or deployed formal attendants. Clinicians review this telemetry to detect acute decline early.
+                  </p>
+                </div>
+              </div>
+
               <CareIntelligencePanel
                 patientUid={patientUid}
                 patientName={displayName}
@@ -1941,7 +1962,7 @@ export default function DyadDetailPage() {
                 patientUid={patientUid}
                 patientName={displayName}
                 mode="readonly"
-                title="Daily Bedside Updates"
+                title="Bedside Updates & Incident Log"
                 medications={medications}
               />
             </div>
