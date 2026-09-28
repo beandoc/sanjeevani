@@ -1070,34 +1070,7 @@ export default function DyadDetailPage() {
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
 
-              <AssistedZaritAssessmentForm
-                patientName={cleanPatientName}
-                onComplete={handleZaritAssessmentSaved}
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 text-xs font-semibold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 bg-background/80"
-                  >
-                    <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
-                    <span>ZBI Strain</span>
-                  </Button>
-                }
-              />
 
-              <FunctionAssessmentForm
-                onComplete={handleFunctionAssessmentSaved}
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 text-xs font-semibold gap-1.5 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 bg-background/80"
-                  >
-                    <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>ADL / IADL</span>
-                  </Button>
-                }
-              />
 
               <DoctorCareBlueprintDialog
                 clinicianDisplayName={user?.displayName || undefined}
