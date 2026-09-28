@@ -908,7 +908,10 @@ export default function DyadDetailPage() {
   }
 
   // Extract clean patient name and dyad identifiers
-  const cleanPatientName = displayName.replace(/\s*\(Dyad\s*#[^)]+\)/i, '').trim() || displayName;
+  const cleanPatientName = displayName
+    .replace(/\s*\(Dyad\s*#[^)]+\)/gi, '')
+    .replace(/\s*\(\d+\s*yrs?\)/gi, '')
+    .trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
   const dyadFullCode = dyadCodeMatch ? dyadCodeMatch[1] : (patientUid || '').replace('demo-', '').toUpperCase();
   const dyadTag = `Dyad #${dyadFullCode.slice(0, 8)}`;
@@ -983,7 +986,7 @@ export default function DyadDetailPage() {
               <span>Patient Clinical Roster</span>
             </Link>
             <span className="text-border">/</span>
-            <span className="text-foreground font-semibold">{cleanPatientName}</span>
+            <span className="text-foreground font-semibold capitalize">{cleanPatientName}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1017,7 +1020,7 @@ export default function DyadDetailPage() {
 
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate">
+                  <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate capitalize">
                     {cleanPatientName}
                   </h1>
                   <Badge
@@ -1027,28 +1030,29 @@ export default function DyadDetailPage() {
                   >
                     {dyadTag}
                   </Badge>
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {patientProfile?.age || 80} Yrs{rawPatientGender ? ` • ${patientGenderLabel}` : ''}
-                  </Badge>
+                  {patientProfile?.age ? (
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {patientProfile.age} Yrs{rawPatientGender ? ` • ${patientGenderLabel}` : ''}
+                    </Badge>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1 font-medium text-foreground/90">
                     <Users2 className="w-3.5 h-3.5 text-primary" />
-                    {caregiver?.name ? `Caregiver: ${caregiver.name} (${caregiver.kinship})` : 'Primary Caregiver Connected'}
+                    {caregiver?.name ? `Caregiver: ${caregiver.name}${caregiver.kinship ? ` (${caregiver.kinship})` : ''}` : 'Primary Caregiver Connected'}
                   </span>
-                  <span className="hidden sm:inline text-border">•</span>
+                  <span className="text-border">•</span>
                   <span className="text-xs">
                     {caregiver?.coResidence === 'lives_together' ? 'Co-residing at home' : 'Family Care Circle'}
                   </span>
-                  <span className="hidden sm:inline text-border">•</span>
                   {latestAssessment ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 ml-1">
                       <HeartHandshake className="w-3.5 h-3.5 text-primary" />
                       ZBI Strain: {latestAssessment.totalScore}/{latestAssessment.maxScore || (latestAssessment.tier === 'ZBI22' ? 88 : latestAssessment.tier === 'ZBI12' ? 48 : 16)} ({latestAssessment.tier})
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 ml-1">
                       <HeartHandshake className="w-3.5 h-3.5 text-amber-500" />
                       ZBI: Score Intake Needed
                     </span>
@@ -1526,9 +1530,11 @@ export default function DyadDetailPage() {
         >
           <TrendingUp className="w-4 h-4" />
           <span>Trajectory & Scissors Chart</span>
-          <Badge variant="outline" className="text-[9px] ml-1 capitalize">
-            {trajectory?.riskBand ? trajectory.riskBand.replace(/-/g, ' ') : 'insufficient data'}
-          </Badge>
+          {trajectory?.riskBand && trajectory.riskBand !== 'insufficient-data' && (
+            <Badge variant="outline" className="text-[9px] ml-1 capitalize">
+              {trajectory.riskBand.replace(/-/g, ' ')}
+            </Badge>
+          )}
         </button>
 
         {/* Tab 6: Bedside Care Logs (Caregiver Feed) */}

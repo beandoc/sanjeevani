@@ -80,10 +80,10 @@ function StressCalculatorContent() {
 
         const primaryOption: DyadOption = {
           id: 'primary',
-          patientName: primaryPt.name || 'Vishal gaurav',
-          patientAge: primaryPt.age || 80,
-          caregiverName: primaryCg.name || 'Abhishek Rai',
-          caregiverKinship: primaryCg.kinship || 'sibling',
+          patientName: primaryPt.name ? primaryPt.name.replace(/\s*\(\d+\s*yrs?\)/gi, '').trim() : 'Patient',
+          patientAge: primaryPt.age || undefined,
+          caregiverName: primaryCg.name || 'Family Caregiver',
+          caregiverKinship: primaryCg.kinship || 'Primary',
           dyadTag: '#DYAD_PRIMARY',
           lastScore: primaryZarit[0]?.totalScore ?? null,
           lastCompletedAt: primaryZarit[0]?.completedAt ?? null,
@@ -199,10 +199,10 @@ function StressCalculatorContent() {
 
   const activeDyad = dyads.find((d) => d.id === selectedDyadId) || dyads[0] || {
     id: 'primary',
-    patientName: 'Vishal gaurav',
-    patientAge: 80,
-    caregiverName: 'Abhishek Rai',
-    caregiverKinship: 'sibling',
+    patientName: 'Patient',
+    patientAge: undefined,
+    caregiverName: 'Family Caregiver',
+    caregiverKinship: 'Primary',
     dyadTag: '#DYAD_PRIMARY'
   };
 

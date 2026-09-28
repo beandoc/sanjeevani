@@ -253,7 +253,7 @@ export async function syncCaregiverAttributes(attrs: CaregiverAttributes): Promi
 export async function getPatientDisplayName(patientUid: string): Promise<string> {
   const reg = HealthRepository.getRegisteredPatient(patientUid);
   if (reg?.patientName) {
-    return `${reg.patientName}${reg.patientAge ? ` (${reg.patientAge} yrs)` : ''}`;
+    return reg.patientName;
   }
 
   if (patientUid.startsWith('dyad_')) {
@@ -261,7 +261,7 @@ export async function getPatientDisplayName(patientUid: string): Promise<string>
     try {
       const inv = await getDyadInvite(code);
       if (inv?.patientName) {
-        return `${inv.patientName}${inv.patientAge ? ` (${inv.patientAge} yrs)` : ''}`;
+        return inv.patientName;
       }
     } catch {
       // continue
@@ -271,7 +271,7 @@ export async function getPatientDisplayName(patientUid: string): Promise<string>
   try {
     const profile = await getPatientProfileFor(patientUid);
     if (profile?.name) {
-      return `${profile.name}${profile.age ? ` (${profile.age} yrs)` : ''}`;
+      return profile.name;
     }
   } catch {
     // continue

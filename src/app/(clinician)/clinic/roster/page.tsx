@@ -456,8 +456,8 @@ export default function ClinicianRosterPage() {
                           {row.riskBand}
                         </Badge>
 
-                        <h3 className="font-extrabold text-base sm:text-lg text-foreground font-headline truncate">
-                          {row.displayName}
+                        <h3 className="font-extrabold text-base sm:text-lg text-foreground font-headline truncate capitalize">
+                          {row.displayName.replace(/\s*\(\d+\s*yrs?\)/gi, '')}
                         </h3>
 
                         {row.isBedBound && (

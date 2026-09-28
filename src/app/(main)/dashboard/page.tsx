@@ -5,6 +5,7 @@ import DashboardClient from './dashboard-client';
 import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
 import { HealthRepository } from '@/lib/db/health-repository';
+import type { PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Shield, Sparkles, HeartPulse, Stethoscope, Bed, Activity } from 'lucide-react';
@@ -14,6 +15,9 @@ export default function DashboardPage() {
   const { role, caregivingScenario } = useProfile();
   const [caregiverName, setCaregiverName] = useState<string>('');
   const [patientName, setPatientName] = useState<string>('');
+  const [patientProfile, setPatientProfile] = useState<PatientDependenceProfile | null>(null);
+  const [medicationCount, setMedicationCount] = useState<number>(0);
+  const [latestZaritScore, setLatestZaritScore] = useState<number | null>(null);
   const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
@@ -21,6 +25,10 @@ export default function DashboardPage() {
     const updateNames = () => {
       const cg = HealthRepository.getCaregiverAttributes();
       const pt = HealthRepository.getPatientProfile();
+      setPatientProfile(pt);
+      setMedicationCount(HealthRepository.getMedications().length);
+      const zbi = HealthRepository.getLatestZaritScore();
+      setLatestZaritScore(zbi ? zbi.totalScore : null);
 
       if (cg?.name && !cg.name.includes('(You)') && cg.name !== 'Primary Caregiver') {
         setCaregiverName(cg.name);
@@ -36,7 +44,7 @@ export default function DashboardPage() {
       }
 
       if (pt?.name) {
-        setPatientName(pt.name);
+        setPatientName(pt.name.replace(/\s*\(\d+\s*yrs?\)/gi, '').trim());
       }
     };
 
@@ -103,21 +111,27 @@ export default function DashboardPage() {
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-base sm:text-xl text-white tracking-tight" suppressHydrationWarning>
+                <span className="font-extrabold text-base sm:text-xl text-white tracking-tight capitalize" suppressHydrationWarning>
                   {mounted && patientName ? patientName : 'Care Recipient'}
                 </span>
-                <Badge variant="outline" className="text-[10px] font-mono border-rose-400/50 text-rose-200 bg-rose-500/20">
-                  80 Yrs · Male
-                </Badge>
-                <Badge variant="outline" className="text-[10px] font-mono border-amber-500/50 text-amber-300 bg-amber-500/15">
-                  Bedbound
-                </Badge>
-                <Badge variant="outline" className="text-[10px] font-mono border-red-500/50 text-red-300 bg-red-500/15">
-                  High Fall Risk (2 / 6mo)
-                </Badge>
+                {patientProfile?.age ? (
+                  <Badge variant="outline" className="text-[10px] font-mono border-rose-400/50 text-rose-200 bg-rose-500/20">
+                    {patientProfile.age} Yrs
+                  </Badge>
+                ) : null}
+                {patientProfile?.isBedBound ? (
+                  <Badge variant="outline" className="text-[10px] font-mono border-amber-500/50 text-amber-300 bg-amber-500/15">
+                    Bedbound
+                  </Badge>
+                ) : null}
+                {patientProfile?.fallHistoryLast6Months && patientProfile.fallHistoryLast6Months > 0 ? (
+                  <Badge variant="outline" className="text-[10px] font-mono border-red-500/50 text-red-300 bg-red-500/15">
+                    Fall Risk ({patientProfile.fallHistoryLast6Months} / 6mo)
+                  </Badge>
+                ) : null}
               </div>
               <p className="text-xs text-rose-200/80 line-clamp-2 sm:line-clamp-1 leading-snug">
-                Nurse Station · Primary Conditions: Hypertension, Dementia / Alzheimer&apos;s · Tab Amlodipine 5mg OD Active
+                Nurse Station · Primary Conditions: {patientProfile?.primaryConditions?.length ? patientProfile.primaryConditions.join(', ') : 'Clinical Assessment Pending'}
               </p>
             </div>
           </div>
@@ -192,25 +206,34 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="font-extrabold text-xl sm:text-2xl md:text-3xl text-white tracking-tight leading-none" suppressHydrationWarning>
+                    <h1 className="font-extrabold text-xl sm:text-2xl md:text-3xl text-white tracking-tight leading-none capitalize" suppressHydrationWarning>
                       {mounted && patientName ? patientName : 'Care Recipient'}
                     </h1>
-                    <Badge variant="outline" className="text-xs font-mono border-emerald-400/50 text-emerald-200 bg-emerald-500/20">
-                      80 Yrs · Male
-                    </Badge>
-                    <Badge variant="outline" className="text-xs font-mono border-amber-400/50 text-amber-300 bg-amber-500/15">
-                      Bedbound Care
-                    </Badge>
-                    <Badge variant="outline" className="text-xs font-mono border-red-400/50 text-red-300 bg-red-500/15">
-                      High Fall Risk
-                    </Badge>
+                    {patientProfile?.age ? (
+                      <Badge variant="outline" className="text-xs font-mono border-emerald-400/50 text-emerald-200 bg-emerald-500/20">
+                        {patientProfile.age} Yrs
+                      </Badge>
+                    ) : null}
+                    {patientProfile?.isBedBound ? (
+                      <Badge variant="outline" className="text-xs font-mono border-amber-400/50 text-amber-300 bg-amber-500/15">
+                        Bedbound Care
+                      </Badge>
+                    ) : null}
+                    {patientProfile?.fallHistoryLast6Months && patientProfile.fallHistoryLast6Months > 0 ? (
+                      <Badge variant="outline" className="text-xs font-mono border-red-400/50 text-red-300 bg-red-500/15">
+                        High Fall Risk
+                      </Badge>
+                    ) : null}
                   </div>
                   <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                    Primary Caregiver: <span className="font-bold text-white" suppressHydrationWarning>{mounted && caregiverName ? caregiverName : 'Family Caregiver'}</span> • Diagnoses: <span className="text-emerald-200 font-medium">Hypertension, Dementia / Alzheimer&apos;s</span>
+                    Primary Caregiver: <span className="font-bold text-white capitalize" suppressHydrationWarning>{mounted && caregiverName ? caregiverName : 'Family Caregiver'}</span>
+                    {patientProfile?.primaryConditions && patientProfile.primaryConditions.length > 0 ? (
+                      <> • Diagnoses: <span className="text-emerald-200 font-medium">{patientProfile.primaryConditions.join(', ')}</span></>
+                    ) : null}
                   </p>
                   <div className="flex items-center gap-2 pt-0.5 text-xs text-emerald-200/80">
                     <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Active Dyad Protocol: Blood Pressure Regimen, 2h Repositioning, Cognitive Stimulation</span>
+                    <span>Active Dyad Protocol: Longitudinal Care Surveillance</span>
                   </div>
                 </div>
               </div>
@@ -220,28 +243,40 @@ export default function DashboardPage() {
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 flex flex-col justify-between">
                   <span className="text-[11px] font-semibold text-emerald-300/80 uppercase tracking-wider">MAR Schedule</span>
                   <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-lg font-black text-white">Active</span>
-                    <span className="text-[11px] text-emerald-300 font-medium">Daily</span>
+                    <span className="text-lg font-black text-white">{medicationCount}</span>
+                    <span className="text-[11px] text-emerald-300 font-medium">Active</span>
                   </div>
-                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">Tab Amlodipine 5mg</span>
+                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">
+                    {medicationCount > 0 ? 'Prescribed Regimen' : 'No Active Meds'}
+                  </span>
                 </div>
 
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 flex flex-col justify-between">
                   <span className="text-[11px] font-semibold text-emerald-300/80 uppercase tracking-wider">Burden Score</span>
                   <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-lg font-black text-white">31 / 88</span>
-                    <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1 py-0.2 rounded">High</span>
+                    <span className="text-lg font-black text-white">{latestZaritScore !== null ? `${latestZaritScore}` : '—'}</span>
+                    <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-1 py-0.2 rounded">
+                      {latestZaritScore !== null ? 'Validated' : 'Intake Needed'}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">ZBI-12 Validated</span>
+                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">
+                    {latestZaritScore !== null ? 'ZBI Assessed' : 'Burden Evaluation'}
+                  </span>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1 rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 flex flex-col justify-between">
                   <span className="text-[11px] font-semibold text-emerald-300/80 uppercase tracking-wider">Bedside Routine</span>
                   <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-lg font-black text-white">2h Turn</span>
-                    <span className="text-[11px] text-emerald-300 font-medium">Timer</span>
+                    <span className="text-lg font-black text-white">
+                      {patientProfile?.isBedBound ? '2h Turn' : 'Active'}
+                    </span>
+                    <span className="text-[11px] text-emerald-300 font-medium">
+                      {patientProfile?.isBedBound ? 'Timer' : 'Ambulatory'}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">Ulcer Prevention</span>
+                  <span className="text-[10px] text-emerald-200/70 truncate mt-0.5">
+                    {patientProfile?.isBedBound ? 'Ulcer Prevention' : 'Daily Monitoring'}
+                  </span>
                 </div>
               </div>
             </div>

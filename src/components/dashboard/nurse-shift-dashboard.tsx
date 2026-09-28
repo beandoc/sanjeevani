@@ -576,7 +576,7 @@ export function NurseShiftDashboard() {
                     </Badge>
                   </div>
                   <CardDescription className="text-xs mt-0.5">
-                    Records direct to Vishal&apos;s chart and notifies the care team.
+                    Records direct to {patient?.name ? `${patient.name}'s` : 'the patient\'s'} chart and notifies the care team.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-5">

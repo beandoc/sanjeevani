@@ -217,12 +217,22 @@ export function getPatientProfileFor(patientUid: string): PatientDependenceProfi
       };
     }
     const patient = getRegisteredPatient(patientUid);
-    if (patient?.patientProfile) {
+    if (patient) {
+      if (patient.patientProfile) {
+        return {
+          ...DEFAULT_PATIENT_PROFILE,
+          ...patient.patientProfile,
+          name: patient.patientProfile.name || patient.patientName || DEFAULT_PATIENT_PROFILE.name,
+          age: patient.patientProfile.age || patient.patientAge || DEFAULT_PATIENT_PROFILE.age,
+          katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(patient.patientProfile.katzAdl || {}) },
+          lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(patient.patientProfile.lawtonIadl || {}) }
+        };
+      }
       return {
         ...DEFAULT_PATIENT_PROFILE,
-        ...patient.patientProfile,
-        katzAdl: { ...DEFAULT_PATIENT_PROFILE.katzAdl, ...(patient.patientProfile.katzAdl || {}) },
-        lawtonIadl: { ...DEFAULT_PATIENT_PROFILE.lawtonIadl, ...(patient.patientProfile.lawtonIadl || {}) }
+        name: patient.patientName || DEFAULT_PATIENT_PROFILE.name,
+        age: patient.patientAge || DEFAULT_PATIENT_PROFILE.age,
+        primaryConditions: patient.primaryConditions || []
       };
     }
   } catch (e) {

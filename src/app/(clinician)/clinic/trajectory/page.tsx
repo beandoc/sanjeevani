@@ -477,8 +477,8 @@ export default function ScissorsTrajectoryPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <span className="font-bold text-xs text-foreground block truncate">
-                            {row.displayName}
+                          <span className="font-bold text-xs text-foreground block truncate capitalize">
+                            {row.displayName.replace(/\s*\(\d+\s*yrs?\)/gi, '')}
                           </span>
                           <span className="text-[11px] text-muted-foreground block truncate">
                             Caregiver: {row.caregiverName || 'Primary Caregiver'}

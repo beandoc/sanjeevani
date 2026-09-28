@@ -418,7 +418,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             const resolvedDisplayName = (displayName && !displayName.startsWith('Patient '))
               ? displayName
               : (matchedInvite?.patientName
-                  ? `${matchedInvite.patientName}${matchedInvite.patientAge ? ` (${matchedInvite.patientAge} yrs)` : ''}`
+                  ? matchedInvite.patientName
                   : displayName);
 
             return {
@@ -453,7 +453,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             return {
               patientUid,
               displayName: matchedInvite?.patientName
-                ? `${matchedInvite.patientName}${matchedInvite.patientAge ? ` (${matchedInvite.patientAge} yrs)` : ''}`
+                ? matchedInvite.patientName
                 : `Patient ${patientUid.slice(0, 8)}`,
               riskBand: 'insufficient-data',
               burdenTrendPerMonth: null,

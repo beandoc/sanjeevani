@@ -584,7 +584,9 @@ export function DoctorCohortDashboard() {
                         <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0 h-4 leading-none', isIntakeInProgress ? 'bg-slate-500 text-white' : RISK_BAND_STYLE[row.riskBand])}>
                           {isIntakeInProgress ? 'Intake in progress' : RISK_BAND_LABEL[row.riskBand]}
                         </Badge>
-                        <span className="text-xs sm:text-sm font-semibold text-foreground">{row.displayName}</span>
+                        <span className="text-xs sm:text-sm font-semibold text-foreground capitalize">
+                          {row.displayName.replace(/\s*\(\d+\s*yrs?\)/gi, '')}
+                        </span>
 
                         {row.isBedBound && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0 h-4 rounded text-[9px] font-medium bg-muted/80 text-muted-foreground border border-border/60">

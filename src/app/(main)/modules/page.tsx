@@ -365,12 +365,12 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold tracking-wider uppercase border border-emerald-400/40">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Tailored Caregiver Learning Curriculum
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold font-headline tracking-tight text-white">
-              Personalized for {patient.name || 'Vishal gaurav'} (Age {patient.age || 80})
-              {caregiverName && <span className="text-emerald-200/90 font-normal text-sm ml-2">• Caregiver: {caregiverName}</span>}
+            <h2 className="text-xl sm:text-2xl font-bold font-headline tracking-tight text-white capitalize">
+              Personalized for {patient.name || 'Care Recipient'}{patient.age ? ` (${patient.age} Yrs)` : ''}
+              {caregiverName && <span className="text-emerald-200/90 font-normal text-sm ml-2 capitalize">• Caregiver: {caregiverName}</span>}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Curriculum dynamically prioritized according to Vishal&apos;s active clinical diagnoses, medication needs, and KATZ ADL independence score.
+              Curriculum dynamically prioritized according to {patient.name ? `${patient.name}'s` : 'the patient\'s'} active clinical diagnoses, medication needs, and functional independence level.
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -422,7 +422,7 @@ const ModulesView = ({ modules }: { modules: Module[] }) => {
       {/* 2. Specific Topics Tailored to Patient's Diagnoses */}
       {tailoredModules.length > 0 && (
         <CompetencySection
-          title={`2. Specific Topics Tailored to ${patient?.name || 'Vishal gaurav'}'s Active Diagnoses`}
+          title={`2. Specific Topics Tailored to ${patient?.name ? `${patient.name}'s` : 'Patient'} Active Diagnoses`}
           subtitle="Specific condition management prioritized for active chronic conditions, dementia care, and ADL support requirements."
           icon={UserCheck}
           modules={tailoredModules}

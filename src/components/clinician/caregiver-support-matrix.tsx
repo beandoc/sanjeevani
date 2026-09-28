@@ -202,24 +202,6 @@ export function CaregiverSupportMatrix({
     if (caregiver?.secondaryMembers && caregiver.secondaryMembers.length > 0) {
       return caregiver.secondaryMembers;
     }
-    if (caregiver?.otherFamilyMembersCount && caregiver.otherFamilyMembersCount > 0) {
-      return [
-        {
-          id: 'sec_1',
-          name: 'Son Rahul',
-          relationship: 'son',
-          age: 28,
-          occupation: 'Software Engineer',
-          workCommitmentSchedule: 'Mon-Fri 9am-6pm (WFH Hybrid)',
-          careRestrictions: 'Available Evenings (6pm-10pm) & Weekends',
-          functionalStatus: 'independent',
-          hoursPerDay: 2.5,
-          assignedTasks: ['heavy_transfers', 'logistics_errands'],
-          hasPhysicalLimitation: false,
-          availableTimeBlocks: ['evening']
-        }
-      ];
-    }
     return [];
   });
 
