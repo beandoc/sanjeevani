@@ -70,11 +70,14 @@ export default function ClinicianRosterPage() {
     setIsMounted(true);
   }, []);
 
-  const load = async () => {
+  const load = async (force = false) => {
     setIsRefreshing(true);
     try {
+      if (force) {
+        invalidateCohortCache();
+      }
       const [rosterRows, myInvites] = await Promise.all([
-        loadCohortRoster(),
+        loadCohortRoster(force),
         listMyDyadInvites()
       ]);
       setRows(rosterRows);
@@ -96,7 +99,7 @@ export default function ClinicianRosterPage() {
           title: 'Data Synced',
           description: `Backend records updated successfully (${res.dyadCount} clinical dyads synchronized).`
         });
-        await load();
+        await load(true);
       } else {
         toast({
           variant: 'destructive',
@@ -119,8 +122,18 @@ export default function ClinicianRosterPage() {
     if (isMounted) {
       void load();
     }
-     
   }, [isMounted, user?.uid]);
+
+  useEffect(() => {
+    const handleCohortUpdated = () => {
+      invalidateCohortCache();
+      void load(true);
+    };
+    window.addEventListener('sanjeevani:cohort-updated', handleCohortUpdated);
+    return () => {
+      window.removeEventListener('sanjeevani:cohort-updated', handleCohortUpdated);
+    };
+  }, []);
 
   const shareViaWhatsApp = (
     e: React.MouseEvent,
@@ -264,7 +277,7 @@ export default function ClinicianRosterPage() {
             variant="outline"
             size="sm"
             className="gap-1.5 text-xs font-semibold h-9 bg-card/80 hover:bg-muted"
-            onClick={() => void load()}
+            onClick={() => void load(true)}
             disabled={isRefreshing || isSeeding}
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
@@ -280,7 +293,7 @@ export default function ClinicianRosterPage() {
             <Database className={cn('w-3.5 h-3.5 text-blue-600', isSeeding && 'animate-spin')} />
             <span>{isSeeding ? 'Syncing...' : 'Sync Data'}</span>
           </Button>
-          <RegisterPatientDialog onRegistered={() => void load()} />
+          <RegisterPatientDialog onRegistered={() => void load(true)} />
         </div>
       </div>
 

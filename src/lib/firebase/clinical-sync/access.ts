@@ -269,7 +269,7 @@ export async function listMyRoster(): Promise<RosterEntry[]> {
       !existingUids.has(dyadUid) &&
       !existingUids.has(code) &&
       !existingUids.has(`dyad_${code}`) &&
-      !existingUids.has(inv.claimedByUid || '')
+      (!inv.claimedByUid || !existingUids.has(inv.claimedByUid))
     ) {
       entries.push({
         patientUid: dyadUid,

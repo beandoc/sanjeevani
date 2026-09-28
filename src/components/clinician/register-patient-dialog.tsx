@@ -40,6 +40,7 @@ import { calculateFunctionScore } from '@/lib/clinical/function-scale';
 import { CaregiverAttributes, DEFAULT_CAREGIVER_ATTRIBUTES, FormalSupportType } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/client';
+import { invalidateCohortCache } from '@/lib/analytics/cohort';
 
 interface RegisterPatientDialogProps {
   /** Called once the invite is created — receives the full invite (including its code). */
@@ -297,6 +298,10 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         console.warn('Initial functional score sync notice (local backup active):', scoreErr);
       }
 
+      invalidateCohortCache();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sanjeevani:cohort-updated', { detail: { invite } }));
+      }
       setIssuedInvite(invite);
       onRegistered?.(invite);
       toast({

@@ -322,11 +322,43 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
         (inv) => isNotArchived(inv.inviteCode) && (!inv.dyadUid || isNotArchived(inv.dyadUid))
       );
 
-      if (roster.length === 0 && invites.length === 0) {
-        const localRegistered = HealthRepository.getRegisteredPatients();
-        if (localRegistered && localRegistered.length > 0) {
-          return [];
+      // Ensure all registered patients and invites are included in the roster
+      const localRegistered = HealthRepository.getRegisteredPatients().filter(
+        (p) => isNotArchived(p.patientUid) && (!p.inviteCode || isNotArchived(p.inviteCode))
+      );
+      const existingRosterUids = new Set(roster.map((r) => r.patientUid));
+      for (const lp of localRegistered) {
+        if (!existingRosterUids.has(lp.patientUid)) {
+          roster.push({
+            patientUid: lp.patientUid,
+            grant: {
+              clinicianUid: 'current-clinician',
+              clinicianLabel: 'Doctor',
+              grantedAt: lp.createdAt,
+              revokedAt: null
+            }
+          });
+          existingRosterUids.add(lp.patientUid);
         }
+      }
+
+      for (const inv of invites) {
+        const dUid = inv.dyadUid || `dyad_${inv.inviteCode}`;
+        if (!existingRosterUids.has(dUid) && isNotArchived(dUid)) {
+          roster.push({
+            patientUid: dUid,
+            grant: {
+              clinicianUid: inv.clinicianUid,
+              clinicianLabel: inv.clinicianLabel ?? 'Doctor',
+              grantedAt: inv.createdAt,
+              revokedAt: null
+            }
+          });
+          existingRosterUids.add(dUid);
+        }
+      }
+
+      if (roster.length === 0 && invites.length === 0) {
         return DEMO_COHORT_ROWS.filter((r) => isNotArchived(r.patientUid));
       }
 
@@ -334,13 +366,13 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
       for (const inv of invites) {
         if (inv.dyadUid) inviteMap.set(inv.dyadUid, inv);
         inviteMap.set(`dyad_${inv.inviteCode}`, inv);
+        inviteMap.set(inv.inviteCode, inv);
       }
 
       const rows = await Promise.all(
         roster.map(async ({ patientUid }) => {
+          const matchedInvite = inviteMap.get(patientUid);
           try {
-            const matchedInvite = inviteMap.get(patientUid);
-
             // Fast path: Check precomputed materialized summary to avoid 8 roundtrips
             if (!forceRefresh) {
               const precomputed = await getCohortSummary(patientUid);
@@ -383,9 +415,15 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             const respitePrescription = workflow.isRespiteEvaluationReady && careGap
               ? prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile)
               : undefined;
+            const resolvedDisplayName = (displayName && !displayName.startsWith('Patient '))
+              ? displayName
+              : (matchedInvite?.patientName
+                  ? `${matchedInvite.patientName}${matchedInvite.patientAge ? ` (${matchedInvite.patientAge} yrs)` : ''}`
+                  : displayName);
+
             return {
               patientUid,
-              displayName,
+              displayName: resolvedDisplayName,
               riskBand: trajectory.riskBand,
               burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
               latestBurdenPct: latest?.normalizedPercentage ?? null,
@@ -394,9 +432,9 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               latestTier: latest?.tier ?? null,
               latestCompletedAt: latest?.date ?? null,
               hasQocWarning,
-              conditions: patientProfile?.primaryConditions || [],
+              conditions: patientProfile?.primaryConditions || matchedInvite?.primaryConditions || [],
               caregiverName: caregiver?.name || matchedInvite?.caregiverName || null,
-              caregiverKinship: caregiver?.kinship || null,
+              caregiverKinship: caregiver?.kinship || (matchedInvite as any)?.caregiverKinship || null,
               caregiverPhone: matchedInvite?.caregiverPhone || null,
               formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
               formalSupportType: caregiver?.formalSupport?.type || 'None',
@@ -414,7 +452,9 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
           } catch {
             return {
               patientUid,
-              displayName: `Patient ${patientUid.slice(0, 8)}`,
+              displayName: matchedInvite?.patientName
+                ? `${matchedInvite.patientName}${matchedInvite.patientAge ? ` (${matchedInvite.patientAge} yrs)` : ''}`
+                : `Patient ${patientUid.slice(0, 8)}`,
               riskBand: 'insufficient-data',
               burdenTrendPerMonth: null,
               latestBurdenPct: null,
@@ -423,6 +463,10 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               latestTier: null,
               latestCompletedAt: null,
               hasQocWarning: false,
+              conditions: matchedInvite?.primaryConditions || [],
+              caregiverName: matchedInvite?.caregiverName || null,
+              caregiverKinship: (matchedInvite as any)?.caregiverKinship || null,
+              caregiverPhone: matchedInvite?.caregiverPhone || null,
               workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
             } satisfies CohortRow;
           }

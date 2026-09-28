@@ -173,6 +173,17 @@ export function DoctorCohortDashboard() {
     void load();
   }, []);
 
+  useEffect(() => {
+    const handleCohortUpdated = () => {
+      invalidateCohortCache();
+      void load(true);
+    };
+    window.addEventListener('sanjeevani:cohort-updated', handleCohortUpdated);
+    return () => {
+      window.removeEventListener('sanjeevani:cohort-updated', handleCohortUpdated);
+    };
+  }, []);
+
   const patientUidsKey = useMemo(() => {
     return (rows || []).map((row) => row.patientUid).sort().join(',');
   }, [rows]);
@@ -364,7 +375,7 @@ export function DoctorCohortDashboard() {
             variant="ghost"
             size="sm"
             className="h-8 sm:h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => void load()}
+            onClick={() => void load(true)}
             disabled={isRefreshing}
           >
             <RefreshCw className={cn('w-3 h-3', isRefreshing && 'animate-spin')} /> Refresh
@@ -374,7 +385,7 @@ export function DoctorCohortDashboard() {
               <Users className="w-3 h-3" /> Roster
             </Button>
           </Link>
-          <RegisterPatientDialog onRegistered={() => void load()} />
+          <RegisterPatientDialog onRegistered={() => void load(true)} />
         </div>
       </div>
 
