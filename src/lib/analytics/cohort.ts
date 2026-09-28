@@ -434,7 +434,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               hasQocWarning,
               conditions: patientProfile?.primaryConditions || matchedInvite?.primaryConditions || [],
               caregiverName: caregiver?.name || matchedInvite?.caregiverName || null,
-              caregiverKinship: caregiver?.kinship || (matchedInvite as any)?.caregiverKinship || null,
+              caregiverKinship: caregiver?.kinship || matchedInvite?.caregiverKinship || null,
               caregiverPhone: matchedInvite?.caregiverPhone || null,
               formalSupportHours: caregiver?.formalSupport?.hoursPerDay || 0,
               formalSupportType: caregiver?.formalSupport?.type || 'None',
@@ -465,7 +465,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               hasQocWarning: false,
               conditions: matchedInvite?.primaryConditions || [],
               caregiverName: matchedInvite?.caregiverName || null,
-              caregiverKinship: (matchedInvite as any)?.caregiverKinship || null,
+              caregiverKinship: matchedInvite?.caregiverKinship || null,
               caregiverPhone: matchedInvite?.caregiverPhone || null,
               workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
             } satisfies CohortRow;

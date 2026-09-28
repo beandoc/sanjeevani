@@ -99,7 +99,7 @@ import { useAuthUser } from '@/hooks/use-auth-user';
 import { cn } from '@/lib/utils';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
-import { DYAD_WORKFLOW_LABEL, getDyadWorkflow, type DyadWorkflowStage } from '@/lib/clinical/dyad-workflow';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
 function PanelSkeleton({ className }: { className?: string }) {
   return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;

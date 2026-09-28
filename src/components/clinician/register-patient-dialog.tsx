@@ -4,10 +4,8 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
   DialogTrigger
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -33,10 +31,8 @@ import {
   createDyadInvite,
   saveCaregiverAttributesFor,
   savePatientProfileFor,
-  recordFunctionScore,
   type DyadInvite
 } from '@/lib/firebase/clinical-sync';
-import { calculateFunctionScore } from '@/lib/clinical/function-scale';
 import { CaregiverAttributes, DEFAULT_CAREGIVER_ATTRIBUTES, FormalSupportType } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/client';
@@ -116,7 +112,6 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   // Baseline Clinical Intake State
   const [isBedBound, setIsBedBound] = useState(false);
   const [fallCount, setFallCount] = useState<number>(0);
-  const [baselineAdlScore, setBaselineAdlScore] = useState<number>(6);
 
   const resetForm = () => {
     setPatientFirstName('');
@@ -137,7 +132,6 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     setFormalSupportHours('0');
     setIsBedBound(false);
     setFallCount(0);
-    setBaselineAdlScore(6);
     setIssuedInvite(null);
     setCopiedCode(false);
     setCopiedMsg(false);

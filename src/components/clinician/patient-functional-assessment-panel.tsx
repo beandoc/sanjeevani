@@ -7,18 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   Activity,
-  CheckCircle2,
   AlertTriangle,
   ClipboardPlus,
   ArrowRight,
   ShieldAlert,
   Sparkles,
-  Clock,
   Bed,
   Layers,
-  Heart,
   Calendar,
-  ChevronRight,
   RefreshCw
 } from 'lucide-react';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
@@ -39,7 +35,7 @@ interface PatientFunctionalAssessmentPanelProps {
 }
 
 export function PatientFunctionalAssessmentPanel({
-  patientUid,
+  patientUid: _patientUid,
   patientName,
   patientProfile,
   functionScores,

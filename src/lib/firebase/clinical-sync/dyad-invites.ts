@@ -50,6 +50,7 @@ export interface DyadInvite {
   primaryConditions: string[];
   caregiverName?: string | null;
   caregiverPhone?: string | null;
+  caregiverKinship?: CaregiverAttributes['kinship'] | null;
   /** An auto-generated demo login (e.g. abhishekcaregiver@kutumbh.com) this
    * invite auto-claims for on first sign-in — see provisionDemoPersonaAccess
    * in ./access.ts. Independent of caregiverPhone matching. */
@@ -126,6 +127,7 @@ export async function createDyadInvite(input: {
     primaryConditions: input.primaryConditions || [],
     caregiverName: input.caregiverName ?? null,
     caregiverPhone: normalizePhoneNumber(input.caregiverPhone),
+    caregiverKinship: input.caregiverKinship ?? null,
     caregiverEmail: input.caregiverEmail?.trim().toLowerCase() || null,
     createdAt: new Date().toISOString(),
     claimedAt: null,
