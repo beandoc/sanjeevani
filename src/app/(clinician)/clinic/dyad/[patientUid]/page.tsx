@@ -52,7 +52,8 @@ import {
   Printer,
   ExternalLink,
   UserMinus,
-  Edit3
+  Edit3,
+  LayoutDashboard
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -905,7 +906,15 @@ export default function DyadDetailPage() {
       {/* Breadcrumb & Live Status Bar */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 font-medium">
+          <div className="flex items-center gap-1.5 font-medium flex-wrap">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1 hover:text-foreground text-muted-foreground transition-colors group"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span>Dashboard</span>
+            </Link>
+            <span className="text-border">/</span>
             <Link
               href="/clinic/roster"
               className="flex items-center gap-1 hover:text-foreground text-muted-foreground transition-colors group"

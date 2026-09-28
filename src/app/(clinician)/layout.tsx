@@ -205,6 +205,19 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
 
           {/* Right Action Tools & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Back to Dashboard Button */}
+            <Link href="/dashboard" className="inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs font-bold gap-1.5 border-border/80 bg-background/90 hover:bg-muted text-foreground transition-all shadow-2xs hover:border-primary/40"
+                title="Back to Doctor Dashboard"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Button>
+            </Link>
+
             {/* Clinic Code Badge */}
             <button
               onClick={copyCode}
@@ -258,6 +271,12 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="rounded-xl text-xs cursor-pointer">
+                  <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+                    <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                    <span>Back to Doctor Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="rounded-xl text-xs cursor-pointer">
                   <Link href="/clinic/roster" className="flex items-center gap-2">
                     <Users className="w-3.5 h-3.5 text-muted-foreground" />
                     <span>Patient Clinical Roster</span>
@@ -270,9 +289,9 @@ export default function ClinicianLayout({ children }: { children: ReactNode }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="rounded-xl text-xs cursor-pointer">
-                  <Link href="/dashboard" className="flex items-center gap-2">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>Open Kutumbh Family Portal</span>
+                  <Link href="/modules" className="flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Caregiver Modules</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={copyCode} className="rounded-xl text-xs cursor-pointer">

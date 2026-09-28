@@ -19,7 +19,9 @@ import {
   ChevronRight,
   Activity,
   Database,
-  UserMinus
+  UserMinus,
+  ArrowLeft,
+  LayoutDashboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -216,9 +218,27 @@ export default function ClinicianRosterPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-3 sm:p-6">
+    <div className="space-y-5 max-w-7xl mx-auto p-3 sm:p-6">
+      {/* Back to Dashboard Breadcrumb Bar */}
+      <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/40">
+        <Link href="/dashboard">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 pl-2 pr-3.5 -ml-2 rounded-xl transition-all group cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
+            <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span>Back to Dashboard</span>
+          </Button>
+        </Link>
+        <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline-block">
+          Doctor Portal • Clinical Dyad Worklist
+        </span>
+      </div>
+
       {/* Top Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
           <h1 className="text-xl sm:text-2xl font-black font-headline text-foreground flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
@@ -230,6 +250,16 @@ export default function ClinicianRosterPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/dashboard">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs font-bold h-9 bg-card/80 hover:bg-muted text-foreground border-border/80 shadow-2xs"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+              <span>Dashboard</span>
+            </Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"

@@ -48,7 +48,7 @@ export function MobileBottomNav() {
     },
     {
       href: '/dashboard',
-      label: 'Cockpit',
+      label: 'Dashboard',
       icon: LayoutDashboard,
       match: (path: string) => path === '/dashboard'
     }
