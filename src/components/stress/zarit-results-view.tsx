@@ -104,12 +104,47 @@ export function ZaritResultsView({
       <CrisisEscalationModal
         isOpen={isCrisisModalOpen}
         onClose={() => setIsCrisisModalOpen(false)}
-        severityReason={redFlags.length > 0 ? redFlags.join(' • ') : `Zarit Burden Score: ${result?.totalScore || 0}/${result?.maxScore || 88}`}
-        isSelfHarmBranch={Boolean(result?.isCrisisTriggered)}
+        severityReason={
+          result?.selfHarmScreening?.hasRisk
+            ? 'Explicit Self-Harm Risk Endorsed (PHQ-9 Item 9)'
+            : redFlags.length > 0
+            ? redFlags.join(' • ')
+            : `Zarit Burden Score: ${result?.totalScore || 0}/${result?.maxScore || 88}`
+        }
+        isSelfHarmBranch={Boolean(result?.selfHarmScreening?.hasRisk)}
       />
 
-      {/* Top Banner Alert if Red Flags Exist */}
-      {result?.isCrisisTriggered && (
+      {/* Top Banner Alert 1: Urgent Suicide/Self-Harm Prevention (Only if explicit risk reported) */}
+      {result?.selfHarmScreening?.hasRisk && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-rose-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl animate-in fade-in-50">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-white/20 text-white mt-0.5 shrink-0 animate-pulse">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                Confidential Mental Health & Crisis Support
+              </h4>
+              <p className="text-xs sm:text-sm text-white/95 mt-1 font-medium leading-relaxed">
+                You reported having thoughts of self-harm or hurting yourself. Free, confidential, 24/7 help is available right now via Tele-MANAS (<strong>14416</strong>) or KIRAN (<strong>1800-599-0019</strong>). Please connect with someone who can help.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsCrisisModalOpen(true)}
+              className="gap-2 font-bold shadow-md whitespace-nowrap bg-white text-rose-700 hover:bg-white/90"
+            >
+              <PhoneCall className="w-4 h-4" /> Open Support Options
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Banner Alert 2: Caregiver Burden & Respite Support (When crisis/high strain triggered, but no self-harm) */}
+      {result?.isCrisisTriggered && !result?.selfHarmScreening?.hasRisk && (
         <div className="p-4 sm:p-5 rounded-2xl bg-destructive/10 border-2 border-destructive/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in-50">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-xl bg-destructive/20 text-destructive mt-0.5 animate-pulse">
@@ -117,10 +152,10 @@ export function ZaritResultsView({
             </div>
             <div>
               <h4 className="font-extrabold text-destructive text-base sm:text-lg flex items-center gap-2">
-                High Strain Support Flag
+                High Caregiver Burden Alert
               </h4>
               <p className="text-xs sm:text-sm text-destructive/90 mt-1 font-medium">
-                {redFlags.length > 0 ? redFlags.join(' • ') : 'Severe caregiver fatigue suggests urgent support and clinician review.'}
+                {redFlags.length > 0 ? redFlags.join(' • ') : 'Severe caregiver fatigue suggests scheduled respite, care circle delegation, and clinician review.'}
               </p>
             </div>
           </div>

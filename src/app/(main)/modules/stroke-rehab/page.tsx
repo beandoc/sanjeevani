@@ -25,7 +25,7 @@ import { useEffect, useState } from 'react';
 import { SectionCard } from '@/components/cards/section-card';
 
 const MODULE_ID = 'stroke-rehab';
-const SECTIONS = 6;
+const SECTIONS = 8;
 
 export default function StrokeRehabModulePage() {
   const { getModuleProgress, updateModuleProgress } = useProfile();
@@ -275,32 +275,99 @@ export default function StrokeRehabModulePage() {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Chapter 6: Preventing Secondary Strokes (FAST) */}
+        {/* Chapter 6: Secondary Prevention, Swallow Safety & Shoulder Precautions */}
         <AccordionItem value="item-6" className="border border-border/80 rounded-2xl overflow-hidden bg-card shadow-xs">
           <AccordionTrigger className="px-5 py-4 text-base font-bold hover:no-underline hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-amber-500" />
-              <span>Lesson 6: Secondary Stroke Prevention & The F.A.S.T. Protocol</span>
+              <span>Lesson 6: Secondary Prevention, Swallow Safety &amp; Shoulder Precautions</span>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-5 pb-5 pt-2">
+          <AccordionContent className="px-5 pb-5 pt-2 space-y-4">
             <SectionCard
               sectionId={6}
-              title="6.1 Emergency Recognition and Risk Management"
+              title="6.1 Secondary Stroke Prevention"
               onComplete={handleSectionComplete}
               isCompleted={completedSections.has(6)}
             >
               <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
                 <p>
-                  Secondary stroke prevention requires strict control of hypertension, antiplatelet adherence (Aspirin/Clopidogrel), and statin therapy:
+                  Recurrent stroke risk is highest in the first 90 days. Secondary prevention is tailored to <strong>stroke subtype</strong> — the treating physician or neurologist determines the correct antithrombotic regimen:
                 </p>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li><strong>Ischemic stroke / TIA:</strong> Antithrombotic therapy is prescribed based on the underlying cause. Antiplatelet agents are typically used for non-cardioembolic strokes; anticoagulants are preferred when atrial fibrillation (AF) or another cardiac source is identified. <em>Never adjust or substitute antithrombotic medications without clinician review.</em></li>
+                  <li><strong>Blood pressure control:</strong> Target BP ≤130/80 mmHg after the acute phase. Daily BP logs help the care team titrate medications.</li>
+                  <li><strong>Lipid management:</strong> High-intensity statin therapy is standard for ischemic stroke with atherosclerosis. Do not stop statins without medical advice.</li>
+                  <li><strong>Lifestyle:</strong> No smoking, limit alcohol, Mediterranean-style diet, 30 min moderate activity 5× per week (as tolerated and cleared by the physio team).</li>
+                </ul>
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-950 dark:text-rose-200 mt-1">
-                  <strong>F.A.S.T. Emergency Signs:</strong><br />
-                  <strong>F (Face Drooping):</strong> One side of face droops when smiling.<br />
-                  <strong>A (Arm Weakness):</strong> One arm drifts downward when raised.<br />
-                  <strong>S (Speech Difficulty):</strong> Slurred or strange speech.<br />
-                  <strong>T (Time to Call 112):</strong> Call emergency hospital immediately.
+                  <strong>F.A.S.T. Warning Signs — Call 112 Immediately:</strong><br />
+                  <strong>F (Face Drooping):</strong> One side droops when smiling.<br />
+                  <strong>A (Arm Weakness):</strong> One arm drifts down when both are raised.<br />
+                  <strong>S (Speech Difficulty):</strong> Slurred, strange, or absent speech.<br />
+                  <strong>T (Time to Act):</strong> Note the exact time symptoms began and call emergency services immediately — treatment is time-critical.
                 </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              sectionId={7}
+              title="6.2 Bedside Swallow Screen & Aspiration Prevention"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(7)}
+            >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  Dysphagia affects 40–70% of acute stroke patients and is a leading cause of aspiration pneumonia. <strong>No food or drink until a qualified clinician or SLP has performed a swallow screen.</strong>
+                </p>
+                <h4 className="font-bold text-foreground text-sm pt-1">Caregiver Observation — Signs of Aspiration Risk:</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Wet or gurgling voice after eating or drinking.</li>
+                  <li>Coughing or choking during or immediately after swallowing.</li>
+                  <li>Food or liquid spilling from the mouth (anterior oral spillage).</li>
+                  <li>Prolonged chewing or multiple swallows required per bite.</li>
+                  <li>Recurrent chest infections or unexplained fevers.</li>
+                </ul>
+                <h4 className="font-bold text-foreground text-sm pt-1">3-oz Water Swallow Screen (Clinician-Administered):</h4>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li>Seat patient fully upright (≥60°); confirm alertness and ability to follow commands.</li>
+                  <li>Offer 90 mL (3 oz) of still water in a cup without modifications to consistency.</li>
+                  <li>Observe for: coughing, choking, wet voice, or inability to complete the drink.</li>
+                  <li><strong>Fail:</strong> Any coughing, wet/gurgling voice within 1 min, or incomplete intake → refer immediately to SLP before further oral intake.</li>
+                  <li><strong>Pass:</strong> Patient drinks all 90 mL without coughing; voice remains clear → thin liquids may proceed with supervision.</li>
+                </ol>
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-950 dark:text-amber-200">
+                  <strong>Caregiver Rule:</strong> If in doubt, mouth is out. Use thickened fluids or modified textures only as prescribed. Keep patient upright ≥30 min after every meal.
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              sectionId={8}
+              title="6.3 Hemiplegic Shoulder Precautions"
+              onComplete={handleSectionComplete}
+              isCompleted={completedSections.has(8)}
+            >
+              <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  Shoulder pain and subluxation affect up to 72% of stroke survivors with arm weakness. Poor positioning and unsafe transfers are the most common preventable causes.
+                </p>
+                <h4 className="font-bold text-foreground text-sm pt-1">Why the Hemiplegic Shoulder Is Vulnerable:</h4>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li><strong>Subluxation:</strong> Flaccid muscles can no longer support the glenohumeral joint; gravity pulls the arm down, creating a painful gap.</li>
+                  <li><strong>Spasticity:</strong> As tone returns, the arm may pull into a flexed, adducted pattern increasing stiffness and pain if not managed.</li>
+                  <li><strong>Rotator cuff risk:</strong> Even gentle traction during a transfer can tear a flaccid rotator cuff — a common and preventable complication.</li>
+                </ul>
+                <h4 className="font-bold text-foreground text-sm pt-1">Safe-Practice Rules:</h4>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li><strong>Never pull on the affected arm</strong> during transfers or dressing — always support under the elbow and forearm.</li>
+                  <li><strong>Lying on affected side:</strong> Align shoulder forward (protracted) with arm outstretched, not tucked beneath the body.</li>
+                  <li><strong>Lying on unaffected side:</strong> Place a pillow in front to support the affected arm in a neutral position.</li>
+                  <li><strong>When seated:</strong> Use a lap tray, arm trough, or pillow to keep the affected arm supported at all times — never let it hang unsupported.</li>
+                  <li><strong>Passive range of motion (PROM):</strong> Only perform exercises taught by the physiotherapist — never forcefully raise the arm above 90° without explicit clearance.</li>
+                  <li><strong>Slings:</strong> Use only if prescribed; incorrect use can increase flexor spasticity or restrict motor recovery.</li>
+                  <li><strong>Report promptly:</strong> New shoulder pain, swelling, or warmth → notify the care team (may indicate shoulder-hand syndrome / CRPS).</li>
+                </ul>
               </div>
             </SectionCard>
           </AccordionContent>

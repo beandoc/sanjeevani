@@ -412,10 +412,12 @@ export function getBandClassification(band: DependencyBand) {
 
 /**
  * Clamp a response to the set of values the item actually offers.
- * Mirrors the defensive clamping in `calculateZaritScore`.
+ *
+ * Returns `undefined` when the item has not been answered — callers must
+ * handle the undefined case and must NOT coerce it to 0 (Total Dependency).
  */
-function clampToItem(item: FunctionItem, raw: number | undefined): number {
-  if (raw === undefined || Number.isNaN(raw)) return 0;
+function clampToItem(item: FunctionItem, raw: number | undefined): number | undefined {
+  if (raw === undefined || Number.isNaN(raw)) return undefined;
   const allowed = item.options.map((o) => o.value);
   if (allowed.includes(raw)) return raw;
   // Snap to the nearest legal option rather than silently accepting a bad value.
@@ -452,6 +454,8 @@ export function calculateFunctionScore(
 
   for (const item of BARTHEL_ITEMS) {
     const value = clampToItem(item, barthelResponses[item.id]);
+    // Skip unanswered items entirely — do not coerce to 0 (Total Dependency).
+    if (value === undefined) continue;
     barthelScore += value;
     accumulate(item, value);
   }
@@ -459,6 +463,8 @@ export function calculateFunctionScore(
   let lawtonScore = 0;
   for (const item of LAWTON_ITEMS) {
     const value = clampToItem(item, lawtonResponses[item.id]);
+    // Skip unanswered items entirely.
+    if (value === undefined) continue;
     lawtonScore += value;
     accumulate(item, value);
   }

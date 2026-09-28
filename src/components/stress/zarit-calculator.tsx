@@ -7,6 +7,7 @@ import {
   getItemsForTier,
   LIKERT_OPTIONS,
   calculateZaritScore,
+  SELF_HARM_SCREENING_QUESTION,
   ZaritEvaluationResult
 } from '@/lib/zarit-scale';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -42,6 +43,7 @@ export function ZaritCalculator({
   const [items, setItems] = useState<ZbiItem[]>(() => getItemsForTier('ZBI22'));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, number>>({});
+  const [selfHarmAnswer, setSelfHarmAnswer] = useState<number | undefined>(undefined);
   const [activeLang, setActiveLang] = useState<'en' | 'hi' | 'mr'>(lang);
 
   useEffect(() => {
@@ -90,12 +92,13 @@ export function ZaritCalculator({
   };
 
   const handleFinish = () => {
-    const result = calculateZaritScore(responses, tier);
+    const result = calculateZaritScore(responses, tier, selfHarmAnswer);
     onComplete(result);
   };
 
   const handleReset = () => {
     setResponses({});
+    setSelfHarmAnswer(undefined);
     setCurrentIndex(0);
   };
 
@@ -385,13 +388,53 @@ export function ZaritCalculator({
         </div>
 
         {isFullyAnswered && (
-          <div className="mt-4 pt-4 border-t border-border/60 flex items-center justify-between bg-primary/5 p-3 rounded-xl">
-            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-              <CheckCircle2 className="w-4 h-4" /> All questions completed!
+          <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
+            <div className="p-4 rounded-xl border border-border/80 bg-muted/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Confidential Safety Screening (PHQ-9 Item 9)
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
+              </div>
+              <p className="text-xs text-foreground font-medium leading-relaxed">
+                {SELF_HARM_SCREENING_QUESTION.text[activeLang] || SELF_HARM_SCREENING_QUESTION.text.en}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {SELF_HARM_SCREENING_QUESTION.options.map((opt) => {
+                  const isSelected = selfHarmAnswer === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setSelfHarmAnswer(isSelected ? undefined : opt.value)}
+                      className={cn(
+                        'p-2.5 rounded-lg border text-left text-xs transition-all flex items-center justify-between',
+                        isSelected
+                          ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
+                          : 'border-border bg-background hover:bg-muted/50 text-foreground'
+                      )}
+                    >
+                      <span>{opt.label[activeLang] || opt.label.en}</span>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Your response is confidential and only used to ensure emergency counseling support (such as Tele-MANAS 14416) is offered if needed.
+              </p>
             </div>
-            <Button size="sm" onClick={handleFinish} className="gap-1.5 font-bold shadow-sm">
-              View Comprehensive Results <ArrowRight className="w-4 h-4" />
-            </Button>
+
+            <div className="flex items-center justify-between bg-primary/5 p-3 rounded-xl border border-primary/20">
+              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                <CheckCircle2 className="w-4 h-4" /> All questions completed!
+              </div>
+              <Button size="sm" onClick={handleFinish} className="gap-1.5 font-bold shadow-sm">
+                View Comprehensive Results <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

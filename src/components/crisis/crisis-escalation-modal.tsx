@@ -195,19 +195,21 @@ export function CrisisEscalationModal({
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="destructive" className="text-[10px] font-bold uppercase tracking-wider">
-                Support Escalation
+                {isSelfHarmBranch ? 'Urgent Mental Health Support' : 'Support Escalation'}
               </Badge>
               {isSelfHarmBranch && (
-                <Badge className="bg-amber-600 text-white text-[10px] font-bold uppercase">
-                  Distress Screening Active
+                <Badge className="bg-rose-700 text-white text-[10px] font-bold uppercase">
+                  Safety Protocol Active
                 </Badge>
               )}
             </div>
             <DialogTitle className="text-base sm:text-xl font-bold font-headline text-foreground leading-tight">
-              Immediate Caregiver Support Options
+              {isSelfHarmBranch ? '24/7 Crisis & Mental Health Support' : 'Immediate Caregiver Support Options'}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              {severityReason}. You do not have to carry this burden alone. Use locally verified emergency, mental-health, senior-care, or family support now.
+              {isSelfHarmBranch
+                ? 'Confidential, free 24/7 support is available across India. If you are experiencing thoughts of self-harm or suicide, please speak with a counselor immediately.'
+                : `${severityReason}. You do not have to carry this burden alone. Use locally verified emergency, mental-health, senior-care, or family support now.`}
             </DialogDescription>
           </div>
         </div>
@@ -217,7 +219,15 @@ export function CrisisEscalationModal({
           <div className="p-3.5 rounded-2xl bg-muted/50 border border-border text-xs text-foreground leading-relaxed flex items-start gap-2.5">
             <HeartHandshake className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div>
-              <strong>Clinical Compassion Note:</strong> Chronic caregiving frequently causes intense emotional exhaustion, isolation, and acute distress. Reaching out for professional or family help is an act of care for both you and your loved one.
+              {isSelfHarmBranch ? (
+                <>
+                  <strong>Immediate Safety Note:</strong> Thoughts of self-harm or wishing to be dead are signs of severe emotional overload. You are not alone, and help is available right now. Please call Tele-MANAS (<strong>14416</strong>) or KIRAN (<strong>1800-599-0019</strong>) for immediate, compassionate, confidential assistance.
+                </>
+              ) : (
+                <>
+                  <strong>Clinical Compassion Note:</strong> Chronic caregiving frequently causes intense emotional exhaustion, isolation, and acute distress. Reaching out for professional or family help is an act of care for both you and your loved one.
+                </>
+              )}
             </div>
           </div>
 

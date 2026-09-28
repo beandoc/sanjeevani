@@ -6,8 +6,8 @@ import { calculateZaritScore, isReassessmentDue } from '../src/lib/zarit-scale';
 
 describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
   test('ZBI-4 Rapid Triage must trigger crisis escalation on severe strain (>=12/16)', () => {
-    // Caregiver answers Nearly Always (4) on all 4 rapid items
-    const responses = { zbi_1: 4, zbi_7: 4, zbi_8: 4, zbi_14: 4 };
+    // Caregiver answers Nearly Always (4) on all 4 validated Bédard rapid items
+    const responses = { zbi_2: 4, zbi_3: 4, zbi_9: 4, zbi_17: 4 };
     const result = calculateZaritScore(responses, 'ZBI4');
 
     assert.strictEqual(result.totalScore, 16);
@@ -18,7 +18,7 @@ describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
   });
 
   test('ZBI-12 and ZBI-4 should mark unassessed factors as isMeasured=false, not 0% strain', () => {
-    const responses = { zbi_1: 2, zbi_7: 2, zbi_8: 2, zbi_14: 2 };
+    const responses = { zbi_2: 2, zbi_3: 2, zbi_9: 2, zbi_17: 2 };
     const resultZbi4 = calculateZaritScore(responses, 'ZBI4');
 
     // Unmeasured factors in ZBI-4
@@ -32,7 +32,7 @@ describe('Zarit Caregiver Burden Psychometric Engine Tests', () => {
   });
 
   test('Tele-MANAS prescription should be generated on ZBI-4 / ZBI-12 when normalized burden >= 55%', () => {
-    const responses = { zbi_1: 3, zbi_7: 3, zbi_8: 3, zbi_14: 3 }; // 12/16 = 75%
+    const responses = { zbi_2: 3, zbi_3: 3, zbi_9: 3, zbi_17: 3 }; // 12/16 = 75%
     const result = calculateZaritScore(responses, 'ZBI4');
 
     assert.ok(result.prescriptions.some((p) => p.id === 'rx_telemanas'));
@@ -56,7 +56,7 @@ describe('Clinical Recommendation Rules Engine Tests', () => {
 
   test('Unclamped sorting should preserve distinct ranks and not collapse to catalog order', () => {
     // Create high-burden Zarit result
-    const highZarit = calculateZaritScore({ zbi_1: 4, zbi_7: 4, zbi_8: 4, zbi_14: 4 }, 'ZBI4');
+    const highZarit = calculateZaritScore({ zbi_2: 4, zbi_3: 4, zbi_9: 4, zbi_17: 4 }, 'ZBI4');
     const output = ClinicalRecommendationEngine.evaluate({
       role: 'caregiver',
       skillLevel: 'beginner',

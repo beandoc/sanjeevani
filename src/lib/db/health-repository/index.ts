@@ -57,6 +57,7 @@ export const HealthRepository = {
   toggleSectionCompletion: moduleprogress.toggleSectionCompletion,
   mergeModuleProgress: moduleprogress.mergeModuleProgress,
   getZaritAssessments: assessments.getZaritAssessments,
+  getLatestZaritScore: assessments.getLatestZaritScore,
   saveZaritAssessment: assessments.saveZaritAssessment,
   mergeZaritAssessments: assessments.mergeZaritAssessments,
   getZaritAssessmentsFor: assessments.getZaritAssessmentsFor,

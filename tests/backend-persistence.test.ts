@@ -133,17 +133,17 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
     it('should calculate, save, and retrieve Zarit Burden Interview (ZBI-12 and ZBI-22) assessments', () => {
       const zaritResult = calculateZaritScore(
         {
-          zbi_1: 3,
           zbi_2: 3,
           zbi_3: 4,
-          zbi_7: 3,
-          zbi_8: 3,
+          zbi_5: 3,
+          zbi_6: 3,
           zbi_9: 2,
           zbi_10: 2,
-          zbi_11: 3,
-          zbi_12: 3,
-          zbi_14: 3,
           zbi_17: 2,
+          zbi_18: 2,
+          zbi_19: 2,
+          zbi_20: 2,
+          zbi_21: 2,
           zbi_22: 4
         },
         'ZBI12'
@@ -213,7 +213,7 @@ describe('Sanjeevani Backend Data Persistence & Cross-Portal Synchronization', (
     });
 
     it('should handle Zarit cloud sync return shape', async () => {
-      const zbi = calculateZaritScore({ zbi_1: 1 }, 'ZBI4');
+      const zbi = calculateZaritScore({ zbi_2: 1 }, 'ZBI4');
       const syncResult = await syncZaritAssessment(zbi);
       expect(syncResult).toHaveProperty('queued');
     });

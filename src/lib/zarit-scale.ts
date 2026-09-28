@@ -135,10 +135,7 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
       hi: 'क्या आपको लगता है कि आपका परिजन पूरी तरह आप पर ही निर्भर है?',
       mr: 'तुमचे नातेवाईक पूर्णपणे तुमच्यावर अवलंबून आहेत असे वाटते का?'
     },
-    domainWeights: { psychosocial: 0.7, physical: 0.3 },
-    isRedFlagTrigger: true,
-    redFlagThreshold: 4,
-    redFlagReason: 'Absolute Perceived Dependency / Sole Caregiver Strain'
+    domainWeights: { psychosocial: 0.7, physical: 0.3 }
   },
   {
     id: 'zbi_9',
@@ -317,8 +314,11 @@ export const ZBI_22_ITEMS: ZbiItem[] = [
   }
 ];
 
-export const ZBI_12_ITEM_IDS = ['zbi_1', 'zbi_2', 'zbi_3', 'zbi_7', 'zbi_8', 'zbi_9', 'zbi_11', 'zbi_12', 'zbi_13', 'zbi_14', 'zbi_15', 'zbi_22'];
-export const ZBI_4_ITEM_IDS = ['zbi_1', 'zbi_7', 'zbi_8', 'zbi_14'];
+// Bédard et al. 2001 (Gerontologist 41:652-659, doi:10.1093/geront/41.5.652) validated items:
+// ZBI-12: items 2, 3, 5, 6, 9, 10, 17, 18, 19, 20, 21, 22.
+// ZBI-4 screening version: items 2, 3, 9, 17.
+export const ZBI_12_ITEM_IDS = ['zbi_2', 'zbi_3', 'zbi_5', 'zbi_6', 'zbi_9', 'zbi_10', 'zbi_17', 'zbi_18', 'zbi_19', 'zbi_20', 'zbi_21', 'zbi_22'];
+export const ZBI_4_ITEM_IDS = ['zbi_2', 'zbi_3', 'zbi_9', 'zbi_17'];
 
 /**
  * Recommended reassessment cadence per tier, in days. Nothing in the product
@@ -364,6 +364,32 @@ export interface CaregiverPrescription {
   urgency: 'routine' | 'priority' | 'urgent';
 }
 
+export interface SelfHarmScreeningResult {
+  administered: boolean;
+  score: number; // 0 to 3 (PHQ-9 item 9)
+  hasRisk: boolean; // score > 0
+  clinicalGuidance: {
+    en: string;
+    hi: string;
+    mr: string;
+  };
+}
+
+export const SELF_HARM_SCREENING_QUESTION = {
+  id: 'phq9_item9' as const,
+  text: {
+    en: 'Over the last 2 weeks, how often have you been bothered by thoughts that you would be better off dead, or of hurting yourself in some way?',
+    hi: 'पिछले 2 हफ्तों में, क्या आपके मन में ऐसे विचार आए हैं कि आपका न रहना ही बेहतर होगा, या खुद को किसी भी तरह नुकसान पहुँचाने का विचार आया हो?',
+    mr: 'गेल्या २ आठवड्यांत, आपण नसलेलेच बरे किंवा स्वतःला कोणतीही इजा करून घ्यावी, असे विचार तुमच्या मनात आले आहेत का?'
+  },
+  options: [
+    { value: 0, label: { en: 'Not at all', hi: 'बिल्कुल नहीं', mr: 'अजिबात नाही' }, description: { en: '0 days', hi: '0 दिन', mr: '० दिवस' } },
+    { value: 1, label: { en: 'Several days', hi: 'कुछ दिन', mr: 'काही दिवस' }, description: { en: '1–6 days', hi: '1–6 दिन', mr: '१–६ दिवस' } },
+    { value: 2, label: { en: 'More than half the days', hi: 'आधे से अधिक दिन', mr: 'निम्म्याहून अधिक दिवस' }, description: { en: '7–11 days', hi: '7–11 दिन', mr: '७–११ दिवस' } },
+    { value: 3, label: { en: 'Nearly every day', hi: 'लगभग हर दिन', mr: 'जवळजवळ रोज' }, description: { en: '12–14 days', hi: '12–14 दिन', mr: '१२–१४ दिवस' } }
+  ]
+};
+
 export interface ZaritEvaluationResult {
   tier: ZbiTier;
   totalScore: number;
@@ -382,6 +408,7 @@ export interface ZaritEvaluationResult {
   };
   redFlags: string[];
   isCrisisTriggered: boolean;
+  selfHarmScreening?: SelfHarmScreeningResult;
   provenance?: {
     score: ClinicalProvenance;
     triageOverlay: ClinicalProvenance;
@@ -402,7 +429,8 @@ export function getItemsForTier(tier: ZbiTier): ZbiItem[] {
 
 export function calculateZaritScore(
   responses: Record<string, number>,
-  tier: ZbiTier
+  tier: ZbiTier,
+  selfHarmResponse?: number
 ): ZaritEvaluationResult {
   const items = getItemsForTier(tier);
   const maxScore = tier === 'ZBI22' ? 88 : tier === 'ZBI12' ? 48 : 16;
@@ -654,12 +682,42 @@ export function calculateZaritScore(
     });
   }
 
-  // Crisis evaluation: Evaluates red flags, critical band, or short-form clinical cutoffs
+  // Crisis evaluation:
+  // Fired only when:
+  // 1. Overall severity meets the validated critical cutoff (critical_red: ZBI22 > 60, ZBI12 >= 28, ZBI4 >= 12), OR
+  // 2. Global anchor item (Q22: overall burden) indicates severe burden (>= 3) in the presence of elevated overall burden (>= red band), OR
+  // 3. At least 2 distinct domain red flags are triggered simultaneously.
+  // Isolated single-item answers (such as ordinary caregiving dependency) do not trigger acute crisis alarms.
+  const globalAnchorScore = responses['zbi_22'] ?? 0;
+  const isGlobalOverload = globalAnchorScore >= 3;
+  const isElevatedBurden = severityBand === 'red' || severityBand === 'critical_red';
+
   const isCrisisTriggered =
-    redFlags.length > 0 ||
     severityBand === 'critical_red' ||
-    (tier === 'ZBI4' && totalScore >= 12) ||
-    (tier === 'ZBI12' && totalScore >= 28);
+    (isGlobalOverload && isElevatedBurden) ||
+    redFlags.length >= 2;
+
+  let selfHarmScreening: SelfHarmScreeningResult | undefined;
+  if (selfHarmResponse !== undefined && !Number.isNaN(selfHarmResponse)) {
+    const score = Math.max(0, Math.min(3, Math.round(selfHarmResponse)));
+    const hasRisk = score > 0;
+    selfHarmScreening = {
+      administered: true,
+      score,
+      hasRisk,
+      clinicalGuidance: hasRisk
+        ? {
+            en: 'Explicit distress/self-harm thoughts reported. Immediate warm handoff to Tele-MANAS (14416) or suicide prevention counseling is clinically required.',
+            hi: 'आत्म-नुकसान संबंधी विचार व्यक्त किए गए हैं। तुरंत टेली-मानस (14416) या मानसिक स्वास्थ्य परामर्शदाता से संपर्क आवश्यक है।',
+            mr: 'स्वतःला इजा करण्याचे विचार नोंदवले आहेत. तातडीने टेलि-मानस (१४४१६) किंवा समुपदेशकाची मदत घेणे आवश्यक आहे.'
+          }
+        : {
+            en: 'Self-harm screening negative (PHQ-9 item 9 score 0).',
+            hi: 'आत्म-नुकसान स्क्रीनिंग सामान्य (स्कोर 0)।',
+            mr: 'आत्म-नुकसान तपासणी सामान्य (स्कोर ०).'
+          }
+    };
+  }
 
   return {
     tier,
@@ -672,6 +730,7 @@ export function calculateZaritScore(
     domainCapacities,
     redFlags,
     isCrisisTriggered,
+    selfHarmScreening,
     prescriptions,
     provenance: {
       score: CLINICAL_PROVENANCE.zaritScore,

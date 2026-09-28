@@ -51,6 +51,9 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
   const answeredLawton = Object.keys(lawtonResponses).length;
   const answeredItems = answeredBarthel + answeredLawton;
   const progressPercent = Math.round((answeredItems / totalItems) * 100);
+  // Require every item to be answered before saving — an unanswered Barthel item
+  // must NOT be silently treated as 0 (Total Dependency).
+  const isComplete = answeredBarthel === BARTHEL_ITEMS.length && answeredLawton === LAWTON_ITEMS.length;
 
   // Live computed scores as clinician toggles options
   const liveScore = useMemo(
@@ -253,8 +256,8 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
                 variant="outline"
                 size="sm"
                 onClick={handlePresetIndependent}
-                className="h-8 text-xs font-semibold gap-1.5 border-border bg-background hover:bg-muted"
-                title="Prefill all items as fully independent"
+                className="h-8 text-xs font-semibold gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/10"
+                title="Warning: prefills all 18 items as fully independent. Review each item before saving."
               >
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span className="hidden sm:inline">Preset:</span> All Independent
@@ -502,9 +505,14 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
             <Badge variant="outline" className="font-mono text-xs font-bold">
               Lawton: {liveScore.lawtonScore}/8
             </Badge>
-            {answeredItems < totalItems && (
-              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-                ({totalItems - answeredItems} unselected will default to 0)
+            {!isComplete && (
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
+                ⚠ {totalItems - answeredItems} item{totalItems - answeredItems !== 1 ? 's' : ''} unanswered — complete all to save
+              </span>
+            )}
+            {isComplete && (
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                ✓ All {totalItems} items answered
               </span>
             )}
           </div>
@@ -521,8 +529,8 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={isSaving}
-              className="h-10 px-5 text-xs font-bold gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+              disabled={!isComplete || isSaving}
+              className="h-10 px-5 text-xs font-bold gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
                 <>

@@ -182,6 +182,11 @@ export function getZaritAssessmentsFor(patientUid: string): ZaritEvaluationResul
   }
 }
 
+export function getLatestZaritScore(): ZaritEvaluationResult | null {
+  const history = getZaritAssessments();
+  return history.length > 0 ? history[0] : null;
+}
+
 export function saveZaritAssessmentFor(patientUid: string, result: ZaritEvaluationResult): ZaritEvaluationResult[] {
   if (typeof window === 'undefined') return [];
   const current = getZaritAssessmentsFor(patientUid);
