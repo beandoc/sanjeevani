@@ -93,8 +93,8 @@ export default function ClinicianRosterPage() {
       const res = await seedRealDyadsToFirestore();
       if (res.success) {
         toast({
-          title: 'Cloud Firestore Synced',
-          description: `Saved ${res.dyadCount} clinical dyads with baseline & longitudinal records to Firestore backend.`
+          title: 'Data Synced',
+          description: `Backend records updated successfully (${res.dyadCount} clinical dyads synchronized).`
         });
         await load();
       } else {
@@ -275,10 +275,10 @@ export default function ClinicianRosterPage() {
             className="gap-1.5 text-xs font-semibold h-9 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40"
             onClick={handleSeedDyads}
             disabled={isSeeding || isRefreshing}
-            title="Seed real baseline & longitudinal dyads directly to Cloud Firestore backend"
+            title="Sync records and populate demonstration cohort to backend"
           >
             <Database className={cn('w-3.5 h-3.5 text-blue-600', isSeeding && 'animate-spin')} />
-            <span>{isSeeding ? 'Saving...' : 'Sync Dyads to Firestore'}</span>
+            <span>{isSeeding ? 'Syncing...' : 'Sync Data'}</span>
           </Button>
           <RegisterPatientDialog onRegistered={() => void load()} />
         </div>
