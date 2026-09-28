@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import {
   UserPlus,
   Copy,
@@ -354,220 +355,279 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-2xl md:max-w-3xl max-h-[92vh] sm:max-h-[88vh] p-0 flex flex-col gap-0 rounded-2xl sm:rounded-3xl border border-border/80 shadow-2xl bg-card overflow-hidden">
         {issuedInvite ? (
           /* SUCCESS STATE: Display Confirmation & Caregiver Sharing */
-          <div className="space-y-5 py-1">
-            <DialogHeader>
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                <div className="p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <DialogTitle className="text-lg font-bold">Patient Saved to Active Roster</DialogTitle>
-                  <DialogDescription className="text-xs mt-0.5">
-                    {issuedInvite.patientName} ({issuedInvite.patientAge > 0 ? `${issuedInvite.patientAge} yrs` : 'Senior'}) and caregiver profile are active in your clinical cohort.
-                  </DialogDescription>
-                </div>
+          <div className="flex flex-col h-full max-h-[92vh] sm:max-h-[88vh]">
+            <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-border/60 bg-emerald-500/10 shrink-0 pr-12 flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-            </DialogHeader>
-
-            {/* Quick Action to open Patient Workspace */}
-            <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-xs">
-                <p className="font-bold text-foreground">Geriatric Care Dyad Ready</p>
-                <p className="text-muted-foreground text-[11px]">Begin cognitive, Zarit burden, and ADL assessments.</p>
+              <div className="min-w-0">
+                <DialogTitle className="text-lg sm:text-xl font-bold font-headline text-foreground">
+                  Patient Saved to Active Roster
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  {issuedInvite.patientName} ({issuedInvite.patientAge > 0 ? `${issuedInvite.patientAge} yrs` : 'Senior'}) and caregiver profile are active in your clinical cohort.
+                </DialogDescription>
               </div>
-              <Button asChild size="sm" className="text-xs font-bold gap-1.5 bg-primary text-primary-foreground shrink-0 w-full sm:w-auto">
-                <Link href={`/clinic/dyad/${issuedInvite.dyadUid || 'dyad_' + issuedInvite.inviteCode}`} onClick={() => setIsOpen(false)}>
-                  <Stethoscope className="w-3.5 h-3.5" />
-                  <span>Open Workspace</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-              </Button>
             </div>
 
-            {/* Caregiver Invite Code Display Box */}
-            <div className="p-4 rounded-2xl bg-muted/50 border border-border flex flex-col items-center justify-center text-center space-y-2">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Caregiver Access & Auto-Link Code
-              </span>
-              <button
-                onClick={copyCode}
-                className="group relative flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl bg-card border-2 border-primary/40 hover:border-primary shadow-xs transition-all w-full max-w-xs"
-                title="Click to copy code"
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-4">
+              {/* Quick Action to open Patient Workspace */}
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="text-xs">
+                  <p className="font-bold text-foreground text-sm">Geriatric Care Dyad Ready</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    Begin cognitive, Zarit burden, and ADL assessments immediately.
+                  </p>
+                </div>
+                <Button asChild size="sm" className="text-xs font-bold gap-1.5 bg-primary text-primary-foreground shrink-0 w-full sm:w-auto h-9">
+                  <Link href={`/clinic/dyad/${issuedInvite.dyadUid || 'dyad_' + issuedInvite.inviteCode}`} onClick={() => setIsOpen(false)}>
+                    <Stethoscope className="w-3.5 h-3.5" />
+                    <span>Open Workspace</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Caregiver Invite Code Display Box */}
+              <div className="p-5 rounded-2xl bg-muted/40 border border-border flex flex-col items-center justify-center text-center space-y-2.5">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Caregiver Access & Auto-Link Code
+                </span>
+                <button
+                  onClick={copyCode}
+                  className="group relative flex items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-background border-2 border-primary/40 hover:border-primary shadow-sm hover:shadow transition-all w-full max-w-xs cursor-pointer"
+                  title="Click to copy code"
+                >
+                  <span className="text-2xl sm:text-3xl font-mono font-black tracking-widest text-primary">
+                    {issuedInvite.inviteCode}
+                  </span>
+                  <span className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </span>
+                </button>
+                <p className="text-xs text-muted-foreground pt-0.5">
+                  {issuedInvite.caregiverPhone ? (
+                    <>
+                      Auto-links automatically when caregiver logs in with <strong className="font-mono text-foreground font-semibold">{issuedInvite.caregiverPhone}</strong>
+                    </>
+                  ) : (
+                    'Caregiver enters this code on their login page'
+                  )}
+                </p>
+              </div>
+
+              {/* Auto-Generated Login — hand to the caregiver at discharge */}
+              {generatedCaregiverEmail && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2.5">
+                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">
+                    Auto-Generated Login — Share at Discharge
+                  </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Caregiver ({issuedInvite.caregiverName})</span>
+                    <code className="font-mono font-bold text-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/60 text-xs">
+                      {generatedCaregiverEmail}
+                    </code>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs pt-2 border-t border-emerald-500/20">
+                    <span className="text-muted-foreground">Default password</span>
+                    <code className="font-mono font-bold text-foreground bg-background/80 px-2.5 py-1 rounded-lg border border-border/60 text-xs">
+                      {DEMO_LOGIN_PASSWORD}
+                    </code>
+                  </div>
+                </div>
+              )}
+
+              {/* Direct Sharing Actions */}
+              <div className="space-y-2 pt-1">
+                <span className="text-xs font-bold text-foreground block">Share Portal Access with Family:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={shareViaWhatsApp}
+                    className="gap-2 text-xs font-semibold h-10 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 w-full"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Send via WhatsApp</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copyFullMessage}
+                    className="gap-2 text-xs font-semibold h-10 hover:bg-muted w-full"
+                  >
+                    {copiedMsg ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-primary" />}
+                    <span>{copiedMsg ? 'Message Copied' : 'Copy Invitation Text'}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border/70 bg-card/95 backdrop-blur-md flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenChange(false)}
+                className="w-full sm:w-auto h-10 sm:h-9 text-xs sm:text-sm font-semibold"
               >
-                <span className="text-2xl font-mono font-black tracking-widest text-primary">
-                  {issuedInvite.inviteCode}
-                </span>
-                <span className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </span>
-              </button>
-              <p className="text-[11px] text-muted-foreground pt-0.5">
-                {issuedInvite.caregiverPhone ? (
-                  <>
-                    Auto-links automatically when caregiver logs in with <strong className="font-mono text-foreground">{issuedInvite.caregiverPhone}</strong>
-                  </>
-                ) : (
-                  'Caregiver enters this code on their login page'
-                )}
-              </p>
-            </div>
-
-            {/* Auto-Generated Login — hand to the caregiver at discharge */}
-            {generatedCaregiverEmail && (
-              <div className="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2.5">
-                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                  Auto-Generated Login — Share at Discharge
-                </span>
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">Caregiver ({issuedInvite.caregiverName})</span>
-                  <code className="font-mono font-bold text-foreground bg-card px-2 py-1 rounded-lg border border-border/60">
-                    {generatedCaregiverEmail}
-                  </code>
-                </div>
-                <div className="flex items-center justify-between gap-2 text-xs pt-1 border-t border-emerald-500/20">
-                  <span className="text-muted-foreground">Default password</span>
-                  <code className="font-mono font-bold text-foreground bg-card px-2 py-1 rounded-lg border border-border/60">
-                    {DEMO_LOGIN_PASSWORD}
-                  </code>
-                </div>
-              </div>
-            )}
-
-            {/* Direct Sharing Actions */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-foreground block">Share Portal Access with Family:</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={shareViaWhatsApp}
-                  className="gap-2 text-xs font-semibold h-9 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send via WhatsApp</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={copyFullMessage}
-                  className="gap-2 text-xs font-semibold h-9 hover:bg-muted"
-                >
-                  {copiedMsg ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-primary" />}
-                  <span>{copiedMsg ? 'Message Copied' : 'Copy Invitation Text'}</span>
-                </Button>
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2 pt-2 border-t border-border/60 flex-col sm:flex-row">
-              <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="text-xs font-semibold w-full sm:w-auto">
                 Close
               </Button>
-              <Button size="sm" onClick={resetForm} className="text-xs font-bold w-full sm:w-auto">
+              <Button
+                size="sm"
+                onClick={resetForm}
+                className="w-full sm:w-auto h-10 sm:h-9 text-xs sm:text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 Register Another Patient
               </Button>
-            </DialogFooter>
+            </div>
           </div>
         ) : (
           /* FORM STATE: Input Patient & Caregiver Info */
-          <div className="space-y-4 py-1">
-            <DialogHeader>
-              <div className="flex items-center gap-2 text-primary">
-                <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                  <UserPlus className="w-5 h-5" />
+          <div className="flex flex-col h-full max-h-[92vh] sm:max-h-[88vh]">
+            {/* Header */}
+            <div className="px-4 py-3.5 sm:px-6 sm:py-4.5 border-b border-border/60 bg-gradient-to-r from-blue-500/10 via-primary/5 to-transparent shrink-0 pr-12">
+              <div className="flex items-center gap-3">
+                <div className="p-2 sm:p-2.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-600 dark:text-blue-400 shrink-0 shadow-inner">
+                  <UserPlus className="w-5 h-5 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <DialogTitle className="text-lg font-bold font-headline">Register New Patient & Care Dyad</DialogTitle>
-                  <DialogDescription className="text-xs mt-0.5">
+                <div className="min-w-0">
+                  <DialogTitle className="text-base sm:text-lg md:text-xl font-bold font-headline text-foreground tracking-tight">
+                    Register New Patient & Care Dyad
+                  </DialogTitle>
+                  <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
                     Pre-register a senior patient and primary caregiver directly into your active clinical cohort.
                   </DialogDescription>
                 </div>
               </div>
-            </DialogHeader>
 
-            <div className="space-y-4">
+              {/* Step Badges */}
+              <div className="flex items-center gap-1.5 pt-2.5 overflow-x-auto no-scrollbar">
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 whitespace-nowrap">
+                  1. Patient
+                </span>
+                <span className="text-muted-foreground/40 text-xs">›</span>
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
+                  2. Caregiver
+                </span>
+                <span className="text-muted-foreground/40 text-xs">›</span>
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25 whitespace-nowrap">
+                  3. Network
+                </span>
+                <span className="text-muted-foreground/40 text-xs">›</span>
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 whitespace-nowrap">
+                  4. Baseline
+                </span>
+              </div>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-4 sm:space-y-5">
               {/* SECTION 1: Patient Details */}
-              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
-                  <User className="w-3.5 h-3.5" />
-                  <span>1. Patient Profile</span>
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                    <div className="p-1 rounded-md bg-blue-500/10">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                    <span>1. Patient Profile</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium">Fields with * are required</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Patient First Name <span className="text-destructive">*</span></Label>
-                      <Input
-                        placeholder="e.g. Ramesh"
-                        value={patientFirstName}
-                        onChange={(e) => setPatientFirstName(e.target.value)}
-                        className="h-9 text-xs"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Patient Last Name <span className="text-destructive">*</span></Label>
-                      <Input
-                        placeholder="e.g. Verma"
-                        value={patientLastName}
-                        onChange={(e) => setPatientLastName(e.target.value)}
-                        className="h-9 text-xs"
-                        required
-                      />
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Patient First Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      placeholder="e.g. Ramesh"
+                      value={patientFirstName}
+                      onChange={(e) => setPatientFirstName(e.target.value)}
+                      className="h-10 sm:h-9 text-xs sm:text-sm"
+                      required
+                    />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Age (Years)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Patient Last Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      placeholder="e.g. Verma"
+                      value={patientLastName}
+                      onChange={(e) => setPatientLastName(e.target.value)}
+                      className="h-10 sm:h-9 text-xs sm:text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Age (Years)
+                    </Label>
                     <Input
                       type="number"
                       placeholder="e.g. 74"
                       value={patientAge}
                       onChange={(e) => setPatientAge(e.target.value)}
-                      className="h-9 text-xs font-mono"
+                      className="h-10 sm:h-9 text-xs sm:text-sm font-mono"
                       min={0}
                       max={130}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Weight (kg) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 68"
-                      value={patientWeight}
-                      onChange={(e) => setPatientWeight(e.target.value)}
-                      className="h-9 text-xs font-mono"
-                      min={0}
-                    />
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Weight <span className="text-muted-foreground font-normal">(Optional)</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 68"
+                        value={patientWeight}
+                        onChange={(e) => setPatientWeight(e.target.value)}
+                        className="h-10 sm:h-9 text-xs sm:text-sm font-mono pr-9"
+                        min={0}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                        kg
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Height (cm) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 165"
-                      value={patientHeight}
-                      onChange={(e) => setPatientHeight(e.target.value)}
-                      className="h-9 text-xs font-mono"
-                      min={0}
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Height <span className="text-muted-foreground font-normal">(Optional)</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 165"
+                        value={patientHeight}
+                        onChange={(e) => setPatientHeight(e.target.value)}
+                        className="h-10 sm:h-9 text-xs sm:text-sm font-mono pr-9"
+                        min={0}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                        cm
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Comorbidities Quick Selector */}
-                <div className="space-y-1.5 pt-1">
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold flex items-center gap-1">
-                      <HeartPulse className="w-3 h-3 text-rose-500" />
+                    <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
                       <span>Primary Conditions & Clinical Concerns</span>
                     </Label>
-                    <span className="text-[10px] text-muted-foreground">Select all that apply</span>
+                    <span className="text-[11px] text-muted-foreground">Select all that apply</span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-background/80 rounded-xl border border-border/60">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-muted/30 rounded-xl border border-border/70">
                     {COMMON_COMORBIDITIES.map((c) => {
                       const isSel = selectedConditions.includes(c);
                       return (
@@ -575,14 +635,19 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                           key={c}
                           type="button"
                           onClick={() => toggleCondition(c)}
-                          className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border transition-all ${
+                          className={cn(
+                            "text-xs font-medium px-2.5 sm:px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 touch-manipulation cursor-pointer select-none",
                             isSel
-                              ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs'
-                              : 'bg-muted/50 hover:bg-muted border-border/80 text-foreground'
-                          }`}
+                              ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs scale-[1.02]"
+                              : "bg-background hover:bg-muted text-foreground border-border/80 hover:border-border"
+                          )}
                         >
-                          {isSel ? '✓ ' : '+ '}
-                          {c}
+                          {isSel ? (
+                            <Check className="w-3.5 h-3.5 shrink-0" />
+                          ) : (
+                            <span className="text-muted-foreground font-bold shrink-0">+</span>
+                          )}
+                          <span>{c}</span>
                         </button>
                       );
                     })}
@@ -591,7 +656,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   {/* Custom condition input */}
                   <div className="flex gap-2 pt-1">
                     <Input
-                      placeholder="Or type custom condition (e.g. Glaucoma)..."
+                      placeholder="Or type custom condition (e.g. Glaucoma, Post-CABG)..."
                       value={customCondition}
                       onChange={(e) => setCustomCondition(e.target.value)}
                       onKeyDown={(e) => {
@@ -600,7 +665,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                           handleAddCustomCondition();
                         }
                       }}
-                      className="h-8 text-xs"
+                      className="h-10 sm:h-9 text-xs sm:text-sm"
                     />
                     <Button
                       type="button"
@@ -608,7 +673,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                       size="sm"
                       onClick={handleAddCustomCondition}
                       disabled={!customCondition.trim()}
-                      className="h-8 text-xs shrink-0"
+                      className="h-10 sm:h-9 px-4 text-xs font-bold shrink-0"
                     >
                       Add
                     </Button>
@@ -617,104 +682,114 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
               </div>
 
               {/* SECTION 2: Caregiver Details & Auto-Link */}
-              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
-                    <Phone className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    <div className="p-1 rounded-md bg-emerald-500/10">
+                      <Phone className="w-3.5 h-3.5" />
+                    </div>
                     <span>2. Caregiver Contact & Linkage</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="text-[10px] font-semibold border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
                     Optional but recommended
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Caregiver First Name</Label>
-                      <Input
-                        placeholder="e.g. Suresh"
-                        value={caregiverFirstName}
-                        onChange={(e) => setCaregiverFirstName(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Caregiver Last Name</Label>
-                      <Input
-                        placeholder="e.g. Verma"
-                        value={caregiverLastName}
-                        onChange={(e) => setCaregiverLastName(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Caregiver First Name</Label>
+                    <Input
+                      placeholder="e.g. Suresh"
+                      value={caregiverFirstName}
+                      onChange={(e) => setCaregiverFirstName(e.target.value)}
+                      className="h-10 sm:h-9 text-xs sm:text-sm"
+                    />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Caregiver Mobile Number</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Caregiver Last Name</Label>
+                    <Input
+                      placeholder="e.g. Verma"
+                      value={caregiverLastName}
+                      onChange={(e) => setCaregiverLastName(e.target.value)}
+                      className="h-10 sm:h-9 text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Caregiver Mobile Number</Label>
                     <div className="relative">
-                      <span className="absolute left-2.5 top-2 text-xs font-bold text-muted-foreground">+91</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground font-mono">
+                        +91
+                      </span>
                       <Input
                         type="tel"
                         maxLength={10}
                         placeholder="9820012345"
                         value={caregiverPhone.replace(/\D/g, '').slice(-10)}
                         onChange={(e) => setCaregiverPhone(e.target.value)}
-                        className="pl-10 h-9 text-xs font-mono"
+                        className="pl-12 h-10 sm:h-9 text-xs sm:text-sm font-mono tracking-wider"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Caregiver Age</Label>
-                      <Input
-                        type="number"
-                        min={12}
-                        max={110}
-                        placeholder="e.g. 42"
-                        value={caregiverAge}
-                        onChange={(e) => setCaregiverAge(e.target.value)}
-                        className="h-9 text-xs"
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Caregiver Age</Label>
+                    <Input
+                      type="number"
+                      min={12}
+                      max={110}
+                      placeholder="e.g. 42"
+                      value={caregiverAge}
+                      onChange={(e) => setCaregiverAge(e.target.value)}
+                      className="h-10 sm:h-9 text-xs sm:text-sm font-mono"
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2 p-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[11px] text-muted-foreground">
-                  <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <p>
-                    Adding their mobile number enables <strong>seamless 1-click auto-linking</strong> when the caregiver logs in via Mobile OTP.
-                    {caregiverFirstName.trim() && (
-                      <>
-                        {' '}An email login also works instantly:{' '}
-                        <strong className="font-mono text-foreground">
-                          {deriveDemoLoginEmail(caregiverFirstName, 'caregiver')}
-                        </strong>
-                        , password <strong className="font-mono text-foreground">{DEMO_LOGIN_PASSWORD}</strong>.
-                      </>
-                    )}
-                  </p>
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 text-xs text-foreground">
+                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-blue-950 dark:text-blue-200">
+                      1-Click Instant Linkage & Mobile Access
+                    </p>
+                    <p className="text-muted-foreground text-[11px] leading-relaxed">
+                      Adding their mobile number enables <strong>seamless 1-click auto-linking</strong> when the caregiver logs in via Mobile OTP.
+                      {caregiverFirstName.trim() && (
+                        <>
+                          {' '}An email login also works instantly:{' '}
+                          <code className="font-mono font-bold text-foreground bg-background px-1.5 py-0.5 rounded border border-border/60 text-xs">
+                            {deriveDemoLoginEmail(caregiverFirstName, 'caregiver')}
+                          </code>
+                          , password <code className="font-mono font-bold text-foreground bg-background px-1.5 py-0.5 rounded border border-border/60 text-xs">{DEMO_LOGIN_PASSWORD}</code>.
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               {/* SECTION 3: Multi-Caregiver Network & Formal Support Setup */}
-              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
-                    <Users2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                    <div className="p-1 rounded-md bg-purple-500/10">
+                      <Users2 className="w-3.5 h-3.5" />
+                    </div>
                     <span>3. Caregiver Role & Support Network</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="text-[10px] font-semibold border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/10">
                     Calibrates Burnout Risk
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Primary Relationship (Kinship)</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Primary Relationship (Kinship)</Label>
                     <select
                       value={caregiverKinship}
                       onChange={(e) => setCaregiverKinship(e.target.value as CaregiverAttributes['kinship'])}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
                     >
                       <option value="spouse">Spouse (Wife / Husband)</option>
                       <option value="son">Son</option>
@@ -725,12 +800,12 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Secondary Family Support</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Secondary Family Support</Label>
                     <select
                       value={secondaryFamily}
                       onChange={(e) => setSecondaryFamily(Number(e.target.value))}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
                     >
                       <option value={0}>0 (Solo Elderly Caregiver — High Risk)</option>
                       <option value={1}>1 Member (Son / Daughter assisting)</option>
@@ -740,13 +815,13 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Formal Attendant / Support</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Formal Attendant / Support</Label>
                     <select
                       value={formalSupportType}
                       onChange={(e) => setFormalSupportType(e.target.value as FormalSupportType)}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
                     >
                       <option value="none">None (100% Family Burden)</option>
                       <option value="paid_attendant_12h">Paid Day Attendant (10–12h/day)</option>
@@ -756,50 +831,52 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Attendant Hours / Day</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Attendant Hours / Day</Label>
                     <Input
                       type="number"
                       placeholder="e.g. 10"
                       value={formalSupportHours}
                       onChange={(e) => setFormalSupportHours(e.target.value)}
-                      className="h-8 text-xs font-mono"
+                      className="h-10 sm:h-9 text-xs sm:text-sm font-mono"
                     />
                   </div>
                 </div>
               </div>
 
               {/* SECTION 4: Baseline Functional & Fall Risk Assessment */}
-              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wider">
-                    <Activity className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    <div className="p-1 rounded-md bg-amber-500/10">
+                      <Activity className="w-3.5 h-3.5" />
+                    </div>
                     <span>4. Baseline Functional & Fall Risk Assessment</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="text-[10px] font-semibold border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">
                     Persists to Firestore
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-semibold">Mobility Status</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Mobility Status</Label>
                     <select
                       value={isBedBound ? 'yes' : 'no'}
                       onChange={(e) => setIsBedBound(e.target.value === 'yes')}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold"
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-semibold"
                     >
                       <option value="no">Ambulatory / Mobilized</option>
                       <option value="yes">Bed-Bound (High Ulcer Risk)</option>
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-semibold">Falls (Last 6 Months)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground">Falls (Last 6 Months)</Label>
                     <select
                       value={fallCount}
                       onChange={(e) => setFallCount(Number(e.target.value))}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      className="h-10 sm:h-9 w-full rounded-lg border border-input bg-background px-3 text-xs sm:text-sm font-medium"
                     >
                       <option value={0}>0 Falls</option>
                       <option value={1}>1 Fall</option>
@@ -811,8 +888,15 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
               </div>
             </div>
 
-            <DialogFooter className="gap-2 pt-2 border-t border-border/60">
-              <Button type="button" variant="outline" size="sm" onClick={() => handleOpenChange(false)} className="text-xs font-semibold">
+            {/* Sticky Action Footer */}
+            <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border/70 bg-card/95 backdrop-blur-md flex flex-col-reverse sm:flex-row items-center justify-between gap-2 sm:gap-3 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenChange(false)}
+                className="w-full sm:w-auto h-10 sm:h-9 text-xs sm:text-sm font-semibold"
+              >
                 Cancel
               </Button>
               <Button
@@ -820,18 +904,21 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                 size="sm"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !patientFirstName.trim() || !patientLastName.trim()}
-                className="text-xs font-bold gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                className="w-full sm:w-auto h-10 sm:h-9 text-xs sm:text-sm font-bold gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
               >
                 {isSubmitting ? (
-                  <span>Saving to Roster…</span>
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                    <span>Saving to Roster…</span>
+                  </>
                 ) : (
                   <>
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="w-4 h-4" />
                     <span>Save & Register Patient</span>
                   </>
                 )}
               </Button>
-            </DialogFooter>
+            </div>
           </div>
         )}
       </DialogContent>

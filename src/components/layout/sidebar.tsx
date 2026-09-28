@@ -114,9 +114,9 @@ export function AppSidebar() {
         },
         {
           href: '#register-patient',
-          label: 'Register New Patient',
+          label: 'Add New Patient',
           icon: UserPlus,
-          badge: 'New',
+          badge: null,
           isHighlighted: true
         },
         {
@@ -499,9 +499,11 @@ export function AppSidebar() {
                                 <link.icon className="h-4 w-4 shrink-0 text-blue-300 group-hover:text-white transition-transform duration-200 group-hover:scale-110" />
                                 <span className="truncate">{link.label}</span>
                               </div>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border bg-blue-500/25 text-blue-200 group-hover:bg-white/20 group-hover:text-white border-blue-400/40">
-                                + Add
-                              </span>
+                              {link.badge && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border bg-blue-500/25 text-blue-200 group-hover:bg-white/20 group-hover:text-white border-blue-400/40">
+                                  {link.badge}
+                                </span>
+                              )}
                             </SidebarMenuButton>
                           }
                         />
