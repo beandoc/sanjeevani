@@ -91,6 +91,7 @@ import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMa
 import { invalidateCohortCache } from '@/lib/analytics/cohort';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
 import { RiskHeader } from '@/components/clinician/risk-header';
+import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import type { ClinicalCareBlueprint } from '@/lib/clinical/care-gap-engine';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/use-auth-user';
@@ -146,6 +147,10 @@ const ScissorsChart = dynamic(() =>
   import('@/components/clinician/scissors-chart').then((m) => m.ScissorsChart), {
   loading: () => <PanelSkeleton className="h-64" />
 });
+const PatientFunctionalAssessmentPanel = dynamic(() =>
+  import('@/components/clinician/patient-functional-assessment-panel').then((m) => m.PatientFunctionalAssessmentPanel), {
+  loading: () => <PanelSkeleton className="h-96" />
+});
 
 const FACTOR_LABELS: Record<ZbiFactor, string> = {
   personal_strain: 'Personal Strain',
@@ -156,7 +161,15 @@ const FACTOR_LABELS: Record<ZbiFactor, string> = {
   global_burden: 'Global Burden'
 };
 
-type DyadTab = 'matrix' | 'overview' | 'medications' | 'vitals' | 'dailyLogs' | 'modules' | 'emergency';
+type DyadTab =
+  | 'assessment'
+  | 'matrix'
+  | 'medications'
+  | 'vitals'
+  | 'overview'
+  | 'dailyLogs'
+  | 'emergency'
+  | 'modules';
 
 export default function DyadDetailPage() {
   const router = useRouter();
@@ -170,10 +183,11 @@ export default function DyadDetailPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isDischarging, setIsDischarging] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
-  const [activeTab, setActiveTab] = useState<DyadTab>('overview');
+  const [activeTab, setActiveTab] = useState<DyadTab>('assessment');
   const [displayName, setDisplayName] = useState<string>('');
   const [trajectory, setTrajectory] = useState<TrajectoryResult | null>(null);
   const [latestAssessment, setLatestAssessment] = useState<ZaritEvaluationResult | null>(null);
+  const [functionScores, setFunctionScores] = useState<FunctionEvaluationResult[]>([]);
   const [medications, setMedications] = useState<MedicationItem[]>([]);
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -367,11 +381,13 @@ export default function DyadDetailPage() {
       }
 
       setDisplayName(name);
+      setFunctionScores(functionScores);
       setTrajectory(computeTrajectory(assessments, functionScores, new Date(), interventions));
       setLatestAssessment(assessments[0] ?? null);
     } catch (err) {
       console.warn('Error loading dyad profile, falling back gracefully:', err);
       setDisplayName(patientUid ? patientUid.replace('demo-', '').replace('dyad_', 'Dyad ') : 'Patient Dyad');
+      setFunctionScores([]);
       setTrajectory(computeTrajectory([], []));
       setLatestAssessment(null);
     }
@@ -576,6 +592,21 @@ export default function DyadDetailPage() {
         variant: 'destructive',
         title: 'Saved Locally — Cloud Sync Failed',
         description: `Kept on this device; it will not yet appear on other portals. ${err instanceof Error ? err.message : 'Check your access to this dyad and try again.'}`
+      });
+    }
+  };
+
+  const handleSavePatientProfile = async (updated: PatientDependenceProfile) => {
+    try {
+      await savePatientProfileFor(patientUid, updated);
+      setPatientProfile(updated);
+      toast({ title: 'Patient Profile Updated', description: 'Functional assessment and care demand updated.' });
+      await load();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error Saving Profile',
+        description: err instanceof Error ? err.message : 'Please retry.'
       });
     }
   };
@@ -1256,7 +1287,7 @@ export default function DyadDetailPage() {
                   type="button"
                   onClick={() => {
                     if (step.id === 'function_assessment') {
-                      setActiveTab('overview');
+                      setActiveTab('assessment');
                     } else if (step.id === 'home_context' || step.id === 'caregiver_capacity' || step.id === 'care_matrix') {
                       setActiveTab('matrix');
                     } else if (step.id === 'longitudinal_monitoring') {
@@ -1413,9 +1444,26 @@ export default function DyadDetailPage() {
         );
       })()}
 
-      {/* HORIZONTAL WORKSPACE NAVIGATION TABS */}
+      {/* HORIZONTAL WORKSPACE NAVIGATION TABS - IN LOGICAL CLINICAL DATA FLOW */}
       <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-touch border-b border-border/60">
-        {/* Tab 1: Care Support Matrix */}
+        {/* Tab 1: Patient Functional Assessment (ADL / IADL Foundation) */}
+        <button
+          onClick={() => setActiveTab('assessment')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'assessment'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <Activity className="w-4 h-4 text-indigo-500" />
+          <span>Patient Assessment (ADL/IADL)</span>
+          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'assessment' ? 'bg-white text-primary' : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300')}>
+            Foundation
+          </Badge>
+        </button>
+
+        {/* Tab 2: Monthly Support Matrix (Core Dyad Engine) */}
         <button
           onClick={() => setActiveTab('matrix')}
           className={cn(
@@ -1432,24 +1480,7 @@ export default function DyadDetailPage() {
           </Badge>
         </button>
 
-        {/* Tab 2: Trajectory & Overview */}
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'overview'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>Trajectory & Scissors Chart</span>
-          <Badge variant="outline" className="text-[9px] ml-1 capitalize">
-            {trajectory.riskBand.replace(/-/g, ' ')}
-          </Badge>
-        </button>
-
-        {/* Tab 3: Active Medications */}
+        {/* Tab 3: Active Medications & Regimen */}
         <button
           onClick={() => setActiveTab('medications')}
           className={cn(
@@ -1466,7 +1497,7 @@ export default function DyadDetailPage() {
           </Badge>
         </button>
 
-        {/* Tab 4: Vitals & Observations */}
+        {/* Tab 4: Vital Signs & Telemetry */}
         <button
           onClick={() => setActiveTab('vitals')}
           className={cn(
@@ -1483,7 +1514,24 @@ export default function DyadDetailPage() {
           </Badge>
         </button>
 
-        {/* Tab 5: Daily Bedside Updates */}
+        {/* Tab 5: Trajectory & Scissors Chart */}
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'overview'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>Trajectory & Scissors Chart</span>
+          <Badge variant="outline" className="text-[9px] ml-1 capitalize">
+            {trajectory?.riskBand ? trajectory.riskBand.replace(/-/g, ' ') : 'insufficient data'}
+          </Badge>
+        </button>
+
+        {/* Tab 6: Daily Bedside Updates */}
         <button
           onClick={() => setActiveTab('dailyLogs')}
           className={cn(
@@ -1497,21 +1545,7 @@ export default function DyadDetailPage() {
           <span>Daily Updates</span>
         </button>
 
-        {/* Tab 5: Assigned Modules */}
-        <button
-          onClick={() => setActiveTab('modules')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'modules'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>Education & Guides</span>
-        </button>
-
-        {/* Tab 6: Emergency Readiness */}
+        {/* Tab 7: Emergency Readiness & Logistics */}
         <button
           onClick={() => setActiveTab('emergency')}
           className={cn(
@@ -1526,14 +1560,44 @@ export default function DyadDetailPage() {
           {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
             <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1" />
           ) : (
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping ml-1" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 ml-1" />
           )}
+        </button>
+
+        {/* Tab 8: Assigned Education & Guides */}
+        <button
+          onClick={() => setActiveTab('modules')}
+          className={cn(
+            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
+            activeTab === 'modules'
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+          )}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Education & Guides</span>
         </button>
       </div>
 
       {/* FULL WIDTH MAIN WORKSPACE AREA */}
       <div className="w-full space-y-6">
-        {/* TAB 1: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
+        {/* TAB 1: PATIENT FUNCTIONAL ASSESSMENT (FOUNDATION) */}
+        {activeTab === 'assessment' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <PatientFunctionalAssessmentPanel
+              patientUid={patientUid}
+              patientName={cleanPatientName}
+              patientProfile={patientProfile}
+              functionScores={functionScores}
+              careGapResult={careGapResult}
+              onSaveProfile={handleSavePatientProfile}
+              onAssessmentCompleted={handleFunctionAssessmentSaved}
+              onProceedToMatrix={() => setActiveTab('matrix')}
+            />
+          </div>
+        )}
+
+        {/* TAB 2: CARE SUPPORT MATRIX & MONTHLY PLAN (HIGHLIGHTED FEATURE) */}
         {activeTab === 'matrix' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <CaregiverSupportMatrix
