@@ -381,9 +381,15 @@ export default function DyadDetailPage() {
         });
       }
 
+      const isAssessedProfile = Boolean(
+        prof?.isFunctionalAssessmentCompleted === true ||
+        prof?.functionalAssessedAt ||
+        (patientUid.startsWith('demo-') && functionScores.length > 0)
+      );
+
       setDisplayName(name);
-      setFunctionScores(functionScores);
-      setTrajectory(computeTrajectory(assessments, functionScores, new Date(), interventions));
+      setFunctionScores(isAssessedProfile ? functionScores : []);
+      setTrajectory(computeTrajectory(assessments, isAssessedProfile ? functionScores : [], new Date(), interventions));
       setLatestAssessment(assessments[0] ?? null);
     } catch (err) {
       console.warn('Error loading dyad profile, falling back gracefully:', err);
@@ -586,7 +592,16 @@ export default function DyadDetailPage() {
   const handleFunctionAssessmentSaved = async (result: Parameters<typeof recordFunctionScore>[1]) => {
     try {
       await recordFunctionScore(patientUid, result);
-      toast({ title: 'Function Assessment Saved', description: 'The trajectory chart has been updated.' });
+      if (patientProfile) {
+        const updatedProfile: PatientDependenceProfile = {
+          ...patientProfile,
+          isFunctionalAssessmentCompleted: true,
+          functionalAssessedAt: new Date().toISOString()
+        };
+        await savePatientProfileFor(patientUid, updatedProfile);
+        setPatientProfile(updatedProfile);
+      }
+      toast({ title: 'Function Assessment Saved', description: 'The trajectory chart and care demand have been updated.' });
       await load();
     } catch (err) {
       toast({
@@ -599,8 +614,13 @@ export default function DyadDetailPage() {
 
   const handleSavePatientProfile = async (updated: PatientDependenceProfile) => {
     try {
-      await savePatientProfileFor(patientUid, updated);
-      setPatientProfile(updated);
+      const profileToSave: PatientDependenceProfile = {
+        ...updated,
+        isFunctionalAssessmentCompleted: true,
+        functionalAssessedAt: updated.functionalAssessedAt || new Date().toISOString()
+      };
+      await savePatientProfileFor(patientUid, profileToSave);
+      setPatientProfile(profileToSave);
       toast({ title: 'Patient Profile Updated', description: 'Functional assessment and care demand updated.' });
       await load();
     } catch (err) {
@@ -867,14 +887,20 @@ export default function DyadDetailPage() {
     [caregiver, patientProfile, vitals, appointments, medications]
   );
 
+  const isPatientAssessed = Boolean(
+    patientProfile?.isFunctionalAssessmentCompleted === true ||
+    patientProfile?.functionalAssessedAt ||
+    (patientUid.startsWith('demo-') && trajectory && trajectory.functionSeries.length > 0)
+  );
+
   const workflow = useMemo(
     () => getDyadWorkflow({
       patient: patientProfile,
       caregiver,
-      functionAssessmentCount: trajectory?.functionSeries.length || 0,
+      functionAssessmentCount: isPatientAssessed ? (trajectory?.functionSeries.length || 1) : 0,
       burdenAssessmentCount: trajectory?.burdenSeries.length || 0
     }),
-    [patientProfile, caregiver, trajectory]
+    [patientProfile, caregiver, trajectory, isPatientAssessed]
   );
 
   if (!isMounted || !patientUid || !trajectory) {
@@ -1459,8 +1485,8 @@ export default function DyadDetailPage() {
         >
           <Activity className="w-4 h-4 text-indigo-500" />
           <span>Patient Assessment (ADL/IADL)</span>
-          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'assessment' ? 'bg-white text-primary' : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300')}>
-            Foundation
+          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'assessment' ? 'bg-white text-primary' : isPatientAssessed ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30')}>
+            {isPatientAssessed ? 'Foundation' : 'Intake Needed'}
           </Badge>
         </button>
 
@@ -1592,8 +1618,9 @@ export default function DyadDetailPage() {
               patientUid={patientUid}
               patientName={cleanPatientName}
               patientProfile={patientProfile}
-              functionScores={functionScores}
+              functionScores={isPatientAssessed ? functionScores : []}
               careGapResult={careGapResult}
+              isAssessed={isPatientAssessed}
               onSaveProfile={handleSavePatientProfile}
               onAssessmentCompleted={handleFunctionAssessmentSaved}
               onProceedToMatrix={() => setActiveTab('matrix')}

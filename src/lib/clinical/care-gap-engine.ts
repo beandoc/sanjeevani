@@ -344,6 +344,8 @@ export interface PatientDependenceProfile {
   cognitiveBehavioralLoad: 'none' | 'mild_forgetfulness' | 'wandering_agitation' | 'severe_sundowning';
   fallHistoryLast6Months: number;
   isBedBound: boolean;
+  isFunctionalAssessmentCompleted?: boolean;
+  functionalAssessedAt?: string;
   weightKg?: number;
   heightCm?: number;
   renalFunctionEgfr?: number;

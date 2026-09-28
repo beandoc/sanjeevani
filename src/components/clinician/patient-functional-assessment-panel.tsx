@@ -32,6 +32,7 @@ interface PatientFunctionalAssessmentPanelProps {
   patientProfile: PatientDependenceProfile | null;
   functionScores: FunctionEvaluationResult[];
   careGapResult: CareGapEvaluationResult;
+  isAssessed?: boolean;
   onSaveProfile: (updated: PatientDependenceProfile) => Promise<boolean | void>;
   onAssessmentCompleted: (result: FunctionEvaluationResult) => Promise<void>;
   onProceedToMatrix: () => void;
@@ -43,36 +44,42 @@ export function PatientFunctionalAssessmentPanel({
   patientProfile,
   functionScores,
   careGapResult,
+  isAssessed = false,
   onSaveProfile,
   onAssessmentCompleted,
   onProceedToMatrix
 }: PatientFunctionalAssessmentPanelProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Active Katz values
-  const katz = patientProfile?.katzAdl || {
-    bathing: true,
-    dressing: true,
-    toileting: true,
-    transferring: true,
-    continence: true,
-    feeding: true
-  };
+  // Active Katz values: only true if patient has been assessed or explicitly edited
+  const katz = isAssessed && patientProfile?.katzAdl
+    ? patientProfile.katzAdl
+    : {
+        bathing: Boolean(patientProfile?.katzAdl?.bathing && isAssessed),
+        dressing: Boolean(patientProfile?.katzAdl?.dressing && isAssessed),
+        toileting: Boolean(patientProfile?.katzAdl?.toileting && isAssessed),
+        transferring: Boolean(patientProfile?.katzAdl?.transferring && isAssessed),
+        continence: Boolean(patientProfile?.katzAdl?.continence && isAssessed),
+        feeding: Boolean(patientProfile?.katzAdl?.feeding && isAssessed)
+      };
 
   // Active Lawton values
-  const lawton = patientProfile?.lawtonIadl || {
-    telephone: true,
-    shopping: true,
-    mealPreparation: true,
-    housekeeping: true,
-    laundry: true,
-    transportation: true,
-    medicationManagement: true,
-    finances: true
-  };
+  const lawton = isAssessed && patientProfile?.lawtonIadl
+    ? patientProfile.lawtonIadl
+    : {
+        telephone: Boolean(patientProfile?.lawtonIadl?.telephone && isAssessed),
+        shopping: Boolean(patientProfile?.lawtonIadl?.shopping && isAssessed),
+        mealPreparation: Boolean(patientProfile?.lawtonIadl?.mealPreparation && isAssessed),
+        housekeeping: Boolean(patientProfile?.lawtonIadl?.housekeeping && isAssessed),
+        laundry: Boolean(patientProfile?.lawtonIadl?.laundry && isAssessed),
+        transportation: Boolean(patientProfile?.lawtonIadl?.transportation && isAssessed),
+        medicationManagement: Boolean(patientProfile?.lawtonIadl?.medicationManagement && isAssessed),
+        finances: Boolean(patientProfile?.lawtonIadl?.finances && isAssessed)
+      };
 
   const katzScore = Object.values(katz).filter(Boolean).length;
   const lawtonScore = Object.values(lawton).filter(Boolean).length;
+  const displayFunctionScores = isAssessed ? functionScores : [];
 
   const handleToggleKatz = async (item: keyof typeof katz, nextVal: boolean) => {
     if (!patientProfile) return;
@@ -80,6 +87,8 @@ export function PatientFunctionalAssessmentPanel({
     try {
       const updatedProfile: PatientDependenceProfile = {
         ...patientProfile,
+        isFunctionalAssessmentCompleted: true,
+        functionalAssessedAt: new Date().toISOString(),
         katzAdl: {
           ...katz,
           [item]: nextVal
@@ -97,6 +106,8 @@ export function PatientFunctionalAssessmentPanel({
     try {
       const updatedProfile: PatientDependenceProfile = {
         ...patientProfile,
+        isFunctionalAssessmentCompleted: true,
+        functionalAssessedAt: new Date().toISOString(),
         lawtonIadl: {
           ...lawton,
           [item]: nextVal
@@ -114,6 +125,8 @@ export function PatientFunctionalAssessmentPanel({
     try {
       const updatedProfile: PatientDependenceProfile = {
         ...patientProfile,
+        isFunctionalAssessmentCompleted: true,
+        functionalAssessedAt: new Date().toISOString(),
         isBedBound: nextVal,
         katzAdl: {
           ...katz,
@@ -154,6 +167,11 @@ export function PatientFunctionalAssessmentPanel({
                 <Badge variant="outline" className="text-xs font-semibold border-indigo-500/30 text-indigo-700 dark:text-indigo-300">
                   Katz Basic ADL & Lawton IADL
                 </Badge>
+                {!isAssessed && (
+                  <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                    Intake Needed
+                  </Badge>
+                )}
                 {isUpdating && (
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground animate-pulse">
                     <RefreshCw className="w-3 h-3 animate-spin text-primary" /> Saving...
@@ -205,16 +223,18 @@ export function PatientFunctionalAssessmentPanel({
               </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black font-mono text-indigo-600 dark:text-indigo-400">
-                  {katzScore}
+                  {isAssessed ? katzScore : '--'}
                 </span>
                 <span className="text-xs font-semibold text-muted-foreground">/ 6 items</span>
               </div>
               <p className="text-[11px] font-semibold text-foreground/90 mt-1 capitalize">
-                {katzScore === 6
-                  ? 'Fully Independent'
-                  : katzScore >= 4
-                  ? 'Moderate Impairment'
-                  : 'Severe Dependence'}
+                {isAssessed
+                  ? (katzScore === 6
+                    ? 'Fully Independent'
+                    : katzScore >= 4
+                    ? 'Moderate Impairment'
+                    : 'Severe Dependence')
+                  : <span className="text-amber-600 dark:text-amber-400">Pending Clinical Intake</span>}
               </p>
             </div>
 
@@ -225,12 +245,12 @@ export function PatientFunctionalAssessmentPanel({
               </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black font-mono text-foreground">
-                  {lawtonScore}
+                  {isAssessed ? lawtonScore : '--'}
                 </span>
                 <span className="text-xs font-semibold text-muted-foreground">/ 8 items</span>
               </div>
               <p className="text-[11px] font-semibold text-foreground/90 mt-1">
-                Executive & Instrumental
+                {isAssessed ? 'Executive & Instrumental' : <span className="text-amber-600 dark:text-amber-400">Pending Clinical Intake</span>}
               </p>
             </div>
 
@@ -241,14 +261,16 @@ export function PatientFunctionalAssessmentPanel({
               </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black font-mono text-foreground">
-                  {careGapResult.patientCareDemandHours}
+                  {isAssessed ? careGapResult.patientCareDemandHours : '--'}
                 </span>
-                <span className="text-xs font-semibold text-muted-foreground">hrs / day</span>
+                {isAssessed && <span className="text-xs font-semibold text-muted-foreground">hrs / day</span>}
               </div>
               <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 mt-1">
-                {careGapResult.patientCareDemandHours > 4
-                  ? 'Heavy Continuous Support'
-                  : 'Targeted Intermittent Care'}
+                {isAssessed
+                  ? (careGapResult.patientCareDemandHours > 4
+                    ? 'Heavy Continuous Support'
+                    : 'Targeted Intermittent Care')
+                  : <span className="text-amber-600 dark:text-amber-400">Awaiting Functional Scoring</span>}
               </p>
             </div>
 
@@ -258,7 +280,9 @@ export function PatientFunctionalAssessmentPanel({
                 Mobility & Fall Profile
               </span>
               <div className="text-base font-bold text-foreground truncate mt-0.5">
-                {patientProfile?.isBedBound ? 'Bed-Bound' : 'Ambulatory / Mobilized'}
+                {isAssessed
+                  ? (patientProfile?.isBedBound ? 'Bed-Bound' : 'Ambulatory / Mobilized')
+                  : 'Pending Intake'}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
                 {patientProfile?.fallHistoryLast6Months ?? 0} fall(s) in last 6 months
@@ -267,6 +291,37 @@ export function PatientFunctionalAssessmentPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* CALLOUT BANNER: IF UNASSESSED, SHOW PROMINENT CLINICAL ACTION CALL */}
+      {!isAssessed && (
+        <Card className="rounded-3xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100 shadow-xs">
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Baseline Functional Assessment Not Yet Conducted
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-2xl">
+                  As the attending clinician, you have not yet evaluated <strong>{patientName}</strong>&apos;s functional independence. Formal assessment establishes standardized care hours and unlocks personalized Support Matrix scheduling.
+                </p>
+              </div>
+            </div>
+            <FunctionAssessmentForm
+              onComplete={onAssessmentCompleted}
+              trigger={
+                <Button
+                  size="sm"
+                  className="h-9 px-3 text-xs font-bold gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs"
+                >
+                  <ClipboardPlus className="w-3.5 h-3.5" />
+                  <span>Administer Assessment Now</span>
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* 2. THE 6 BASIC ACTIVITIES OF DAILY LIVING (KATZ ADL) */}
       <Card className="rounded-3xl shadow-xs">
@@ -281,8 +336,14 @@ export function PatientFunctionalAssessmentPanel({
                 Toggle items directly below to record immediate clinical observations. Changes instantly recalculate care demand hours.
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-xs font-bold w-fit">
-              {katzScore} of 6 Independent
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-xs font-bold w-fit',
+                !isAssessed && 'border-amber-500/30 text-amber-700 dark:text-amber-300 bg-amber-500/10'
+              )}
+            >
+              {isAssessed ? `${katzScore} of 6 Independent` : 'Unassessed (0 of 6 evaluated)'}
             </Badge>
           </div>
         </CardHeader>
@@ -290,14 +351,16 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 1: Bed-to-Chair Transfers */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.transferring
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.transferring
               ? 'bg-card border-border/70'
               : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
           )}>
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <Bed className={cn('w-4 h-4', katz.transferring ? 'text-emerald-600' : 'text-rose-600')} />
+                  <Bed className={cn('w-4 h-4', !isAssessed ? 'text-muted-foreground' : katz.transferring ? 'text-emerald-600' : 'text-rose-600')} />
                   <span className="font-bold text-xs text-foreground">Bed-to-Chair Transfers</span>
                 </div>
                 <Switch
@@ -315,8 +378,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.transferring ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
-                {katz.transferring ? 'No Solo Lift Strain' : 'Heavy Lifting Slots'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.transferring
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-rose-700 dark:text-rose-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.transferring
+                  ? 'No Solo Lift Strain'
+                  : 'Heavy Lifting Slots'}
               </span>
             </div>
           </div>
@@ -324,7 +398,9 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 2: Bathing */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.bathing
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.bathing
               ? 'bg-card border-border/70'
               : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
           )}>
@@ -349,8 +425,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.bathing ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400')}>
-                {katz.bathing ? 'Independent Hygiene' : 'Morning Shift Support'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.bathing
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-amber-700 dark:text-amber-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.bathing
+                  ? 'Independent Hygiene'
+                  : 'Morning Shift Support'}
               </span>
             </div>
           </div>
@@ -358,7 +445,9 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 3: Toileting */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.toileting
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.toileting
               ? 'bg-card border-border/70'
               : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
           )}>
@@ -383,8 +472,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.toileting ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400')}>
-                {katz.toileting ? 'Independent' : 'Commode / Fall Risk'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.toileting
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-amber-700 dark:text-amber-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.toileting
+                  ? 'Independent'
+                  : 'Commode / Fall Risk'}
               </span>
             </div>
           </div>
@@ -392,7 +492,9 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 4: Dressing */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.dressing
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.dressing
               ? 'bg-card border-border/70'
               : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
           )}>
@@ -417,8 +519,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.dressing ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400')}>
-                {katz.dressing ? 'Independent' : 'Daily Dressing Assist'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.dressing
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-amber-700 dark:text-amber-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.dressing
+                  ? 'Independent'
+                  : 'Daily Dressing Assist'}
               </span>
             </div>
           </div>
@@ -426,7 +539,9 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 5: Continence */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.continence
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.continence
               ? 'bg-card border-border/70'
               : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
           )}>
@@ -451,8 +566,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.continence ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
-                {katz.continence ? 'Continent' : 'Skin Care & Diapering'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.continence
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-rose-700 dark:text-rose-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.continence
+                  ? 'Continent'
+                  : 'Skin Care & Diapering'}
               </span>
             </div>
           </div>
@@ -460,7 +586,9 @@ export function PatientFunctionalAssessmentPanel({
           {/* ADL 6: Feeding */}
           <div className={cn(
             'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            katz.feeding
+            !isAssessed
+              ? 'bg-card border-border/70'
+              : katz.feeding
               ? 'bg-card border-border/70'
               : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
           )}>
@@ -485,8 +613,19 @@ export function PatientFunctionalAssessmentPanel({
             </div>
             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn('font-bold', katz.feeding ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
-                {katz.feeding ? 'Independent' : 'Aspiration Precautions'}
+              <span className={cn(
+                'font-bold',
+                !isAssessed
+                  ? 'text-muted-foreground'
+                  : katz.feeding
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-rose-700 dark:text-rose-400'
+              )}>
+                {!isAssessed
+                  ? '● Pending Intake'
+                  : katz.feeding
+                  ? 'Independent'
+                  : 'Aspiration Precautions'}
               </span>
             </div>
           </div>
@@ -570,17 +709,21 @@ export function PatientFunctionalAssessmentPanel({
             <div className="my-2">
               <Badge className={cn(
                 'text-xs font-bold uppercase',
-                careGapResult.manualHandlingHazardTier === 'severe'
+                !isAssessed
+                  ? 'bg-muted text-muted-foreground border-border'
+                  : careGapResult.manualHandlingHazardTier === 'severe'
                   ? 'bg-rose-600 text-white'
                   : careGapResult.manualHandlingHazardTier === 'high'
                   ? 'bg-amber-600 text-white'
                   : 'bg-emerald-600 text-white'
               )}>
-                {careGapResult.manualHandlingHazardTier} Hazard
+                {isAssessed ? `${careGapResult.manualHandlingHazardTier} Hazard` : 'Pending Intake'}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Based on patient dependence ({katzScore}/6) and transfer requirements. High hazard requires assistive transfer equipment or formal attendant relief.
+              {isAssessed
+                ? `Based on patient dependence (${katzScore}/6) and transfer requirements. High hazard requires assistive transfer equipment or formal attendant relief.`
+                : 'Manual handling hazard classification will be derived once baseline transfer and mobility observations are entered.'}
             </p>
           </div>
         </CardContent>
@@ -599,8 +742,14 @@ export function PatientFunctionalAssessmentPanel({
                 Evaluates complex cognitive, organizational, and community tasks necessary for independent domestic living.
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-xs font-bold w-fit">
-              {lawtonScore} of 8 Independent
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-xs font-bold w-fit',
+                !isAssessed && 'border-amber-500/30 text-amber-700 dark:text-amber-300 bg-amber-500/10'
+              )}
+            >
+              {isAssessed ? `${lawtonScore} of 8 Independent` : 'Unassessed (0 of 8 evaluated)'}
             </Badge>
           </div>
         </CardHeader>
@@ -621,7 +770,11 @@ export function PatientFunctionalAssessmentPanel({
                 key={key}
                 className={cn(
                   'p-3 rounded-2xl border transition-all flex flex-col justify-between',
-                  isIndep ? 'bg-card border-border/70' : 'bg-muted/40 border-border/60'
+                  !isAssessed
+                    ? 'bg-card border-border/70'
+                    : isIndep
+                    ? 'bg-card border-border/70'
+                    : 'bg-muted/40 border-border/60'
                 )}
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -636,7 +789,9 @@ export function PatientFunctionalAssessmentPanel({
                   {desc}
                 </p>
                 <div className="text-[10px] font-semibold">
-                  {isIndep ? (
+                  {!isAssessed ? (
+                    <span className="text-muted-foreground">● Pending Intake</span>
+                  ) : isIndep ? (
                     <span className="text-emerald-600 dark:text-emerald-400">✓ Independent</span>
                   ) : (
                     <span className="text-muted-foreground">● Caregiver Assisted</span>
@@ -660,13 +815,13 @@ export function PatientFunctionalAssessmentPanel({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
-          {functionScores.length === 0 ? (
+          {displayFunctionScores.length === 0 ? (
             <div className="p-6 rounded-2xl border border-dashed border-border/70 text-center space-y-3">
               <Activity className="w-8 h-8 text-indigo-500 mx-auto" />
               <div>
                 <p className="text-sm font-bold text-foreground">No Formal Barthel/Lawton Assessments Logged</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                  Baseline functional parameters are currently drawn from registration defaults. Administering a formal 10-item Barthel assessment establishes standardized clinical trajectory monitoring.
+                  No functional baseline has been conducted for this patient. Administering a formal 10-item Barthel assessment establishes standardized clinical trajectory monitoring.
                 </p>
               </div>
               <FunctionAssessmentForm

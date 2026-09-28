@@ -233,29 +233,30 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         }
       });
 
-      // 1. Update baseline patient profile with Katz ADL & Bedbound status
+      // 1. Update baseline patient profile with registration demographics (functional assessment marked unassessed)
       await savePatientProfileFor(dyadUid, {
         name: patientName.trim(),
         age: ageNum || 0,
         primaryConditions: selectedConditions,
         katzAdl: {
-          bathing: baselineAdlScore >= 1,
-          dressing: baselineAdlScore >= 2,
-          toileting: baselineAdlScore >= 3,
-          transferring: !isBedBound && baselineAdlScore >= 4,
-          continence: baselineAdlScore >= 5,
-          feeding: baselineAdlScore >= 6
+          bathing: false,
+          dressing: false,
+          toileting: false,
+          transferring: false,
+          continence: false,
+          feeding: false
         },
         lawtonIadl: {
-          telephone: baselineAdlScore >= 4,
-          shopping: baselineAdlScore >= 5,
-          mealPreparation: baselineAdlScore >= 5,
-          housekeeping: baselineAdlScore >= 4,
-          laundry: baselineAdlScore >= 4,
-          transportation: baselineAdlScore >= 5,
-          medicationManagement: baselineAdlScore >= 5,
-          finances: baselineAdlScore >= 5
+          telephone: false,
+          shopping: false,
+          mealPreparation: false,
+          housekeeping: false,
+          laundry: false,
+          transportation: false,
+          medicationManagement: false,
+          finances: false
         },
+        isFunctionalAssessmentCompleted: false,
         cognitiveBehavioralLoad: selectedConditions.some((c) =>
           c.toLowerCase().includes('dementia') || c.toLowerCase().includes('cognitive')
         )
@@ -266,37 +267,6 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
         weightKg: patientWeight ? Number(patientWeight) : undefined,
         heightCm: patientHeight ? Number(patientHeight) : undefined
       });
-
-      // 2. Persist initial functional baseline using standard calculation
-      const funcEval = calculateFunctionScore(
-        {
-          bi_feeding: baselineAdlScore >= 6 ? 10 : 5,
-          bi_bathing: baselineAdlScore >= 1 ? 5 : 0,
-          bi_grooming: baselineAdlScore >= 2 ? 5 : 0,
-          bi_dressing: baselineAdlScore >= 2 ? 10 : 0,
-          bi_bowels: baselineAdlScore >= 5 ? 10 : 5,
-          bi_bladder: baselineAdlScore >= 5 ? 10 : 5,
-          bi_toilet: baselineAdlScore >= 3 ? 10 : 0,
-          bi_transfers: !isBedBound && baselineAdlScore >= 4 ? 15 : 0,
-          bi_mobility: !isBedBound && baselineAdlScore >= 4 ? 15 : 0,
-          bi_stairs: !isBedBound && baselineAdlScore >= 5 ? 10 : 0
-        },
-        {
-          li_telephone: baselineAdlScore >= 4 ? 1 : 0,
-          li_shopping: baselineAdlScore >= 5 ? 1 : 0,
-          li_food: baselineAdlScore >= 5 ? 1 : 0,
-          li_housekeeping: baselineAdlScore >= 4 ? 1 : 0,
-          li_laundry: baselineAdlScore >= 4 ? 1 : 0,
-          li_transport: baselineAdlScore >= 5 ? 1 : 0,
-          li_meds: baselineAdlScore >= 5 ? 1 : 0,
-          li_finances: baselineAdlScore >= 5 ? 1 : 0
-        }
-      );
-      try {
-        await recordFunctionScore(dyadUid, funcEval);
-      } catch (scoreErr) {
-        console.warn('Initial functional score sync notice (local backup active):', scoreErr);
-      }
 
       invalidateCohortCache();
       if (typeof window !== 'undefined') {
