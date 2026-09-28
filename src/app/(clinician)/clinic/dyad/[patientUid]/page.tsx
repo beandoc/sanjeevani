@@ -42,6 +42,7 @@ import {
   Users2,
   TrendingUp,
   BookOpen,
+  Home,
   Car,
   FileText,
   Sparkles,
@@ -53,7 +54,8 @@ import {
   ExternalLink,
   UserMinus,
   Edit3,
-  LayoutDashboard
+  LayoutDashboard,
+  ArrowRight
 } from 'lucide-react';
 import {
   getZaritAssessmentsFor,
@@ -95,7 +97,7 @@ import { useAuthUser } from '@/hooks/use-auth-user';
 import { cn } from '@/lib/utils';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
-import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
+import { DYAD_WORKFLOW_LABEL, getDyadWorkflow, type DyadWorkflowStage } from '@/lib/clinical/dyad-workflow';
 
 function PanelSkeleton({ className }: { className?: string }) {
   return <div className={cn('rounded-3xl border border-border/60 bg-muted/40 animate-pulse h-48', className)} />;
@@ -982,11 +984,17 @@ export default function DyadDetailPage() {
                     {caregiver?.coResidence === 'lives_together' ? 'Co-residing at home' : 'Family Care Circle'}
                   </span>
                   <span className="hidden sm:inline text-border">•</span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    {latestAssessment
-                      ? `ZBI Strain: ${latestAssessment.totalScore}/${latestAssessment.maxScore || (latestAssessment.tier === 'ZBI22' ? 88 : latestAssessment.tier === 'ZBI12' ? 48 : 16)} (${latestAssessment.tier})`
-                      : 'ZBI: Score Intake Needed'}
-                  </span>
+                  {latestAssessment ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                      <HeartHandshake className="w-3.5 h-3.5 text-primary" />
+                      ZBI Strain: {latestAssessment.totalScore}/{latestAssessment.maxScore || (latestAssessment.tier === 'ZBI22' ? 88 : latestAssessment.tier === 'ZBI12' ? 48 : 16)} ({latestAssessment.tier})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <HeartHandshake className="w-3.5 h-3.5 text-amber-500" />
+                      ZBI: Score Intake Needed
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1121,29 +1129,179 @@ export default function DyadDetailPage() {
         </div>
       </div>
 
-      {/* Care must move through a documented sequence. This is intentionally
-          separate from risk: an intake is not a low-risk care plan. */}
-      <Card className="border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-card to-indigo-500/5 shadow-xs">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className="bg-blue-600 text-white text-[10px] uppercase">Care pathway</Badge>
-                <span className="text-sm font-bold">{workflow.completedSteps} of {workflow.totalSteps} steps documented</span>
-                <span className="text-xs text-muted-foreground">Current: {DYAD_WORKFLOW_LABEL[workflow.stage]}</span>
+      {/* Care must move through a documented sequence in logical order:
+          1. Registration -> 2. Functional Assessment -> 3. Home Context -> 4. Caregiver Capacity -> 5. Care Matrix -> 6. Longitudinal Monitoring */}
+      <Card className="border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-card to-indigo-500/5 shadow-xs overflow-hidden">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="min-w-0 space-y-2">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Badge className="bg-blue-600 text-white text-[10px] font-bold tracking-wider uppercase px-2 py-0.5">
+                  Care pathway
+                </Badge>
+                <span className="text-sm font-bold text-foreground">
+                  {workflow.completedSteps} of {workflow.totalSteps} steps documented
+                </span>
+                <div className="w-24 h-2 bg-muted rounded-full overflow-hidden border border-border/60">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((workflow.completedSteps / workflow.totalSteps) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground font-medium">
+                  Current Step: <strong className="text-foreground">{DYAD_WORKFLOW_LABEL[workflow.stage]}</strong>
+                </span>
               </div>
-              <p className="text-xs text-foreground/80 mt-1.5"><strong>{workflow.nextOwner === 'clinician' ? 'Doctor action:' : workflow.nextOwner === 'caregiver' ? 'Caregiver action:' : 'Shared action:'}</strong> {workflow.nextAction}</p>
+              <div className="flex items-start gap-2 text-xs bg-background/80 border border-border/60 rounded-xl px-3 py-2">
+                <span className={cn(
+                  'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5',
+                  workflow.nextOwner === 'clinician' ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' :
+                  workflow.nextOwner === 'caregiver' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' :
+                  'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                )}>
+                  {workflow.nextOwner === 'clinician' ? 'Doctor Action' : workflow.nextOwner === 'caregiver' ? 'Caregiver Action' : 'Shared Action'}
+                </span>
+                <p className="text-foreground/90 font-medium leading-relaxed">
+                  {workflow.nextAction}
+                </p>
+              </div>
             </div>
-            <Button size="sm" variant="outline" className="text-xs shrink-0" onClick={() => setActiveTab(workflow.stage === 'care_matrix' ? 'matrix' : 'overview')}>
-              {workflow.stage === 'care_matrix' ? 'Open care matrix' : 'Open assessments'}
-            </Button>
+
+            {/* Contextual Action Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              {workflow.stage === 'function_assessment' ? (
+                <FunctionAssessmentForm
+                  onComplete={handleFunctionAssessmentSaved}
+                  trigger={
+                    <Button size="sm" className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
+                      <Activity className="w-3.5 h-3.5" />
+                      <span>Record ADL / IADL</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  }
+                />
+              ) : workflow.stage === 'home_context' ? (
+                <Button
+                  size="sm"
+                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                  onClick={() => {
+                    setActiveTab('matrix');
+                    setTimeout(() => {
+                      document.getElementById('care-matrix-config-trigger')?.click();
+                    }, 150);
+                  }}
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  <span>Document Home Context</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : workflow.stage === 'caregiver_capacity' ? (
+                <Button
+                  size="sm"
+                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                  onClick={() => {
+                    setActiveTab('matrix');
+                    setTimeout(() => {
+                      document.getElementById('care-matrix-config-trigger')?.click();
+                    }, 150);
+                  }}
+                >
+                  <Users2 className="w-3.5 h-3.5" />
+                  <span>Record Caregiver Capacity</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : workflow.stage === 'care_matrix' ? (
+                <Button
+                  size="sm"
+                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                  onClick={() => setActiveTab('matrix')}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Configure Care Matrix</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : workflow.stage === 'longitudinal_monitoring' ? (
+                <AssistedZaritAssessmentForm
+                  patientName={cleanPatientName}
+                  caregiverName={caregiver?.name}
+                  onComplete={handleZaritAssessmentSaved}
+                  trigger={
+                    <Button size="sm" className="h-9 text-xs font-bold gap-1.5 bg-rose-600 hover:bg-rose-700 text-white shadow-xs">
+                      <HeartHandshake className="w-3.5 h-3.5" />
+                      <span>Conduct ZBI Burden Check-in</span>
+                    </Button>
+                  }
+                />
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs font-semibold gap-1.5 bg-background/80 hover:bg-muted"
+                  onClick={() => setActiveTab('matrix')}
+                >
+                  <span>Open Care Matrix</span>
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-            {[
-              ['Registration', workflow.completedSteps >= 1], ['Home', workflow.completedSteps >= 2],
-              ['Function', workflow.completedSteps >= 3], ['Caregiver', workflow.completedSteps >= 4],
-              ['Matrix', workflow.completedSteps >= 5], ['Monitor', workflow.completedSteps >= 6]
-            ].map(([label, done]) => <div key={label as string} className={cn('rounded-lg px-2 py-1.5 text-center text-[10px] font-semibold border', done ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted/40 text-muted-foreground border-border/60')}>{done ? '✓ ' : ''}{label as string}</div>)}
+
+          {/* 6 Logical Pathway Steps */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {(workflow.steps || []).map((step, idx) => {
+              const isDone = step.isCompleted;
+              const isCurrent = step.isCurrent;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => {
+                    if (step.id === 'function_assessment') {
+                      setActiveTab('overview');
+                    } else if (step.id === 'home_context' || step.id === 'caregiver_capacity' || step.id === 'care_matrix') {
+                      setActiveTab('matrix');
+                    } else if (step.id === 'longitudinal_monitoring') {
+                      setActiveTab('overview');
+                    }
+                  }}
+                  className={cn(
+                    'group relative flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer',
+                    isDone
+                      ? 'bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 border-emerald-500/30 hover:bg-emerald-500/15'
+                      : isCurrent
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-500/30'
+                      : 'bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted/70 hover:border-border'
+                  )}
+                  title={step.actionPrompt}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className={cn(
+                      'text-[10px] font-bold uppercase tracking-wider',
+                      isCurrent ? 'text-blue-100' : isDone ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
+                    )}>
+                      Step {idx + 1}
+                    </span>
+                    {isDone ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : isCurrent ? (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white text-blue-600 leading-none">
+                        NEXT
+                      </span>
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-border" />
+                    )}
+                  </div>
+                  <div className="font-bold text-xs leading-tight mb-0.5">
+                    {step.shortLabel}
+                  </div>
+                  <div className={cn(
+                    'text-[10px]',
+                    isCurrent ? 'text-blue-100' : 'text-muted-foreground'
+                  )}>
+                    {isDone ? 'Documented' : isCurrent ? 'Active action' : `${step.owner} intake`}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

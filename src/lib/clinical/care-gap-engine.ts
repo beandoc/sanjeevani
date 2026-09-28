@@ -515,21 +515,21 @@ export interface CareGapEvaluationResult {
 
 export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
   name: '',
-  age: 54,
-  gender: 'male',
-  kinship: 'son',
+  age: 48,
+  gender: 'female',
+  kinship: 'spouse',
   coResidence: 'lives_together',
   education: 'graduate',
   employment: 'full_time',
   caregiverHealth: {
-    hasBackPain: true,
-    hasHypertension: true,
+    hasBackPain: false,
+    hasHypertension: false,
     hasArthritis: false,
     hasDiabetes: false,
-    hasInsomnia: true
+    hasInsomnia: false
   },
-  dailyHoursCommitted: 6,
-  monthlyOutOfPocketBurden: 'moderate_strain',
+  dailyHoursCommitted: 0,
+  monthlyOutOfPocketBurden: 'manageable',
   formalTrainingReceived: false,
   formalSupport: {
     type: 'none',
@@ -540,10 +540,10 @@ export const DEFAULT_CAREGIVER_ATTRIBUTES: CaregiverAttributes = {
   homeEnvironment: {
     houseAddress: '',
     landmark: '',
-    hasDedicatedRoom: true,
-    hasAttachedBathroom: true,
+    hasDedicatedRoom: false,
+    hasAttachedBathroom: false,
     floorLevel: 'ground',
-    elevatorAccessible: true
+    elevatorAccessible: false
   }
 };
 
@@ -617,7 +617,7 @@ export class CareGapEngine {
     const patientWasMissing = !patient;
     const caregiverWasMissing = !caregiver;
     const safePatient = patient || DEFAULT_PATIENT_PROFILE;
-    const safeCaregiver = caregiver || DEFAULT_CAREGIVER_ATTRIBUTES;
+    const safeCaregiver = caregiver || { ...DEFAULT_CAREGIVER_ATTRIBUTES, dailyHoursCommitted: 6 };
     const dataQuality = assessClinicalDataQuality(safeCaregiver, safePatient, now);
     if (patientWasMissing || caregiverWasMissing) {
       dataQuality.status = 'requires_data_completion';

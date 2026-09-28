@@ -35,7 +35,9 @@ import {
   Download,
   Printer,
   Bed,
-  Home
+  Home,
+  CalendarClock,
+  Settings
 } from 'lucide-react';
 import {
   CaregiverAttributes,
@@ -178,6 +180,7 @@ export function CaregiverSupportMatrix({
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isPrintSheetOpen, setIsPrintSheetOpen] = useState(false);
   const [isCalendarConsentOpen, setIsCalendarConsentOpen] = useState(false);
+  const [showDraftPreview, setShowDraftPreview] = useState(false);
 
   // Primary Caregiver Form State
   const [firstName, setFirstName] = useState(() => {
@@ -235,26 +238,26 @@ export function CaregiverSupportMatrix({
   );
 
   // Emergency & Logistics State
-  const [hospitalDistanceKm, setHospitalDistanceKm] = useState(
-    caregiver?.emergencyLogistics?.hospitalDistanceKm ?? 4.5
+  const [hospitalDistanceKm, setHospitalDistanceKm] = useState<number | string>(
+    caregiver?.emergencyLogistics?.hospitalDistanceKm ?? ''
   );
-  const [travelTimeMinutes, setTravelTimeMinutes] = useState(
-    caregiver?.emergencyLogistics?.travelTimeMinutes ?? 15
+  const [travelTimeMinutes, setTravelTimeMinutes] = useState<number | string>(
+    caregiver?.emergencyLogistics?.travelTimeMinutes ?? ''
   );
-  const [fourWheelerAvailable, setFourWheelerAvailable] = useState(
-    caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ?? true
+  const [fourWheelerAvailable, setFourWheelerAvailable] = useState<boolean>(
+    caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ?? false
   );
   const [vehicleDetails, setVehicleDetails] = useState(
-    caregiver?.emergencyLogistics?.vehicleDetails || 'Sedan (Parked at Home)'
+    caregiver?.emergencyLogistics?.vehicleDetails || ''
   );
   const [emergencyDriver, setEmergencyDriver] = useState(
     caregiver?.emergencyLogistics?.designatedEmergencyDriver || caregiver?.name || ''
   );
   const [preferredHospital, setPreferredHospital] = useState(
-    caregiver?.emergencyLogistics?.preferredHospitalName || 'AIIMS Geriatric Emergency Wing'
+    caregiver?.emergencyLogistics?.preferredHospitalName || ''
   );
   const [ambulanceContact, setAmbulanceContact] = useState(
-    caregiver?.emergencyLogistics?.ambulanceContact || '108 / 102 (National Helpline)'
+    caregiver?.emergencyLogistics?.ambulanceContact || '108 / 102'
   );
 
   // Home Layout & Environment State
@@ -265,10 +268,10 @@ export function CaregiverSupportMatrix({
     caregiver?.homeEnvironment?.landmark || ''
   );
   const [hasDedicatedRoom, setHasDedicatedRoom] = useState(
-    caregiver?.homeEnvironment?.hasDedicatedRoom ?? true
+    caregiver?.homeEnvironment?.hasDedicatedRoom ?? false
   );
   const [hasAttachedBathroom, setHasAttachedBathroom] = useState(
-    caregiver?.homeEnvironment?.hasAttachedBathroom ?? true
+    caregiver?.homeEnvironment?.hasAttachedBathroom ?? false
   );
   const [floorLevel, setFloorLevel] = useState<'ground' | 'upper_with_lift' | 'upper_stairs_only'>(
     caregiver?.homeEnvironment?.floorLevel || 'ground'
@@ -316,9 +319,15 @@ export function CaregiverSupportMatrix({
   // profile here would flow straight into CareGapEngine.evaluate() and render a care-demand
   // figure, NIOSH lifting index and burnout tier that look real to a clinician — while the
   // engine's own dataQuality check stays silent, because the fake profile is complete.
-  const hasCaregiverProfile = !!caregiver;
-  const hasPatientProfile = !!patient;
-  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile && carePlanningReady;
+  const hasCaregiverProfile = Boolean(caregiver && caregiver.name && caregiver.age > 0);
+  const hasPatientProfile = Boolean(patient && patient.name && patient.age > 0);
+  const hasConfiguredMatrix = Boolean(
+    caregiver?.careBlueprint?.clinicalReview?.decision ||
+    (caregiver?.formalSupport && caregiver.formalSupport.type !== 'none' && caregiver.formalSupport.hoursPerDay > 0) ||
+    caregiver?.emergencyLogistics?.hospitalDistanceKm != null ||
+    (caregiver?.dailyHoursCommitted && caregiver.dailyHoursCommitted > 0 && caregiver.assessmentMetadata?.assessedAt)
+  );
+  const isDyadDocumented = hasCaregiverProfile && hasPatientProfile && carePlanningReady && hasConfiguredMatrix;
 
   // Memoized so identity is stable across renders when the source `caregiver`/
   // `patient` haven't actually changed — currentPatient in particular was a
@@ -1805,26 +1814,63 @@ export function CaregiverSupportMatrix({
             they would be derived from neutral placeholders, so say so plainly rather than
             rendering a demand figure and lifting index a clinician could act on. */}
         {!isDyadDocumented && (
-          <div className="p-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 space-y-1">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Dyad not documented yet — figures below are not clinical
-            </p>
-            <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
-              {!hasPatientProfile && !hasCaregiverProfile
-                ? 'No patient profile and no caregiver matrix are on file for this dyad.'
-                : !hasPatientProfile
-                ? 'No patient ADL/IADL profile is on file, so care demand cannot be estimated.'
-                : 'No caregiver matrix is on file, so capacity and burnout risk cannot be estimated.'}{' '}
-              Use <strong>Configure Matrix</strong> to record it. Roster exports stay disabled until then.
-            </p>
+          <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-5 sm:p-7 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-2xs">
+              <CalendarClock className="w-6 h-6" />
+            </div>
+            <div className="max-w-md mx-auto space-y-1.5">
+              <h3 className="text-base font-bold text-foreground">Care Support Matrix Awaiting Intake Configuration</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Diurnal shift allocations, task delegation, and emergency transit readiness are calculated once the patient&apos;s functional mobility, home environment, and caregiver capacity are recorded.
+              </p>
+            </div>
+
+            {/* Status Checklist */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto text-left pt-1">
+              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">1. Functional Mobility</span>
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  {hasPatientProfile ? <span className="text-emerald-600 font-bold">✓ Profile on File</span> : <span className="text-amber-600 font-bold">● Awaiting ADL/IADL</span>}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Katz ADL / Barthel index for demand</p>
+              </div>
+
+              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">2. Home Environment</span>
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  {currentCaregiver.homeEnvironment?.houseAddress ? <span className="text-emerald-600 font-bold">✓ Address on File</span> : <span className="text-amber-600 font-bold">● Address &amp; Layout Needed</span>}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Room, attached bath &amp; floor level</p>
+              </div>
+
+              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">3. Caregiver Shifts</span>
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  {currentCaregiver.dailyHoursCommitted > 0 ? <span className="text-emerald-600 font-bold">✓ {currentCaregiver.dailyHoursCommitted}h/day committed</span> : <span className="text-amber-600 font-bold">● Shifts Unassigned</span>}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Committed hours, formal care &amp; transit</p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
+              <Button onClick={() => setOpen(true)} className="gap-2 text-xs font-bold h-9 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90">
+                <Settings className="w-3.5 h-3.5" />
+                <span>Configure Support Matrix Now</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDraftPreview(!showDraftPreview)}
+                className="text-xs font-semibold h-9 gap-1.5"
+              >
+                <span>{showDraftPreview ? 'Hide Matrix Template' : 'Preview Matrix Template'}</span>
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Split into two sub-tabs so a single dense card doesn't force the clinician to scroll
-            through caregiver overview, shift roster, demand distribution, task delegation, and
-            emergency logistics all at once — "Overview" is the at-a-glance snapshot, "Care Demand
-            & Coverage" is the detailed breakdown clinicians dig into for plan review. */}
+        {(isDyadDocumented || showDraftPreview) && (
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
             <TabsTrigger value="overview" className="text-xs font-semibold">Overview</TabsTrigger>
@@ -1861,7 +1907,7 @@ export function CaregiverSupportMatrix({
                 {currentCaregiver.name}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {currentCaregiver.age} yrs • {currentCaregiver.coResidence.replace('_', ' ')} • {currentCaregiver.dailyHoursCommitted}h/day committed
+                {currentCaregiver.age} yrs • {currentCaregiver.coResidence.replace('_', ' ')} • {currentCaregiver.dailyHoursCommitted > 0 ? `${currentCaregiver.dailyHoursCommitted}h/day committed` : 'Hours not yet recorded'}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
@@ -1890,6 +1936,13 @@ export function CaregiverSupportMatrix({
                   Diabetes T2
                 </Badge>
               )}
+              {!currentCaregiver.caregiverHealth.hasBackPain &&
+                !currentCaregiver.caregiverHealth.hasInsomnia &&
+                !currentCaregiver.caregiverHealth.hasHypertension &&
+                !currentCaregiver.caregiverHealth.hasArthritis &&
+                !currentCaregiver.caregiverHealth.hasDiabetes && (
+                  <span className="text-[10px] text-muted-foreground italic">No physical ailments reported</span>
+                )}
               {currentCaregiver.employment === 'full_time' && (
                 <Badge variant="outline" className="text-[10px] font-bold text-blue-700 dark:text-blue-300 border-blue-500/30 bg-blue-500/10">
                   Full-Time Job
@@ -2298,8 +2351,10 @@ export function CaregiverSupportMatrix({
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.transfersCovered
-                    ? `Covered by: ${currentEval.taskDelegationStatus.transfersCoveredBy.join(', ')}`
-                    : 'Performed solo by primary caregiver (Causes acute lumbar strain)'}
+                    ? (currentEval.taskDelegationStatus.transfersCoveredBy.length > 0
+                        ? `Covered by: ${currentEval.taskDelegationStatus.transfersCoveredBy.join(', ')}`
+                        : 'Patient independent; no lifting assistance required')
+                    : `Performed solo by ${currentCaregiver.name || 'primary caregiver'} (Spine stress risk)`}
                 </p>
               </div>
 
@@ -2317,8 +2372,10 @@ export function CaregiverSupportMatrix({
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.bathingCovered
-                    ? `Covered by: ${currentEval.taskDelegationStatus.bathingCoveredBy.join(', ')}`
-                    : 'Solely managed by primary caregiver'}
+                    ? (currentEval.taskDelegationStatus.bathingCoveredBy.length > 0
+                        ? `Covered by: ${currentEval.taskDelegationStatus.bathingCoveredBy.join(', ')}`
+                        : 'Patient manages bathing independently')
+                    : `Solely managed by ${currentCaregiver.name || 'primary caregiver'}`}
                 </p>
               </div>
 
@@ -2336,8 +2393,10 @@ export function CaregiverSupportMatrix({
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.medicationsCovered
-                    ? `Covered by: ${currentEval.taskDelegationStatus.medicationsCoveredBy.join(', ')}`
-                    : 'Administered by primary caregiver'}
+                    ? (currentEval.taskDelegationStatus.medicationsCoveredBy.length > 0
+                        ? `Covered by: ${currentEval.taskDelegationStatus.medicationsCoveredBy.join(', ')}`
+                        : 'Self-administered by patient')
+                    : `Administered by ${currentCaregiver.name || 'primary caregiver'}`}
                 </p>
               </div>
 
@@ -2355,8 +2414,10 @@ export function CaregiverSupportMatrix({
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {currentEval.taskDelegationStatus.nightCareCovered
-                    ? `Covered by: ${currentEval.taskDelegationStatus.nightCareCoveredBy.join(', ')}`
-                    : 'No nocturnal attendant; primary caregiver woken 3+ times'}
+                    ? (currentEval.taskDelegationStatus.nightCareCoveredBy.length > 0
+                        ? `Covered by: ${currentEval.taskDelegationStatus.nightCareCoveredBy.join(', ')}`
+                        : 'Uninterrupted night sleep (No nocturnal repositioning needed)')
+                    : `No nocturnal attendant; ${currentCaregiver.name || 'primary caregiver'} on night watch`}
                 </p>
               </div>
             </div>
@@ -2371,25 +2432,32 @@ export function CaregiverSupportMatrix({
             <div className="p-4 sm:p-5 rounded-2xl border border-red-500/30 bg-red-500/5 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Nearest Hospital:</span>
-                <span className="text-sm font-bold font-mono text-foreground">
-                  {currentCaregiver.emergencyLogistics?.hospitalDistanceKm ?? 4.5} km ({currentCaregiver.emergencyLogistics?.travelTimeMinutes ?? 15} mins)
-                </span>
+                {currentCaregiver.emergencyLogistics?.hospitalDistanceKm != null ? (
+                  <span className="text-sm font-bold font-mono text-foreground">
+                    {currentCaregiver.emergencyLogistics.hospitalDistanceKm} km ({currentCaregiver.emergencyLogistics.travelTimeMinutes || '—'} mins)
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Not Documented</span>
+                )}
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">4-Wheeler at Home:</span>
-                {currentCaregiver.emergencyLogistics?.fourWheelerAvailableAtHome ? (
-                  <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Vehicle Parked</Badge>
+                {currentCaregiver.emergencyLogistics?.fourWheelerAvailableAtHome != null ? (
+                  currentCaregiver.emergencyLogistics.fourWheelerAvailableAtHome ? (
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-bold">Vehicle Parked</Badge>
+                  ) : (
+                    <Badge className="bg-red-600 text-white text-[10px] font-bold">No Car (Cab Dependent)</Badge>
+                  )
                 ) : (
-                  <Badge className="bg-red-600 text-white text-[10px] font-bold">No Car (Cab Dependent)</Badge>
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">Pending Intake</Badge>
                 )}
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground">Emergency Driver:</span>
                 <span className="text-xs font-bold text-foreground">
-                  {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() ||
-                    (currentCaregiver.name ? `${currentCaregiver.name} (Caregiver)` : 'Not designated')}
+                  {currentCaregiver.emergencyLogistics?.designatedEmergencyDriver?.trim() || 'Not designated'}
                 </span>
               </div>
             </div>
@@ -2397,6 +2465,7 @@ export function CaregiverSupportMatrix({
         </div>
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
 
       <ConsentedExportDialogs
