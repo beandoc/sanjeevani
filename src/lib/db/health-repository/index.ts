@@ -29,11 +29,21 @@ import * as dyadprofile from './dyad-profile';
 import * as registeredpatients from './registered-patients';
 import * as dataportability from './data-portability';
 import * as calibrationlog from './calibration-log';
+import * as caregiverdiary from './caregiver-diary';
 
 export * from './types';
+export * from './caregiver-diary';
 export { STORAGE_KEYS } from './storage-keys';
 
 export const HealthRepository = {
+  // Caregiver 1-tap diary & empirical calibration feedback
+  recordCaregiverDiaryEntry: caregiverdiary.recordCaregiverDiaryEntry,
+  getCaregiverDiaryEntries: caregiverdiary.getCaregiverDiaryEntries,
+  deleteCaregiverDiaryEntry: caregiverdiary.deleteCaregiverDiaryEntry,
+  clearCaregiverDiaryEntries: caregiverdiary.clearCaregiverDiaryEntries,
+  getCaregiverDiaryCalibrationSummary: caregiverdiary.getCaregiverDiaryCalibrationSummary,
+  getCurrentDiurnalPrompt: caregiverdiary.getCurrentDiurnalPrompt,
+
   // Care-time calibration log (Phase 0 instrumentation) — see
   // docs/care-time-calibration-protocol.md
   getCareDemandEstimateLog: calibrationlog.getCareDemandEstimateLog,

@@ -22,5 +22,6 @@ export const STORAGE_KEYS = {
   CLINICIAN_PATIENTS: 'sanjeevani_clinician_patients',
   DYAD_INVITES: 'sanjeevani_dyad_invites',
   ARCHIVED_DYADS: 'sanjeevani_archived_dyads',
-  CARE_DEMAND_ESTIMATE_LOG: 'sanjeevani_care_demand_estimate_log'
+  CARE_DEMAND_ESTIMATE_LOG: 'sanjeevani_care_demand_estimate_log',
+  CAREGIVER_DIARY_LOG: 'sanjeevani_caregiver_diary_log'
 };

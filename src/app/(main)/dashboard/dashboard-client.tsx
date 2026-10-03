@@ -84,6 +84,7 @@ const CareIntelligencePanel = dynamic(() =>
   import('@/components/clinical/care-intelligence-panel').then((m) => m.CareIntelligencePanel), {
   loading: () => <DashboardSkeleton />
 });
+import { CaregiverQuickDiaryCard } from '@/components/caregiver/caregiver-quick-diary-card';
 
 function DashboardSkeleton() {
   return <div className="rounded-2xl border border-border/60 bg-muted/40 animate-pulse h-48" />;
@@ -438,6 +439,12 @@ export default function DashboardClient() {
               })}
             </CardContent>
           </Card>
+
+          {/* 1-Tap Caregiver Diary Check-in & Calibration Loop */}
+          <CaregiverQuickDiaryCard
+            patientUid={currentUserUid || undefined}
+            patientName={mounted ? (patientProfile?.name || HealthRepository.getPatientProfile().name) : 'Your Loved One'}
+          />
 
           <DailyCareLogPanel
             patientUid={currentUserUid || undefined}

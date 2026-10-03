@@ -276,3 +276,64 @@ export interface CareDemandEstimateLog {
   /** Absent until a clinician records what they decided. */
   decision?: CareDemandDecision;
 }
+
+/* ------------------------------------------------------------------ *
+ * CAREGIVER 1-TAP DIARY & REAL-WORLD CALIBRATION TYPES
+ * ------------------------------------------------------------------ */
+
+export type CaregiverDiaryTimeBlock =
+  | 'morning_rush'
+  | 'afternoon'
+  | 'evening'
+  | 'night_watch';
+
+export type CaregiverDiaryTaskCategory =
+  | 'transfers_mobility'      // Bed-to-chair, walking assistance
+  | 'bathing_hygiene'         // Sponge/bath, grooming, dressing
+  | 'feeding_meals'           // Breakfast, lunch, dinner, hydration
+  | 'medications'             // Pills, insulin, vitals
+  | 'toileting_incontinence'  // Commode, diaper change, skin prep
+  | 'night_repositioning'     // 2-hourly turns, sleep safety
+  | 'general_supervision';    // Active wandering/fall vigilance
+
+export type CaregiverDurationBracket =
+  | 'under_15m'
+  | '15_to_30m'
+  | '30_to_60m'
+  | '60_to_120m'
+  | 'over_120m';
+
+export interface CaregiverDiaryEntry {
+  id: string;
+  patientUid?: string | null;
+  recordedAt: string;          // ISO timestamp
+  date: string;                // YYYY-MM-DD
+  timeBlock: CaregiverDiaryTimeBlock;
+  taskCategory: CaregiverDiaryTaskCategory;
+  durationBracket: CaregiverDurationBracket;
+  durationMinutes: number;     // e.g. 10, 22.5, 45, 90, 150
+  staffCount: 1 | 2;
+  physicalStrain: 'mild' | 'moderate' | 'heavy_strain';
+  notes?: string;
+}
+
+export interface CaregiverTaskCalibrationMetric {
+  taskCategory: CaregiverDiaryTaskCategory;
+  timeBlock: CaregiverDiaryTimeBlock;
+  sampleCount: number;
+  meanMinutes: number;
+  minMinutes: number;
+  maxMinutes: number;
+  twoPersonFrequencyPercent: number;
+  lastLoggedAt: string;
+}
+
+export interface CaregiverDiaryCalibrationReport {
+  patientUid?: string | null;
+  totalEntries: number;
+  firstLoggedAt?: string;
+  lastLoggedAt?: string;
+  metricsByTask: Record<string, CaregiverTaskCalibrationMetric>;
+  averageDailyHandsOnMinutes: number;
+  empiricalDirectCareHours: number;
+}

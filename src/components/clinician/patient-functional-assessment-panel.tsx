@@ -16,7 +16,8 @@ import {
   Bed,
   Layers,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
 import type { PatientDependenceProfile, CareGapEvaluationResult } from '@/lib/clinical/care-gap-engine';
@@ -24,6 +25,8 @@ import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { cn } from '@/lib/utils';
 import { CareDemandBandValue } from '@/components/clinical/care-demand-band';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import { HealthRepository } from '@/lib/db/health-repository';
+import { CaregiverDiaryHistoryDialog } from '@/components/caregiver/caregiver-diary-history-dialog';
 
 interface PatientFunctionalAssessmentPanelProps {
   patientUid: string;
@@ -38,7 +41,7 @@ interface PatientFunctionalAssessmentPanelProps {
 }
 
 export function PatientFunctionalAssessmentPanel({
-  patientUid: _patientUid,
+  patientUid,
   patientName,
   patientProfile,
   functionScores,
@@ -50,6 +53,10 @@ export function PatientFunctionalAssessmentPanel({
 }: PatientFunctionalAssessmentPanelProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [intakePart, setIntakePart] = useState<'basic' | 'instrumental'>('basic');
+  const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+
+  // Read caregiver empirical diary summary for live calibration feedback
+  const diarySummary = HealthRepository.getCaregiverDiaryCalibrationSummary(patientUid);
 
   // Active Katz values: only true if patient has been assessed or explicitly edited
   const katz = isAssessed && patientProfile?.katzAdl
@@ -277,6 +284,21 @@ export function PatientFunctionalAssessmentPanel({
                     Workload (hands-on + supervision). Presence required:{' '}
                     <strong className="text-foreground">{careGapResult.patientCoverageHours} h/day</strong>.
                   </p>
+                  {diarySummary && diarySummary.totalEntries > 0 && (
+                    <div className="pt-2 mt-1 border-t border-border/50 flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {diarySummary.totalEntries} Diary Logs Calibrating
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsDiaryModalOpen(true)}
+                        className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        View Logs →
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -965,6 +987,14 @@ export function PatientFunctionalAssessmentPanel({
           </div>
         </div>
       )}
+
+      {/* Caregiver Empirical Diary Observations Modal */}
+      <CaregiverDiaryHistoryDialog
+        open={isDiaryModalOpen}
+        onOpenChange={setIsDiaryModalOpen}
+        patientUid={patientUid}
+        patientName={patientName}
+      />
     </div>
   );
 }

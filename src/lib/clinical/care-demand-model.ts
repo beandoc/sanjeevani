@@ -119,8 +119,27 @@ import {
 } from './function-scale';
 import { CLINICAL_PROVENANCE, type ClinicalProvenance } from './provenance';
 import type { DiurnalTimeBlock } from './care-gap-constants';
+import type {
+  CaregiverDiaryCalibrationReport,
+  CaregiverDiaryTaskCategory
+} from '../db/health-repository/types';
 
 export type { DiurnalTimeBlock };
+
+export const ITEM_TO_DIARY_TASK_MAP: Record<string, CaregiverDiaryTaskCategory> = {
+  bi_feeding: 'feeding_meals',
+  bi_bathing: 'bathing_hygiene',
+  bi_grooming: 'bathing_hygiene',
+  bi_dressing: 'bathing_hygiene',
+  bi_bowels: 'toileting_incontinence',
+  bi_bladder: 'toileting_incontinence',
+  bi_toilet: 'toileting_incontinence',
+  bi_transfer: 'transfers_mobility',
+  bi_mobility: 'transfers_mobility',
+  bi_stairs: 'transfers_mobility',
+  iadl_medication: 'medications',
+  iadl_food: 'feeding_meals'
+};
 
 export type CareTimeType = 'directCare' | 'supervision' | 'onCall';
 
@@ -536,6 +555,8 @@ export interface CareDemandInput {
   fallHistoryLast6Months?: number;
   hasMotorizedBedAndRippleMattress?: boolean;
   assessmentSource?: AssessmentSource;
+  /** Empirical 1-tap diary observations from caregiver, if available for calibration. */
+  diaryCalibration?: CaregiverDiaryCalibrationReport;
 }
 
 /* ------------------------------------------------------------------ *
@@ -664,11 +685,31 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     morning_rush: 0, afternoon: 0, evening: 0, night_watch: 0
   };
 
+  const diarySummary = input.diaryCalibration;
+
   const addDriver = (item: FunctionItem, w: TaskWeight, calibrationKey: string) => {
-    // A measured coefficient replaces the consensus default. A clinician's
-    // explicit frequency override still wins over both: they are describing
-    // this patient, the study described a population.
-    const cal = isCellCalibrated(calibrationKey) ? CALIBRATION_REGISTRY[calibrationKey] : undefined;
+    // A measured coefficient or empirical caregiver diary observation replaces
+    // the consensus default. A clinician's explicit frequency override still wins over both.
+    const registryCal = isCellCalibrated(calibrationKey) ? CALIBRATION_REGISTRY[calibrationKey] : undefined;
+
+    // Check if real-world caregiver 1-tap diary calibration exists for this task category
+    const diaryCategory = ITEM_TO_DIARY_TASK_MAP[item.id];
+    let diaryCal: { minutesPerEpisode: number; frequencyPerDay?: number; episodeCount: number } | undefined;
+    if (diarySummary?.metricsByTask && diaryCategory) {
+      // Look for a task match across diurnal blocks
+      const matchingKey = Object.keys(diarySummary.metricsByTask).find(
+        (k) => k.startsWith(`${diaryCategory}__`)
+      );
+      const metric = matchingKey ? diarySummary.metricsByTask[matchingKey] : undefined;
+      if (metric && metric.sampleCount >= 2) {
+        diaryCal = {
+          minutesPerEpisode: metric.meanMinutes,
+          episodeCount: metric.sampleCount
+        };
+      }
+    }
+
+    const cal = diaryCal ?? registryCal;
     const minutesPerEpisode = cal?.minutesPerEpisode ?? w.minutesPerEpisode;
     const defaultFreq = cal?.frequencyPerDay ?? w.frequencyPerDay;
     const freq = overrides[item.id] ?? defaultFreq;
@@ -853,6 +894,9 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   }
   if (Object.keys(overrides).length === 0) {
     bandBasis.push('Task frequencies are model defaults, not clinician-confirmed for this patient.');
+  }
+  if (diarySummary && diarySummary.totalEntries > 0) {
+    bandBasis.push(`Calibrated using ${diarySummary.totalEntries} 1-tap caregiver diary observation(s) from daily home routine.`);
   }
   half = Math.min(half, BAND_WIDTH.max);
 
