@@ -337,3 +337,69 @@ export interface CaregiverDiaryCalibrationReport {
   averageDailyHandsOnMinutes: number;
   empiricalDirectCareHours: number;
 }
+
+/* ------------------------------------------------------------------ *
+ * INPATIENT PRE-DISCHARGE CARE TIMING BENCHMARK TYPES
+ * ------------------------------------------------------------------ */
+
+export type InpatientObserverRole =
+  | 'doctor'
+  | 'staff_nurse'
+  | 'gda_technician'
+  | 'physiotherapist'
+  | 'occupational_therapist';
+
+export type InpatientTransferAssistType =
+  | 'walker_standby'
+  | 'one_person_pivot'
+  | 'two_person_lift_or_sheet'
+  | 'mechanical_hoist';
+
+export type InpatientFeedingAssistType =
+  | 'independent'
+  | 'setup_and_prompting'
+  | 'full_spoon_feeding'
+  | 'enteral_tube_feeding';
+
+export interface InpatientDischargeBenchmark {
+  id: string;
+  patientUid: string;
+  recordedAt: string;          // ISO timestamp
+  observerRole: InpatientObserverRole;
+  observerName: string;
+  wardOrBedNumber?: string;
+
+  // Actual timed inpatient episodes in last 24-48h pre-discharge
+  spongeBathMinutes: number;
+  spongeBathStaffCount: 1 | 2;
+
+  bedToChairTransferMinutes: number;
+  transferStaffCount: 1 | 2;
+  transferAssistType: InpatientTransferAssistType;
+
+  mealFeedingMinutesPerMeal: number;
+  mealsRequiringAssistancePerDay: number;
+  feedingAssistType: InpatientFeedingAssistType;
+
+  toiletingDiaperMinutes: number;
+  toiletingEpisodesPerDay: number;
+  toiletingStaffCount: 1 | 2;
+
+  repositioningTurnMinutes: number;
+  repositioningIntervalHours: number;
+  repositioningStaffCount: 1 | 2;
+
+  medicationAdministrationMinutes: number;
+  medicationSlotsPerDay: number;
+
+  // Environmental Translation Multiplier (Hospital -> Home adaptation penalty)
+  // Default is 1.35x (hospital motorized bed -> home domestic bed/narrow doors)
+  environmentalPenaltyMultiplier: number;
+
+  // Derived calculations
+  inpatientDirectCareMinutesPerDay: number;
+  homeProjectedDirectCareHoursPerDay: number;
+  requiresTwoPersonTransfers: boolean;
+  clinicalDischargeNotes?: string;
+}
+

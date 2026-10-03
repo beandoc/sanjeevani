@@ -20,6 +20,7 @@ import {
   type CareDemandBand
 } from './care-demand-model';
 import type { AssessmentSource } from './function-scale';
+import type { InpatientDischargeBenchmark } from '../db/health-repository/types';
 import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
@@ -405,6 +406,7 @@ export interface PatientDependenceProfile {
   assistiveDevices?: AssistiveDeviceInventory;
   currentMedications?: Array<{ name: string; genericName?: string }>;
   assessmentMetadata?: ClinicalAssessmentMetadata;
+  inpatientBenchmark?: InpatientDischargeBenchmark;
 }
 
 export interface CareGapEvaluationResult {
@@ -868,7 +870,8 @@ export class CareGapEngine {
       fallHistoryLast6Months: safePatient.fallHistoryLast6Months,
       hasMotorizedBedAndRippleMattress:
         safeDevices.hospitalBed === 'motorized_multichannel' && !!safeDevices.airWaterMattress,
-      assessmentSource: safePatient.functionAssessmentSource
+      assessmentSource: safePatient.functionAssessmentSource,
+      inpatientBenchmark: safePatient.inpatientBenchmark
     });
 
     // Midpoint of ACTIVE care (hands-on + supervision), retained for backward
@@ -1547,6 +1550,24 @@ export class CareGapEngine {
         impact: 'Can reduce stooping during bedside care when used safely and matched to the home environment.',
         urgency: 'priority'
       });
+    }
+
+    if (safePatient.inpatientBenchmark?.requiresTwoPersonTransfers) {
+      clinicalFindings.push(
+        'Inpatient Benchmark Safety Alert: Patient required 2-person assistance for bed-to-chair transfers in hospital. Single-caregiver unassisted transfers at home present high spinal load and fall hazards.'
+      );
+      if (!isTransfersRelieved) {
+        qualityOfCareWarnings.push(
+          'Pre-Discharge Benchmark Warning: 2-person transfer requirement documented in hospital is currently unstaffed at home. Patient cannot safely be transferred by a lone caregiver without secondary assistance or mechanical hoist.'
+        );
+        prescriptions.push({
+          id: 'rx_two_person_transfer_safety',
+          title: 'Mandatory 2-Person Transfer Safety Protocol',
+          action: 'Arrange a secondary family carer or formal attendant for transfer times, or evaluate for mechanical patient hoist / slide sheet protocol before discharge.',
+          impact: 'Eliminates dangerous unassisted single-caregiver manual lifting of dependent patient.',
+          urgency: 'urgent'
+        });
+      }
     }
 
     if (netCareGapHours >= 3.0 && selectedTypes.length === 0) {

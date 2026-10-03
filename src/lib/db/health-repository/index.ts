@@ -30,12 +30,20 @@ import * as registeredpatients from './registered-patients';
 import * as dataportability from './data-portability';
 import * as calibrationlog from './calibration-log';
 import * as caregiverdiary from './caregiver-diary';
+import * as inpatientbenchmark from './inpatient-benchmark';
 
 export * from './types';
 export * from './caregiver-diary';
+export * from './inpatient-benchmark';
 export { STORAGE_KEYS } from './storage-keys';
 
 export const HealthRepository = {
+  // Inpatient pre-discharge benchmark timing & calibration
+  saveInpatientDischargeBenchmark: inpatientbenchmark.saveInpatientDischargeBenchmark,
+  getInpatientDischargeBenchmark: inpatientbenchmark.getInpatientDischargeBenchmark,
+  calculateBenchmarkSummary: inpatientbenchmark.calculateBenchmarkSummary,
+  clearInpatientDischargeBenchmark: inpatientbenchmark.clearInpatientDischargeBenchmark,
+
   // Caregiver 1-tap diary & empirical calibration feedback
   recordCaregiverDiaryEntry: caregiverdiary.recordCaregiverDiaryEntry,
   getCaregiverDiaryEntries: caregiverdiary.getCaregiverDiaryEntries,

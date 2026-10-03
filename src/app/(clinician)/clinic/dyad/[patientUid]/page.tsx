@@ -352,6 +352,12 @@ export default function DyadDetailPage() {
           source: latest.provenance?.score?.source || 'Canonical Clinical History'
         };
       }
+      if (prof) {
+        const storedBm = HealthRepository.getInpatientDischargeBenchmark(patientUid);
+        if (storedBm && !prof.inpatientBenchmark) {
+          prof = { ...prof, inpatientBenchmark: storedBm };
+        }
+      }
       setCaregiver(cgAttrs);
       setPatientProfile(prof);
 
@@ -409,6 +415,19 @@ export default function DyadDetailPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted, patientUid]);
+
+  useEffect(() => {
+    const handleBenchmarkEvent = () => {
+      void load();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sanjeevani:inpatient-benchmark-updated', handleBenchmarkEvent);
+      return () => {
+        window.removeEventListener('sanjeevani:inpatient-benchmark-updated', handleBenchmarkEvent);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientUid]);
 
   const handleZaritAssessmentSaved = async (result: ZaritEvaluationResult) => {
     try {

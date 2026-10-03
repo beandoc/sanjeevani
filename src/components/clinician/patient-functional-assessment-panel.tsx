@@ -17,7 +17,8 @@ import {
   Layers,
   Calendar,
   RefreshCw,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
 import type { PatientDependenceProfile, CareGapEvaluationResult } from '@/lib/clinical/care-gap-engine';
@@ -25,8 +26,9 @@ import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { cn } from '@/lib/utils';
 import { CareDemandBandValue } from '@/components/clinical/care-demand-band';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
-import { HealthRepository } from '@/lib/db/health-repository';
+import { HealthRepository, type InpatientDischargeBenchmark } from '@/lib/db/health-repository';
 import { CaregiverDiaryHistoryDialog } from '@/components/caregiver/caregiver-diary-history-dialog';
+import { InpatientDischargeBenchmarkDialog } from './inpatient-discharge-benchmark-dialog';
 
 interface PatientFunctionalAssessmentPanelProps {
   patientUid: string;
@@ -57,6 +59,31 @@ export function PatientFunctionalAssessmentPanel({
 
   // Read caregiver empirical diary summary for live calibration feedback
   const diarySummary = HealthRepository.getCaregiverDiaryCalibrationSummary(patientUid);
+
+  const handleBenchmarkSaved = async (benchmark: InpatientDischargeBenchmark) => {
+    if (!patientProfile) return;
+    setIsUpdating(true);
+    try {
+      const updated: PatientDependenceProfile = {
+        ...patientProfile,
+        inpatientBenchmark: benchmark
+      };
+      await onSaveProfile(updated);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleBenchmarkCleared = async () => {
+    if (!patientProfile) return;
+    setIsUpdating(true);
+    try {
+      const { inpatientBenchmark: _unused, ...rest } = patientProfile;
+      await onSaveProfile(rest as PatientDependenceProfile);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Active Katz values: only true if patient has been assessed or explicitly edited
   const katz = isAssessed && patientProfile?.katzAdl
@@ -208,6 +235,13 @@ export function PatientFunctionalAssessmentPanel({
                   </Button>
                 }
               />
+              <InpatientDischargeBenchmarkDialog
+                patientUid={patientUid}
+                patientName={patientName}
+                patientProfile={patientProfile}
+                onBenchmarkSaved={handleBenchmarkSaved}
+                onBenchmarkCleared={handleBenchmarkCleared}
+              />
               <Button
                 size="sm"
                 variant="outline"
@@ -297,6 +331,19 @@ export function PatientFunctionalAssessmentPanel({
                       >
                         View Logs →
                       </button>
+                    </div>
+                  )}
+                  {patientProfile?.inpatientBenchmark && (
+                    <div className="pt-1.5 mt-1 border-t border-border/50 flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                        <Building2 className="w-3 h-3" />
+                        Inpatient Calibrated (T_hosp × {patientProfile.inpatientBenchmark.environmentalPenaltyMultiplier}x)
+                      </span>
+                      {patientProfile.inpatientBenchmark.requiresTwoPersonTransfers && (
+                        <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1.5 py-0 border-rose-500/30">
+                          2-Staff Required
+                        </Badge>
+                      )}
                     </div>
                   )}
                 </>

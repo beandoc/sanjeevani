@@ -121,7 +121,8 @@ import { CLINICAL_PROVENANCE, type ClinicalProvenance } from './provenance';
 import type { DiurnalTimeBlock } from './care-gap-constants';
 import type {
   CaregiverDiaryCalibrationReport,
-  CaregiverDiaryTaskCategory
+  CaregiverDiaryTaskCategory,
+  InpatientDischargeBenchmark
 } from '../db/health-repository/types';
 
 export type { DiurnalTimeBlock };
@@ -272,6 +273,10 @@ export interface CareDemandBand {
   bandRelativeHalfWidth: number;
   inputGranularity: 'graded' | 'legacy_binary';
   provenance: ClinicalProvenance;
+  /** True when pre-discharge inpatient timing benchmark calibrated this estimate. */
+  inpatientBenchmarkApplied?: boolean;
+  /** True when inpatient benchmark demonstrated 2-person transfer requirement. */
+  requiresTwoPersonTransfers?: boolean;
 }
 
 /* ------------------------------------------------------------------ *
@@ -557,6 +562,8 @@ export interface CareDemandInput {
   assessmentSource?: AssessmentSource;
   /** Empirical 1-tap diary observations from caregiver, if available for calibration. */
   diaryCalibration?: CaregiverDiaryCalibrationReport;
+  /** Inpatient pre-discharge care timing benchmark observed by ward staff. */
+  inpatientBenchmark?: InpatientDischargeBenchmark;
 }
 
 /* ------------------------------------------------------------------ *
@@ -709,12 +716,65 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
       }
     }
 
-    const cal = diaryCal ?? registryCal;
+    // Check if inpatient pre-discharge benchmark exists for this task
+    let benchmarkCal:
+      | {
+          minutesPerEpisode: number;
+          frequencyPerDay?: number;
+          staffRequired?: number;
+          episodeCount: number;
+        }
+      | undefined;
+
+    if (input.inpatientBenchmark && w.minutesPerEpisode > 0) {
+      const bm = input.inpatientBenchmark;
+      const penalty = bm.environmentalPenaltyMultiplier || 1.35;
+
+      if (item.id === 'bi_bathing' && bm.spongeBathMinutes > 0) {
+        benchmarkCal = {
+          minutesPerEpisode: Math.round(bm.spongeBathMinutes * penalty),
+          staffRequired: bm.spongeBathStaffCount,
+          episodeCount: 1
+        };
+      } else if (item.id === 'bi_transfer' && bm.bedToChairTransferMinutes > 0) {
+        benchmarkCal = {
+          minutesPerEpisode: Math.round(bm.bedToChairTransferMinutes * penalty),
+          staffRequired: bm.transferStaffCount,
+          episodeCount: 1
+        };
+      } else if (item.id === 'bi_feeding' && bm.mealFeedingMinutesPerMeal > 0) {
+        benchmarkCal = {
+          minutesPerEpisode: Math.round(bm.mealFeedingMinutesPerMeal * penalty),
+          frequencyPerDay: bm.mealsRequiringAssistancePerDay,
+          staffRequired: 1,
+          episodeCount: 1
+        };
+      } else if (
+        (item.id === 'bi_toilet' || item.id === 'bi_bowels' || item.id === 'bi_bladder') &&
+        bm.toiletingDiaperMinutes > 0
+      ) {
+        benchmarkCal = {
+          minutesPerEpisode: Math.round(bm.toiletingDiaperMinutes * penalty),
+          staffRequired: bm.toiletingStaffCount,
+          episodeCount: 1
+        };
+      } else if (item.id === 'iadl_medication' && bm.medicationAdministrationMinutes > 0) {
+        benchmarkCal = {
+          minutesPerEpisode: Math.round(bm.medicationAdministrationMinutes * penalty),
+          frequencyPerDay: bm.medicationSlotsPerDay,
+          staffRequired: 1,
+          episodeCount: 1
+        };
+      }
+    }
+
+    const cal = diaryCal ?? benchmarkCal ?? registryCal;
+    const staffRequired = benchmarkCal?.staffRequired ?? w.staffRequired;
     const minutesPerEpisode = cal?.minutesPerEpisode ?? w.minutesPerEpisode;
     const defaultFreq = cal?.frequencyPerDay ?? w.frequencyPerDay;
     const freq = overrides[item.id] ?? defaultFreq;
 
-    const minutesPerDay = freq * minutesPerEpisode * w.staffRequired;
+    const minutesPerDay = freq * minutesPerEpisode * staffRequired;
     if (minutesPerDay <= 0 || w.blocks.length === 0) return;
 
     if (cal) {
@@ -731,7 +791,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
       timeType: w.timeType,
       frequencyPerDay: freq,
       minutesPerEpisode,
-      staffRequired: w.staffRequired,
+      staffRequired,
       minutesPerDay,
       blocks: w.blocks,
       calibrated: !!cal,
@@ -739,7 +799,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
       ...(overrides[item.id] !== undefined ? { frequencyOverridden: true } : {})
     });
     const perBlock = minutesPerDay / w.blocks.length;
-    const elapsedPerBlock = perBlock / Math.max(1, w.staffRequired);
+    const elapsedPerBlock = perBlock / Math.max(1, staffRequired);
     for (const b of w.blocks) {
       blockMinutes[b][w.timeType] += perBlock;
       if (w.timeType === 'directCare') {
@@ -898,6 +958,12 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   if (diarySummary && diarySummary.totalEntries > 0) {
     bandBasis.push(`Calibrated using ${diarySummary.totalEntries} 1-tap caregiver diary observation(s) from daily home routine.`);
   }
+  if (input.inpatientBenchmark) {
+    const penalty = input.inpatientBenchmark.environmentalPenaltyMultiplier || 1.35;
+    bandBasis.push(
+      `Calibrated with Inpatient Pre-Discharge Care Timing Benchmark (${input.inpatientBenchmark.observerRole}, T_hospital adapted with ${penalty}x home environmental multiplier).`
+    );
+  }
   half = Math.min(half, BAND_WIDTH.max);
 
   const toEstimate = (minutesPerDay: number): CareTimeEstimate => {
@@ -1015,7 +1081,9 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     bandBasis,
     bandRelativeHalfWidth: Math.round(half * 100) / 100,
     inputGranularity: usingLegacy ? 'legacy_binary' : 'graded',
-    provenance: CLINICAL_PROVENANCE.careDemandModel
+    provenance: CLINICAL_PROVENANCE.careDemandModel,
+    inpatientBenchmarkApplied: !!input.inpatientBenchmark,
+    requiresTwoPersonTransfers: input.inpatientBenchmark?.requiresTwoPersonTransfers
   };
 }
 
