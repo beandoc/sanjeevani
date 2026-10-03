@@ -124,11 +124,27 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
   test('should calculate patient care demand hours factoring in ADLs, cognition, and falls', () => {
     const result = CareGapEngine.evaluate(sampleCaregiver, sampleDependentPatient);
 
-    // Baseline 1.5 + (4 ADLs * 1.25 = 5.0) + (5 IADLs * 0.5 = 2.5) + wandering (2.5) + fall (1.0) = 12.5 hrs/day
-    assert.ok(result.patientCareDemandHours >= 10);
+    // Two quantities, deliberately different and deliberately not summed:
+    //   patientCareDemandHours — caregiver-hours of WORK (hands-on + supervision
+    //     net of overlap). A caregiver assisting with toileting is already
+    //     supervising, so that supervision is not billed twice.
+    //   patientCoverageHours   — elapsed hours somebody must be PRESENT.
+    // This patient needs substantially more presence than work, which is the
+    // normal shape for a dependent elder with behavioural symptoms, and is
+    // precisely what a single "care hours" figure cannot express.
+    assert.ok(result.patientCareDemandHours > 0, 'workload must be quantified');
+    assert.ok(
+      result.patientCoverageHours > result.patientCareDemandHours,
+      `coverage ${result.patientCoverageHours}h should exceed workload ${result.patientCareDemandHours}h for a supervised patient`
+    );
+    assert.ok(result.careDemandBand.supervisionOverlapCreditMinutes > 0, 'supervision overlapping hands-on care must be credited, not double-charged');
     assert.ok(result.caregiverSafeCapacityHours <= 5.0); // Full-time employment cap
-    assert.ok(result.netCareGapHours > 4.5);
-    assert.strictEqual(result.careGapSeverity, 'critical_overload');
+    // A single full-time-employed son cannot meet this; the gap is real.
+    assert.ok(result.netCareGapHours > 2.0);
+    assert.ok(
+      result.careGapSeverity === 'critical_overload' || result.careGapSeverity === 'high_deficit',
+      `expected a serious deficit, got ${result.careGapSeverity}`
+    );
   });
 
   test('should detect high lumbar injury risk when caregiver with back pain transfers dependent patient', () => {
@@ -198,9 +214,18 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
     const result = CareGapEngine.evaluate(caregiverWith24hAttendant, sampleDependentPatient);
 
-    // A live-in attendant absorbs most, but deliberately NOT all, of the ~12.5h
-    // demand — supervision and coordination stay with the family caregiver.
-    assert.ok(result.formalSupportAbsorbedHours >= 9.0);
+    // A live-in attendant absorbs most, but deliberately NOT all, of the active
+    // care demand — supervision and coordination stay with the family caregiver.
+    //
+    // Asserted as a fraction of demand rather than a fixed hour figure. The
+    // demand model's coefficients are uncalibrated and expected to change when a
+    // local time study is run, so a test pinned to "9.0 hours" would fail on
+    // recalibration without anything actually being wrong. The invariant under
+    // test is the non-delegable residual, which is a fraction.
+    assert.ok(
+      result.formalSupportAbsorbedHours >= 0.8 * result.patientCareDemandHours,
+      `absorbed ${result.formalSupportAbsorbedHours}h should cover most of ${result.patientCareDemandHours}h demand`
+    );
     assert.ok(result.formalSupportAbsorbedHours < result.patientCareDemandHours);
     assert.strictEqual(result.netCareGapHours, 0);
     assert.strictEqual(result.careGapSeverity, 'sustainable');
@@ -222,7 +247,10 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
     const result = CareGapEngine.evaluate(caregiverWith12hNurse, sampleDependentPatient);
 
-    assert.ok(result.formalSupportAbsorbedHours >= 9.0);
+    assert.ok(
+      result.formalSupportAbsorbedHours >= 0.8 * result.patientCareDemandHours,
+      `absorbed ${result.formalSupportAbsorbedHours}h should cover most of ${result.patientCareDemandHours}h demand`
+    );
     assert.ok(result.netCareGapHours <= 1.0);
     assert.ok(result.careGapSeverity === 'sustainable' || result.careGapSeverity === 'mild_deficit');
   });
@@ -289,10 +317,22 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
 
     // Residual supervision load always remains with the family caregiver.
     assert.ok(result.formalSupportAbsorbedHours < result.patientCareDemandHours);
-    // A 71-year-old spouse with moderate limitations is at capacity floor, so
-    // even a live-in nurse leaves a real deficit — this used to report 0.
-    assert.ok(result.netCareGapHours > 0);
-    assert.notStrictEqual(result.careGapSeverity, 'sustainable');
+    // A 71-year-old spouse with moderate limitations sits at the capacity floor
+    // and must not be credited with hours she cannot safely give.
+    assert.ok(result.caregiverSafeCapacityHours > 0, 'a frail caregiver must not be zeroed out entirely');
+    assert.ok(
+      result.caregiverSafeCapacityHours <= 2.0,
+      `a frail 71-year-old spouse should be near the floor, got ${result.caregiverSafeCapacityHours}h`
+    );
+    // With a live-in nurse the workload is covered on paper, but the estimate's
+    // own range spans the available capacity — so the engine must not announce
+    // that the dyad is fine. Claiming "covered" from an uncalibrated midpoint is
+    // the overclaim this separation exists to prevent.
+    assert.notStrictEqual(
+      result.careGapClassification,
+      'covered',
+      'an uncalibrated estimate whose range spans capacity must not be reported as covered'
+    );
   });
 
   test('stacked support types must not sum past a physically possible day', () => {
@@ -481,12 +521,27 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
   });
 
   test('should scale up caregiver burnout risk level under severe out of pocket financial strain', () => {
+    // This test previously could not demonstrate what its name promises. The
+    // old demand model put netCareGapHours (6.3h) above GAP_CRITICAL_THRESHOLD
+    // (4.5h) before the financial multiplier was applied at all, so the result
+    // was already 'critical' at the lowest multiplier and the multiplier had no
+    // room to move anything. That was recorded as a known gap.
+    //
+    // Replacing the per-deficit hour constants with the item-level demand model
+    // — and removing the flat 1.5h/day baseline that inflated every patient —
+    // brings this fixture's gap down into the band where the multiplier actually
+    // discriminates, so the relationship can now be asserted directly.
+    //
+    // Fixture: gap 1.6h, injury 43 (below INJURY_HIGH_THRESHOLD, so injury does
+    // not drive the branch). manageable: 1.6 x 1.0 = 1.6, below
+    // GAP_HIGH_THRESHOLD (2.0) -> moderate. severe_toxicity: 1.6 x 1.4 = 2.24,
+    // above it -> high. The financial multiplier is the only thing that moves.
     const moderatePatient: PatientDependenceProfile = {
       ...sampleDependentPatient,
       katzAdl: {
         bathing: false,
-        dressing: true,
-        toileting: true,
+        dressing: false,
+        toileting: false,
         transferring: true,
         continence: true,
         feeding: true
@@ -502,35 +557,33 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
       moderatePatient
     );
 
-    assert.ok(
-      modResultToxicFin.caregiverBurnoutRiskLevel === 'critical' || 
-      modResultToxicFin.caregiverBurnoutRiskLevel === 'high'
-    );
-
-    // KNOWN GAP, not fixed here: this test's name promises a *relative*
-    // scale-up under worsening financial strain, but modResultNormalFin
-    // (computed above, previously never asserted against at all — a real
-    // unused-variable lint finding) turns out to already be 'critical' at
-    // the *lowest* financial multiplier for this fixture: netCareGapHours
-    // (6.3h) alone already exceeds GAP_CRITICAL_THRESHOLD (4.5h) before the
-    // financial multiplier (1.0-1.4x) is even applied, so financialMultiplier
-    // has no room left to move the result. caregiverSafeCapacityHours is
-    // capped by `employment` (see care-gap-engine.ts ~L801-806) before
-    // `dailyHoursCommitted` reaches the gap calculation at all, so bumping
-    // that input doesn't uncap it either — untangling a fixture that actually
-    // isolates the financial-strain effect needs someone who owns this
-    // scoring model's capacity/demand assumptions, not a guess made during a
-    // lint cleanup. Filed as a known gap rather than papered over: the
-    // assertion below is honest about what these inputs actually prove
-    // (severe strain never produces a *lower* band than manageable strain),
-    // not the stronger scale-up the test name implies.
     const riskRank: Record<typeof modResultNormalFin.caregiverBurnoutRiskLevel, number> = {
       low: 0,
       moderate: 1,
       high: 2,
       critical: 3
     };
-    assert.ok(riskRank[modResultToxicFin.caregiverBurnoutRiskLevel] >= riskRank[modResultNormalFin.caregiverBurnoutRiskLevel]);
+
+    // The gap itself is identical — only the financial strain differs — so any
+    // difference in burnout level is attributable to the multiplier.
+    assert.strictEqual(modResultToxicFin.netCareGapHours, modResultNormalFin.netCareGapHours);
+    assert.ok(
+      riskRank[modResultToxicFin.caregiverBurnoutRiskLevel] >
+        riskRank[modResultNormalFin.caregiverBurnoutRiskLevel],
+      `severe financial toxicity must escalate burnout risk: got ${modResultNormalFin.caregiverBurnoutRiskLevel} -> ${modResultToxicFin.caregiverBurnoutRiskLevel}`
+    );
+
+    // And it must never run backwards across the three levels.
+    const ranks = (['manageable', 'moderate_strain', 'severe_toxicity'] as const).map(
+      (fin) =>
+        riskRank[
+          CareGapEngine.evaluate(
+            { ...sampleCaregiver, monthlyOutOfPocketBurden: fin, dailyHoursCommitted: 6 },
+            moderatePatient
+          ).caregiverBurnoutRiskLevel
+        ]
+    );
+    assert.deepStrictEqual([...ranks].sort((a, b) => a - b), ranks, 'burnout risk must be monotonic in financial strain');
   });
 
   test('should generate an actionable staffing prescription when care gap hours is positive', () => {
@@ -1235,7 +1288,13 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     const res12h = CareGapEngine.evaluate(caregiver12h, sampleDependentPatient);
     const res1h = CareGapEngine.evaluate(caregiver1h, sampleDependentPatient);
 
-    assert.strictEqual(res12h.formalSupportAbsorbedHours, 10.0);
+    // A 12h shift has more staff capacity than the model will delegate, so
+    // absorption binds at the non-delegable ceiling (85% of demand). A 1h shift
+    // is capacity-bound instead and absorbs its own productive hours. Expressed
+    // against the ceiling rather than a fixed figure so recalibrating the demand
+    // coefficients does not break this test.
+    const ceiling = Math.round(res12h.patientCareDemandHours * 0.85 * 10) / 10;
+    assert.strictEqual(res12h.formalSupportAbsorbedHours, ceiling);
     assert.strictEqual(res1h.formalSupportAbsorbedHours, 0.8);
     assert.ok(res1h.netCareGapHours > res12h.netCareGapHours);
   });
@@ -1369,7 +1428,10 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
         result.blockGaps.evening.demandHours +
         result.blockGaps.night_watch.demandHours) * 10
     ) / 10;
-    assert.strictEqual(sumDemands, result.patientCareDemandHours);
+    // Blocks carry elapsed coverage, so they reconcile against the coverage
+    // total rather than the caregiver-hours workload total. See the Conservation
+    // property test for why these are deliberately different quantities.
+    assert.strictEqual(sumDemands, result.patientCoverageHours);
     assert.ok(result.careGapIndex >= 0 && result.careGapIndex <= 100);
   });
 
@@ -1595,12 +1657,22 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     for (const dyad of testDyads) {
       const res = CareGapEngine.evaluate(dyad.cg, dyad.pt);
 
-      // Invariant 1: sum(blockGaps.demand) == patientCareDemandHours
+      // Invariant 1: sum(blockGaps.demand) == patientCoverageHours
+      //
+      // Block demands are ELAPSED COVERAGE — hours somebody must be present —
+      // because block supply is "who is here during this window", which is also
+      // elapsed. `patientCareDemandHours` is caregiver-hours of work, a
+      // different unit: two carers for 15 minutes is 30 caregiver-minutes but
+      // 15 minutes of clock. Asserting the blocks sum to the workload total
+      // would require mixing the units, which is the error this separation
+      // exists to prevent. The conservation property itself still holds — no
+      // demand is lost or invented in the distribution — against the coverage
+      // total.
       const blockDemandSum = Object.values(res.blockGaps).reduce((acc, b) => acc + b.demandHours, 0);
       assert.strictEqual(
         Math.round(blockDemandSum * 10) / 10,
-        res.patientCareDemandHours,
-        'Sum of diurnal block demands must exactly equal patientCareDemandHours'
+        res.patientCoverageHours,
+        'Sum of diurnal block demands must exactly equal patientCoverageHours'
       );
 
       // Invariant 2: totalAvailableCapacity - demand reconciles with netCareGapHours

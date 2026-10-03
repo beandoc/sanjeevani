@@ -91,6 +91,7 @@ function DashboardSkeleton() {
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 import type { CaregiverAttributes, PatientDependenceProfile } from '@/lib/clinical/care-gap-engine';
+import { CareGapVerdict, formatBand } from '@/components/clinical/care-demand-band';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Dementia Care': BrainCircuit,
@@ -542,21 +543,29 @@ export default function DashboardClient() {
                     <Activity className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className={`text-2xl font-black ${careGap && careGap.netCareGapHours > 2 ? 'text-rose-600' : 'text-foreground'}`}>
-                      {careGap ? (careGap.netCareGapHours > 0 ? `+${careGap.netCareGapHours}h` : '0h') : 'Setup'}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-semibold">Estimate</span>
-                    <Badge variant={careGap && careGap.netCareGapHours > 2 ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase font-bold">
+                    {careGap ? (
+                      <CareGapVerdict
+                        classification={careGap.careGapClassification}
+                        gapHours={careGap.netCareGapHours}
+                        className="text-sm"
+                      />
+                    ) : (
+                      <span className="text-2xl font-black text-foreground">Setup</span>
+                    )}
+                    <Badge variant={careGap?.careGapClassification === 'deficit' ? 'destructive' : 'outline'} className="text-xs ml-auto uppercase font-bold">
                       {careGap ? careGap.careGapSeverity.replace('_', ' ') : 'Needed'}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
                     {careGap
-                      ? `Demand: ${careGap.patientCareDemandHours}h vs Cap: ${careGap.caregiverSafeCapacityHours}h`
+                      ? `Workload ${formatBand(careGap.careDemandBand.activeCare)} vs capacity ${careGap.caregiverSafeCapacityHours}h`
                       : 'Complete patient and caregiver setup first'}
                   </p>
                   <div className="pt-1">
-                    <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} className="w-fit" />
+                    <EvidenceLevelBadge
+                      provenance={careGap?.careDemandBand.provenance ?? CLINICAL_PROVENANCE.careGapHeuristic}
+                      className="w-fit"
+                    />
                   </div>
                 </CardContent>
               </Card>

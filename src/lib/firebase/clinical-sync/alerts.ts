@@ -226,9 +226,22 @@ export function subscribeToReassessmentAlerts(callback: (alerts: ReassessmentAle
   );
 }
 
-/** Clinician dismisses/clears an increased burden alert */
-export async function dismissReassessmentAlert(alertId: string): Promise<void> {
+/** Clinician dismisses/clears an increased burden alert with an optional audit resolution */
+export async function dismissReassessmentAlert(alertId: string, resolution?: string): Promise<void> {
   const clinicianUid = currentUid();
   if (!db || !clinicianUid) return;
+  if (resolution) {
+    try {
+      await setDoc(doc(db, 'users', clinicianUid, 'alertResolutions', alertId), {
+        alertId,
+        resolution,
+        resolvedAt: new Date().toISOString(),
+        clinicianUid
+      });
+    } catch (e) {
+      console.warn('Could not record alert resolution audit:', e);
+    }
+  }
   await deleteDoc(doc(db, 'users', clinicianUid, 'reassessmentAlerts', alertId));
 }
+

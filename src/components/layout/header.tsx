@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useSidebar, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,11 +12,10 @@ import {
   PhoneCall,
   Search,
   HeartPulse,
-  Stethoscope,
-  Computer,
   Activity,
   LogOut,
-  LayoutDashboard
+  LayoutDashboard,
+  Copy
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,9 +37,11 @@ import { CrisisEscalationModal } from '@/components/crisis/crisis-escalation-mod
 import { GlobalCommandPalette } from '@/components/search/global-command-palette';
 import { CaregiverTroubleshootingModal } from '@/components/search/caregiver-troubleshooting-modal';
 import { useProfile } from '@/context/role-context';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const { role } = useProfile();
+  const { open, isMobile } = useSidebar();
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
@@ -51,6 +52,19 @@ export function Header() {
   const isDoctor = role === 'doctor' || role === 'professional';
   const isNurse = role === 'nurse';
   const isCaregiver = !isDoctor && !isNurse;
+  const { toast } = useToast();
+
+  const user = auth?.currentUser;
+  const clinicCode = user?.uid ? `${user.uid.slice(0, 10)}…` : 'DEMO-CLINIC-2026';
+
+  const copyClinicCode = () => {
+    const codeToCopy = user?.uid || 'DEMO-CLINIC-2026';
+    navigator.clipboard.writeText(codeToCopy);
+    toast({
+      title: 'Clinic Code Copied',
+      description: 'Share this code with caregivers under Settings → Share With Your Doctor.'
+    });
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -99,15 +113,24 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-1.5 sm:gap-4 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-xl border-b border-border/50 transition-all">
-        {/* Left: Trigger & Brand & Search */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <header
+        style={{ backgroundColor: 'hsl(var(--sidebar-background))' }}
+        className="fixed top-0 left-0 right-0 z-50 flex h-14 w-full items-center justify-between gap-1.5 sm:gap-3 bg-sidebar border-b border-sidebar-border text-sidebar-foreground shadow-md transition-all px-2.5 sm:px-4 lg:px-6"
+      >
+        {/* Left: Mobile Sidebar Trigger + Brand Logo / Name */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Mobile-only Drawer Menu Trigger (Hidden on Desktop) */}
           <SidebarTrigger
-            className="h-9 w-9 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground shrink-0"
-            title="Toggle Sidebar (⌘B)"
+            className="md:hidden h-8 w-8 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white shrink-0 -ml-1 transition-colors"
+            title="Open Menu"
           />
-          <Link href="/login" title="Navigate to Main Login & Account Selection" className="flex items-center gap-2 md:hidden">
-            <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border/80 bg-white p-0.5 shrink-0">
+
+          <Link
+            href="/dashboard"
+            title="Kutumbh Healthcare Dashboard"
+            className="flex items-center gap-1.5 sm:gap-2.5 transition-all hover:opacity-85 shrink-0"
+          >
+            <div className="relative h-7.5 w-7.5 sm:h-8 sm:w-8 overflow-hidden rounded-xl border border-white/20 shadow-2xs bg-white p-0.5 shrink-0">
               <Image
                 src="/kutumbh-emblem.png"
                 alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
@@ -115,160 +138,81 @@ export function Header() {
                 className="object-contain"
               />
             </div>
-            <div className="leading-none">
-              <span className="font-headline font-black text-xs tracking-tight text-foreground block">
-                कुटुम्ब <span className="font-sans text-[10px] font-bold text-muted-foreground">Kutumbh</span>
+            <div className="flex flex-col leading-none">
+              <span className="font-headline font-black text-xs sm:text-sm tracking-tight text-white flex items-center gap-1">
+                कुटुम्ब <span className="font-sans text-[10px] sm:text-[11px] font-bold text-slate-300">Kutumbh</span>
               </span>
-              <span className="text-[8px] text-primary font-bold block font-sans">
+              <span className="text-[8px] text-sky-400 font-bold hidden sm:block font-sans -mt-0.5">
                 स्नेह, संबल और स्वास्थ्य
               </span>
             </div>
           </Link>
+        </div>
 
-          {/* Desktop Global Search Input Trigger */}
+        {/* Middle: Compact Global Search Input Trigger */}
+        <div className="flex-1 sm:flex-initial flex justify-center sm:justify-start min-w-0 max-w-xs mx-1 sm:mx-2">
+          {/* Tablet & Desktop Search Bar */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="hidden md:flex items-center gap-2.5 h-9 px-3 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-muted-foreground transition-all w-60 lg:w-72 text-xs text-left"
+            className="hidden sm:flex items-center gap-2 h-8.5 w-48 sm:w-60 md:w-72 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/60 text-slate-300 hover:text-white transition-all text-xs text-left group"
+            title="Search System (⌘K)"
           >
-            <Search className="h-4 w-4 text-primary shrink-0" />
-            <span className="truncate flex-1">
-              {isDoctor ? 'Search patients, consults, medicines...' : isNurse ? 'Search tasks, medicines, vitals...' : 'Search medicines, vitals, care tasks...'}
+            <Search className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+            <span className="truncate flex-1 text-slate-400 group-hover:text-slate-200">
+              {isDoctor ? 'Search patients, consults...' : isNurse ? 'Search tasks, vitals...' : 'Search medicines, vitals...'}
             </span>
-            <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium">
+            <kbd className="hidden md:inline-flex h-4 items-center gap-0.5 rounded border border-slate-700 bg-slate-800 px-1.5 font-mono text-[9px] font-medium text-slate-400">
               ⌘K
             </kbd>
           </button>
-        </div>
 
-        {/* Right Controls */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
           {/* Mobile Search Icon Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsSearchOpen(true)}
-            className="md:hidden h-8 w-8 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground"
-            title="Global Search (⌘K)"
+            className="sm:hidden rounded-xl h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors"
+            title="Search System (⌘K)"
           >
-            <Search className="h-3.5 w-3.5 text-primary" />
+            <Search className="h-4 w-4 text-sky-400" />
+            <span className="sr-only">Search</span>
           </Button>
+        </div>
 
-          {/* ─── DOCTOR PORTAL ADDONS ─── */}
-          {isDoctor && (
-            <>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <Link href="/clinic/roster">
-                  <Stethoscope className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Patients</span>
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <Link href="/sehat-opd">
-                  <Computer className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>Consults</span>
-                </Link>
-              </Button>
-            </>
-          )}
-
-          {/* ─── NURSE PORTAL ADDONS ─── */}
-          {isNurse && (
-            <>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <Link href="/dashboard">
-                  <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Shift Dashboard</span>
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <Link href="/vital-logs">
-                  <Activity className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                  <span>Vitals</span>
-                </Link>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCrisisOpen(true)}
-                className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                <span>SOS</span>
-              </Button>
-            </>
-          )}
-
-          {/* ─── CAREGIVER PORTAL ADDONS ─── */}
-          {isCaregiver && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsTroubleshootingOpen(true)}
-                className="hidden lg:inline-flex rounded-full h-8 sm:h-9 px-3 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <HeartPulse className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>Bedside Help</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCrisisOpen(true)}
-                className="hidden sm:inline-flex rounded-full h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-bold border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 shadow-xs gap-1.5 shrink-0"
-              >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                <span>SOS & Helplines</span>
-              </Button>
-            </>
-          )}
-
+        {/* Right: Theme Toggle, Language, Welcome User, User Account Icon */}
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
+          {/* Theme Toggle */}
           <HeaderControls />
+
+          {/* Language Selector */}
           <LanguageSwitcher />
 
-          <div className="h-5 w-px bg-border/60 mx-0.5 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-700/80 mx-0.5 hidden md:block" />
 
-          {/* Profile & Role Dropdown */}
+          {/* <Welcome username> */}
+          <span className="hidden md:inline-flex text-xs text-slate-300 font-medium whitespace-nowrap">
+            Welcome, <strong className="font-bold text-white ml-1">{mounted ? userLabel : 'Dr. Vivek'}</strong>
+          </span>
+
+          {/* User Account Icon */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-xl p-0 overflow-hidden border border-border/50 shadow-xs hover:scale-105 active:scale-95 transition-all"
+                className="relative h-8 w-8 sm:h-8.5 sm:w-8.5 rounded-xl p-0 overflow-hidden border border-slate-700/80 shadow-2xs hover:scale-105 active:scale-95 transition-all"
+                title="User Account"
               >
                 <Avatar className="h-full w-full rounded-none">
                   <AvatarFallback
                     className={cn(
-                      'rounded-none text-xs font-bold',
-                      isDoctor ? 'bg-blue-600/15 text-blue-600 dark:text-blue-400' :
-                      isNurse ? 'bg-rose-600/15 text-rose-700 dark:text-rose-300' :
-                      'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300'
+                      'rounded-none text-xs font-bold text-white',
+                      isDoctor ? 'bg-blue-600' :
+                      isNurse ? 'bg-rose-600' :
+                      'bg-emerald-600'
                     )}
                     suppressHydrationWarning
                   >
-                    {mounted ? initials : 'AR'}
+                    {mounted ? initials : 'DV'}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -296,9 +240,21 @@ export function Header() {
               {isDoctor ? (
                 <>
                   <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/dashboard" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>Doctor Dashboard</span>
+                      <Badge variant="outline" className="text-[9px] text-blue-600 border-blue-500/30">Home</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
                     <Link href="/clinic/roster" className="flex items-center justify-between w-full text-xs font-semibold">
-                      <span>Doctor Patients</span>
+                      <span>All Patients</span>
                       <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-500/30">Roster</Badge>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
+                    <Link href="/clinic/register-patient" className="flex items-center justify-between w-full text-xs font-semibold">
+                      <span>Add New Patient</span>
+                      <Badge variant="outline" className="text-[9px] text-blue-600 border-blue-500/30">Register</Badge>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10">
@@ -306,6 +262,13 @@ export function Header() {
                       <span>OPD Consults</span>
                       <Badge variant="outline" className="text-[9px] text-blue-600 border-blue-500/30">SeHAT</Badge>
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyClinicCode} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/10 flex items-center justify-between w-full text-xs font-semibold">
+                    <span className="flex items-center gap-2">
+                      <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>Copy Clinic ID</span>
+                    </span>
+                    <code className="text-[10px] font-mono text-muted-foreground">{clinicCode}</code>
                   </DropdownMenuItem>
                 </>
               ) : isNurse ? (

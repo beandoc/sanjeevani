@@ -15,6 +15,12 @@ import {
 } from './assessment-quality';
 import { CLINICAL_POLICY } from './clinical-policy';
 import {
+  estimateCareDemand,
+  classifyAgainstCapacity,
+  type CareDemandBand
+} from './care-demand-model';
+import type { AssessmentSource } from './function-scale';
+import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
   BASELINE_CARE_DEMAND_HOURS,
@@ -22,9 +28,6 @@ import {
   DEMAND_PER_IADL_DEFICIT_HOURS,
   COGNITIVE_OVERHEAD_HOURS,
   BED_BOUND_OVERHEAD_HOURS,
-  FALL_RISK_HOURS_BASE,
-  FALL_RISK_HOURS_PER_REPEAT,
-  FALL_RISK_HOURS_MAX,
   MAX_FORMAL_ABSORBABLE_FRACTION,
   FORMAL_PRODUCTIVITY_FACTORS,
   INJURY_INDEX_BASELINE,
@@ -328,6 +331,7 @@ export interface LawtonIadlProfile {
 export interface PatientDependenceProfile {
   name: string;
   age: number;
+  gender?: 'female' | 'male' | 'other';
   homeCareAddress?: string;
   primaryConditions: string[];
   // Katz ADL: 6 Items (true = Independent / 1 pt, false = Dependent / 0 pt)
@@ -341,6 +345,29 @@ export interface PatientDependenceProfile {
   };
   // Lawton-Brody IADL: 8 Standard Items (Lawton & Brody 1969)
   lawtonIadl: LawtonIadlProfile;
+  /**
+   * Graded Barthel / Lawton responses, keyed by item id. Preferred input for the
+   * care-demand model: the boolean Katz fields above collapse the assistance
+   * gradient ("major help, two people" vs "minor help") that carries most of
+   * the care-time signal. When these are present the demand band is narrower.
+   */
+  gradedFunctionResponses?: {
+    barthel?: Record<string, number>;
+    lawton?: Record<string, number>;
+  };
+  /**
+   * Lawton item ids the patient never performed premorbidly — e.g. a man who
+   * never cooked. Excluded from scoring and contributing zero care demand,
+   * because a task nobody ever did is not care the household newly absorbs.
+   * Distinct from "can no longer perform", which scores 0 and does generate
+   * demand. Scoring all 8 items uniformly without this distinction mistakes
+   * household role for functional incapacity.
+   */
+  premorbidlyNotPerformedIadl?: string[];
+  /** Clinician-confirmed episodes/day by item id, overriding model defaults. */
+  careTaskFrequencyOverrides?: Record<string, number>;
+  /** Who reported the functional assessment. Widens the band, never the score. */
+  functionAssessmentSource?: AssessmentSource;
   cognitiveBehavioralLoad: 'none' | 'mild_forgetfulness' | 'wandering_agitation' | 'severe_sundowning';
   fallHistoryLast6Months: number;
   isBedBound: boolean;
@@ -392,6 +419,36 @@ export interface CareGapEvaluationResult {
   
   // Lawton-Brody IADL Score (0-8)
   lawtonIadlScore: number;
+
+  /**
+   * The care-demand estimate: three separate banded time types.
+   *
+   * This is the model's real output. `patientCareDemandHours` below is the
+   * midpoint of `careDemandBand.combined`, kept for backward compatibility with
+   * stored evaluations and charts — it must not be rendered on its own, because
+   * a single figure to 0.1 h implies a precision the underlying evidence cannot
+   * support.
+   */
+  careDemandBand: CareDemandBand;
+  /**
+   * Whether the demand band actually supports asserting a gap. A deficit is
+   * claimed only when the entire band exceeds capacity; where the band straddles
+   * capacity the answer is `indeterminate` and the UI should ask for the missing
+   * inputs rather than assert a shortfall.
+   */
+  careGapClassification: 'covered' | 'indeterminate' | 'deficit';
+
+  /**
+   * Elapsed hours/day somebody must be present — the total that the per-block
+   * `blockGaps` demands sum to.
+   *
+   * Deliberately NOT equal to `patientCareDemandHours`, which is caregiver-hours
+   * of work. A patient needing presence for 12 h whose 3 h of task assistance
+   * falls inside that window needs 12 h of coverage and 3 h of work; the two
+   * figures answer different questions and summing them would double-count.
+   * Build a rota from this; budget a workload from `patientCareDemandHours`.
+   */
+  patientCoverageHours: number;
 
   // Demand vs Capacity in Hours/Day
   patientCareDemandHours: number;
@@ -763,7 +820,6 @@ export class CareGapEngine {
     // 1. Calculate Katz ADL Score (0-6)
     const adlItems = Object.values(safeKatz);
     const katzAdlScore = adlItems.filter(Boolean).length;
-    const adlDeficits = 6 - katzAdlScore;
 
     let katzDependenceLevel: CareGapEvaluationResult['katzDependenceLevel'] = 'independent';
     if (katzAdlScore <= 2) katzDependenceLevel = 'severe_dependence';
@@ -781,38 +837,48 @@ export class CareGapEngine {
       'finances'
     ];
     const lawtonIadlScore = lawtonKeys.filter((k) => safeIadl[k] === true).length;
-    const iadlDeficits = 8 - lawtonIadlScore;
 
-    // 3. Compute Patient Daily Care Demand (Hours/Day)
-    let demandHours = CARE_GAP_MODEL_PARAMS.baselineCareDemandHours; // 1.5h baseline
+    // 3. Compute Patient Daily Care Demand via the item-level demand model.
+    //
+    // This replaced a linear sum of per-deficit hour constants
+    // (1.5h baseline + 1.0h x ADL deficits + 0.35h x IADL deficits). That form
+    // was wrong in three ways: it treated an ordinal deficit count as a time
+    // scale, it ignored task frequency and the number of staff a task needs,
+    // and it added co-occurring tasks as though bathing, dressing and toileting
+    // in one morning routine were three independent blocks of time rather than
+    // one sequence sharing a single transfer and setup.
+    //
+    // The demand model works item-by-item on the *graded* assistance level,
+    // composes time as frequency x duration x staff required, credits back
+    // shared setup, and keeps hands-on, supervision and on-call time separate.
+    // It returns a range, because purpose-built home-care case-mix systems
+    // explain only 16-24% of individual care-hour variance and this model
+    // cannot beat that ceiling.
+    const careDemandBand = estimateCareDemand({
+      barthelResponses: safePatient.gradedFunctionResponses?.barthel,
+      lawtonResponses: safePatient.gradedFunctionResponses?.lawton,
+      legacyKatzAdl: safePatient.gradedFunctionResponses?.barthel ? undefined : safeKatz,
+      legacyLawtonIadl: safePatient.gradedFunctionResponses?.lawton
+        ? undefined
+        : (safeIadl as unknown as Record<string, boolean>),
+      premorbidlyNotPerformed: safePatient.premorbidlyNotPerformedIadl,
+      frequencyOverrides: safePatient.careTaskFrequencyOverrides,
+      cognitiveBehavioralLoad: safePatient.cognitiveBehavioralLoad || 'none',
+      isBedBound: safePatient.isBedBound,
+      fallHistoryLast6Months: safePatient.fallHistoryLast6Months,
+      hasMotorizedBedAndRippleMattress:
+        safeDevices.hospitalBed === 'motorized_multichannel' && !!safeDevices.airWaterMattress,
+      assessmentSource: safePatient.functionAssessmentSource
+    });
 
-    // Each ADL deficit demands ~1.0 direct physical care hours (bathing, toileting, transferring, feeding)
-    demandHours += adlDeficits * CARE_GAP_MODEL_PARAMS.demandPerAdlDeficitHours;
-
-    // Each Lawton-Brody IADL deficit adds ~0.35 hours (cooking, meds, laundry, cleaning, shopping, finances)
-    demandHours += iadlDeficits * CARE_GAP_MODEL_PARAMS.demandPerIadlDeficitHours;
-
-    // Behavioral & Cognitive Load Adds Vigilance Hours
-    demandHours += CARE_GAP_MODEL_PARAMS.cognitiveOverheadHours[safePatient.cognitiveBehavioralLoad || 'none'] ?? 0;
-
-    // Bed-bound 2-hourly turning and incontinence management
-    if (safePatient.isBedBound) {
-      // Motorized bed and ripple mattress slightly reduce the manual turning overhead
-      const bedTurningHours = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress
-        ? BED_BOUND_OVERHEAD_HOURS.withMotorizedBedAndRipple
-        : BED_BOUND_OVERHEAD_HOURS.standard;
-      demandHours += bedTurningHours;
-    }
-
-    const fallCount = Math.max(0, safePatient.fallHistoryLast6Months ?? 0);
-    if (fallCount > 0) {
-      demandHours += Math.min(
-        FALL_RISK_HOURS_MAX,
-        FALL_RISK_HOURS_BASE + (fallCount - 1) * FALL_RISK_HOURS_PER_REPEAT
-      );
-    }
-
-    const patientCareDemandHours = Math.round(demandHours * 10) / 10;
+    // Midpoint of ACTIVE care (hands-on + supervision), retained for backward
+    // compatibility with stored evaluations and charts. Never render alone — see
+    // `careDemandBand`.
+    //
+    // Deliberately excludes on-call presence: capacity is measured in hours a
+    // caregiver can work, so the demand it is compared against must be work too.
+    // `careDemandBand.requiresNightPresence` carries the overnight requirement.
+    const patientCareDemandHours = careDemandBand.activeCare.pointHours;
 
     // 4. Compute Formal / Ancillary Support Hours Absorbed
     // Multi-family rotation is informal family care coordination with 0 formal nominal hours.
@@ -1105,118 +1171,32 @@ export class CareGapEngine {
     ) / 10;
     const netCareGapHours = Math.max(0, Math.round((patientCareDemandHours - totalAvailableCapacityHours) * 10) / 10);
 
-    // 6b. Diurnal Per-Block Demand & Supply Distribution
+    // 6b. Diurnal Per-Block Demand Distribution — ELAPSED COVERAGE
+    //
+    // Per-block figures use the coverage requirement (elapsed hours somebody
+    // must be present), not the workload. This keeps the comparison in one unit:
+    // block supply is "who is here during this window", which is elapsed time,
+    // so block demand must be elapsed time too. The aggregate gap below stays in
+    // caregiver-hours, compared against caregiver capacity, which is also
+    // workload. Mixing the two is what produces 12 + 3 = 15 hours of "need" for
+    // a patient who needs someone present for 12.
+    //
+    // Using coverage here also keeps the overnight requirement visible to the
+    // care-gap index. On-call night presence is excluded from the workload
+    // total — correctly, since it is not work — but a patient who needs someone
+    // overnight and has nobody is in the most serious kind of gap there is, and
+    // the night block carries the heaviest criticality weight for exactly that
+    // reason. Coverage carries it; workload alone would hide it.
+    //
+    // This also replaced a parallel per-block table built from the Katz booleans
+    // and rescaled to match the aggregate, whose normalisation step silently
+    // pushed any disagreement into `night_watch`.
     const blockDemands: Record<DiurnalTimeBlock, number> = {
-      morning_rush: 0.5, // Baseline supervision split
-      afternoon: 0.5,
-      evening: 0.5,
-      night_watch: 0
+      morning_rush: careDemandBand.coverageByBlock.morning_rush.pointHours,
+      afternoon: careDemandBand.coverageByBlock.afternoon.pointHours,
+      evening: careDemandBand.coverageByBlock.evening.pointHours,
+      night_watch: careDemandBand.coverageByBlock.night_watch.pointHours
     };
-
-    // ADLs
-    if (!safeKatz.bathing) blockDemands.morning_rush += 1.0;
-    if (!safeKatz.transferring) {
-      blockDemands.morning_rush += 0.5;
-      blockDemands.afternoon += 0.2;
-      blockDemands.evening += 0.3;
-    }
-    if (!safeKatz.dressing) {
-      blockDemands.morning_rush += 0.5;
-      blockDemands.evening += 0.2;
-    }
-    if (!safeKatz.toileting) {
-      blockDemands.morning_rush += 0.3;
-      blockDemands.afternoon += 0.2;
-      blockDemands.evening += 0.2;
-      blockDemands.night_watch += 0.3;
-    }
-    if (!safeKatz.continence) {
-      blockDemands.morning_rush += 0.2;
-      blockDemands.afternoon += 0.2;
-      blockDemands.evening += 0.2;
-      blockDemands.night_watch += 0.2;
-    }
-    if (!safeKatz.feeding) {
-      blockDemands.morning_rush += 0.4;
-      blockDemands.afternoon += 0.4;
-      blockDemands.evening += 0.4;
-    }
-
-    // IADLs (8 items)
-    if (!safeIadl.mealPreparation) {
-      blockDemands.morning_rush += 0.15;
-      blockDemands.afternoon += 0.1;
-      blockDemands.evening += 0.1;
-    }
-    if (!safeIadl.medicationManagement) {
-      blockDemands.morning_rush += 0.15;
-      blockDemands.afternoon += 0.05;
-      blockDemands.evening += 0.15;
-    }
-    if (!safeIadl.housekeeping) {
-      blockDemands.morning_rush += 0.15;
-      blockDemands.afternoon += 0.2;
-    }
-    if (!safeIadl.laundry) {
-      blockDemands.morning_rush += 0.15;
-      blockDemands.afternoon += 0.2;
-    }
-    if (!safeIadl.shopping) blockDemands.afternoon += 0.35;
-    if (!safeIadl.transportation) blockDemands.afternoon += 0.35;
-    if (!safeIadl.finances) blockDemands.afternoon += 0.35;
-    if (!safeIadl.telephone) {
-      blockDemands.morning_rush += 0.1;
-      blockDemands.afternoon += 0.15;
-      blockDemands.evening += 0.1;
-    }
-
-    // Cognitive / Behavioral Load
-    if (safePatient.cognitiveBehavioralLoad === 'mild_forgetfulness') {
-      blockDemands.morning_rush += 0.35;
-      blockDemands.afternoon += 0.35;
-      blockDemands.evening += 0.3;
-    } else if (safePatient.cognitiveBehavioralLoad === 'wandering_agitation') {
-      blockDemands.morning_rush += 0.7;
-      blockDemands.afternoon += 0.8;
-      blockDemands.evening += 0.7;
-      blockDemands.night_watch += 0.3;
-    } else if (safePatient.cognitiveBehavioralLoad === 'severe_sundowning') {
-      blockDemands.afternoon += 0.5;
-      blockDemands.evening += 1.0;
-      blockDemands.night_watch += 2.5;
-    }
-
-    // Bed-bound repositioning
-    if (safePatient.isBedBound) {
-      const turning = safeDevices.hospitalBed === 'motorized_multichannel' && safeDevices.airWaterMattress
-        ? BED_BOUND_OVERHEAD_HOURS.withMotorizedBedAndRipple
-        : BED_BOUND_OVERHEAD_HOURS.standard;
-      const ratio = turning / 2.0;
-      blockDemands.morning_rush += 0.4 * ratio;
-      blockDemands.afternoon += 0.3 * ratio;
-      blockDemands.evening += 0.3 * ratio;
-      blockDemands.night_watch += 1.0 * ratio;
-    }
-
-    // Fall risk
-    if (fallCount > 0) {
-      const fHours = Math.min(FALL_RISK_HOURS_MAX, FALL_RISK_HOURS_BASE + (fallCount - 1) * FALL_RISK_HOURS_PER_REPEAT);
-      blockDemands.morning_rush += fHours * 0.4;
-      blockDemands.afternoon += fHours * 0.3;
-      blockDemands.evening += fHours * 0.3;
-    }
-
-    // Normalize block demands to align exactly with patientCareDemandHours
-    const rawTotalDemand = blockDemands.morning_rush + blockDemands.afternoon + blockDemands.evening + blockDemands.night_watch;
-    if (rawTotalDemand > 0) {
-      const normRatio = patientCareDemandHours / rawTotalDemand;
-      blockDemands.morning_rush = Math.round(blockDemands.morning_rush * normRatio * 10) / 10;
-      blockDemands.afternoon = Math.round(blockDemands.afternoon * normRatio * 10) / 10;
-      blockDemands.evening = Math.round(blockDemands.evening * normRatio * 10) / 10;
-      blockDemands.night_watch = Math.round(
-        (patientCareDemandHours - blockDemands.morning_rush - blockDemands.afternoon - blockDemands.evening) * 10
-      ) / 10;
-    }
 
     // Distribute Supply across Blocks.
     //
@@ -1626,6 +1606,12 @@ export class CareGapEngine {
       katzAdlScore,
       katzDependenceLevel,
       lawtonIadlScore,
+      careDemandBand,
+      patientCoverageHours: careDemandBand.coverage.pointHours,
+      careGapClassification: classifyAgainstCapacity(
+        careDemandBand.activeCare,
+        totalAvailableCapacityHours
+      ),
       patientCareDemandHours,
       caregiverSafeCapacityHours,
       formalSupportAbsorbedHours,

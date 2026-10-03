@@ -37,7 +37,9 @@ import {
   Bed,
   Home,
   CalendarClock,
-  Settings
+  Settings,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import {
   CaregiverAttributes,
@@ -64,6 +66,12 @@ import { buildFormalSupport, resolveSupportTypes, toggleSupportType } from '@/li
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
+import {
+  CareDemandBandValue,
+  CareDemandBreakdown,
+  CareGapVerdict,
+  formatBand
+} from '@/components/clinical/care-demand-band';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 
 interface CaregiverSupportMatrixProps {
@@ -845,11 +853,20 @@ export function CaregiverSupportMatrix({
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
+            variant="default"
+            onClick={() => setOpen(true)}
+            className="h-8 text-xs gap-1.5 font-bold shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5" /> Configure Matrix
+          </Button>
+
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => setIsWhatsAppOpen(true)}
             disabled={!isDyadDocumented}
             title={isDyadDocumented ? undefined : 'Document the dyad before sharing a care plan'}
-            className="h-8 text-xs gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-50 disabled:opacity-50"
+            className="h-8 text-xs gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 disabled:opacity-40"
           >
             <Share2 className="w-3.5 h-3.5" /> WhatsApp Digest
           </Button>
@@ -860,7 +877,7 @@ export function CaregiverSupportMatrix({
             onClick={handleDownloadIcs}
             disabled={!isDyadDocumented}
             title={isDyadDocumented ? undefined : 'Document the dyad before exporting a roster'}
-            className="h-8 text-xs gap-1.5 font-bold text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-50 disabled:opacity-50"
+            className="h-8 text-xs gap-1.5 font-semibold text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-950/20 disabled:opacity-40"
           >
             <Download className="w-3.5 h-3.5" /> Sync Calendar (.ics)
           </Button>
@@ -899,17 +916,12 @@ export function CaregiverSupportMatrix({
                   : 'Requires verified emergency logistics before printing'
                 : 'Print Bedside Wall Sheet'
             }
-            className="h-8 text-xs gap-1.5 font-bold hover:bg-muted disabled:opacity-50"
+            className="h-8 text-xs gap-1.5 font-semibold hover:bg-muted disabled:opacity-40"
           >
             <Printer className="w-3.5 h-3.5" /> Bedside Wall Sheet
           </Button>
 
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="default" className="h-8 text-xs gap-1.5 font-bold shrink-0 bg-primary shadow-xs">
-                <Edit3 className="w-3.5 h-3.5" /> Configure Matrix
-              </Button>
-            </DialogTrigger>
             <DialogContent className="flex flex-col w-[95vw] sm:max-w-3xl max-h-[92dvh] h-[92dvh] sm:h-[88vh] p-0 overflow-hidden gap-0 border-border/80 shadow-2xl rounded-3xl">
               {/* FIXED HEADER: Always visible at top with right padding to clear the Close X button */}
               <div className="p-4 sm:p-6 pb-3 border-b border-border/60 shrink-0 bg-background pr-12">
@@ -951,8 +963,8 @@ export function CaregiverSupportMatrix({
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       <div className="p-2 rounded-xl bg-card border border-border/60">
-                        <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
-                        <span className="text-sm font-black text-foreground">{simulatedEval.patientCareDemandHours}h/day</span>
+                        <span className="text-[10px] text-muted-foreground block">Active Care Demand</span>
+                        <CareDemandBandValue estimate={simulatedEval.careDemandBand.activeCare} className="text-sm text-foreground" />
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
@@ -962,14 +974,11 @@ export function CaregiverSupportMatrix({
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
-                        <span
-                          className={cn(
-                            'text-sm font-black',
-                            simulatedEval.netCareGapHours > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'
-                          )}
-                        >
-                          {simulatedEval.netCareGapHours > 0 ? `${simulatedEval.netCareGapHours}h Deficit` : '0.0h (Equilibrium)'}
-                        </span>
+                        <CareGapVerdict
+                          classification={simulatedEval.careGapClassification}
+                          gapHours={simulatedEval.netCareGapHours}
+                          className="text-xs"
+                        />
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Manual Handling</span>
@@ -1791,60 +1800,139 @@ export function CaregiverSupportMatrix({
           </div>
         )}
 
-        {/* DATA PROVENANCE GATE.
-            Clinical figures below are computed from the stored dyad. Until both records exist
-            they would be derived from neutral placeholders, so say so plainly rather than
-            rendering a demand figure and lifting index a clinician could act on. */}
+        {/* DATA PROVENANCE GATE / ONBOARDING HERO CARD */}
         {!isDyadDocumented && (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-5 sm:p-7 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-2xs">
-              <CalendarClock className="w-6 h-6" />
+          <div className="rounded-3xl border border-indigo-500/20 bg-linear-to-br from-indigo-50/50 via-card to-blue-50/30 dark:from-indigo-950/20 dark:via-card dark:to-blue-950/20 p-6 sm:p-8 text-center space-y-5 shadow-xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider mx-auto">
+              <CalendarClock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Step 2 Intake · Awaiting Configuration</span>
             </div>
-            <div className="max-w-md mx-auto space-y-1.5">
-              <h3 className="text-base font-bold text-foreground">Care Support Matrix Awaiting Intake Configuration</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+
+            <div className="max-w-xl mx-auto space-y-2">
+              <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                Care Support Matrix &amp; Roster Plan
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 Diurnal shift allocations, task delegation, and emergency transit readiness are calculated once the patient&apos;s functional mobility, home environment, and caregiver capacity are recorded.
               </p>
             </div>
 
-            {/* Status Checklist */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto text-left pt-1">
-              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">1. Functional Mobility</span>
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  {hasPatientProfile ? <span className="text-emerald-600 font-bold">✓ Profile on File</span> : <span className="text-amber-600 font-bold">● Awaiting ADL/IADL</span>}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Katz ADL / Barthel index for demand</p>
+            {/* Status Checklist: 3 Interactive Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-2xl mx-auto text-left pt-1">
+              {/* Card 1: Functional Mobility */}
+              <div className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      1. Mobility
+                    </span>
+                    {hasPatientProfile ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ✓ Ready
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● Step 1 Intake
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-foreground">
+                    {hasPatientProfile ? 'Profile on File' : 'Awaiting Scoring'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Katz ADL &amp; Barthel index provide baseline patient care demand.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 pt-1.5 border-t border-border/50">
+                  {hasPatientProfile ? '✓ Baseline Recorded' : 'Can be recorded in Step 1'}
+                </div>
               </div>
 
-              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">2. Home Environment</span>
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  {currentCaregiver.homeEnvironment?.houseAddress ? <span className="text-emerald-600 font-bold">✓ Address on File</span> : <span className="text-amber-600 font-bold">● Address &amp; Layout Needed</span>}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Room, attached bath &amp; floor level</p>
+              {/* Card 2: Home Environment */}
+              <div
+                onClick={() => setOpen(true)}
+                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      2. Home Safety
+                    </span>
+                    {currentCaregiver.homeEnvironment?.houseAddress ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ✓ Configured
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● Needs Setup
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                    {currentCaregiver.homeEnvironment?.houseAddress ? 'Address on File' : 'Address & Layout'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Dedicated room, attached bath, floor level &amp; lift accessibility.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-primary pt-1.5 border-t border-border/50 flex items-center justify-between">
+                  <span>{currentCaregiver.homeEnvironment?.houseAddress ? 'Edit Layout' : 'Tap to Configure'}</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </div>
               </div>
 
-              <div className="p-3 rounded-xl border border-border/60 bg-card/80 space-y-1 shadow-2xs">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">3. Caregiver Shifts</span>
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  {currentCaregiver.dailyHoursCommitted > 0 ? <span className="text-emerald-600 font-bold">✓ {currentCaregiver.dailyHoursCommitted}h/day committed</span> : <span className="text-amber-600 font-bold">● Shifts Unassigned</span>}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Committed hours, formal care &amp; transit</p>
+              {/* Card 3: Caregiver Shifts */}
+              <div
+                onClick={() => setOpen(true)}
+                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      3. Shift Roster
+                    </span>
+                    {currentCaregiver.dailyHoursCommitted > 0 ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ✓ {currentCaregiver.dailyHoursCommitted}h / day
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[9px] font-bold px-1.5 py-0">
+                        ● Unassigned
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                    {currentCaregiver.dailyHoursCommitted > 0 ? `${currentCaregiver.dailyHoursCommitted}h Committed` : 'Shifts Unassigned'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Primary hours, formal attendants, and night watch rotation.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-primary pt-1.5 border-t border-border/50 flex items-center justify-between">
+                  <span>{currentCaregiver.dailyHoursCommitted > 0 ? 'Edit Shifts' : 'Tap to Assign'}</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </div>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
-              <Button onClick={() => setOpen(true)} className="gap-2 text-xs font-bold h-9 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90">
-                <Settings className="w-3.5 h-3.5" />
+              <Button
+                onClick={() => setOpen(true)}
+                className="gap-2 text-xs sm:text-sm font-bold h-10 px-5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+              >
+                <Settings className="w-4 h-4" />
                 <span>Configure Support Matrix Now</span>
+                <ArrowRight className="w-4 h-4" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowDraftPreview(!showDraftPreview)}
-                className="text-xs font-semibold h-9 gap-1.5"
+                className="text-xs font-semibold h-10 px-4 gap-1.5 cursor-pointer border-border/80 hover:bg-muted"
               >
                 <span>{showDraftPreview ? 'Hide Matrix Template' : 'Preview Matrix Template'}</span>
               </Button>
@@ -2038,9 +2126,11 @@ export function CaregiverSupportMatrix({
               </Badge>
             </div>
             <div>
-              <p className={cn('text-base font-black font-mono', currentEval.netCareGapHours > 0 ? 'text-red-600' : 'text-emerald-600')}>
-                {currentEval.netCareGapHours > 0 ? `${currentEval.netCareGapHours.toFixed(1)}h Deficit` : 'No Estimated Gap'}
-              </p>
+              <CareGapVerdict
+                classification={currentEval.careGapClassification}
+                gapHours={currentEval.netCareGapHours}
+                className="text-base font-mono block"
+              />
               <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
                 <span>
                   Manual handling:{' '}
@@ -2228,15 +2318,22 @@ export function CaregiverSupportMatrix({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="text-sm font-bold text-foreground flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Patient Care Demand Distribution ({currentEval.patientCareDemandHours} hrs/day estimate)
+              Patient Care Demand Distribution ({formatBand(currentEval.careDemandBand.activeCare)} active care)
             </span>
             <span className="text-xs text-muted-foreground font-mono">
               Estimated capacity: Primary ({currentEval.teamAllocations.primaryCaregiverHours}h) + Formal ({currentEval.teamAllocations.formalStaffHours}h) + Family ({currentEval.teamAllocations.secondaryFamilyHours}h)
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.careGapHeuristic} label="Care Demand Heuristic" />
+            <EvidenceLevelBadge provenance={currentEval.careDemandBand.provenance} label="Care Demand Range" />
             <EvidenceLevelBadge provenance={CLINICAL_PROVENANCE.staffingHeuristic} label="Staffing Model" />
+          </div>
+          {/* The three time types, shown separately — a staffing decision turns on
+              which kind of time is needed, not on a single combined figure. */}
+          <div className="p-3 rounded-xl bg-card border border-border/60">
+            <CareDemandBreakdown band={currentEval.careDemandBand} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             {currentEval.dataQuality.status !== 'ready_for_clinician_review' && (
               <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-700 dark:text-amber-300">
                 {currentEval.dataQuality.status.replace(/_/g, ' ')}

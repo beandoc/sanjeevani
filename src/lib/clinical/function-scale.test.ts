@@ -3,7 +3,9 @@ import {
   BARTHEL_ITEMS,
   LAWTON_ITEMS,
   getBarthelBand,
-  calculateFunctionScore
+  calculateFunctionScore,
+  isComparableTo,
+  LAWTON_MALE_5_OMITTED_ITEMS
 } from './function-scale';
 
 function allMax(responses: Record<string, number> = {}, items = BARTHEL_ITEMS) {
@@ -90,10 +92,18 @@ describe('calculateFunctionScore', () => {
     expect(result.barthelScore).toBe(90); // 100 - 10 (stairs max)
   });
 
-  it('always records the all-8 Lawton convention', () => {
+  it('records the premorbid-adjusted convention by default and scores all 8 items', () => {
     const result = calculateFunctionScore(allMax(), allZero(LAWTON_ITEMS));
-    expect(result.lawtonConvention).toBe('all-8');
+    // The default no longer claims plain 'all-8'. It is
+    // 'all-8-premorbid-adjusted': all 8 items are scored unless the assessor
+    // marks specific ones as never performed. With no exclusions declared the
+    // numeric result is identical to all-8, but the label records that the
+    // premorbid question was in scope — which matters when comparing serially
+    // against a record that did declare exclusions.
+    expect(result.lawtonConvention).toBe('all-8-premorbid-adjusted');
+    expect(result.lawtonExcludedItems).toEqual([]);
     expect(result.lawtonScore).toBe(0);
+    expect(result.lawtonMax).toBe(8);
   });
 
   it('produces a domain breakdown whose percentages are internally consistent', () => {
@@ -101,5 +111,85 @@ describe('calculateFunctionScore', () => {
     for (const d of result.domainBreakdown) {
       expect(d.percentage).toBe(Math.round((d.rawScore / d.maxScore) * 100));
     }
+  });
+});
+
+describe('Lawton scoring conventions', () => {
+  const dependentHousehold = () => ({
+    iadl_phone: 1,
+    iadl_shopping: 1,
+    iadl_food: 0,
+    iadl_housekeeping: 0,
+    iadl_laundry: 0,
+    iadl_transport: 1,
+    iadl_medication: 1,
+    iadl_finances: 1
+  });
+
+  it('excludes premorbidly never-performed items from numerator and denominator', () => {
+    // A man who never cooked, kept house or did laundry. Scoring those items as
+    // "dependent" mistakes household role for functional incapacity — and in a
+    // care-time model it manufactures demand for care nobody newly absorbs.
+    const never = ['iadl_food', 'iadl_housekeeping', 'iadl_laundry'];
+    const adjusted = calculateFunctionScore(allMax(), dependentHousehold(), {
+      convention: 'all-8-premorbid-adjusted',
+      premorbidlyNotPerformed: never
+    });
+
+    expect(adjusted.lawtonMax).toBe(5);
+    expect(adjusted.lawtonScore).toBe(5);
+    expect(adjusted.lawtonExcludedItems.sort()).toEqual([...never].sort());
+  });
+
+  it('scores the same patient as impaired when all 8 items are counted', () => {
+    const plain = calculateFunctionScore(allMax(), dependentHousehold(), { convention: 'all-8' });
+    expect(plain.lawtonMax).toBe(8);
+    expect(plain.lawtonScore).toBe(5);
+    expect(plain.lawtonExcludedItems).toEqual([]);
+  });
+
+  it('reproduces the legacy male-5 convention only when explicitly declared', () => {
+    const male5 = calculateFunctionScore(allMax(), dependentHousehold(), { convention: 'male-5' });
+    // Lawton & Brody (1969) omitted food preparation, housekeeping and laundry
+    // for men. Retained for reproducibility, never applied automatically from
+    // gender — premorbid flags are more informative and auditable.
+    expect(male5.lawtonMax).toBe(5);
+    expect(male5.lawtonExcludedItems.sort()).toEqual(
+      [...LAWTON_MALE_5_OMITTED_ITEMS].sort()
+    );
+  });
+
+  it('records the reporting source without letting it change the score', () => {
+    const proxy = calculateFunctionScore(allMax(), allMax({}, LAWTON_ITEMS), {
+      assessmentSource: 'family_proxy'
+    });
+    const observed = calculateFunctionScore(allMax(), allMax({}, LAWTON_ITEMS), {
+      assessmentSource: 'clinician_observed'
+    });
+    expect(proxy.assessmentSource).toBe('family_proxy');
+    expect(observed.assessmentSource).toBe('clinician_observed');
+    expect(proxy.lawtonScore).toBe(observed.lawtonScore);
+  });
+
+  it('retains the raw graded responses so the assistance gradient survives persistence', () => {
+    const responses = { ...allMax() };
+    responses.bi_transfer = 5; // "major help (one or two people)" — a two-person task
+    const result = calculateFunctionScore(responses, allMax({}, LAWTON_ITEMS));
+    expect(result.barthelResponses.bi_transfer).toBe(5);
+    expect(Object.keys(result.lawtonResponses)).toHaveLength(LAWTON_ITEMS.length);
+  });
+
+  it('refuses to treat differing conventions as a comparable trend', () => {
+    const a = calculateFunctionScore(allMax(), dependentHousehold(), { convention: 'all-8' });
+    const b = calculateFunctionScore(allMax(), dependentHousehold(), {
+      convention: 'all-8-premorbid-adjusted',
+      premorbidlyNotPerformed: ['iadl_food']
+    });
+    const c = calculateFunctionScore(allMax(), dependentHousehold(), { convention: 'all-8' });
+
+    // Different denominators are different scales; plotting them as a trend
+    // would show decline or recovery that never happened.
+    expect(isComparableTo(a, b)).toBe(false);
+    expect(isComparableTo(a, c)).toBe(true);
   });
 });

@@ -52,6 +52,14 @@ export interface SimulatedStaffingOption {
   resolvedTasks: string[];
   simulatedResult: {
     netCareGapHours: number;
+    /**
+     * Active-care hours this option's staff would actually absorb — not the
+     * shift length. A 12-hour shift does not absorb 12 hours of work: part is
+     * rest, and a fraction of the care is non-delegable. Reported so a
+     * calibration log can compare the hours a clinician committed against the
+     * hours the model said were needed, in the same unit.
+     */
+    formalSupportAbsorbedHours: number;
     careGapIndex: number;
     liftingIndex: number;
     spinalCompressionKN: number;
@@ -405,7 +413,26 @@ export class StaffingRecommender {
 
       // Multi-Criterion Optimization Function:
       // Minimize: (1) Unresolved safety blocks -> (2) Residual gap -> (3) Manual-handling hazard tier -> (4) Cost Rank
-      const unresolvedNightGap = sim.blockGaps.night_watch.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedNightGap : 0;
+      // Night coverage is a presence question, so it is judged on whether the
+      // candidate actually puts somebody there overnight — not on whether an
+      // hours subtraction happens to come out positive.
+      //
+      // Overnight presence is deliberately excluded from the workload total
+      // (being present is not the same as working), which means a patient who is
+      // independent in every ADL but unsafe alone at night has little workload
+      // and an absolute need for night cover. Ranking on workload arithmetic
+      // alone would rank that need away. The band states the requirement
+      // explicitly; this reads it.
+      const coversNight =
+        cand.shiftWindow === 'night_12h' ||
+        cand.shiftWindow === 'live_in_24h' ||
+        cand.modifiedCaregiver.rotationPolicy?.nightShiftArrangement === 'formal_night_nurse';
+      const nightPresenceUnmet = baseEval.careDemandBand.requiresNightPresence && !coversNight;
+
+      const unresolvedNightGap =
+        sim.blockGaps.night_watch.gapHours > 0 || nightPresenceUnmet
+          ? CLINICAL_POLICY.staffingRanking.unresolvedNightGap
+          : 0;
       const unresolvedMorningGap = sim.blockGaps.morning_rush.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedMorningGap : 0;
       const safetyPenalty = unresolvedNightGap + unresolvedMorningGap;
 
@@ -419,6 +446,7 @@ export class StaffingRecommender {
         ...cand,
         simulatedResult: {
           netCareGapHours: sim.netCareGapHours,
+          formalSupportAbsorbedHours: sim.formalSupportAbsorbedHours,
           careGapIndex: sim.careGapIndex,
           liftingIndex: sim.liftingIndex,
           spinalCompressionKN: sim.spinalCompressionKN,
@@ -450,7 +478,17 @@ export class StaffingRecommender {
     // 3. Optimal: Maximum clinical and ergonomic protection (lowest residual gap, then lowest
     //    qualitative manual-handling hazard tier, then cost).
     const HAZARD_ORDER = { low: 0, moderate: 1, high: 2, severe: 3 } as const;
+    const coversNightWindow = (c: { shiftWindow: StaffingShiftWindow }) =>
+      c.shiftWindow === 'night_12h' || c.shiftWindow === 'live_in_24h';
     const byProtection = [...simulatedCandidates].sort((a, b) => {
+      // When overnight presence is required, an option that provides it is more
+      // protective than one that merely shaves workload hours off the day,
+      // regardless of how the hour arithmetic compares.
+      if (baseEval.careDemandBand.requiresNightPresence) {
+        const an = coversNightWindow(a) ? 0 : 1;
+        const bn = coversNightWindow(b) ? 0 : 1;
+        if (an !== bn) return an - bn;
+      }
       if (a.simulatedResult.netCareGapHours !== b.simulatedResult.netCareGapHours) {
         return a.simulatedResult.netCareGapHours - b.simulatedResult.netCareGapHours;
       }

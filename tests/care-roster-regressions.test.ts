@@ -156,14 +156,19 @@ describe('Care roster regressions', () => {
   });
 
   test('D2: per-block family supply reconciles with the hours actually absorbed', () => {
-    const independentPatient: PatientDependenceProfile = {
+    // This fixture needs genuine care demand to exercise the pooled-capping bug.
+    // It used to be a fully independent patient, which only generated demand at
+    // all because the old model applied a flat 1.5h/day baseline to everyone.
+    // That baseline has been removed — an independent patient now correctly
+    // yields zero demand — so the fixture carries real deficits instead.
+    const dependentPatient: PatientDependenceProfile = {
       ...DEFAULT_PATIENT_PROFILE,
-      katzAdl: { bathing: true, dressing: true, toileting: true, transferring: true, continence: true, feeding: true },
+      katzAdl: { bathing: false, dressing: false, toileting: false, transferring: true, continence: true, feeding: true },
       lawtonIadl: {
         telephone: true,
-        shopping: true,
-        mealPreparation: true,
-        housekeeping: true,
+        shopping: false,
+        mealPreparation: false,
+        housekeeping: false,
         laundry: true,
         transportation: true,
         medicationManagement: true,
@@ -180,7 +185,7 @@ describe('Care roster regressions', () => {
       secondaryMembers: [member({ id: 'a' }), member({ id: 'b' }), member({ id: 'c' })]
     };
 
-    const result = CareGapEngine.evaluate(caregiver, independentPatient);
+    const result = CareGapEngine.evaluate(caregiver, dependentPatient);
     // Contributor labels carry the member name and committed hours; the primary caregiver and
     // formal staff are labelled separately, so the family share can be isolated.
     const familySupply = Object.values(result.blockGaps).reduce((sum, b) => {

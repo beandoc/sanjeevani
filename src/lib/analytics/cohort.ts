@@ -36,9 +36,25 @@ import {
 } from '@/lib/clinical/care-intelligence';
 import { getDyadWorkflow, type DyadWorkflow } from '@/lib/clinical/dyad-workflow';
 
+export type PatientAcuity = 'urgent' | 'watch' | 'none';
+
+export const PATIENT_ACUITY_ORDER: Record<PatientAcuity, number> = {
+  urgent: 0,
+  watch: 1,
+  none: 2
+};
+
+export function derivePatientAcuity(signals?: ClinicalSignal[]): PatientAcuity {
+  if (!signals || signals.length === 0) return 'none';
+  if (signals.some((s) => s.severity === 'urgent')) return 'urgent';
+  if (signals.some((s) => s.severity === 'watch')) return 'watch';
+  return 'none';
+}
+
 export interface CohortRow {
   patientUid: string;
   displayName: string;
+  patientAcuity?: PatientAcuity;
   riskBand: RiskBand;
   burdenTrendPerMonth: number | null;
   latestBurdenPct: number | null;
@@ -57,13 +73,68 @@ export interface CohortRow {
   fallHistory?: number;
   lastVitalBp?: string | null;
   lastVitalSpo2?: string | null;
+  lastVitalAt?: string | null;
   latestAlertSnippet?: string | null;
   dailyLogCount?: number;
   lastDailyLogDate?: string | null;
   dailyLogSignals?: ClinicalSignal[];
   respitePrescription?: RespitePrescription;
+  /** CGA fields */
+  age?: number | null;
+  gender?: string | null;
+  cognitiveLoad?: string | null;
+  worstPressureInjuryStage?: string | null;
+  activeMedicationCount?: number | null;
   /** Documentation state, not a clinical risk score. Drives safe worklist copy. */
   workflow?: DyadWorkflow;
+}
+
+export function compareCohortRows(a: CohortRow, b: CohortRow): number {
+  const aAcuity = a.patientAcuity || derivePatientAcuity(a.dailyLogSignals);
+  const bAcuity = b.patientAcuity || derivePatientAcuity(b.dailyLogSignals);
+  const aUrgent = aAcuity === 'urgent' ? 0 : 1;
+  const bUrgent = bAcuity === 'urgent' ? 0 : 1;
+  if (aUrgent !== bUrgent) return aUrgent - bUrgent;
+
+  const bandDiff = (RISK_BAND_ORDER[a.riskBand] ?? 4) - (RISK_BAND_ORDER[b.riskBand] ?? 4);
+  if (bandDiff !== 0) return bandDiff;
+
+  const aDate = a.dailyLogSignals?.find((s) => s.severity === 'urgent')?.date || a.lastDailyLogDate || a.latestCompletedAt || '';
+  const bDate = b.dailyLogSignals?.find((s) => s.severity === 'urgent')?.date || b.lastDailyLogDate || b.latestCompletedAt || '';
+  if (aDate !== bDate) return bDate.localeCompare(aDate);
+  return 0;
+}
+
+export function getZaritSeverityBand(
+  tier: ZbiTier | null,
+  normalizedPct: number | null
+): 'normal' | 'amber' | 'red' | 'critical_red' {
+  if (normalizedPct === null) return 'normal';
+  if (tier === 'ZBI12') {
+    const raw = (normalizedPct / 100) * 48;
+    if (raw >= 28) return 'critical_red';
+    if (raw >= 17) return 'red';
+    if (raw >= 12) return 'amber';
+    return 'normal';
+  }
+  if (tier === 'ZBI4') {
+    const raw = (normalizedPct / 100) * 16;
+    if (raw >= 12) return 'critical_red';
+    if (raw >= 10) return 'red';
+    if (raw >= 6) return 'amber';
+    return 'normal';
+  }
+  // Default to ZBI22 cutoffs (0-20, 21-40, 41-60, 61-88)
+  const raw = (normalizedPct / 100) * 88;
+  if (raw > 60) return 'critical_red';
+  if (raw > 40) return 'red';
+  if (raw > 20) return 'amber';
+  return 'normal';
+}
+
+export function isSevereZbi(row: CohortRow): boolean {
+  if (row.latestBurdenPct === null) return false;
+  return getZaritSeverityBand(row.latestTier, row.latestBurdenPct) === 'critical_red';
 }
 
 // A dyad that was escalating at last contact and has since gone quiet ranks
@@ -78,8 +149,8 @@ export const RISK_BAND_ORDER: Record<RiskBand, number> = {
 };
 
 export const RISK_BAND_STYLE: Record<RiskBand, string> = {
-  critical: 'bg-red-600 text-white',
-  'lost-to-follow-up': 'bg-orange-600 text-white',
+  critical: 'bg-orange-600 text-white',
+  'lost-to-follow-up': 'bg-amber-600 text-white',
   deteriorating: 'bg-amber-500 text-white',
   stable: 'bg-emerald-500 text-white',
   'insufficient-data': 'bg-slate-400 text-white'
@@ -89,6 +160,7 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
   {
     patientUid: 'demo-ramesh',
     displayName: 'Shri Ramesh Chand (Dyad #7641)',
+    patientAcuity: 'watch',
     riskBand: 'deteriorating',
     burdenTrendPerMonth: 2.1,
     latestBurdenPct: 42,
@@ -107,6 +179,7 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     fallHistory: 1,
     lastVitalBp: '134/86',
     lastVitalSpo2: '97%',
+    lastVitalAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     latestAlertSnippet: 'Transfer assistance fatigue rising; evening sundowning reported.',
     dailyLogCount: 1,
     lastDailyLogDate: new Date().toISOString().slice(0, 10),
@@ -129,6 +202,11 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
       recommendedSupport: 'Planned weekly half-day respite and backup family roster',
       reasons: ['Rising caregiver burden (42%).']
     },
+    age: 76,
+    gender: 'M',
+    cognitiveLoad: 'wandering_agitation',
+    worstPressureInjuryStage: null,
+    activeMedicationCount: 6,
     workflow: {
       stage: 'longitudinal_monitoring', completedSteps: 6, totalSteps: 6,
       isCarePlanningReady: true, isRespiteEvaluationReady: true,
@@ -138,6 +216,7 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
   {
     patientUid: 'demo-kamla',
     displayName: 'Smt. Kamla Gupta (Dyad #8419)',
+    patientAcuity: 'none',
     riskBand: 'stable',
     burdenTrendPerMonth: -0.5,
     latestBurdenPct: 24,
@@ -156,6 +235,7 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
     fallHistory: 0,
     lastVitalBp: '122/78',
     lastVitalSpo2: '98%',
+    lastVitalAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     latestAlertSnippet: 'Cognitive stimulation & medication schedule fully compliant.',
     dailyLogCount: 1,
     lastDailyLogDate: new Date().toISOString().slice(0, 10),
@@ -168,6 +248,11 @@ const DEMO_COHORT_ROWS: CohortRow[] = [
       recommendedSupport: 'Monthly backup caregiver coverage',
       reasons: []
     },
+    age: 82,
+    gender: 'F',
+    cognitiveLoad: 'mild_forgetfulness',
+    worstPressureInjuryStage: null,
+    activeMedicationCount: 3,
     workflow: {
       stage: 'longitudinal_monitoring', completedSteps: 6, totalSteps: 6,
       isCarePlanningReady: true, isRespiteEvaluationReady: true,
@@ -227,9 +312,11 @@ export function invalidateCohortCache(): void {
  * them as clinically complete is unsafe; they are refreshed from source data
  * on the next client aggregation. */
 function normalizeSummaryRow(row: CohortRow): CohortRow {
-  if (row.workflow) return row;
+  const patientAcuity = row.patientAcuity || derivePatientAcuity(row.dailyLogSignals);
+  if (row.workflow) return { ...row, patientAcuity };
   return {
     ...row,
+    patientAcuity,
     hasQocWarning: false,
     respitePrescription: undefined,
     workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
@@ -305,7 +392,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             const bffRows = (data.rows as CohortRow[])
               .map(normalizeSummaryRow)
               .filter((r) => isNotArchived(r.patientUid));
-            bffRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+            bffRows.sort(compareCohortRows);
             setCachedCohortRoster(bffRows);
             return bffRows;
           }
@@ -372,6 +459,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
       const rows = await Promise.all(
         roster.map(async ({ patientUid }) => {
           const matchedInvite = inviteMap.get(patientUid);
+          const matchedLocal = localRegistered.find((lp) => lp.patientUid === patientUid);
           try {
             // Fast path: Check precomputed materialized summary to avoid 8 roundtrips
             if (!forceRefresh) {
@@ -412,6 +500,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
             const hasQocWarning = Boolean(careGap?.qualityOfCareWarnings.length);
             const latestVital = vitals?.[0];
             const dailyLogSignals = analyzeDailyCareLogs(dailyLogs);
+            const patientAcuity = derivePatientAcuity(dailyLogSignals);
             const respitePrescription = workflow.isRespiteEvaluationReady && careGap
               ? prescribeRespite(assessments[0] || null, careGap, caregiver, patientProfile)
               : undefined;
@@ -421,9 +510,40 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
                   ? matchedInvite.patientName
                   : displayName);
 
+            const wounds = patientProfile?.skinIntegrity?.wounds || [];
+            let worstPressureInjuryStage: string | null = null;
+            const stageWeights: Record<string, number> = {
+              deep_tissue: 6,
+              unstageable: 5,
+              '4': 4,
+              '3': 3,
+              '2': 2,
+              '1': 1,
+              none: 0
+            };
+            for (const w of wounds) {
+              if (w.stage && w.stage !== 'none') {
+                const curWeight = stageWeights[w.stage] ?? 0;
+                const prevWeight = worstPressureInjuryStage ? (stageWeights[worstPressureInjuryStage] ?? 0) : -1;
+                if (curWeight > prevWeight) {
+                  worstPressureInjuryStage = w.stage;
+                }
+              }
+            }
+
+            const activeMedicationCount = patientProfile?.currentMedications?.length ?? 0;
+            const resolvedAge = patientProfile?.age ?? matchedLocal?.patientAge ?? matchedInvite?.patientAge ?? null;
+            const rawGender = patientProfile?.gender ?? (caregiver as { patientGender?: string } | null)?.patientGender;
+            const compactGender = rawGender
+              ? (rawGender.toLowerCase().startsWith('f') ? 'F' : rawGender.toLowerCase().startsWith('m') ? 'M' : rawGender)
+              : null;
+            const cognitiveLoad = patientProfile?.cognitiveBehavioralLoad ?? null;
+            const lastVitalAt = latestVital?.date || null;
+
             return {
               patientUid,
               displayName: resolvedDisplayName,
+              patientAcuity,
               riskBand: trajectory.riskBand,
               burdenTrendPerMonth: trajectory.burdenSlope.slopePerMonth,
               latestBurdenPct: latest?.normalizedPercentage ?? null,
@@ -442,11 +562,17 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               fallHistory: patientProfile?.fallHistoryLast6Months || 0,
               lastVitalBp: latestVital?.bp || (latestVital?.systolic && latestVital?.diastolic ? `${latestVital.systolic}/${latestVital.diastolic}` : null),
               lastVitalSpo2: latestVital?.spo2 ? `${latestVital.spo2}%` : null,
+              lastVitalAt,
               latestAlertSnippet: dailyLogSignals[0]?.detail || (hasQocWarning ? careGap?.qualityOfCareWarnings[0] || null : null),
               dailyLogCount: dailyLogs.length,
               lastDailyLogDate: dailyLogs[0]?.date || null,
               dailyLogSignals,
               respitePrescription,
+              age: resolvedAge,
+              gender: compactGender,
+              cognitiveLoad,
+              worstPressureInjuryStage,
+              activeMedicationCount,
               workflow
             } satisfies CohortRow;
           } catch {
@@ -455,6 +581,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               displayName: matchedInvite?.patientName
                 ? matchedInvite.patientName
                 : `Patient ${patientUid.slice(0, 8)}`,
+              patientAcuity: 'none',
               riskBand: 'insufficient-data',
               burdenTrendPerMonth: null,
               latestBurdenPct: null,
@@ -467,6 +594,12 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
               caregiverName: matchedInvite?.caregiverName || null,
               caregiverKinship: matchedInvite?.caregiverKinship || null,
               caregiverPhone: matchedInvite?.caregiverPhone || null,
+              age: matchedLocal?.patientAge ?? matchedInvite?.patientAge ?? null,
+              gender: null,
+              cognitiveLoad: null,
+              worstPressureInjuryStage: null,
+              activeMedicationCount: null,
+              lastVitalAt: null,
               workflow: getDyadWorkflow({ patient: null, caregiver: null, functionAssessmentCount: 0, burdenAssessmentCount: 0 })
             } satisfies CohortRow;
           }
@@ -474,7 +607,7 @@ export async function loadCohortRoster(forceRefresh = false): Promise<CohortRow[
       );
 
       const validRows = rows.filter((r) => isNotArchived(r.patientUid));
-      validRows.sort((a, b) => RISK_BAND_ORDER[a.riskBand] - RISK_BAND_ORDER[b.riskBand]);
+      validRows.sort(compareCohortRows);
 
       // Deduplicate rows by normalized patient display name
       const seenPatientNames = new Set<string>();
@@ -532,6 +665,9 @@ export interface CohortSummary {
   byRiskBand: Record<RiskBand, number>;
   redFlagCount: number;
   reassessmentDueCount: number;
+  urgentAcuityCount: number;
+  severeBurnoutCount: number;
+  bedBoundOrPiCount: number;
 }
 
 export function summarizeCohort(rows: CohortRow[]): CohortSummary {
@@ -544,6 +680,9 @@ export function summarizeCohort(rows: CohortRow[]): CohortSummary {
   };
   let redFlagCount = 0;
   let reassessmentDueCount = 0;
+  let urgentAcuityCount = 0;
+  let severeBurnoutCount = 0;
+  let bedBoundOrPiCount = 0;
 
   for (const row of rows) {
     byRiskBand[row.riskBand]++;
@@ -553,9 +692,26 @@ export function summarizeCohort(rows: CohortRow[]): CohortSummary {
         ? { tier: row.latestTier, completedAt: row.latestCompletedAt }
         : null;
     if (isReassessmentDue(dueCheck)) reassessmentDueCount++;
+    if (row.patientAcuity === 'urgent' || (row.dailyLogSignals || []).some((s) => s.severity === 'urgent')) {
+      urgentAcuityCount++;
+    }
+    if (isSevereZbi(row) || row.riskBand === 'critical') {
+      severeBurnoutCount++;
+    }
+    if (row.isBedBound || (row.worstPressureInjuryStage && row.worstPressureInjuryStage !== 'none')) {
+      bedBoundOrPiCount++;
+    }
   }
 
-  return { totalPatients: rows.length, byRiskBand, redFlagCount, reassessmentDueCount };
+  return {
+    totalPatients: rows.length,
+    byRiskBand,
+    redFlagCount,
+    reassessmentDueCount,
+    urgentAcuityCount,
+    severeBurnoutCount,
+    bedBoundOrPiCount
+  };
 }
 
 export function isDemoDyad(patientUid: string): boolean {

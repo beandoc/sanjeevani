@@ -9,6 +9,7 @@ Sanjeevani is a clinician-reviewed planning and coordination tool for home care 
 1. **Expert concordance study:** Have a geriatrician, nurse, physiotherapist, pharmacist, and social worker independently review de-identified dyad scenarios. Compare their care-plan elements with Sanjeevani's identified gaps, required review flags, and suggested coverage windows.
 2. **Feasibility pilot:** Run a 6- to 12-week prospective pilot at one discharge or home-care service. Measure plan completion, time from assessment to usable home plan, and adoption of high-risk time-block coverage.
 3. **Comparative evaluation:** Compare the service's usual discharge planning with Sanjeevani-assisted planning using a pre-registered protocol and a defined analysis plan. Do not claim reductions in admissions, falls, or burden without appropriately powered results.
+4. **Care-time calibration study:** Replace the care-demand model's expert-consensus coefficients with locally measured task times, and set its band width from measured out-of-sample error rather than assumption. See `care-time-calibration-protocol.md`. Until this is complete, care-time output is an uncalibrated planning range and must be described as one.
 
 ## Primary Pilot Measures
 

@@ -16,9 +16,7 @@ import {
   Stethoscope,
   RefreshCw,
   Sparkles,
-  Info,
-  ArrowLeft,
-  LayoutDashboard
+  Info
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -224,23 +222,6 @@ export default function ScissorsTrajectoryPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Back to Dashboard Breadcrumb Bar */}
-      <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/40">
-        <Link href="/dashboard">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 pl-2 pr-3.5 -ml-2 rounded-xl transition-all group cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
-            <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span>Back to Dashboard</span>
-          </Button>
-        </Link>
-        <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline-block">
-          Doctor Portal • Longitudinal Analytics
-        </span>
-      </div>
 
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/60">

@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Sidebar,
-  SidebarHeader,
   SidebarContent,
   SidebarMenu,
   SidebarMenuItem,
@@ -32,23 +30,18 @@ import {
   Sparkles,
   Activity,
   Stethoscope,
-  Search,
-  UserPlus
+  UserPlus,
+  Menu
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/context/role-context';
 import { auth } from '@/lib/firebase/client';
-import { GlobalCommandPalette } from '@/components/search/global-command-palette';
-import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
-import { invalidateCohortCache } from '@/lib/analytics/cohort';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
   badge: string | null;
-  isHighlighted?: boolean;
 }
 
 interface NavSection {
@@ -60,8 +53,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, setRole } = useProfile();
-  const { isMobile, setOpenMobile } = useSidebar();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { isMobile, setOpenMobile, toggleSidebar, state } = useSidebar();
 
   // Close mobile drawer on route change (keep desktop state intact)
   useEffect(() => {
@@ -95,6 +87,19 @@ export function AppSidebar() {
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === href;
+    if (href === '/clinic/roster') {
+      return (
+        pathname.startsWith('/clinic/roster') ||
+        pathname.startsWith('/clinic/dyad') ||
+        pathname.startsWith('/clinic/trajectory')
+      );
+    }
+    if (href === '/clinic/register-patient') {
+      return (
+        pathname.startsWith('/clinic/register-patient') ||
+        pathname.startsWith('/clinic/add-patient')
+      );
+    }
     return pathname.startsWith(href);
   };
 
@@ -106,18 +111,22 @@ export function AppSidebar() {
       title: 'Doctor Portal',
       items: [
         {
-          href: '/clinic/roster',
-          label: 'Patients',
-          icon: Stethoscope,
-          badge: null,
-          isHighlighted: true
+          href: '/dashboard',
+          label: 'Dashboard',
+          icon: LayoutDashboard,
+          badge: null
         },
         {
-          href: '#register-patient',
+          href: '/clinic/roster',
+          label: 'All Patients',
+          icon: Users,
+          badge: null
+        },
+        {
+          href: '/clinic/register-patient',
           label: 'Add New Patient',
           icon: UserPlus,
-          badge: null,
-          isHighlighted: true
+          badge: null
         },
         {
           href: '/sehat-opd',
@@ -206,8 +215,7 @@ export function AppSidebar() {
           href: '/dashboard',
           label: 'Shift Dashboard',
           icon: LayoutDashboard,
-          badge: 'Live',
-          isHighlighted: true
+          badge: 'Live'
         },
         {
           href: '/domiciliary',
@@ -337,8 +345,7 @@ export function AppSidebar() {
           href: '/onboarding',
           label: 'Patient Setup',
           icon: Sparkles,
-          badge: null,
-          isHighlighted: true
+          badge: null
         },
         {
           href: '/reports',
@@ -355,8 +362,7 @@ export function AppSidebar() {
           href: '/resources',
           label: 'Resources',
           icon: BookMarked,
-          badge: null,
-          isHighlighted: true
+          badge: null
         },
         {
           href: '/modules',
@@ -397,71 +403,28 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
       variant="sidebar"
-      className="border-r border-sidebar-border bg-sidebar-background shadow-xl"
+      className="border-r border-sidebar-border bg-sidebar shadow-xl"
     >
-      <SidebarHeader className="h-16 flex items-center px-3.5 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:justify-center border-b border-sidebar-border/50">
-        <Link
-          href="/dashboard"
-          title="Kutumbh Healthcare Dashboard"
-          className="flex items-center gap-3 transition-all duration-300 hover:opacity-80 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-        >
-          <div className="relative h-10 w-10 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 overflow-hidden rounded-xl border border-border/80 shadow-xs bg-white p-0.5 shrink-0">
-            <Image
-              src="/kutumbh-emblem.png"
-              alt="Kutumbh Logo — स्नेह, संबल और स्वास्थ्य"
-              fill
-              className="object-contain"
-            />
-          </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-base font-black font-headline tracking-tight text-white">
-              कुटुम्ब <span className="text-xs font-bold text-slate-300 font-sans">Kutumbh</span>
-            </span>
-            <span className="text-[10px] text-sky-400 font-bold -mt-0.5 tracking-tight font-sans">
-              स्नेह, संबल और स्वास्थ्य
-            </span>
-          </div>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent className="px-2.5 py-3.5 gap-4 overflow-y-auto">
-        {/* Active Portal Indicator & Quick Role Switcher */}
-        <SidebarGroup className="p-0">
-          <SidebarGroupContent>
-            <div className="px-3 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 group-data-[collapsible=icon]:hidden space-y-2.5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-mono font-extrabold text-slate-300 tracking-wider">Current View</span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[10px] font-extrabold uppercase tracking-wider',
-                    isDoctor ? 'border-blue-500/50 text-blue-400 bg-blue-500/15' :
-                      isNurse ? 'border-rose-600/60 text-rose-300 bg-rose-950/70' :
-                        'border-emerald-500/50 text-emerald-400 bg-emerald-500/15'
-                  )}
-                >
-                  {isDoctor ? 'Doctor Portal' : isNurse ? 'Nurse Portal' : 'Caregiver Portal'}
-                </Badge>
-              </div>
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {/* Quick Omnibar Search Trigger */}
-        <SidebarGroup className="p-0">
+      <SidebarContent className="px-2.5 py-3 gap-3 overflow-y-auto group-data-[collapsible=icon]:px-1.5 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:gap-1.5 overflow-x-hidden">
+        {/* First Item: Hamburger Menu Toggle */}
+        <SidebarGroup className="p-0 group-data-[collapsible=icon]:p-0">
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
+              <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                 <SidebarMenuButton
-                  tooltip={{ children: 'Search System (⌘K)' }}
-                  onClick={() => setIsSearchOpen(true)}
-                  className="h-9 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-between text-xs transition-colors"
+                  tooltip={{ children: state === 'collapsed' ? 'Expand Menu (⌘B)' : 'Collapse Menu (⌘B)' }}
+                  onClick={toggleSidebar}
+                  className="h-9 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-between text-xs transition-colors cursor-pointer group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center"
+                  aria-label={state === 'collapsed' ? 'Expand Menu' : 'Collapse Menu'}
                 >
-                  <div className="flex items-center gap-2">
-                    <Search className="h-3.5 w-3.5 text-slate-400" />
-                    <span>Search</span>
+                  <div className="flex items-center gap-2.5 min-w-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
+                    <Menu className="h-4 w-4 text-slate-300 group-hover:text-white shrink-0" />
+                    <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
+                      {state === 'collapsed' ? 'Expand Menu' : 'Collapse Menu'}
+                    </span>
                   </div>
-                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border border-slate-700 bg-slate-800 px-1 font-mono text-[9px] font-medium text-slate-400">
-                    ⌘K
+                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border border-slate-700 bg-slate-800 px-1 font-mono text-[9px] font-medium text-slate-400 group-data-[collapsible=icon]:hidden">
+                    ⌘B
                   </kbd>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -470,7 +433,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {navSections.map((section, idx) => (
-          <SidebarGroup key={idx} className="p-0">
+          <SidebarGroup key={idx} className="p-0 group-data-[collapsible=icon]:p-0">
             {section.title && (
               <SidebarGroupLabel className="px-3 text-xs uppercase font-extrabold tracking-wider text-slate-300/90 mb-1 group-data-[collapsible=icon]:hidden">
                 {section.title}
@@ -479,38 +442,6 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
                 {section.items.map((link) => {
-                  if (link.href === '#register-patient') {
-                    return (
-                      <SidebarMenuItem key={link.href}>
-                        <RegisterPatientDialog
-                          onRegistered={() => {
-                            invalidateCohortCache();
-                            router.refresh();
-                          }}
-                          trigger={
-                            <SidebarMenuButton
-                              tooltip={{ children: link.label }}
-                              className={cn(
-                                'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-semibold w-full flex items-center justify-between text-left cursor-pointer group',
-                                'bg-blue-600/20 text-blue-200 hover:bg-blue-600 hover:text-white border border-blue-500/40 shadow-xs'
-                              )}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <link.icon className="h-4 w-4 shrink-0 text-blue-300 group-hover:text-white transition-transform duration-200 group-hover:scale-110" />
-                                <span className="truncate">{link.label}</span>
-                              </div>
-                              {link.badge && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border bg-blue-500/25 text-blue-200 group-hover:bg-white/20 group-hover:text-white border-blue-400/40">
-                                  {link.badge}
-                                </span>
-                              )}
-                            </SidebarMenuButton>
-                          }
-                        />
-                      </SidebarMenuItem>
-                    );
-                  }
-
                   const active = isActive(link.href);
                   const activeStyle = isDoctor
                     ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/50 border border-blue-400/40'
@@ -518,40 +449,35 @@ export function AppSidebar() {
                     ? 'bg-rose-800 text-white font-bold shadow-md shadow-rose-950/60 border border-rose-500/50'
                     : 'bg-emerald-700 text-white font-bold shadow-md shadow-emerald-950/50 border border-emerald-400/40';
 
-                  const highlightStyle = isDoctor
-                    ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 hover:text-white border border-blue-500/30'
-                    : isNurse
-                    ? 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 hover:text-white border border-rose-500/30'
-                    : 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-white border border-emerald-500/30';
-
                   return (
-                    <SidebarMenuItem key={link.href}>
+                    <SidebarMenuItem key={link.href} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                       <SidebarMenuButton
                         asChild
                         isActive={active}
                         tooltip={{ children: link.label }}
                         className={cn(
                           'h-9 px-3 rounded-xl transition-all duration-200 text-xs font-semibold',
+                          'group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center',
                           active
                             ? activeStyle
-                            : link.isHighlighted
-                              ? highlightStyle
-                              : 'text-slate-200 hover:text-white hover:bg-slate-800/90'
+                            : 'text-slate-200 hover:text-white hover:bg-slate-800/90'
                         )}
                       >
-                        <Link href={link.href} className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                        <Link
+                          href={link.href}
+                          title={link.label}
+                          className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
                             <link.icon
                               className={cn(
                                 'h-4 w-4 shrink-0 transition-transform duration-200',
                                 active
                                   ? 'scale-110 text-white'
-                                  : link.isHighlighted
-                                    ? isNurse ? 'text-rose-300' : isDoctor ? 'text-blue-300' : 'text-emerald-300'
-                                    : 'text-slate-300 group-hover:text-white'
+                                  : 'text-slate-300 group-hover:text-white'
                               )}
                             />
-                            <span className="truncate">{link.label}</span>
+                            <span className="truncate group-data-[collapsible=icon]:hidden">{link.label}</span>
                           </div>
 
                           {link.badge && (
@@ -560,9 +486,7 @@ export function AppSidebar() {
                                 'text-xs font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider group-data-[collapsible=icon]:hidden shrink-0 ml-1.5 border',
                                 active
                                   ? 'bg-white/20 text-white border-white/30'
-                                  : link.isHighlighted
-                                    ? isNurse ? 'bg-rose-600 text-white border-rose-500' : isDoctor ? 'bg-blue-600 text-white border-blue-500' : 'bg-emerald-600 text-white border-emerald-500'
-                                    : 'bg-slate-800 text-slate-200 border-slate-700/80 shadow-2xs'
+                                  : 'bg-slate-800 text-slate-200 border-slate-700/80 shadow-2xs'
                               )}
                             >
                               {link.badge}
@@ -579,11 +503,6 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      {/* Global Omnibar Command Palette */}
-      <GlobalCommandPalette
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
       <SidebarRail />
     </Sidebar>
   );

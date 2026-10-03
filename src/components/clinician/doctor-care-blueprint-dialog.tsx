@@ -37,6 +37,10 @@ import {
   DEFAULT_ASSISTIVE_DEVICES
 } from '@/lib/clinical/care-gap-engine';
 import { StaffingRecommender, SimulatedStaffingOption } from '@/lib/clinical/staffing-recommender';
+import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
+import { snapshotCareDemandForCalibration } from '@/lib/clinical/care-demand-model';
+import { HealthRepository } from '@/lib/db/health-repository';
+import type { CareDemandDecisionVerdict } from '@/lib/db/health-repository';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
@@ -63,6 +67,12 @@ interface DoctorCareBlueprintDialogProps {
   onBlueprintIssued: (blueprint: ClinicalCareBlueprint) => Promise<void>;
   /** Signed-in clinician's display name; seeds the author field. */
   clinicianDisplayName?: string;
+  /**
+   * Scopes the Phase 0 calibration log to this dyad. Without it the estimate
+   * and decision are still recorded, but in the unscoped vault, which is less
+   * useful for analysis.
+   */
+  patientUid?: string | null;
   trigger?: React.ReactNode;
 }
 
@@ -72,6 +82,7 @@ export function DoctorCareBlueprintDialog({
   patientProfile,
   onBlueprintIssued,
   clinicianDisplayName,
+  patientUid,
   trigger
 }: DoctorCareBlueprintDialogProps) {
   const { toast } = useToast();
@@ -138,9 +149,14 @@ export function DoctorCareBlueprintDialog({
     [patientProfile, patientName]
   );
 
-  const report = useMemo(
-    () => StaffingRecommender.recommend(safeCaregiver, safePatient),
+  const baselineEval = useMemo(
+    () => CareGapEngine.evaluate(safeCaregiver, safePatient),
     [safeCaregiver, safePatient]
+  );
+
+  const report = useMemo(
+    () => StaffingRecommender.recommend(safeCaregiver, safePatient, baselineEval),
+    [safeCaregiver, safePatient, baselineEval]
   );
 
   // Selected Option State (defaults to recommended ladder rung)
@@ -282,6 +298,60 @@ export function DoctorCareBlueprintDialog({
       };
 
       await onBlueprintIssued(blueprint);
+
+      // Phase 0 calibration instrumentation. Record what the model estimated
+      // and what the clinician actually committed to, in the same units, so a
+      // directional bias shows up in the log long before a diary study could
+      // report one. See docs/care-time-calibration-protocol.md.
+      //
+      // The clinician sees the model's range before deciding, so this is an
+      // anchored comparator and not ground truth. It detects gross bias; it
+      // does not measure task time.
+      try {
+        const band = baselineEval.careDemandBand;
+        const prescribedCoverage = activeOption.hoursPerDay;
+        const verdict: CareDemandDecisionVerdict =
+          prescribedCoverage > band.coverage.highHours
+            ? 'revised_up'
+            : prescribedCoverage < band.coverage.lowHours
+              ? 'revised_down'
+              : 'accepted';
+
+        const logged = HealthRepository.logCareDemandEstimate({
+          patientUid: patientUid ?? null,
+          engineVersion: baselineEval.engineVersion,
+          policyVersion: baselineEval.policyVersion,
+          estimate: {
+            ...snapshotCareDemandForCalibration(band),
+            careGapClassification: baselineEval.careGapClassification,
+            netCareGapHours: baselineEval.netCareGapHours,
+            caregiverSafeCapacityHours: baselineEval.caregiverSafeCapacityHours
+          },
+          inputs: {
+            barthelResponses: safePatient.gradedFunctionResponses?.barthel,
+            lawtonResponses: safePatient.gradedFunctionResponses?.lawton,
+            premorbidlyNotPerformedIadl: safePatient.premorbidlyNotPerformedIadl,
+            careTaskFrequencyOverrides: safePatient.careTaskFrequencyOverrides,
+            cognitiveBehavioralLoad: safePatient.cognitiveBehavioralLoad,
+            isBedBound: safePatient.isBedBound,
+            fallHistoryLast6Months: safePatient.fallHistoryLast6Months
+          },
+          decision: {
+            decidedAt: new Date().toISOString(),
+            decidedByRole: 'doctor',
+            verdict,
+            prescribedActiveCareHours: activeOption.simulatedResult.formalSupportAbsorbedHours,
+            prescribedCoverageHours: prescribedCoverage,
+            prescribedSupportTypes: [String(activeOption.supportType)],
+            reason: `${activeOption.rung}: ${activeOption.title}`
+          }
+        });
+        void logged;
+      } catch (logErr) {
+        // Instrumentation must never block issuing a clinical plan.
+        console.error('Could not record care-demand calibration entry:', logErr);
+      }
+
       toast({
         title: 'Reviewed Care Blueprint Issued',
         description: `Reviewed plan saved for ${patientName}. The family can now review and adopt it in their Care Circle.`
@@ -405,7 +475,9 @@ export function DoctorCareBlueprintDialog({
                       <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{opt.clinicalJustification}</p>
                     </div>
                     <div className="pt-1 border-t border-border/60 flex items-center justify-between text-[10px] font-mono">
-                      <span className="text-emerald-600 font-semibold">Res Gap: {opt.simulatedResult.netCareGapHours}h</span>
+                      <span className="text-emerald-600 font-semibold">
+                        Residual workload gap: {opt.simulatedResult.netCareGapHours}h
+                      </span>
                       <span className="text-muted-foreground">{opt.affordabilityFit.split('/')[0]}</span>
                     </div>
                   </button>

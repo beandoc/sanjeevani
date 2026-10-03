@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ClipboardPlus,
   ArrowRight,
+  ArrowLeft,
   ShieldAlert,
   Sparkles,
   Bed,
@@ -21,6 +22,8 @@ import { FunctionAssessmentForm } from '@/components/clinical/function-assessmen
 import type { PatientDependenceProfile, CareGapEvaluationResult } from '@/lib/clinical/care-gap-engine';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { cn } from '@/lib/utils';
+import { CareDemandBandValue } from '@/components/clinical/care-demand-band';
+import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
 
 interface PatientFunctionalAssessmentPanelProps {
   patientUid: string;
@@ -46,6 +49,7 @@ export function PatientFunctionalAssessmentPanel({
   onProceedToMatrix
 }: PatientFunctionalAssessmentPanelProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [intakePart, setIntakePart] = useState<'basic' | 'instrumental'>('basic');
 
   // Active Katz values: only true if patient has been assessed or explicitly edited
   const katz = isAssessed && patientProfile?.katzAdl
@@ -158,7 +162,7 @@ export function PatientFunctionalAssessmentPanel({
             <div className="space-y-2 max-w-3xl">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge className="bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">
-                  Clinical Foundation · Step 1
+                  Step 1 of Care Plan Workflow
                 </Badge>
                 <Badge variant="outline" className="text-xs font-semibold border-indigo-500/30 text-indigo-700 dark:text-indigo-300">
                   Katz Basic ADL & Lawton IADL
@@ -176,10 +180,10 @@ export function PatientFunctionalAssessmentPanel({
               </div>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Patient Functional Independence & Care Demand Foundation
+                Step 1: Patient Functional Assessment (ADL / IADL Baseline)
               </h2>
               <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
-                As the attending clinician, your assessment of <strong>{patientName}</strong>&apos;s functional independence forms the core baseline of care. The care hours, diurnal coverage shifts, transfer load, and assistive equipment in the Support Matrix derive directly from these functional inputs.
+                Assess <strong>{patientName}</strong>&apos;s functional mobility. Katz ADL and Lawton-Brody IADL scores recorded below automatically determine care hours and shift coverage for Step 2 (Monthly Support Matrix).
               </p>
             </div>
 
@@ -201,10 +205,10 @@ export function PatientFunctionalAssessmentPanel({
                 size="sm"
                 variant="outline"
                 onClick={onProceedToMatrix}
-                className="h-10 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted"
-                title="Proceed to Monthly Support Matrix to configure care shifts based on this assessment"
+                className="h-10 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted cursor-pointer"
+                title="Proceed to Step 2: Monthly Support Matrix to configure care shifts based on this assessment"
               >
-                <span>Support Matrix</span>
+                <span>Next: Monthly Support Matrix</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
@@ -252,22 +256,36 @@ export function PatientFunctionalAssessmentPanel({
 
             {/* Metric 3: Calculated Care Demand */}
             <div className="p-3 sm:p-4 rounded-2xl border border-border/70 bg-background/70 shadow-2xs">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                Derived Care Demand
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black font-mono text-foreground">
-                  {isAssessed ? careGapResult.patientCareDemandHours : '--'}
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Estimated Care Demand
                 </span>
-                {isAssessed && <span className="text-xs font-semibold text-muted-foreground">hrs / day</span>}
+                {isAssessed && (
+                  <EvidenceLevelBadge
+                    provenance={careGapResult.careDemandBand.provenance}
+                    label="Planning Range"
+                  />
+                )}
               </div>
-              <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 mt-1">
-                {isAssessed
-                  ? (careGapResult.patientCareDemandHours > 4
-                    ? 'Heavy Continuous Support'
-                    : 'Targeted Intermittent Care')
-                  : <span className="text-amber-600 dark:text-amber-400">Awaiting Functional Scoring</span>}
-              </p>
+              {isAssessed ? (
+                <>
+                  <CareDemandBandValue
+                    estimate={careGapResult.careDemandBand.activeCare}
+                    className="text-lg text-foreground"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Workload (hands-on + supervision). Presence required:{' '}
+                    <strong className="text-foreground">{careGapResult.patientCoverageHours} h/day</strong>.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl font-black font-mono text-foreground">--</span>
+                  <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-1">
+                    Awaiting Functional Scoring
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Metric 4: Mobility & Bed Status */}
@@ -288,36 +306,71 @@ export function PatientFunctionalAssessmentPanel({
         </CardContent>
       </Card>
 
-      {/* CALLOUT BANNER: IF UNASSESSED, SHOW PROMINENT CLINICAL ACTION CALL */}
-      {!isAssessed && (
-        <Card className="rounded-3xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100 shadow-xs">
-          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-sm font-bold text-foreground">
-                  Baseline Functional Assessment Not Yet Conducted
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-2xl">
-                  As the attending clinician, you have not yet evaluated <strong>{patientName}</strong>&apos;s functional independence. Formal assessment establishes standardized care hours and unlocks personalized Support Matrix scheduling.
-                </p>
-              </div>
-            </div>
-            <FunctionAssessmentForm
-              onComplete={onAssessmentCompleted}
-              trigger={
-                <Button
-                  size="sm"
-                  className="h-9 px-3 text-xs font-bold gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs"
-                >
-                  <ClipboardPlus className="w-3.5 h-3.5" />
-                  <span>Administer Assessment Now</span>
-                </Button>
-              }
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* 2-PART INTAKE WORKFLOW SUB-TABS */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60 border border-border/70 w-fit">
+          <button
+            type="button"
+            onClick={() => setIntakePart('basic')}
+            className={cn(
+              'px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+              intakePart === 'basic'
+                ? 'bg-background text-foreground shadow-xs border border-border/80'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Part 1: Basic ADLs & Mobility</span>
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[9px] px-1.5 py-0 font-bold',
+                isAssessed
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {isAssessed ? `${katzScore}/6 Items` : '6 Items'}
+            </Badge>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIntakePart('instrumental')}
+            className={cn(
+              'px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+              intakePart === 'instrumental'
+                ? 'bg-background text-foreground shadow-xs border border-border/80'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Part 2: Instrumental IADLs & History</span>
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[9px] px-1.5 py-0 font-bold',
+                isAssessed
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {isAssessed ? `${lawtonScore}/8 Items` : '8 Items'}
+            </Badge>
+          </button>
+        </div>
+
+        {!isAssessed && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Baseline unassessed. Toggle items below or use the standardized assessment form.</span>
+          </div>
+        )}
+      </div>
+
+      {/* PART 1: BASIC ADLs & MOBILITY SURVEILLANCE */}
+      {intakePart === 'basic' && (
+        <div className="space-y-6">
 
       {/* 2. THE 6 BASIC ACTIVITIES OF DAILY LIVING (KATZ ADL) */}
       <Card className="rounded-3xl shadow-xs">
@@ -725,6 +778,28 @@ export function PatientFunctionalAssessmentPanel({
         </CardContent>
       </Card>
 
+          {/* Quick Sub-navigation Footer */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border/70 bg-card shadow-2xs">
+            <p className="text-xs text-muted-foreground">
+              Completed basic physical mobility? Continue to instrumental daily living capabilities and assessment history.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIntakePart('instrumental')}
+              className="text-xs font-semibold gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
+            >
+              <span>Continue to Part 2: Instrumental IADLs</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* PART 2: INSTRUMENTAL IADLs & ASSESSMENT HISTORY */}
+      {intakePart === 'instrumental' && (
+        <div className="space-y-6">
+
       {/* 4. LAWTON-BRODY INSTRUMENTAL ACTIVITIES OF DAILY LIVING (IADL) */}
       <Card className="rounded-3xl shadow-xs">
         <CardHeader className="pb-3 border-b border-border/60">
@@ -867,6 +942,29 @@ export function PatientFunctionalAssessmentPanel({
           )}
         </CardContent>
       </Card>
+
+          {/* Quick Sub-navigation Footer */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border/70 bg-card shadow-2xs">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIntakePart('basic')}
+              className="text-xs font-semibold gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground self-start sm:self-auto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Part 1: Basic ADLs</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={onProceedToMatrix}
+              className="text-xs font-semibold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer self-start sm:self-auto"
+            >
+              <span>Proceed to Step 2: Monthly Support Matrix</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

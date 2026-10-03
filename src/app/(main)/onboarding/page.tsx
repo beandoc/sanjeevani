@@ -57,6 +57,7 @@ import { useAuthUser } from '@/hooks/use-auth-user';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { CareDemandBandValue, CareGapVerdict } from '@/components/clinical/care-demand-band';
 
 const ONBOARDING_DRAFT_KEY = 'kutumbh_onboarding_draft';
 
@@ -1331,9 +1332,9 @@ export default function OnboardingIntakePage() {
               {/* 4 Reconciled KPIs */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Patient Demand</span>
-                  <span className="text-2xl font-black font-mono text-foreground">{evaluation.patientCareDemandHours}h</span>
-                  <span className="text-[10px] text-muted-foreground block">daily care load</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Active Care Demand</span>
+                  <CareDemandBandValue estimate={evaluation.careDemandBand.activeCare} className="text-lg text-foreground block" />
+                  <span className="text-[10px] text-muted-foreground block">planning range</span>
                 </div>
 
                 <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
@@ -1346,9 +1347,11 @@ export default function OnboardingIntakePage() {
 
                 <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Net Care Gap</span>
-                  <span className={cn('text-2xl font-black font-mono', evaluation.netCareGapHours > 2 ? 'text-rose-600' : 'text-emerald-600')}>
-                    {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours}h` : '0h'}
-                  </span>
+                  <CareGapVerdict
+                    classification={evaluation.careGapClassification}
+                    gapHours={evaluation.netCareGapHours}
+                    className="text-xs block py-1"
+                  />
                   <Badge variant="outline" className="text-[9px] uppercase font-mono mt-0.5">
                     {evaluation.careGapSeverity.replace('_', ' ')}
                   </Badge>

@@ -188,3 +188,91 @@ export interface RegisteredPatientRecord {
   caregiverAttributes?: CaregiverAttributes;
   createdAt: string;
 }
+
+/* ------------------------------------------------------------------ *
+ * CARE-TIME CALIBRATION LOG (Phase 0 instrumentation)
+ *
+ * Every care-demand estimate, and what the clinician actually decided after
+ * seeing it. Two purposes:
+ *
+ *   1. Calibration-in-the-large, at near-zero cost. Comparing the model's
+ *      range against what clinicians actually prescribe answers the
+ *      first-order question — is the model systematically wrong, and in which
+ *      direction — within weeks, without a diary study.
+ *   2. Retrospective recalibration. The inputs are stored verbatim, so every
+ *      historical estimate can be recomputed under new coefficients. Without
+ *      the inputs, a calibration study can only improve future estimates and
+ *      can never check itself against the record.
+ *
+ * Deliberately plain primitives rather than the live model types: this is an
+ * analysis artifact that must survive model refactors and export cleanly to a
+ * statistician. See docs/care-time-calibration-protocol.md.
+ * ------------------------------------------------------------------ */
+
+/** What the clinician did after seeing the estimate. */
+export type CareDemandDecisionVerdict =
+  | 'accepted'
+  | 'revised_up'
+  | 'revised_down'
+  | 'rejected'
+  | 'not_recorded';
+
+export interface CareDemandEstimateSnapshot {
+  activeCareLowHours: number;
+  activeCarePointHours: number;
+  activeCareHighHours: number;
+  directCarePointHours: number;
+  supervisionPointHours: number;
+  onCallPointHours: number;
+  coveragePointHours: number;
+  bandRelativeHalfWidth: number;
+  requiresNightPresence: boolean;
+  inputGranularity: 'graded' | 'legacy_binary';
+  assessmentSource: string;
+  /** 0 = every coefficient measured locally, 1 = none. */
+  uncalibratedShare: number;
+  careGapClassification: 'covered' | 'indeterminate' | 'deficit';
+  netCareGapHours: number;
+  caregiverSafeCapacityHours: number;
+}
+
+/**
+ * The inputs the estimate was computed from, stored verbatim so the estimate
+ * can be recomputed when coefficients change.
+ */
+export interface CareDemandInputSnapshot {
+  barthelResponses?: Record<string, number>;
+  lawtonResponses?: Record<string, number>;
+  premorbidlyNotPerformedIadl?: string[];
+  careTaskFrequencyOverrides?: Record<string, number>;
+  cognitiveBehavioralLoad?: string;
+  isBedBound?: boolean;
+  fallHistoryLast6Months?: number;
+  hasMotorizedBedAndRippleMattress?: boolean;
+}
+
+export interface CareDemandDecision {
+  decidedAt: string;
+  decidedByRole: 'doctor' | 'nurse' | 'medical_assistant' | 'caregiver' | 'other';
+  verdict: CareDemandDecisionVerdict;
+  /** Formal/paid active-care hours per day the clinician actually settled on. */
+  prescribedActiveCareHours?: number;
+  /** Elapsed presence hours per day the clinician actually settled on. */
+  prescribedCoverageHours?: number;
+  /** Support types chosen, e.g. ['paid_attendant_12h']. */
+  prescribedSupportTypes?: string[];
+  /** Free-text rationale. Required by convention when revising or rejecting. */
+  reason?: string;
+}
+
+export interface CareDemandEstimateLog {
+  id: string;
+  patientUid?: string | null;
+  recordedAt: string;
+  engineVersion: string;
+  policyVersion: string;
+  estimate: CareDemandEstimateSnapshot;
+  inputs: CareDemandInputSnapshot;
+  /** Absent until a clinician records what they decided. */
+  decision?: CareDemandDecision;
+}

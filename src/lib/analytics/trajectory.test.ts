@@ -79,6 +79,10 @@ function makeFunctionScore(opts: {
     domainBreakdown: [],
     careIntensityFlags: [],
     lawtonConvention: 'all-8',
+    lawtonExcludedItems: [],
+    assessmentSource: 'not_recorded',
+    barthelResponses: {},
+    lawtonResponses: {},
     recordedAt: new Date(Date.now() - opts.daysAgo * 24 * 60 * 60 * 1000).toISOString()
   };
 }

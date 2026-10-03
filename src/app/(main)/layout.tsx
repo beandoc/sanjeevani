@@ -18,14 +18,12 @@ function MainContentWrapper({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex flex-1 flex-col min-h-screen min-w-0 w-full bg-background overflow-x-hidden pb-24 md:pb-0">
-      <Header />
+    <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full overflow-x-hidden pb-24 md:pb-0">
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions --
           Tapping the content area to dismiss the open mobile sidebar is a mouse/touch
           convenience layered on top of the real, already-accessible dismissal paths:
           Radix's Sheet (rendering the mobile sidebar) closes on Escape and has its own
-          focus-trapped overlay. Making the whole <main> region a keyboard-focusable
-          "button" would be actively wrong here — it isn't a control. */}
+          focus-trapped overlay. */}
       <main
         onClick={handleContentClick}
         className="flex-1 p-3.5 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto"
@@ -41,9 +39,14 @@ function MainContentWrapper({ children }: { children: ReactNode }) {
 export default function MainLayout({ children }: { children: ReactNode }) {
   return (
     <SessionGuard>
-      <SidebarProvider>
-        <AppSidebar />
-        <MainContentWrapper>{children}</MainContentWrapper>
+      <SidebarProvider className="flex flex-col min-h-screen w-full">
+        {/* Full-width thin horizontal header across all pages */}
+        <Header />
+        {/* Expandable/collapsible sidebar and main content starting after the header */}
+        <div className="flex flex-1 min-h-0 w-full relative pt-14">
+          <AppSidebar />
+          <MainContentWrapper>{children}</MainContentWrapper>
+        </div>
       </SidebarProvider>
     </SessionGuard>
   );

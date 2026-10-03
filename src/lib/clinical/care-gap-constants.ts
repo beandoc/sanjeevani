@@ -1,12 +1,60 @@
 /**
  * Sanjeevani Care Gap Engine — Clinical Constants & Literature Provenance
- * 
+ *
  * Every parameter used in the Care Gap Estimation Engine is extracted here.
- * Parameters are categorized by clinical origin:
- * - Empirically Anchored: Sourced from published time-use studies (NHATS/NSOC, RAI/RUG-III, Katz, Lawton).
- * - Biomechanical / Ergonomic: Derived from NIOSH Manual Material Handling (MMH) lifting equation standards.
- * - Expert Consensus / Clinical Heuristics: Tagged with `@calibration expert-consensus, uncalibrated`.
- * 
+ *
+ * CITATION RULE (added 2026-10-03, after an audit found a reference that did not
+ * support its claim — see `DEMAND_PER_ADL_DEFICIT_HOURS`):
+ *
+ *   A citation may support the validity of an *input* or the existence of a
+ *   *term*. It may never be used to license the *magnitude* of a coefficient
+ *   unless that citation reports a measured value in a comparable population.
+ *   Every coefficient in this file is therefore tagged
+ *   `@calibration expert-consensus, uncalibrated`, because none of them has been
+ *   calibrated against measured care time. An earlier version of this header
+ *   described some parameters as "Empirically Anchored"; that claim was not
+ *   supportable and has been withdrawn.
+ *
+ * THE EVIDENCE CEILING FOR CARE-HOUR PREDICTION
+ *
+ * This matters for how any output built on these constants may be presented.
+ * Case-mix systems purpose-built to predict care time — calibrated against
+ * observed hours, spanning function, cognition, behaviour, clinical complexity
+ * and rehabilitation — still explain only a minority of individual variation in
+ * home-care hours:
+ *
+ *   interRAI-CA   16%  of formal home-care service hour variance
+ *   interRAI-HC   24%  (33 clusters, complex-needs clients)
+ *   RUG-III/HC    23.34% of combined paid + unpaid care time
+ *
+ * @citation Parsons M, Rouse P, Sajtos L, Harrison J, Parsons J, Gestro L.
+ *           Developing and utilising a new funding model for home-care services
+ *           in New Zealand. Health Soc Care Community. 2018;26(3):345-355.
+ * @citation Bolster-Foucault C, Holyoke P. Resource Utilization Groups in
+ *           transitional home care: validating the RUG-III/HC case-mix system in
+ *           hospital-to-home care programs. BMC Health Serv Res. 2023;23:1324.
+ *
+ * RUG-III reaches 55.5% variance explained, but that figure is per-diem *cost*
+ * in a *nursing home* derived from direct 24-hour nursing-time measurement. It
+ * is the institutional best case and does not transfer to domiciliary care.
+ * @citation Fries BE, Schneider DP, Foley WJ, Gavazzi M, Burke R, Cornelius E.
+ *           Refining a case-mix measure for nursing homes: Resource Utilization
+ *           Groups (RUG-III). Med Care. 1994;32(7):668-685.
+ *
+ * The instrument family actually designed to convert dependency into care hours
+ * and cost — and therefore the correct comparator for any model in this
+ * codebase — is the Northwick Park Dependency Score and its Care Needs
+ * Assessment.
+ * @citation Turner-Stokes L, Sutch S, Dredge R. Healthcare tariffs for specialist
+ *           inpatient neurorehabilitation services: rationale and development of
+ *           a UK casemix and costing methodology. Clin Rehabil. 2011;26(3):264-279.
+ *
+ * Consequence: a model built on these inputs must emit a *range*, must keep
+ * hands-on, supervision and on-call time separate, and must never be presented
+ * as determining an individual patient's required hours. See
+ * `./care-demand-model.ts`, which supersedes the per-deficit hour constants
+ * below.
+ *
  * Target Setting: Indian Geriatric & Palliative Home Care (LASI / Longitudinal Ageing Study in India context,
  * multigenerational joint families, filial caregiving, out-of-pocket financial toxicity).
  */
@@ -30,35 +78,82 @@ export const CARE_GAP_ENGINE_VERSION = '2.3.0';
  * ------------------------------------------------------------------ */
 
 /**
- * Baseline supervision and care coordination overhead for community-dwelling dependent elders.
- * 
- * @citation World Health Organization (WHO). Integrated Care for Older People (ICOPE) Guidelines. Geneva: WHO; 2017.
- * @citation Family Caregiver Alliance (FCA). Caregiver Statistics: Demographics and Time-Use Benchmarks. 2021.
- * @citation Indian Academy of Geriatrics (IAG). Consensus Guidelines on Home Care of Frail Elders in India. 2022.
- * In Indian joint-household settings, baseline care includes medication sorting, dietary preparation, and continuous presence.
+ * DEPRECATED — retained only so legacy stored evaluations remain readable.
+ *
+ * This was a flat 1.5 h/day floor applied to every patient, which meant a fully
+ * independent elder (Katz 6/6, Lawton 8/8) still generated 1.5 h of "demand"
+ * and so could never show a zero care gap. The floor was unfalsifiable and it
+ * guaranteed a non-zero deficit for well patients whose caregiver was
+ * capacity-limited.
+ *
+ * WHO ICOPE was cited here as justification, but ICOPE argues for comprehensive
+ * person-centred assessment and an individualised care plan. It is authority for
+ * an assessment *approach*, not for a baseline hour constant. The Family
+ * Caregiver Alliance and Indian Academy of Geriatrics citations were likewise
+ * descriptive population statistics, not a per-patient floor.
+ *
+ * Replaced by item-level terms in `care-demand-model.ts`, where a patient with
+ * no deficits correctly yields zero.
+ *
+ * @deprecated Use `estimateCareDemand` from `./care-demand-model`.
+ * @calibration expert-consensus, uncalibrated
  */
 export const BASELINE_CARE_DEMAND_HOURS = 1.5;
 
 /**
- * Direct physical hands-on care demand per Katz ADL deficit (hours/day).
- * 
- * @citation Katz S, Ford AB, Moskowitz RW, Jackson BA, Jaffe MW. Studies of Illness in the Aged.
- *           The Index of ADL: A Standardized Measure of Biological and Psychosocial Function. JAMA. 1963;185(12):914-919.
- * @citation National Health and Aging Trends Study (NHATS) & National Study of Caregiving (NSOC).
- *           Hours of Care by Self-Care ADL Impairment Count. J Am Geriatr Soc. 2016;64(11):2257-2264.
- * @citation CMS Home Health Prospective Payment System (PPS) personal care service-minutes allocation:
- *           Bathing/sponge (~45m), transferring/mobility (~45m), toileting/incontinence (~30m), feeding assistance (~30m).
+ * DEPRECATED — flat hours per Katz ADL deficit. Superseded by graded,
+ * frequency-aware item weights in `care-demand-model.ts`.
+ *
+ * CITATION CORRECTION. This constant previously carried three citations, none of
+ * which supported it:
+ *
+ *  1. A reference to "NHATS & NSOC. Hours of Care by Self-Care ADL Impairment
+ *     Count. J Am Geriatr Soc. 2016;64(11):2257-2264" was the stated anchor for
+ *     the 1.0 h figure. That volume/issue/page range is in fact Lee DR, Kawas CH,
+ *     Gibbs L, Corrada MM. "Prevalence of Frailty and Factors Associated with
+ *     Frailty in Individuals Aged 90 and Older: The 90+ Study." J Am Geriatr Soc.
+ *     2016;64(11):2257-2262 (PMID 27590837) — a frailty-prevalence study
+ *     containing no care-hours data. The citation did not support the claim and
+ *     has been removed.
+ *  2. Katz 1963 establishes the instrument. It contains no time coefficient and
+ *     cannot license an hours-per-deficit figure.
+ *  3. The "CMS Home Health PPS personal care service-minutes allocation" figures
+ *     were unsourced. HH PPS is an episode-level case-mix payment system; it does
+ *     not publish per-task minute allocations.
+ *
+ * The underlying modelling error was treating an ordinal deficit count as a time
+ * scale: all six ADLs weighted equally, no frequency, no assistance gradient, no
+ * staff count. Bathing two or three times weekly and toileting eight times daily
+ * cannot share one coefficient.
+ *
+ * @deprecated Use `BARTHEL_TASK_WEIGHTS` in `./care-demand-model`.
+ * @calibration expert-consensus, uncalibrated
  */
 export const DEMAND_PER_ADL_DEFICIT_HOURS = 1.0;
 
 /**
- * Direct care & coordination demand per Lawton-Brody 8-Item IADL deficit (hours/day).
- * 
- * @citation Lawton MP, Brody EM. Assessment of Older People: Self-Maintaining and Instrumental
- *           Activities of Daily Living. Gerontologist. 1969;9(3 Pt 1):179-186.
- * @citation Resource Utilization Groups (RUG-III) & Resident Assessment Instrument (RAI) Home Care
- *           time studies on instrumental domestic management: meal preparation, laundry, housekeeping,
- *           medication dispensing, procurement, and travel coordination.
+ * DEPRECATED — flat hours per Lawton IADL deficit. Superseded by the two-factor,
+ * frequency-amortised weights in `care-demand-model.ts`.
+ *
+ * CITATION CORRECTION:
+ *  1. Lawton & Brody 1969 establishes the instrument and contains no time
+ *     coefficient.
+ *  2. The "RUG-III / RAI Home Care time studies" reference was used as though it
+ *     supplied home-care IADL minutes. RUG-III (Fries et al., Med Care
+ *     1994;32:668-685) measures *nursing-home* staff time; importing those
+ *     figures into domiciliary IADL work is a transportability claim with no
+ *     bridging study behind it.
+ *
+ * Two further structural problems with a single IADL coefficient:
+ *  - The 8-item Lawton loads on two distinct factors, physical and cognitive
+ *    IADL (Ng et al., J Gerontol A 2006;61:726-735). One coefficient treats
+ *    "cannot manage finances" and "cannot do laundry" as the same quantity of
+ *    care time.
+ *  - IADL frequencies differ by an order of magnitude: meal preparation is three
+ *    times daily, transport perhaps weekly. A per-deficit constant discards this.
+ *
+ * @deprecated Use `LAWTON_TASK_WEIGHTS` in `./care-demand-model`.
+ * @calibration expert-consensus, uncalibrated
  */
 export const DEMAND_PER_IADL_DEFICIT_HOURS = 0.35;
 
@@ -69,6 +164,13 @@ export const DEMAND_PER_IADL_DEFICIT_HOURS = 0.35;
  *           Gerontologist. 1980;20(6):649-655.
  * @citation Teri L, Truax P, Logsdon R, et al. Assessment of Behavioral Problems in Dementia:
  *           The Revised Memory and Behavior Problems Checklist. Psychol Aging. 1992;7(4):622-631.
+ *
+ * Both citations establish that behavioural disturbance drives caregiver burden
+ * and that it is measurable. Neither reports hours, so the magnitudes here are
+ * not derived from them. Supervision need frequently dominates total care time
+ * while basic ADLs remain intact, which is precisely what an ADL-only model
+ * cannot see.
+ * @calibration expert-consensus, uncalibrated
  */
 export const COGNITIVE_OVERHEAD_HOURS = {
   none: 0,
@@ -121,6 +223,12 @@ export const MAX_FORMAL_ABSORBABLE_FRACTION = 0.85;
  * @citation CMS Home Health PPS productivity ratio benchmarks (direct patient contact vs rest/charting).
  * @citation Indian Geriatric Home Care Practices (AIIMS / HelpAge India): 24h live-in domestic attendants (ayahs)
  *           often provide about 16h hands-on care with an 8h nocturnal rest/sleep window.
+ *
+ * Note that the 8h nocturnal window a live-in attendant spends resting is
+ * precisely `onCall` time in `care-demand-model.ts`: present and available, but
+ * not delivering hands-on care. Keeping the two apart is why that model reports
+ * them as separate quantities.
+ * @calibration expert-consensus, uncalibrated
  */
 export interface FormalSupportSpec {
   nominalHours: number;
@@ -159,6 +267,11 @@ export const MULTI_STAFF_DIMINISHING_WEIGHTS = [1.0, 0.5, 0.25] as const;
  * 
  * @citation Schulz R, Sherwood PR. Physical and Mental Health Effects of Family Caregiving. Am J Nurs. 2008;108(9 Suppl):23-27.
  * @citation NSSO 75th Round: Key Indicators of Household Social Consumption on Health in India. 2019.
+ *
+ * These establish that caregiving at volume harms caregiver health. Neither
+ * defines a safe daily hour cap, so the specific caps below are a policy choice
+ * rather than a measured threshold.
+ * @calibration expert-consensus, uncalibrated
  */
 export const EMPLOYMENT_CAPACITY_CAPS = {
   full_time: 5.0,

@@ -54,7 +54,6 @@ import {
   ExternalLink,
   UserMinus,
   Edit3,
-  LayoutDashboard,
   ArrowRight,
   Eye
 } from 'lucide-react';
@@ -88,6 +87,7 @@ import {
 import { HealthRepository, type MedicationItem, type VitalRecord, type AppointmentRecord } from '@/lib/db/health-repository';
 import { CareGapEngine } from '@/lib/clinical/care-gap-engine';
 import type { CaregiverAttributes, PatientDependenceProfile, AssistiveDeviceInventory, EmergencyLogistics } from '@/lib/clinical/care-gap-engine';
+import { katzFromBarthelResponses, lawtonFlagsFromResponses } from '@/lib/clinical/care-demand-model';
 import { computeTrajectory, type TrajectoryResult, type CareMatrixInterventionMarker } from '@/lib/analytics/trajectory';
 import { invalidateCohortCache } from '@/lib/analytics/cohort';
 import { calculateZaritScore, type ZaritEvaluationResult, type ZbiFactor } from '@/lib/zarit-scale';
@@ -593,8 +593,23 @@ export default function DyadDetailPage() {
     try {
       await recordFunctionScore(patientUid, result);
       if (patientProfile) {
+        // Carry the GRADED responses onto the profile, and derive the legacy Katz
+        // booleans from them rather than leaving a second, independently edited
+        // copy to drift. Graded Barthel is the single source of truth: the
+        // assistance level ("major help, one or two people" vs "minor help") is
+        // what drives care time, and a boolean cannot express it.
+        const derivedKatz = katzFromBarthelResponses(result.barthelResponses);
+        const derivedLawton = lawtonFlagsFromResponses(result.lawtonResponses);
         const updatedProfile: PatientDependenceProfile = {
           ...patientProfile,
+          gradedFunctionResponses: {
+            barthel: result.barthelResponses,
+            lawton: result.lawtonResponses
+          },
+          premorbidlyNotPerformedIadl: result.lawtonExcludedItems,
+          functionAssessmentSource: result.assessmentSource,
+          ...(derivedKatz ? { katzAdl: derivedKatz } : {}),
+          lawtonIadl: { ...patientProfile.lawtonIadl, ...derivedLawton },
           isFunctionalAssessmentCompleted: true,
           functionalAssessedAt: new Date().toISOString()
         };
@@ -966,45 +981,22 @@ export default function DyadDetailPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
-      {/* Breadcrumb & Live Status Bar */}
+      {/* Back Navigation to All Patients */}
+      <div className="flex items-center justify-between -mb-2">
+        <Link href="/clinic/roster">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 -ml-2 px-2.5 text-xs font-semibold gap-1.5 text-muted-foreground hover:text-foreground group cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to All Patients</span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Executive Patient Clinical Header */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 font-medium flex-wrap">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1 hover:text-foreground text-muted-foreground transition-colors group"
-            >
-              <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span>Dashboard</span>
-            </Link>
-            <span className="text-border">/</span>
-            <Link
-              href="/clinic/roster"
-              className="flex items-center gap-1 hover:text-foreground text-muted-foreground transition-colors group"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-              <span>Patient Clinical Roster</span>
-            </Link>
-            <span className="text-border">/</span>
-            <span className="text-foreground font-semibold capitalize">{cleanPatientName}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isArchived ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200/80 dark:border-rose-800/80 shadow-2xs">
-                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                Discharged / Inactive Dyad
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Active Care Surveillance
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Executive Patient Clinical Header */}
         <div className="p-4 sm:p-6 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-xs space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Patient Identity & Clinical Metadata */}
@@ -1023,13 +1015,6 @@ export default function DyadDetailPage() {
                   <h1 className="text-lg sm:text-2xl font-black font-headline text-foreground tracking-tight truncate capitalize">
                     {cleanPatientName}
                   </h1>
-                  <Badge
-                    variant="outline"
-                    title={`Full dyad ID: ${dyadFullCode}`}
-                    className="font-semibold text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-2 py-0.5"
-                  >
-                    {dyadTag}
-                  </Badge>
                   {patientProfile?.age ? (
                     <Badge variant="secondary" className="text-xs font-normal">
                       {patientProfile.age} Yrs{rawPatientGender ? ` • ${patientGenderLabel}` : ''}
@@ -1063,29 +1048,17 @@ export default function DyadDetailPage() {
 
             {/* Action Bar */}
             <div className="flex items-center gap-2 flex-wrap shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void load()}
-                className="h-9 text-xs gap-1.5 bg-background/80 hover:bg-muted"
-                title="Sync clinical observations and telemetry"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-
-
-
               <DoctorCareBlueprintDialog
                 clinicianDisplayName={user?.displayName || undefined}
                 patientName={cleanPatientName}
                 caregiver={caregiver}
                 patientProfile={patientProfile}
+                patientUid={patientUid}
                 onBlueprintIssued={handleBlueprintIssued}
                 trigger={
                   <Button
                     size="sm"
-                    className="h-9 text-xs font-bold gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs"
+                    className="h-9 text-xs font-bold gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-blue-200" />
                     <span>Review Blueprint</span>
@@ -1097,68 +1070,13 @@ export default function DyadDetailPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-9 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted"
+                  className="h-9 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted cursor-pointer"
                   title="Print or export clinical encounter brief for OPD consultation"
                 >
                   <Printer className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="hidden sm:inline">Print Brief</span>
                 </Button>
               </Link>
-
-              {isArchived ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleRestoreDyad}
-                  className="h-9 text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 bg-background/80"
-                  title="Restore this patient dyad to active clinical surveillance"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Restore Dyad</span>
-                </Button>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 text-xs font-semibold gap-1.5 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 bg-background/80"
-                      title="Discharge or remove this patient dyad from active clinical surveillance"
-                    >
-                      <UserMinus className="w-3.5 h-3.5 text-rose-500" />
-                      <span className="hidden sm:inline">Discharge Dyad</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="max-w-md">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-                        <AlertTriangle className="w-5 h-5 text-rose-500" />
-                        Discharge Patient Dyad
-                      </AlertDialogTitle>
-                      <AlertDialogDescription asChild>
-                        <div className="text-sm text-foreground/85 space-y-2 pt-1">
-                          <p>
-                            Are you sure you want to discharge or remove <strong>{cleanPatientName}</strong> ({patientUid}) from active clinical surveillance?
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            This action revokes active surveillance, cleans up clinician grants and pending invite tokens in Firestore, and removes this dyad from your cohort roster.
-                          </p>
-                        </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDischargeDyad}
-                        disabled={isDischarging}
-                        className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
-                      >
-                        {isDischarging ? 'Discharging...' : 'Yes, Discharge Dyad'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
             </div>
           </div>
         </div>
@@ -1166,122 +1084,43 @@ export default function DyadDetailPage() {
 
       {/* Care must move through a documented sequence in logical order:
           1. Registration -> 2. Functional Assessment -> 3. Home Context -> 4. Caregiver Capacity -> 5. Care Matrix -> 6. Longitudinal Monitoring */}
-      <Card className="border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-card to-indigo-500/5 shadow-xs overflow-hidden">
+      <Card className="border-border/80 bg-gradient-to-r from-blue-500/[0.04] via-card to-indigo-500/[0.04] shadow-xs overflow-hidden rounded-3xl">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="min-w-0 space-y-2">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <Badge className="bg-blue-600 text-white text-[10px] font-bold tracking-wider uppercase px-2 py-0.5">
-                  Care pathway
-                </Badge>
-                <span className="text-sm font-bold text-foreground">
-                  {workflow.completedSteps} of {workflow.totalSteps} steps documented
-                </span>
-                <div className="w-24 h-2 bg-muted rounded-full overflow-hidden border border-border/60">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.round((workflow.completedSteps / workflow.totalSteps) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground font-medium">
-                  Current Step: <strong className="text-foreground">{DYAD_WORKFLOW_LABEL[workflow.stage]}</strong>
-                </span>
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Badge className="bg-blue-600 text-white text-[10px] font-bold tracking-wider uppercase px-2 py-0.5">
+                Care pathway
+              </Badge>
+              <span className="text-sm font-bold text-foreground">
+                {workflow.completedSteps} of {workflow.totalSteps} steps documented
+              </span>
+              <div className="w-24 h-2 bg-muted rounded-full overflow-hidden border border-border/60">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round((workflow.completedSteps / workflow.totalSteps) * 100)}%` }}
+                />
               </div>
-              <div className="flex items-start gap-2 text-xs bg-background/80 border border-border/60 rounded-xl px-3 py-2">
-                <span className={cn(
-                  'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5',
-                  workflow.nextOwner === 'clinician' ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' :
-                  workflow.nextOwner === 'caregiver' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' :
-                  'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                )}>
-                  {workflow.nextOwner === 'clinician' ? 'Doctor Action' : workflow.nextOwner === 'caregiver' ? 'Caregiver Action' : 'Shared Action'}
-                </span>
-                <p className="text-foreground/90 font-medium leading-relaxed">
-                  {workflow.nextAction}
-                </p>
-              </div>
+              <span className="text-xs text-muted-foreground font-medium">
+                Current Step: <strong className="text-foreground">{DYAD_WORKFLOW_LABEL[workflow.stage]}</strong>
+              </span>
             </div>
-
-            {/* Contextual Action Button */}
-            <div className="flex items-center gap-2 shrink-0">
-              {workflow.stage === 'function_assessment' ? (
-                <FunctionAssessmentForm
-                  onComplete={handleFunctionAssessmentSaved}
-                  trigger={
-                    <Button size="sm" className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs">
-                      <Activity className="w-3.5 h-3.5" />
-                      <span>Record ADL / IADL</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
-                  }
-                />
-              ) : workflow.stage === 'home_context' ? (
-                <Button
-                  size="sm"
-                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
-                  onClick={() => {
-                    setActiveTab('matrix');
-                    setTimeout(() => {
-                      document.getElementById('care-matrix-config-trigger')?.click();
-                    }, 150);
-                  }}
-                >
-                  <Home className="w-3.5 h-3.5" />
-                  <span>Document Home Context</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              ) : workflow.stage === 'caregiver_capacity' ? (
-                <Button
-                  size="sm"
-                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
-                  onClick={() => {
-                    setActiveTab('matrix');
-                    setTimeout(() => {
-                      document.getElementById('care-matrix-config-trigger')?.click();
-                    }, 150);
-                  }}
-                >
-                  <Users2 className="w-3.5 h-3.5" />
-                  <span>Record Caregiver Capacity</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              ) : workflow.stage === 'care_matrix' ? (
-                <Button
-                  size="sm"
-                  className="h-9 text-xs font-bold gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
-                  onClick={() => setActiveTab('matrix')}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Configure Care Matrix</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              ) : workflow.stage === 'longitudinal_monitoring' ? (
-                <AssistedZaritAssessmentForm
-                  patientName={cleanPatientName}
-                  caregiverName={caregiver?.name}
-                  onComplete={handleZaritAssessmentSaved}
-                  trigger={
-                    <Button size="sm" className="h-9 text-xs font-bold gap-1.5 bg-rose-600 hover:bg-rose-700 text-white shadow-xs">
-                      <HeartHandshake className="w-3.5 h-3.5" />
-                      <span>Conduct ZBI Burden Check-in</span>
-                    </Button>
-                  }
-                />
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 text-xs font-semibold gap-1.5 bg-background/80 hover:bg-muted"
-                  onClick={() => setActiveTab('matrix')}
-                >
-                  <span>Open Care Matrix</span>
-                </Button>
-              )}
+            <div className="flex items-start gap-2 text-xs bg-background/80 border border-border/60 rounded-xl px-3 py-2">
+              <span className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5',
+                workflow.nextOwner === 'clinician' ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' :
+                workflow.nextOwner === 'caregiver' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' :
+                'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              )}>
+                {workflow.nextOwner === 'clinician' ? 'Doctor Action' : workflow.nextOwner === 'caregiver' ? 'Caregiver Action' : 'Shared Action'}
+              </span>
+              <p className="text-foreground/90 font-medium leading-relaxed">
+                {workflow.nextAction}
+              </p>
             </div>
           </div>
 
           {/* 6 Logical Pathway Steps */}
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
             {(workflow.steps || []).map((step, idx) => {
               const isDone = step.isCompleted;
               const isCurrent = step.isCurrent;
@@ -1299,37 +1138,38 @@ export default function DyadDetailPage() {
                     }
                   }}
                   className={cn(
-                    'group relative flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer',
+                    'group relative flex flex-col p-3 rounded-2xl border text-left transition-all cursor-pointer shadow-2xs',
                     isDone
                       ? 'bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 border-emerald-500/30 hover:bg-emerald-500/15'
                       : isCurrent
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-500/30'
-                      : 'bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted/70 hover:border-border'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm ring-2 ring-blue-500/20'
+                      : 'bg-card/90 hover:bg-muted text-muted-foreground hover:text-foreground border-border/70 hover:border-border'
                   )}
                   title={step.actionPrompt}
                 >
-                  <div className="flex items-center justify-between w-full mb-1">
+                  <div className="flex items-center justify-between w-full mb-1.5">
                     <span className={cn(
-                      'text-[10px] font-bold uppercase tracking-wider',
+                      'text-[10px] font-extrabold uppercase tracking-wider',
                       isCurrent ? 'text-blue-100' : isDone ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'
                     )}>
-                      Step {idx + 1}
+                      STEP {idx + 1}
                     </span>
                     {isDone ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     ) : isCurrent ? (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-white text-blue-600 leading-none">
-                        NEXT
-                      </span>
+                      <span className="w-2 h-2 rounded-full bg-blue-200/90 shrink-0" />
                     ) : (
-                      <span className="w-2 h-2 rounded-full bg-border" />
+                      <span className="w-2 h-2 rounded-full bg-border shrink-0" />
                     )}
                   </div>
-                  <div className="font-bold text-xs leading-tight mb-0.5">
+                  <div className={cn(
+                    'font-bold text-xs sm:text-sm leading-tight mb-0.5',
+                    isCurrent ? 'text-white' : isDone ? 'text-emerald-950 dark:text-emerald-100' : 'text-foreground'
+                  )}>
                     {step.shortLabel}
                   </div>
                   <div className={cn(
-                    'text-[10px]',
+                    'text-[10px] capitalize',
                     isCurrent ? 'text-blue-100' : 'text-muted-foreground'
                   )}>
                     {isDone ? 'Documented' : isCurrent ? 'Active action' : `${step.owner} intake`}
@@ -1450,142 +1290,159 @@ export default function DyadDetailPage() {
 
       {/* HORIZONTAL WORKSPACE NAVIGATION TABS - IN LOGICAL CLINICAL DATA FLOW */}
       <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-touch border-b border-border/60">
-        {/* Tab 1: Patient Functional Assessment (ADL / IADL Foundation) */}
-        <button
-          onClick={() => setActiveTab('assessment')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'assessment'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <Activity className="w-4 h-4 text-indigo-500" />
-          <span>Patient Assessment (ADL/IADL)</span>
-          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'assessment' ? 'bg-white text-primary' : isPatientAssessed ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30')}>
-            {isPatientAssessed ? 'Foundation' : 'Intake Needed'}
-          </Badge>
-        </button>
+        {/* GROUP 1: CARE BLUEPRINT (FORMULATION STEPS 1-5) */}
+        <div className="flex items-center gap-1.5 shrink-0 pr-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground hidden lg:inline mr-1 px-2 py-1 rounded-lg bg-muted/60 border border-border/60">
+            Care Blueprint
+          </span>
 
-        {/* Tab 2: Monthly Support Matrix (Core Dyad Engine) */}
-        <button
-          onClick={() => setActiveTab('matrix')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'matrix'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <Users2 className="w-4 h-4" />
-          <span>Monthly Support Matrix</span>
-          <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-1', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
-            Core
-          </Badge>
-        </button>
-
-        {/* Tab 3: Active Medications & Regimen */}
-        <button
-          onClick={() => setActiveTab('medications')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'medications'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <Pill className="w-4 h-4" />
-          <span>Medicines & Regimen</span>
-          <Badge variant="outline" className="text-[9px] ml-1">
-            {medications.length}
-          </Badge>
-        </button>
-
-        {/* Tab 4: Vital Signs & Telemetry */}
-        <button
-          onClick={() => setActiveTab('vitals')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'vitals'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <HeartPulse className="w-4 h-4" />
-          <span>Vital Signs</span>
-          <Badge variant="outline" className="text-[9px] ml-1">
-            {vitals.length}
-          </Badge>
-        </button>
-
-        {/* Tab 5: Trajectory & Scissors Chart */}
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'overview'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>Trajectory & Scissors Chart</span>
-          {trajectory?.riskBand && trajectory.riskBand !== 'insufficient-data' && (
-            <Badge variant="outline" className="text-[9px] ml-1 capitalize">
-              {trajectory.riskBand.replace(/-/g, ' ')}
+          {/* Step 1: Patient Functional Assessment (ADL / IADL Foundation) */}
+          <button
+            onClick={() => setActiveTab('assessment')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'assessment'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <Activity className="w-4 h-4 text-indigo-500" />
+            <span>1. Patient Assessment</span>
+            <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-0.5', activeTab === 'assessment' ? 'bg-white text-primary' : isPatientAssessed ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30')}>
+              {isPatientAssessed ? 'Foundation' : 'Intake Needed'}
             </Badge>
-          )}
-        </button>
+          </button>
 
-        {/* Tab 6: Bedside Care Logs (Caregiver Feed) */}
-        <button
-          onClick={() => setActiveTab('dailyLogs')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'dailyLogs'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Bedside Care Logs</span>
-          <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0.2', activeTab === 'dailyLogs' ? 'bg-white/20 text-white border-white/40' : 'text-muted-foreground')}>
-            Caregiver Feed
-          </Badge>
-        </button>
+          {/* Step 2: Monthly Support Matrix (Core Dyad Engine) */}
+          <button
+            onClick={() => setActiveTab('matrix')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'matrix'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <Users2 className="w-4 h-4" />
+            <span>2. Support Matrix</span>
+            <Badge className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 ml-0.5', activeTab === 'matrix' ? 'bg-white text-primary' : 'bg-primary/10 text-primary')}>
+              Core
+            </Badge>
+          </button>
 
-        {/* Tab 7: Emergency Readiness & Logistics */}
-        <button
-          onClick={() => setActiveTab('emergency')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'emergency'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <Car className="w-4 h-4 text-red-600" />
-          <span>Emergency Logistics</span>
-          {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
-            <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1" />
-          ) : (
-            <span className="w-2 h-2 rounded-full bg-amber-500 ml-1" />
-          )}
-        </button>
+          {/* Step 3: Active Medications & Regimen */}
+          <button
+            onClick={() => setActiveTab('medications')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'medications'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <Pill className="w-4 h-4" />
+            <span>3. Medicines</span>
+            <Badge variant="outline" className="text-[9px] ml-0.5">
+              {medications.length}
+            </Badge>
+          </button>
 
-        {/* Tab 8: Assigned Education & Guides */}
-        <button
-          onClick={() => setActiveTab('modules')}
-          className={cn(
-            'whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0',
-            activeTab === 'modules'
-              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
-          )}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>Education & Guides</span>
-        </button>
+          {/* Step 4: Emergency Logistics & Safety (Part of Care Blueprint) */}
+          <button
+            onClick={() => setActiveTab('emergency')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'emergency'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <Car className="w-4 h-4 text-red-600" />
+            <span>4. Emergency Logistics</span>
+            {caregiver?.emergencyLogistics?.fourWheelerAvailableAtHome ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-500 ml-0.5" />
+            ) : (
+              <span className="w-2 h-2 rounded-full bg-amber-500 ml-0.5" />
+            )}
+          </button>
+
+          {/* Step 5: Assigned Education & Guides */}
+          <button
+            onClick={() => setActiveTab('modules')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'modules'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>5. Prescribed Education</span>
+          </button>
+        </div>
+
+        {/* ELEGANT SECTION DIVIDER */}
+        <div className="h-7 w-[1px] bg-border/80 shrink-0 mx-1 hidden sm:block" />
+
+        {/* GROUP 2: SURVEILLANCE & MONITORING (LONGITUDINAL TELEMETRY) */}
+        <div className="flex items-center gap-1.5 shrink-0 pl-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground hidden lg:inline mr-1 px-2 py-1 rounded-lg bg-muted/60 border border-border/60">
+            Surveillance
+          </span>
+
+          {/* Bedside Care Logs (Daily Caregiver Feed) */}
+          <button
+            onClick={() => setActiveTab('dailyLogs')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'dailyLogs'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Bedside Care Logs</span>
+            <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0.2', activeTab === 'dailyLogs' ? 'bg-white/20 text-white border-white/40' : 'text-muted-foreground')}>
+              Caregiver Feed
+            </Badge>
+          </button>
+
+          {/* Vital Signs & Telemetry */}
+          <button
+            onClick={() => setActiveTab('vitals')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'vitals'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <HeartPulse className="w-4 h-4" />
+            <span>Vital Signs</span>
+            <Badge variant="outline" className="text-[9px] ml-0.5">
+              {vitals.length}
+            </Badge>
+          </button>
+
+          {/* Trajectory & Scissors Chart */}
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={cn(
+              'whitespace-nowrap px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border min-h-[42px] shrink-0 cursor-pointer',
+              activeTab === 'overview'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground hover:bg-muted/80 border-border/70'
+            )}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Trajectory &amp; Outcomes</span>
+            {trajectory?.riskBand && trajectory.riskBand !== 'insufficient-data' && (
+              <Badge variant="outline" className="text-[9px] ml-0.5 capitalize">
+                {trajectory.riskBand.replace(/-/g, ' ')}
+              </Badge>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* FULL WIDTH MAIN WORKSPACE AREA */}

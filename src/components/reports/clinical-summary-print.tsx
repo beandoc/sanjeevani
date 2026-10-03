@@ -12,6 +12,7 @@ import {
   PatientDependenceProfile
 } from '@/lib/clinical/care-gap-engine';
 import { format } from 'date-fns';
+import { formatBand } from '@/components/clinical/care-demand-band';
 
 interface ClinicalSummaryPrintProps {
   zaritResult?: ZaritEvaluationResult | null;
@@ -115,18 +116,18 @@ export function ClinicalSummaryPrint({
   }
 
   return (
-    <div className="bg-white text-black p-8 max-w-4xl mx-auto font-sans leading-relaxed text-xs space-y-6 print:p-0 print:m-0 print:text-black print:bg-white">
+    <div className="bg-white text-black p-4 sm:p-8 max-w-4xl mx-auto font-sans leading-relaxed text-xs space-y-6 print:p-0 print:m-0 print:text-black print:bg-white">
       {/* 1. Header & Clinic Encounter Banner */}
-      <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
+      <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 font-headline uppercase">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 font-headline uppercase">
             Kutumbh Clinical Care Brief
           </h1>
           <p className="text-xs font-semibold text-slate-600">
             Geriatric Caregiver Dyad Assessment & Clinician Review Brief
           </p>
         </div>
-        <div className="text-right space-y-0.5">
+        <div className="text-left sm:text-right space-y-0.5">
           <p className="font-mono font-bold text-xs" suppressHydrationWarning>
             Generated: {generatedDate ? format(generatedDate, 'PPP p') : '—'}
           </p>
@@ -137,7 +138,7 @@ export function ClinicalSummaryPrint({
       </div>
 
       {/* 2. Patient & Caregiver Dyad Profile Matrix */}
-      <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-300 rounded-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-300 rounded-lg">
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-bold text-slate-500">Patient Demographics & Functional State</span>
           {hasRealDyadProfile && careGapEval ? (
@@ -186,7 +187,11 @@ export function ClinicalSummaryPrint({
           </span>
         </div>
         <p className="text-slate-800">
-          Patient requires an estimated <strong>{careGapEval.patientCareDemandHours} hrs/day</strong> of direct assistance.
+          Estimated planning range: <strong>{formatBand(careGapEval.careDemandBand.activeCare)}</strong> of
+          active care (hands-on {formatBand(careGapEval.careDemandBand.directCare)} plus supervision{' '}
+          {formatBand(careGapEval.careDemandBand.supervision)}).
+          {careGapEval.careDemandBand.requiresNightPresence &&
+            ' Overnight presence is also indicated — a coverage requirement, not additional active-care hours.'}
           {careGapEval.formalSupportAbsorbedHours > 0 && ` Formal staff is estimated to relieve ${careGapEval.formalSupportAbsorbedHours} hrs/day.`}
           Primary caregiver capacity is estimated at <strong>{careGapEval.caregiverSafeCapacityHours} hrs/day</strong>. Manual-handling concern tier: <strong>{careGapEval.manualHandlingHazardTier === 'severe' || careGapEval.manualHandlingHazardTier === 'high' ? 'High concern — formal assessment required' : careGapEval.manualHandlingHazardTier === 'moderate' ? 'Elevated manual-handling concern' : 'Lower observed concern'}</strong>{careGapEval.requiresClinicalPtOtReferral ? ' (PT/OT safe-patient-handling assessment indicated)' : ''}.
         </p>
@@ -201,6 +206,9 @@ export function ClinicalSummaryPrint({
         </div>
         <p className="text-[11px] text-slate-700 border-t border-amber-200 pt-1">
           Use this section for planning conversations only. It is not a diagnosis, treatment order, or independently validated staffing calculator.
+          Care time is reported as a range because purpose-built, time-calibrated home-care case-mix
+          systems explain only 16&ndash;24% of individual care-hour variance; this estimate cannot be
+          more precise than that and does not determine an individual&apos;s required hours.
         </p>
       </div>
       ) : (
@@ -224,7 +232,7 @@ export function ClinicalSummaryPrint({
 
         {zaritResult ? (
           <div className="space-y-3 pt-1">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-2.5 bg-slate-100 rounded text-center">
                 <span className="text-[10px] uppercase font-bold text-slate-600">Total Score</span>
                 <p className="text-2xl font-black text-slate-900">
@@ -245,7 +253,7 @@ export function ClinicalSummaryPrint({
             {zaritResult.factors && (
               <div className="pt-2">
                 <span className="text-[10px] uppercase font-bold text-slate-600">Score Breakdown and Local Overlays</span>
-                <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
                   {Object.entries(zaritResult.factors).map(([key, f]) => (
                     <div key={key} className={`p-1.5 border rounded ${f.isMeasured ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
                       <strong>{f.title.en}:</strong> {f.isMeasured && f.percentage !== null ? `${f.percentage}% (${f.rawScore}/${f.maxScore})` : 'Unassessed'}
@@ -289,34 +297,36 @@ export function ClinicalSummaryPrint({
         </div>
 
         {recentVitals.length > 0 ? (
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-300 font-bold bg-slate-50">
-                <th className="py-1 px-2">Date</th>
-                <th className="py-1 px-2">BP (mmHg)</th>
-                <th className="py-1 px-2">Pulse</th>
-                <th className="py-1 px-2">SpO2</th>
-                <th className="py-1 px-2">Sugar</th>
-                <th className="py-1 px-2">Weight</th>
-                <th className="py-1 px-2">Sleep</th>
-                <th className="py-1 px-2">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentVitals.map((v) => (
-                <tr key={v.id} className="border-b border-slate-200">
-                  <td className="py-1 px-2 font-medium">{format(new Date(v.date), 'dd MMM yyyy')}</td>
-                  <td className="py-1 px-2 font-mono">{v.systolic && v.diastolic ? `${v.systolic}/${v.diastolic}` : v.bp || '—'}</td>
-                  <td className="py-1 px-2 font-mono">{v.pulse ? `${v.pulse} bpm` : '—'}</td>
-                  <td className="py-1 px-2 font-mono">{v.spo2 ? `${v.spo2}%` : '—'}</td>
-                  <td className="py-1 px-2 font-mono">{v.bloodSugar ? `${v.bloodSugar} mg/dL` : '—'}</td>
-                  <td className="py-1 px-2 font-mono">{v.weight ? `${v.weight} kg` : '—'}</td>
-                  <td className="py-1 px-2 capitalize">{v.sleep}</td>
-                  <td className="py-1 px-2 text-slate-600 max-w-[150px] truncate">{v.notes || '—'}</td>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+              <thead>
+                <tr className="border-b border-slate-300 font-bold bg-slate-50">
+                  <th className="py-1 px-2">Date</th>
+                  <th className="py-1 px-2">BP (mmHg)</th>
+                  <th className="py-1 px-2">Pulse</th>
+                  <th className="py-1 px-2">SpO2</th>
+                  <th className="py-1 px-2">Sugar</th>
+                  <th className="py-1 px-2">Weight</th>
+                  <th className="py-1 px-2">Sleep</th>
+                  <th className="py-1 px-2">Notes</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentVitals.map((v) => (
+                  <tr key={v.id} className="border-b border-slate-200">
+                    <td className="py-1 px-2 font-medium">{format(new Date(v.date), 'dd MMM yyyy')}</td>
+                    <td className="py-1 px-2 font-mono">{v.systolic && v.diastolic ? `${v.systolic}/${v.diastolic}` : v.bp || '—'}</td>
+                    <td className="py-1 px-2 font-mono">{v.pulse ? `${v.pulse} bpm` : '—'}</td>
+                    <td className="py-1 px-2 font-mono">{v.spo2 ? `${v.spo2}%` : '—'}</td>
+                    <td className="py-1 px-2 font-mono">{v.bloodSugar ? `${v.bloodSugar} mg/dL` : '—'}</td>
+                    <td className="py-1 px-2 font-mono">{v.weight ? `${v.weight} kg` : '—'}</td>
+                    <td className="py-1 px-2 capitalize">{v.sleep}</td>
+                    <td className="py-1 px-2 text-slate-600 max-w-[150px] truncate">{v.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-xs text-slate-500 italic">No vitals logged.</p>
         )}
@@ -329,32 +339,34 @@ export function ClinicalSummaryPrint({
         </h3>
 
         {medications.length > 0 ? (
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-300 font-bold bg-slate-50">
-                <th className="py-1 px-2">Drug Name</th>
-                <th className="py-1 px-2">Dosage</th>
-                <th className="py-1 px-2">Timing</th>
-                <th className="py-1 px-2">Food Relation</th>
-                <th className="py-1 px-2">Review Context</th>
-                <th className="py-1 px-2">Geriatric Caution</th>
-              </tr>
-            </thead>
-            <tbody>
-              {medications.map((m) => (
-                <tr key={m.id} className="border-b border-slate-200">
-                  <td className="py-1 px-2 font-bold">{m.name}</td>
-                  <td className="py-1 px-2 font-mono">{m.dosage}</td>
-                  <td className="py-1 px-2 capitalize">{m.timeOfDay.join(', ')}</td>
-                  <td className="py-1 px-2 capitalize">{m.foodRelation} food</td>
-                  <td className="py-1 px-2 text-slate-700">
-                    {[m.indication, m.renalFunctionEgfr, m.duration].filter(Boolean).join(' • ') || 'Needs indication/eGFR/duration review'}
-                  </td>
-                  <td className="py-1 px-2 text-slate-700">{m.beersWarning ? `Caution: ${m.beersWarning}` : 'No high-yield alert in limited screen'}</td>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+              <thead>
+                <tr className="border-b border-slate-300 font-bold bg-slate-50">
+                  <th className="py-1 px-2">Drug Name</th>
+                  <th className="py-1 px-2">Dosage</th>
+                  <th className="py-1 px-2">Timing</th>
+                  <th className="py-1 px-2">Food Relation</th>
+                  <th className="py-1 px-2">Review Context</th>
+                  <th className="py-1 px-2">Geriatric Caution</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {medications.map((m) => (
+                  <tr key={m.id} className="border-b border-slate-200">
+                    <td className="py-1 px-2 font-bold">{m.name}</td>
+                    <td className="py-1 px-2 font-mono">{m.dosage}</td>
+                    <td className="py-1 px-2 capitalize">{m.timeOfDay.join(', ')}</td>
+                    <td className="py-1 px-2 capitalize">{m.foodRelation} food</td>
+                    <td className="py-1 px-2 text-slate-700">
+                      {[m.indication, m.renalFunctionEgfr, m.duration].filter(Boolean).join(' • ') || 'Needs indication/eGFR/duration review'}
+                    </td>
+                    <td className="py-1 px-2 text-slate-700">{m.beersWarning ? `Caution: ${m.beersWarning}` : 'No high-yield alert in limited screen'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="text-xs text-slate-500 italic">No medications recorded.</p>
         )}
@@ -369,7 +381,7 @@ export function ClinicalSummaryPrint({
           4. Attending Clinician Review, Revisions & Orders
         </span>
         <div className="h-16" />
-        <div className="flex items-center justify-between pt-4 border-t border-slate-300 text-[11px] text-slate-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-300 text-[11px] text-slate-700">
           <div>
             <p>Doctor&apos;s Signature / Stamp: _______________________</p>
           </div>

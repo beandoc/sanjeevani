@@ -20,7 +20,7 @@ const languages = [
     { code: 'bn', label: 'বাংলা (Bengali)' },
 ];
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ className }: { className?: string } = {}) {
     const locale = useLocale();
     const router = useRouter();
 
@@ -32,8 +32,13 @@ export function LanguageSwitcher() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-primary/5 transition-colors">
-                    <Languages className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`rounded-xl h-8 w-8 sm:h-9 sm:w-9 text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors ${className || ''}`}
+                    title="Switch Language"
+                >
+                    <Languages className="h-4 w-4" />
                     <span className="sr-only">Switch Language</span>
                 </Button>
             </DropdownMenuTrigger>

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function HeaderControls() {
+export function HeaderControls({ className }: { className?: string }) {
   const { setTheme } = useTheme();
 
   return (
@@ -21,7 +21,7 @@ export function HeaderControls() {
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-xl h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground hover:text-foreground"
+          className={`rounded-xl h-8 w-8 sm:h-9 sm:w-9 text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors ${className || ''}`}
           title="Toggle Theme"
         >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

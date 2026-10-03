@@ -28,11 +28,20 @@ import * as carecircle from './care-circle';
 import * as dyadprofile from './dyad-profile';
 import * as registeredpatients from './registered-patients';
 import * as dataportability from './data-portability';
+import * as calibrationlog from './calibration-log';
 
 export * from './types';
 export { STORAGE_KEYS } from './storage-keys';
 
 export const HealthRepository = {
+  // Care-time calibration log (Phase 0 instrumentation) — see
+  // docs/care-time-calibration-protocol.md
+  getCareDemandEstimateLog: calibrationlog.getCareDemandEstimateLog,
+  logCareDemandEstimate: calibrationlog.logCareDemandEstimate,
+  recordCareDemandDecision: calibrationlog.recordCareDemandDecision,
+  getLatestCareDemandEstimate: calibrationlog.getLatestCareDemandEstimate,
+  summarizeCalibrationInLarge: calibrationlog.summarizeCalibrationInLarge,
+  exportCalibrationRows: calibrationlog.exportCalibrationRows,
   getConsent: consent.getConsent,
   saveConsent: consent.saveConsent,
   getVitals: vitals.getVitals,

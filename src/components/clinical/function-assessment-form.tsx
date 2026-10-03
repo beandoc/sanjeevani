@@ -25,6 +25,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { BARTHEL_ITEMS, LAWTON_ITEMS, calculateFunctionScore } from '@/lib/clinical/function-scale';
+import type { AssessmentSource } from '@/lib/clinical/function-scale';
 import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { cn } from '@/lib/utils';
 
@@ -45,10 +46,29 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
   const [lawtonResponses, setLawtonResponses] = useState<Record<string, number>>({});
   const [assessmentDate, setAssessmentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
+  /**
+   * Lawton items the patient never performed premorbidly.
+   *
+   * Scoring all 8 items uniformly means a man who never cooked is recorded as
+   * "dependent" for meal preparation, which mistakes a lifelong household role
+   * for functional incapacity — and in a care-time model it manufactures demand
+   * for care nobody newly absorbs. "Never did this" and "can no longer do this"
+   * are different findings, so they get different inputs.
+   */
+  const [premorbidlyNotPerformed, setPremorbidlyNotPerformed] = useState<string[]>([]);
+  /**
+   * Who is reporting. Self-report, family proxy and clinician observation are
+   * not interchangeable: proxies rate the dependence *level* reasonably but
+   * consistently overestimate how long their assistance takes. Recorded so the
+   * demand model can widen its range accordingly — it never changes the score.
+   */
+  const [assessmentSource, setAssessmentSource] = useState<AssessmentSource>('not_recorded');
 
   const totalItems = BARTHEL_ITEMS.length + LAWTON_ITEMS.length;
   const answeredBarthel = Object.keys(barthelResponses).length;
-  const answeredLawton = Object.keys(lawtonResponses).length;
+  const answeredLawton = LAWTON_ITEMS.filter(
+    (i) => premorbidlyNotPerformed.includes(i.id) || lawtonResponses[i.id] !== undefined
+  ).length;
   const answeredItems = answeredBarthel + answeredLawton;
   const progressPercent = Math.round((answeredItems / totalItems) * 100);
   // Require every item to be answered before saving — an unanswered Barthel item
@@ -57,8 +77,13 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
 
   // Live computed scores as clinician toggles options
   const liveScore = useMemo(
-    () => calculateFunctionScore(barthelResponses, lawtonResponses),
-    [barthelResponses, lawtonResponses]
+    () =>
+      calculateFunctionScore(barthelResponses, lawtonResponses, {
+        convention: 'all-8-premorbid-adjusted',
+        premorbidlyNotPerformed,
+        assessmentSource
+      }),
+    [barthelResponses, lawtonResponses, premorbidlyNotPerformed, assessmentSource]
   );
 
   const handlePresetIndependent = () => {
@@ -77,12 +102,17 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
   const handleClearAll = () => {
     setBarthelResponses({});
     setLawtonResponses({});
+    setPremorbidlyNotPerformed([]);
   };
 
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      const result = calculateFunctionScore(barthelResponses, lawtonResponses);
+      const result = calculateFunctionScore(barthelResponses, lawtonResponses, {
+        convention: 'all-8-premorbid-adjusted',
+        premorbidlyNotPerformed,
+        assessmentSource
+      });
       const dateObj = new Date(assessmentDate);
       const now = new Date();
       dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
@@ -92,6 +122,8 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
       setOpen(false);
       setBarthelResponses({});
       setLawtonResponses({});
+      setPremorbidlyNotPerformed([]);
+      setAssessmentSource('not_recorded');
       setAssessmentDate(new Date().toISOString().split('T')[0]);
     } finally {
       setIsSaving(false);
@@ -413,8 +445,13 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
 
               <div className="space-y-4">
                 {LAWTON_ITEMS.map((item, index) => {
+                  const isExcluded = premorbidlyNotPerformed.includes(item.id);
                   const currentVal = lawtonResponses[item.id];
-                  const hasSelection = currentVal !== undefined;
+                  const hasSelection = currentVal !== undefined || isExcluded;
+                  const toggleExcluded = () =>
+                    setPremorbidlyNotPerformed((prev) =>
+                      prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+                    );
 
                   return (
                     <div
@@ -434,14 +471,40 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
                             {item.domain.replace('_', ' ')}
                           </Badge>
                         </div>
-                        {item.isCareIntensityDriver && (
-                          <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold w-fit">
-                            ⚡ High Caregiver Load Driver
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {item.isCareIntensityDriver && (
+                            <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold w-fit">
+                              ⚡ High Caregiver Load Driver
+                            </Badge>
+                          )}
+                          {/* "Never did this" is not "can no longer do this". Marking it
+                              here excludes the item from the score and from care-time
+                              demand, instead of recording a lifelong household role as
+                              a new functional loss. */}
+                          <button
+                            type="button"
+                            onClick={toggleExcluded}
+                            className={cn(
+                              'px-2 py-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer',
+                              isExcluded
+                                ? 'border-slate-500 bg-slate-500/15 text-slate-700 dark:text-slate-200'
+                                : 'border-border/70 text-muted-foreground hover:bg-muted/60'
+                            )}
+                            title="Exclude this item: the patient never performed this task, so inability is not a new functional loss"
+                          >
+                            {isExcluded ? '✓ Never performed' : 'Never performed'}
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Options Grid with Full Text (No Truncation) */}
+                      {isExcluded ? (
+                        <p className="text-[11px] text-muted-foreground italic px-1">
+                          Excluded from scoring and from care-time demand — the patient never
+                          performed this task, so being unable to do it is not a functional loss and
+                          generates no new care for the household to absorb.
+                        </p>
+                      ) : (
+                      /* Options Grid with Full Text (No Truncation) */
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {item.options.map((opt) => {
                           const isSelected = currentVal === opt.value;
@@ -487,9 +550,45 @@ export function FunctionAssessmentForm({ onComplete, trigger }: FunctionAssessme
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Reporting source — widens the demand model's uncertainty, never the score. */}
+              <div className="p-4 rounded-3xl border border-border/60 bg-muted/20 space-y-2">
+                <span className="text-sm font-bold text-foreground">Who is reporting this assessment?</span>
+                <p className="text-[11px] text-muted-foreground">
+                  Self-report, family proxy and clinician observation are not interchangeable.
+                  Proxies rate the level of dependence reasonably well but consistently overestimate
+                  how long their assistance takes, so the recorded source widens the care-time range.
+                  It never changes the score.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {(
+                    [
+                      ['clinician_observed', 'Clinician observed'],
+                      ['family_proxy', 'Family proxy'],
+                      ['self_report', 'Patient self-report'],
+                      ['mixed', 'Mixed sources']
+                    ] as [AssessmentSource, string][]
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setAssessmentSource(value)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer',
+                        assessmentSource === value
+                          ? 'border-indigo-600 bg-indigo-500/10 text-foreground ring-2 ring-indigo-500/25'
+                          : 'border-border/70 bg-card hover:bg-muted/50 text-foreground/80'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}

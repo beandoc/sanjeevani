@@ -8,8 +8,8 @@
  */
 
 export const CLINICAL_POLICY = {
-  version: '2026.09.13.1',
-  reviewedAt: '2026-09-13',
+  version: '2026.10.03.1',
+  reviewedAt: '2026-10-03',
   reviewCadenceDays: 180,
   assessmentFreshnessDays: 30,
   comprehensiveGeriatricAssessmentDomains: [
@@ -33,8 +33,29 @@ export const CLINICAL_POLICY = {
      * never weighs a staffing decision; the auditable tier does.
      */
     manualHandlingHazardTier: { low: 0, moderate: 15, high: 40, severe: 75 },
-    costTier: 8
-  }
+    costTier: 8,
+    /**
+     * Which edge of the care-demand band each decision reads.
+     *
+     * The demand model emits a range, not a number, so every consumer must say
+     * which edge it uses and why. Safety-critical coverage reads the
+     * conservative (high) edge, because the cost of under-staffing a night
+     * watch or a morning transfer falls on the patient and on an unpaid
+     * caregiver's back. Cost tiering reads the midpoint, because budgeting to
+     * the worst case over-purchases care that families pay for out of pocket.
+     *
+     * An asymmetric harm justifies an asymmetric rule.
+     */
+    bandEdgeForSafetyCoverage: 'high',
+    bandEdgeForCostTiering: 'point'
+  },
+  /**
+   * A care gap is asserted only when the entire demand band exceeds caregiver
+   * capacity. Where the band straddles capacity the honest answer is
+   * "indeterminate" and the UI should prompt for the missing inputs rather than
+   * assert a deficit from an estimate that cannot support one.
+   */
+  gapRequiresWholeBandAboveCapacity: true
 } as const;
 
 export type ClinicalPolicy = typeof CLINICAL_POLICY;

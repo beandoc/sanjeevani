@@ -565,7 +565,7 @@ export default function MedicationsPage() {
 
       {/* Daily Dose Adherence Summary */}
       <Card className="border-border bg-card shadow-sm">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
           <div>
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <CalendarCheck className="w-5 h-5 text-primary" />
@@ -575,7 +575,7 @@ export default function MedicationsPage() {
               {completedDoses} of {totalScheduledDoses} scheduled doses administered today.
             </CardDescription>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
               {doseAdherencePercentage}% Completed
             </span>

@@ -25,7 +25,8 @@ import {
   Send,
   Info,
   Stethoscope,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 import {
   createDyadInvite,
@@ -96,6 +97,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
   const [patientAge, setPatientAge] = useState('');
   const [patientWeight, setPatientWeight] = useState('');
   const [patientHeight, setPatientHeight] = useState('');
+  const [conditionsList, setConditionsList] = useState<string[]>(COMMON_COMORBIDITIES);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [customCondition, setCustomCondition] = useState('');
   const [caregiverFirstName, setCaregiverFirstName] = useState('');
@@ -119,6 +121,7 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
     setPatientAge('');
     setPatientWeight('');
     setPatientHeight('');
+    setConditionsList(COMMON_COMORBIDITIES);
     setSelectedConditions([]);
     setCustomCondition('');
     setCaregiverFirstName('');
@@ -152,10 +155,23 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
 
   const handleAddCustomCondition = () => {
     const trimmed = customCondition.trim();
-    if (trimmed && !selectedConditions.includes(trimmed)) {
-      setSelectedConditions([...selectedConditions, trimmed]);
-      setCustomCondition('');
+    if (!trimmed) return;
+
+    const existing = conditionsList.find((c) => c.toLowerCase() === trimmed.toLowerCase());
+    const conditionToAdd = existing || trimmed;
+
+    if (!conditionsList.includes(conditionToAdd)) {
+      setConditionsList((prev) => [...prev, conditionToAdd]);
     }
+    if (!selectedConditions.includes(conditionToAdd)) {
+      setSelectedConditions((prev) => [...prev, conditionToAdd]);
+    }
+    setCustomCondition('');
+  };
+
+  const removeCustomCondition = (conditionToRemove: string) => {
+    setConditionsList((prev) => prev.filter((c) => c !== conditionToRemove));
+    setSelectedConditions((prev) => prev.filter((c) => c !== conditionToRemove));
   };
 
   const handleSubmit = async () => {
@@ -592,8 +608,9 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 sm:gap-2 p-2.5 sm:p-3 bg-muted/30 rounded-xl border border-border/70">
-                    {COMMON_COMORBIDITIES.map((c) => {
+                    {conditionsList.map((c) => {
                       const isSel = selectedConditions.includes(c);
+                      const isCustom = !COMMON_COMORBIDITIES.includes(c);
                       return (
                         <button
                           key={c}
@@ -612,6 +629,20 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                             <span className="text-muted-foreground font-bold shrink-0">+</span>
                           )}
                           <span>{c}</span>
+                          {isCustom && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeCustomCondition(c);
+                              }}
+                              className="ml-0.5 -mr-1 p-0.5 rounded-full hover:bg-black/20 dark:hover:bg-white/20 text-current opacity-70 hover:opacity-100 transition-opacity"
+                              title="Remove condition"
+                            >
+                              <X className="w-3 h-3" />
+                            </span>
+                          )}
                         </button>
                       );
                     })}

@@ -48,6 +48,7 @@ import { verifyClinicalAuthorization, type ClinicalAuthorizationRecord } from '@
 import type { MedicationItem, VitalRecord, CareCircleMember, CareCircleTask } from '@/lib/db/health-repository';
 import type { ZaritEvaluationResult } from '@/lib/zarit-scale';
 import { cn } from '@/lib/utils';
+import { CareDemandBandValue, CareGapVerdict } from '@/components/clinical/care-demand-band';
 
 const TASK_LABELS: Record<string, { label: string; icon: string }> = {
   heavy_transfers: { label: 'Heavy Transfers', icon: '💪' },
@@ -204,7 +205,13 @@ export default function FamilyViewPage() {
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3">
                   <span className="text-[11px] font-semibold text-emerald-300/80 uppercase tracking-wider">Care Gap</span>
                   <div className="text-lg font-black text-white mt-1">
-                    {evaluation ? (evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h short` : 'Covered') : '—'}
+                    {evaluation
+                      ? evaluation.careGapClassification === 'deficit'
+                        ? `${evaluation.netCareGapHours}h short`
+                        : evaluation.careGapClassification === 'indeterminate'
+                          ? 'Needs review'
+                          : 'Covered'
+                      : '—'}
                   </div>
                 </div>
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3">
@@ -336,8 +343,8 @@ export default function FamilyViewPage() {
               <CardContent className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div className="p-2 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-[10px] text-muted-foreground block">Patient Demand</span>
-                    <span className="text-sm font-black">{evaluation.patientCareDemandHours}h/day</span>
+                    <span className="text-[10px] text-muted-foreground block">Active Care Demand</span>
+                    <CareDemandBandValue estimate={evaluation.careDemandBand.activeCare} className="text-sm" />
                   </div>
                   <div className="p-2 rounded-xl bg-muted/30 border border-border/60">
                     <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
@@ -347,9 +354,11 @@ export default function FamilyViewPage() {
                   </div>
                   <div className="p-2 rounded-xl bg-muted/30 border border-border/60">
                     <span className="text-[10px] text-muted-foreground block">Net Gap</span>
-                    <span className={cn('text-sm font-black', evaluation.netCareGapHours > 0 ? 'text-red-600' : 'text-emerald-600')}>
-                      {evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h` : '0h'}
-                    </span>
+                    <CareGapVerdict
+                      classification={evaluation.careGapClassification}
+                      gapHours={evaluation.netCareGapHours}
+                      className="text-[11px]"
+                    />
                   </div>
                   <div className="p-2 rounded-xl bg-muted/30 border border-border/60">
                     <span className="text-[10px] text-muted-foreground block">Manual Handling</span>

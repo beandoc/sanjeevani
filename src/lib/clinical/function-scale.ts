@@ -18,6 +18,64 @@ export type DependencyBand =
   | 'severe'
   | 'total';
 
+/**
+ * Which Lawton-Brody scoring convention produced a score.
+ *
+ * Lawton & Brody (1969) scored only 5 of the 8 items for men, omitting food
+ * preparation, housekeeping and laundry on the assumption those were not male
+ * roles. Scoring all 8 uniformly is the modern convention, but it means a man
+ * who never cooked is scored "dependent" for meal preparation — mistaking
+ * premorbid household role for functional incapacity, and (where the score
+ * feeds a care-time model) generating demand for care nobody newly absorbs.
+ *
+ * `all-8-premorbid-adjusted` is this codebase's default: score all 8, but let
+ * the assessor mark specific items as never performed and exclude those from
+ * both the numerator and the denominator. That is more informative than
+ * inferring household role from gender, and it is auditable.
+ *
+ * The convention is recorded on every result because a serial comparison
+ * across two different conventions is not a valid trend.
+ *
+ * @citation Lawton MP, Brody EM. Gerontologist. 1969;9(3 Pt 1):179-186.
+ * @citation Ng TP, Niti M, Chiam PC, Kua EH. Physical and cognitive domains of
+ *           the IADL: validation in a multiethnic population of Asian older
+ *           adults. J Gerontol A Biol Sci Med Sci. 2006;61(7):726-735.
+ */
+export type LawtonConvention =
+  | 'all-8'
+  | 'female-8'
+  | 'male-5'
+  | 'all-8-premorbid-adjusted';
+
+/**
+ * Who reported the responses. Self-report, family proxy and clinician
+ * observation are not interchangeable: patients generally report better
+ * function than relatives or nurses do, and proxies consistently overestimate
+ * the *time* their assistance takes even when they rate the dependence level
+ * accurately. Recorded so downstream models can widen their uncertainty.
+ *
+ * @citation Cotter EM, Burgio LD, Stevens AB, et al. Correspondence of the FIM
+ *           self-care subscale with real-time observations of dementia
+ *           patients' ADL performance in the home. Clin Rehabil. 2002;16(1):36-45.
+ */
+export type AssessmentSource =
+  | 'self_report'
+  | 'family_proxy'
+  | 'clinician_observed'
+  | 'mixed'
+  | 'not_recorded';
+
+/**
+ * The three Lawton items the original 1969 paper omitted for men. Retained so
+ * the legacy `male-5` convention can be reproduced when a record declares it,
+ * never to be applied automatically on the basis of gender.
+ */
+export const LAWTON_MALE_5_OMITTED_ITEMS = [
+  'iadl_food',
+  'iadl_housekeeping',
+  'iadl_laundry'
+] as const;
+
 export interface FunctionOption {
   value: number;
   label: { en: string; hi: string; mr: string };
@@ -360,10 +418,62 @@ export interface FunctionEvaluationResult {
   domainBreakdown: FunctionDomainDetail[];
   /** Items lost that disproportionately drive hands-on caregiving hours. */
   careIntensityFlags: string[];
-  /** All 8 Lawton items were scored — recorded so serial comparisons stay valid. */
-  lawtonConvention: 'all-8';
+  /**
+   * Which Lawton convention produced `lawtonScore` — recorded so serial
+   * comparisons stay valid. A trend across two different conventions is not a
+   * trend; see `isComparableTo`.
+   */
+  lawtonConvention: LawtonConvention;
+  /**
+   * Lawton item ids excluded from both numerator and denominator, either by the
+   * declared convention or because the assessor marked them never performed.
+   */
+  lawtonExcludedItems: string[];
+  /** Who reported the responses. Drives downstream uncertainty, not the score. */
+  assessmentSource: AssessmentSource;
+  /**
+   * The raw graded responses, retained verbatim.
+   *
+   * The care-demand model needs the per-item assistance *level* — "major help,
+   * one or two people" is a two-person task, "minor help" is not — and that
+   * gradient is destroyed by any summed total. Persisting only `barthelScore`
+   * would throw away the information that carries most of the care-time signal,
+   * so the responses travel with the result.
+   */
+  barthelResponses: Record<string, number>;
+  lawtonResponses: Record<string, number>;
   recordedAt: string;
   encounterId?: string | null;
+}
+
+/** Options for `calculateFunctionScore`. */
+export interface FunctionScoreOptions {
+  encounterId?: string;
+  /** Defaults to `all-8-premorbid-adjusted`. */
+  convention?: LawtonConvention;
+  /**
+   * Lawton item ids the patient never performed premorbidly (e.g. a man who
+   * never cooked). Excluded from the score under the premorbid-adjusted
+   * convention. Distinct from "can no longer perform", which scores 0.
+   */
+  premorbidlyNotPerformed?: string[];
+  /** Defaults to `not_recorded`. */
+  assessmentSource?: AssessmentSource;
+}
+
+/**
+ * True when two function results may be compared as a trend. Differing Lawton
+ * conventions or differing excluded-item sets change the denominator, so the
+ * scores are not on the same scale.
+ */
+export function isComparableTo(
+  a: Pick<FunctionEvaluationResult, 'lawtonConvention' | 'lawtonExcludedItems'>,
+  b: Pick<FunctionEvaluationResult, 'lawtonConvention' | 'lawtonExcludedItems'>
+): boolean {
+  if (a.lawtonConvention !== b.lawtonConvention) return false;
+  const as = [...a.lawtonExcludedItems].sort().join(',');
+  const bs = [...b.lawtonExcludedItems].sort().join(',');
+  return as === bs;
 }
 
 /**
@@ -433,8 +543,25 @@ function clampToItem(item: FunctionItem, raw: number | undefined): number | unde
 export function calculateFunctionScore(
   barthelResponses: Record<string, number>,
   lawtonResponses: Record<string, number>,
-  encounterId?: string
+  /** An encounter id (legacy positional form) or the full options object. */
+  optionsOrEncounterId?: string | FunctionScoreOptions
 ): FunctionEvaluationResult {
+  const options: FunctionScoreOptions =
+    typeof optionsOrEncounterId === 'string'
+      ? { encounterId: optionsOrEncounterId }
+      : optionsOrEncounterId ?? {};
+  const convention: LawtonConvention = options.convention ?? 'all-8-premorbid-adjusted';
+  const encounterId = options.encounterId;
+
+  // Resolve which Lawton items are out of scope for this scoring.
+  const excludedItems = new Set<string>();
+  if (convention === 'male-5') {
+    for (const id of LAWTON_MALE_5_OMITTED_ITEMS) excludedItems.add(id);
+  }
+  if (convention === 'all-8-premorbid-adjusted') {
+    for (const id of options.premorbidlyNotPerformed ?? []) excludedItems.add(id);
+  }
+
   let barthelScore = 0;
   const careIntensityFlags: string[] = [];
 
@@ -461,7 +588,12 @@ export function calculateFunctionScore(
   }
 
   let lawtonScore = 0;
+  let lawtonMax = 0;
   for (const item of LAWTON_ITEMS) {
+    // Excluded items leave both numerator and denominator untouched, so a task
+    // the patient never performed cannot read as functional loss.
+    if (excludedItems.has(item.id)) continue;
+    lawtonMax += Math.max(...item.options.map((o) => o.value));
     const value = clampToItem(item, lawtonResponses[item.id]);
     // Skip unanswered items entirely.
     if (value === undefined) continue;
@@ -484,13 +616,17 @@ export function calculateFunctionScore(
     barthelScore,
     barthelMax: BARTHEL_MAX,
     lawtonScore,
-    lawtonMax: LAWTON_MAX,
+    lawtonMax,
     dependencyPercentage: BARTHEL_MAX - barthelScore,
     band,
     classification: BAND_CLASSIFICATIONS[band],
     domainBreakdown,
     careIntensityFlags,
-    lawtonConvention: 'all-8',
+    lawtonConvention: convention,
+    lawtonExcludedItems: [...excludedItems],
+    assessmentSource: options.assessmentSource ?? 'not_recorded',
+    barthelResponses: { ...barthelResponses },
+    lawtonResponses: { ...lawtonResponses },
     recordedAt: new Date().toISOString(),
     encounterId: encounterId ?? null
   };

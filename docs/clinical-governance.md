@@ -42,6 +42,7 @@ Before outcome claims, complete:
 2. 6- to 12-week feasibility pilot in one discharge/home-care pathway.
 3. Pre-registered comparative evaluation against usual discharge planning.
 4. Safety review of falls, transfer injuries, medication errors, pressure injuries, delirium episodes, missed appointments, caregiver acute distress, and unplanned emergency care.
+5. Care-time calibration against locally measured task times before any care-hours figure is presented as anything other than a planning range (`care-time-calibration-protocol.md`). Local calibration narrows the band and makes the error known; it does not change the evidence label. A calibrated local model remains a **Planning Estimate**.
 
 ## Product Wording Rules
 

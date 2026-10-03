@@ -19,9 +19,7 @@ import {
   ChevronRight,
   Activity,
   Database,
-  UserMinus,
-  ArrowLeft,
-  LayoutDashboard
+  UserMinus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,7 +41,6 @@ import {
   dischargeOrDeletePatientDyad,
   type DyadInvite
 } from '@/lib/firebase/clinical-sync';
-import { RegisterPatientDialog } from '@/components/clinician/register-patient-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/context/role-context';
 import { cn } from '@/lib/utils';
@@ -232,23 +229,6 @@ export default function ClinicianRosterPage() {
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto p-3 sm:p-6">
-      {/* Back to Dashboard Breadcrumb Bar */}
-      <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/40">
-        <Link href="/dashboard">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 pl-2 pr-3.5 -ml-2 rounded-xl transition-all group cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-1 transition-transform" />
-            <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span>Back to Dashboard</span>
-          </Button>
-        </Link>
-        <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline-block">
-          Doctor Portal • Clinical Dyad Worklist
-        </span>
-      </div>
 
       {/* Top Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
@@ -260,40 +240,6 @@ export default function ClinicianRosterPage() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Real-time psychometric, vital, and support matrix status across your assigned cohort.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href="/dashboard">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs font-bold h-9 bg-card/80 hover:bg-muted text-foreground border-border/80 shadow-2xs"
-            >
-              <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
-              <span>Dashboard</span>
-            </Button>
-          </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs font-semibold h-9 bg-card/80 hover:bg-muted"
-            onClick={() => void load(true)}
-            disabled={isRefreshing || isSeeding}
-          >
-            <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs font-semibold h-9 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-            onClick={handleSeedDyads}
-            disabled={isSeeding || isRefreshing}
-            title="Sync records and populate demonstration cohort to backend"
-          >
-            <Database className={cn('w-3.5 h-3.5 text-blue-600', isSeeding && 'animate-spin')} />
-            <span>{isSeeding ? 'Syncing...' : 'Sync Data'}</span>
-          </Button>
-          <RegisterPatientDialog onRegistered={() => void load(true)} />
         </div>
       </div>
 
@@ -547,7 +493,7 @@ export default function ClinicianRosterPage() {
                     </div>
 
                     {/* Right Section: Metrics & Actions */}
-                    <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-between sm:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-border/60">
+                    <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-between sm:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-border/60 w-full lg:w-auto">
                       {/* Metric 1: Zarit Burden */}
                       {row.latestBurdenPct !== null && (
                         <div className="p-2 sm:p-2.5 px-3 rounded-2xl border border-border/70 bg-card dark:bg-zinc-900/60 text-center min-w-[85px] shadow-2xs">
@@ -653,10 +599,10 @@ export default function ClinicianRosterPage() {
                       </AlertDialog>
 
                       {/* Primary CTA: Open Workspace */}
-                      <Link href={`/clinic/dyad/${row.patientUid}`}>
+                      <Link href={`/clinic/dyad/${row.patientUid}`} className="w-full sm:w-auto">
                         <Button
                           size="sm"
-                          className="h-9 px-3.5 gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-all"
+                          className="h-9 px-3.5 gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-all w-full sm:w-auto justify-center"
                         >
                           <Stethoscope className="w-3.5 h-3.5" />
                           <span>Open Workspace</span>

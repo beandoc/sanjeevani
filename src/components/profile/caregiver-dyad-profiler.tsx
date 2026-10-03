@@ -52,6 +52,7 @@ import { ClinicalSafetyNote, EvidenceLevelBadge } from '@/components/clinical/ev
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
 import { ClinicalSafetyAssessmentPanel } from '@/components/clinical/clinical-safety-assessment-panel';
 import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
+import { CareDemandBandValue, CareGapVerdict } from '@/components/clinical/care-demand-band';
 
 interface CaregiverDyadProfilerProps {
   defaultTab?: 'caregiver' | 'patient' | 'gap';
@@ -212,8 +213,16 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-wider">
                   Clinical Dyad Model v{evaluation.engineVersion || '2.3.0'}
                 </Badge>
-                <Badge variant={evaluation.netCareGapHours > 2 ? 'destructive' : 'secondary'} className="text-[10px] font-mono">
-                  Care Gap: {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours} hrs deficit` : 'Sustainable'}
+                <Badge
+                  variant={evaluation.careGapClassification === 'deficit' ? 'destructive' : 'secondary'}
+                  className="text-[10px] font-mono"
+                >
+                  Care Gap:{' '}
+                  {evaluation.careGapClassification === 'deficit'
+                    ? `+${evaluation.netCareGapHours} hrs deficit`
+                    : evaluation.careGapClassification === 'indeterminate'
+                      ? 'Indeterminate'
+                      : 'Within capacity'}
                 </Badge>
               </div>
               <CardTitle className="text-xl font-bold font-headline">
@@ -305,12 +314,18 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Care Demand Estimate</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Active Care Demand</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-foreground">{evaluation.patientCareDemandHours}</span>
+                  <CareDemandBandValue
+                    estimate={evaluation.careDemandBand.activeCare}
+                    className="text-2xl text-foreground"
+                    unit=""
+                  />
                   <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Based on {6 - evaluation.katzAdlScore}/6 ADL & {8 - evaluation.lawtonIadlScore}/8 IADL deficits</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Hands-on plus supervision, as a planning range. Excludes overnight on-call presence.
+                </p>
               </CardContent>
             </Card>
 
@@ -348,11 +363,12 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
             <Card className={`border shadow-xs ${evaluation.netCareGapHours > 2 ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
               <CardContent className="p-4 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground">Net Care Gap Estimate</span>
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl font-black ${evaluation.netCareGapHours > 2 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {evaluation.netCareGapHours > 0 ? `+${evaluation.netCareGapHours}` : `${evaluation.netCareGapHours}`}
-                  </span>
-                  <span className="text-xs text-muted-foreground font-semibold">Hours / Day</span>
+                <div className="py-1">
+                  <CareGapVerdict
+                    classification={evaluation.careGapClassification}
+                    gapHours={evaluation.netCareGapHours}
+                    className="text-base"
+                  />
                 </div>
                 <Badge variant={evaluation.careGapSeverity === 'critical_overload' ? 'destructive' : 'outline'} className="text-[10px] font-bold uppercase">
                   {evaluation.careGapSeverity.replace('_', ' ')}
