@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -51,7 +51,6 @@ interface NavSection {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { role, setRole } = useProfile();
   const { isMobile, setOpenMobile, toggleSidebar, state } = useSidebar();
 

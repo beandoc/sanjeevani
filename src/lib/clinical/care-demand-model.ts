@@ -204,8 +204,19 @@ export interface CareDemandBand {
    */
   requiresNightPresence: boolean;
   /**
-   * `activeCare + onCall` — total burden, for display only. Mixing work and
-   * availability makes this unusable for arithmetic; never compute a gap from it.
+   * `activeCare + onCall` — total burden, for display only.
+   *
+   * DO NOT COMPUTE ANYTHING FROM THIS. It mixes caregiver-hours of work with
+   * elapsed hours of availability, which are different units. Subtracting a
+   * caregiver's working capacity from it produces a deficit that is an artefact
+   * of the units rather than a finding about the patient — the error this
+   * model's three-way split exists to prevent.
+   *
+   * Nothing in the app consumes it. It is retained only because "total burden"
+   * is a reasonable thing to show a family in words, and having it named here
+   * with this warning is safer than leaving someone to reconstruct it by adding
+   * the fields themselves. Use `activeCare` for workload and `coverage` for
+   * presence.
    */
   combined: CareTimeEstimate;
 
@@ -371,6 +382,31 @@ export const LAWTON_TASK_WEIGHTS: Record<string, TaskWeight> = {
 export const SHARED_SETUP_MINUTES_PER_TASK = 5;
 /** Credit is capped so it can never swallow a block's real work. */
 export const SHARED_OVERHEAD_MAX_BLOCK_FRACTION = 0.4;
+
+/**
+ * Most of a concurrent supervision requirement that hands-on care may discharge.
+ *
+ * Supervision is directed attention, not mere presence. A caregiver executing a
+ * two-person transfer is attending to the transfer — they are not scanning the
+ * room for wandering or watching for a seizure. So hands-on care overlaps a
+ * supervision requirement, but it does not fully substitute for it.
+ *
+ * Without this cap the de-overlap absorbed 100% of the requirement whenever
+ * elapsed hands-on time exceeded it, which it does in every block for a heavily
+ * dependent patient. The result was that a bed-bound patient with severe
+ * sundowning reported ZERO supervision burden — the single largest driver of
+ * caregiver strain in that presentation, vanishing from the output because the
+ * correction for double-counting had been applied without a limit.
+ *
+ * Under-correcting double-counts; over-correcting erases a real need. This
+ * bounds the correction.
+ *
+ * @calibration expert-consensus, uncalibrated — the presence grid in the
+ *              calibration protocol measures this directly: slots marked both
+ *              "actively supervising" and inside a care episode give the true
+ *              overlap fraction.
+ */
+export const SUPERVISION_MAX_OVERLAP_FRACTION = 0.5;
 
 /**
  * Active vigilance by cognitive/behavioural pattern (hours/day), routed to
@@ -849,7 +885,12 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     const required = blockMinutes[b].supervision;
     supervisionRequiredByBlock[b] = required;
     if (required <= 0) continue;
-    const absorbed = Math.min(required, blockElapsedDirectCare[b]);
+    // Bounded by the elapsed hands-on time in THIS block, and by how much of a
+    // supervision requirement hands-on care can plausibly discharge at all.
+    const absorbed = Math.min(
+      required * SUPERVISION_MAX_OVERLAP_FRACTION,
+      blockElapsedDirectCare[b]
+    );
     blockMinutes[b].supervision = required - absorbed;
     supervisionOverlapCreditMinutes += absorbed;
   }

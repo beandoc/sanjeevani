@@ -637,6 +637,13 @@ export function RegisterPatientDialog({ onRegistered, trigger }: RegisterPatient
                                 e.stopPropagation();
                                 removeCustomCondition(c);
                               }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  removeCustomCondition(c);
+                                }
+                              }}
                               className="ml-0.5 -mr-1 p-0.5 rounded-full hover:bg-black/20 dark:hover:bg-white/20 text-current opacity-70 hover:opacity-100 transition-opacity"
                               title="Remove condition"
                             >

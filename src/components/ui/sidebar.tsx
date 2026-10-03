@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { Menu, PanelLeft } from "lucide-react"
+import { Menu } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -191,7 +191,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, open, setOpen, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, open, openMobile, setOpenMobile } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -232,10 +232,6 @@ const Sidebar = React.forwardRef<
     const state = open ? "expanded" : "collapsed"
 
     return (
-      /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions --
-         Clicking this collapsed-rail gap to re-expand is a mouse-only convenience;
-         SidebarTrigger (below) is the real, keyboard-operable control for the same
-         action, so this isn't the only way to expand the sidebar. */
       <div
         ref={ref}
         className={cn(

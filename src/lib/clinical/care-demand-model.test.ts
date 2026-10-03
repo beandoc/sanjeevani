@@ -11,6 +11,7 @@ import {
   CALIBRATION,
   CALIBRATION_REGISTRY,
   MIN_EPISODES_FOR_CALIBRATION,
+  SUPERVISION_MAX_OVERLAP_FRACTION,
   type CareDemandInput,
   type CareTimeEstimate
 } from './care-demand-model';
@@ -602,5 +603,42 @@ describe('per-coefficient calibration registry', () => {
     expect(CALIBRATION.calibrated).toBe(false);
     expect(CALIBRATION.measuredBandHalfWidth).toBeNull();
     expect(CALIBRATION.outcomeDefinition).toBeNull();
+  });
+});
+
+describe('supervision de-overlap must not erase a real need', () => {
+  it('still reports supervision for a sundowning patient with heavy hands-on care', () => {
+    // Regression. The de-overlap originally absorbed 100% of the supervision
+    // requirement whenever elapsed hands-on time exceeded it — which it does in
+    // every block for a bed-bound, totally dependent patient. A patient with
+    // severe sundowning therefore reported ZERO supervision burden, erasing the
+    // largest driver of caregiver strain in that presentation.
+    const band = estimateCareDemand({
+      ...dependent(),
+      isBedBound: true,
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      ...clinicianObserved
+    });
+    expect(band.directCare.pointHours).toBeGreaterThan(5);
+    expect(band.supervision.pointHours).toBeGreaterThan(0);
+  });
+
+  it('caps absorption at half the requirement, however much hands-on care there is', () => {
+    const supervisionOnly = estimateCareDemand({
+      ...independent(),
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      ...clinicianObserved
+    });
+    const withHeavyCare = estimateCareDemand({
+      ...dependent(),
+      isBedBound: true,
+      cognitiveBehavioralLoad: 'severe_sundowning',
+      ...clinicianObserved
+    });
+    // Hands-on care may discharge at most SUPERVISION_MAX_OVERLAP_FRACTION of a
+    // concurrent supervision requirement, because supervision is directed
+    // attention rather than mere presence.
+    const floor = supervisionOnly.supervision.pointHours * (1 - SUPERVISION_MAX_OVERLAP_FRACTION);
+    expect(withHeavyCare.supervision.pointHours).toBeGreaterThanOrEqual(floor - 0.11);
   });
 });

@@ -9,7 +9,6 @@ import {
   Users,
   Search,
   AlertTriangle,
-  RefreshCw,
   Send,
   Stethoscope,
   HeartPulse,
@@ -56,7 +55,7 @@ export default function ClinicianRosterPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [rows, setRows] = useState<RosterRow[] | null>(null);
   const [invites, setInvites] = useState<DyadInvite[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [_isRefreshing, setIsRefreshing] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
   // Search & Filter State

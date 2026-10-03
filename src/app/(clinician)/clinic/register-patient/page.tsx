@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +17,11 @@ import {
   HeartPulse,
   Check,
   Send,
-  Info,
   Stethoscope,
   ArrowRight,
   Bed,
   AlertTriangle,
   Users,
-  Shield,
-  Activity,
   Plus,
   X
 } from 'lucide-react';
@@ -62,7 +58,6 @@ const COMMON_COMORBIDITIES = [
 ];
 
 export default function RegisterPatientPage() {
-  const router = useRouter();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -572,6 +567,13 @@ export default function RegisterPatientPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               removeCustomCondition(condition);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                removeCustomCondition(condition);
+                              }
                             }}
                             className="ml-0.5 -mr-1 p-0.5 rounded-full hover:bg-black/20 dark:hover:bg-white/20 text-current opacity-70 hover:opacity-100 transition-opacity"
                             title="Remove condition"

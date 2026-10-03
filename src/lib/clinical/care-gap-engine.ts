@@ -424,10 +424,10 @@ export interface CareGapEvaluationResult {
    * The care-demand estimate: three separate banded time types.
    *
    * This is the model's real output. `patientCareDemandHours` below is the
-   * midpoint of `careDemandBand.combined`, kept for backward compatibility with
-   * stored evaluations and charts — it must not be rendered on its own, because
-   * a single figure to 0.1 h implies a precision the underlying evidence cannot
-   * support.
+   * midpoint of `careDemandBand.activeCare` — workload only, never including
+   * on-call presence — kept for backward compatibility with stored evaluations
+   * and charts. It must not be rendered on its own, because a single figure to
+   * 0.1 h implies a precision the underlying evidence cannot support.
    */
   careDemandBand: CareDemandBand;
   /**

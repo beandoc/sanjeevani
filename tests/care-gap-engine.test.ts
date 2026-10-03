@@ -532,12 +532,13 @@ describe('Caregiver Dyad & Care Gap Engine Tests', () => {
     // brings this fixture's gap down into the band where the multiplier actually
     // discriminates, so the relationship can now be asserted directly.
     //
-    // Fixture: gap 1.6h, injury 43 (below INJURY_HIGH_THRESHOLD, so injury does
-    // not drive the branch). manageable: 1.6 x 1.0 = 1.6, below
-    // GAP_HIGH_THRESHOLD (2.0) -> moderate. severe_toxicity: 1.6 x 1.4 = 2.24,
-    // above it -> high. The financial multiplier is the only thing that moves.
+    // Fixture: gap 1.9h and injury 43, both below their high-risk thresholds.
+    // With manageable finances it is therefore moderate; severe toxicity's
+    // multiplier moves it to high. The financial multiplier is the only input
+    // that differs between the two evaluations.
     const moderatePatient: PatientDependenceProfile = {
       ...sampleDependentPatient,
+      cognitiveBehavioralLoad: 'mild_forgetfulness',
       katzAdl: {
         bathing: false,
         dressing: false,

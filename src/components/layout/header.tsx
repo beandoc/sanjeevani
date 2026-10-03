@@ -1,20 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSidebar, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   User,
   LifeBuoy,
-  ShieldAlert,
   PhoneCall,
   Search,
-  HeartPulse,
-  Activity,
   LogOut,
-  LayoutDashboard,
   Copy
 } from 'lucide-react';
 import {
@@ -41,7 +37,6 @@ import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const { role } = useProfile();
-  const { open, isMobile } = useSidebar();
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTroubleshootingOpen, setIsTroubleshootingOpen] = useState(false);
@@ -51,7 +46,7 @@ export function Header() {
 
   const isDoctor = role === 'doctor' || role === 'professional';
   const isNurse = role === 'nurse';
-  const isCaregiver = !isDoctor && !isNurse;
+  const _isCaregiver = !isDoctor && !isNurse;
   const { toast } = useToast();
 
   const user = auth?.currentUser;

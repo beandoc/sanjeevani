@@ -9,7 +9,6 @@ import {
   Users,
   AlertTriangle,
   CalendarClock,
-  BellRing,
   Activity,
   HeartPulse,
   ShieldAlert,
@@ -45,7 +44,7 @@ import { isReassessmentDue } from '@/lib/zarit-scale';
 import { HealthRepository } from '@/lib/db/health-repository';
 import type { ClinicalSignal } from '@/lib/clinical/care-intelligence';
 import { cn } from '@/lib/utils';
-import { DYAD_WORKFLOW_LABEL, getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
+import { getDyadWorkflow } from '@/lib/clinical/dyad-workflow';
 import { ClinicianQueryDashboard } from '@/components/clinician/clinician-query-dashboard';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -124,7 +123,7 @@ function getActionableAlert(alertSnippet: string | null | undefined): string | n
 
 export function DoctorCohortDashboard() {
   const [rows, setRows] = useState<CohortRow[] | null>(() => getCachedCohortRoster());
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [_isRefreshing, setIsRefreshing] = useState(false);
   const [isPurgingDummies, setIsPurgingDummies] = useState(false);
   const [dischargingUids, setDischargingUids] = useState<Set<string>>(new Set());
   const [alerts, setAlerts] = useState<ReassessmentAlert[]>([]);
@@ -461,7 +460,7 @@ export function DoctorCohortDashboard() {
     );
   }
 
-  const summary = summarizeCohort(rows);
+  const _summary = summarizeCohort(rows);
 
   return (
     <div className="space-y-5">
@@ -787,10 +786,11 @@ export function DoctorCohortDashboard() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2 py-2">
-            <label className="text-xs font-semibold text-foreground">
+            <label htmlFor="cohort-alert-clinical-action" className="text-xs font-semibold text-foreground">
               Clinical Action Taken:
             </label>
             <select
+              id="cohort-alert-clinical-action"
               value={dismissResolution}
               onChange={(e) => setDismissResolution(e.target.value)}
               className="w-full h-9 rounded-xl border border-input bg-background px-3 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"

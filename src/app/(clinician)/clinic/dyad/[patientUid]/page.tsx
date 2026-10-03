@@ -19,17 +19,6 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from '@/components/ui/alert-dialog';
-import {
   ArrowLeft,
   AlertTriangle,
   Pill,
@@ -37,12 +26,10 @@ import {
   Plus,
   Activity,
   CheckCircle2,
-  RefreshCw,
   Stethoscope,
   Users2,
   TrendingUp,
   BookOpen,
-  Home,
   Car,
   FileText,
   Sparkles,
@@ -52,9 +39,7 @@ import {
   Ambulance,
   Printer,
   ExternalLink,
-  UserMinus,
   Edit3,
-  ArrowRight,
   Eye
 } from 'lucide-react';
 import {
@@ -182,7 +167,7 @@ export default function DyadDetailPage() {
   const clinicianLabel = user?.displayName || 'Your Doctor';
 
   const [isMounted, setIsMounted] = useState(false);
-  const [isDischarging, setIsDischarging] = useState(false);
+  const [_isDischarging, _setIsDischarging] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
   const [activeTab, setActiveTab] = useState<DyadTab>('assessment');
   const [displayName, setDisplayName] = useState<string>('');
@@ -929,10 +914,10 @@ export default function DyadDetailPage() {
     .trim() || displayName;
   const dyadCodeMatch = displayName.match(/\(Dyad\s*#([^)]+)\)/i);
   const dyadFullCode = dyadCodeMatch ? dyadCodeMatch[1] : (patientUid || '').replace('demo-', '').toUpperCase();
-  const dyadTag = `Dyad #${dyadFullCode.slice(0, 8)}`;
+  const _dyadTag = `Dyad #${dyadFullCode.slice(0, 8)}`;
 
-  const handleDischargeDyad = async () => {
-    setIsDischarging(true);
+  const _handleDischargeDyad = async () => {
+    _setIsDischarging(true);
     try {
       await dischargeOrDeletePatientDyad(patientUid);
       invalidateCohortCache();
@@ -949,7 +934,7 @@ export default function DyadDetailPage() {
         description: err instanceof Error ? err.message : 'Could not discharge dyad.'
       });
     } finally {
-      setIsDischarging(false);
+      _setIsDischarging(false);
     }
   };
 

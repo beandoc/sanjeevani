@@ -13,8 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
-  DialogTrigger
+  DialogFooter
 } from '@/components/ui/dialog';
 import {
   Users2,
@@ -1851,8 +1850,16 @@ export function CaregiverSupportMatrix({
 
               {/* Card 2: Home Environment */}
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setOpen(true)}
-                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpen(true);
+                  }
+                }}
+                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group text-left"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-1.5">
@@ -1885,8 +1892,16 @@ export function CaregiverSupportMatrix({
 
               {/* Card 3: Caregiver Shifts */}
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setOpen(true)}
-                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpen(true);
+                  }
+                }}
+                className="p-4 rounded-2xl border border-border/80 bg-background/90 shadow-2xs space-y-2 flex flex-col justify-between cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all group text-left"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-1.5">
