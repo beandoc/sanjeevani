@@ -777,43 +777,87 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
 
     if (input.inpatientBenchmark && w.minutesPerEpisode > 0) {
       const bm = input.inpatientBenchmark;
-      const penalty = bm.environmentalPenaltyMultiplier || 1.35;
+      // legacy-summary-v0 records were collected before the hospital adaptation
+      // penalty was understood to be task-specific; apply the 1.35 global
+      // multiplier as originally designed. patient-episode-v1 records are
+      // actual observed timings — any home adaptation is documented task by task,
+      // so the multiplier should be 1.0 (the environmentalPenaltyMultiplier field
+      // default). If a stored legacy record has no field (undefined → falsy),
+      // keep 1.35; if the field is explicitly 1.0 (the new default), keep 1.0.
+      const isEpisodeMethodology = bm.methodologyVersion === 'patient-episode-v1';
+      const penalty = bm.environmentalPenaltyMultiplier !== undefined
+        ? bm.environmentalPenaltyMultiplier
+        : isEpisodeMethodology ? 1 : 1.35;
 
-      if (item.id === 'bi_bathing' && bm.spongeBathMinutes > 0) {
-        benchmarkCal = {
-          minutesPerEpisode: Math.round(bm.spongeBathMinutes * penalty),
-          staffRequired: bm.spongeBathStaffCount,
-          episodeCount: 1
-        };
-      } else if (item.id === 'bi_transfer' && bm.bedToChairTransferMinutes > 0) {
-        benchmarkCal = {
-          minutesPerEpisode: Math.round(bm.bedToChairTransferMinutes * penalty),
-          staffRequired: bm.transferStaffCount,
-          episodeCount: 1
-        };
-      } else if (item.id === 'bi_feeding' && bm.mealFeedingMinutesPerMeal > 0) {
-        benchmarkCal = {
-          minutesPerEpisode: Math.round(bm.mealFeedingMinutesPerMeal * penalty),
-          frequencyPerDay: bm.mealsRequiringAssistancePerDay,
-          staffRequired: 1,
-          episodeCount: 1
-        };
-      } else if (
-        (item.id === 'bi_toilet' || item.id === 'bi_bowels' || item.id === 'bi_bladder') &&
-        bm.toiletingDiaperMinutes > 0
-      ) {
-        benchmarkCal = {
-          minutesPerEpisode: Math.round(bm.toiletingDiaperMinutes * penalty),
-          staffRequired: bm.toiletingStaffCount,
-          episodeCount: 1
-        };
-      } else if (item.id === 'iadl_medication' && bm.medicationAdministrationMinutes > 0) {
-        benchmarkCal = {
-          minutesPerEpisode: Math.round(bm.medicationAdministrationMinutes * penalty),
-          frequencyPerDay: bm.medicationSlotsPerDay,
-          staffRequired: 1,
-          episodeCount: 1
-        };
+      // When episode observations exist for a category, prefer their aggregated
+      // median and staff count — they are more granular and patient-specific than
+      // the single summary field. The Barthel loop guard (empiricalBarthelItems)
+      // will skip addDriver entirely for categories that have episode observations,
+      // so this branch only fires for the summary-field path (legacy or partial
+      // entries where some categories have summary fields but no episode rows).
+      const categoryForItem: Record<string, string> = {
+        bi_bathing: 'bathing_hygiene',
+        bi_transfer: 'transfers_mobility',
+        bi_feeding: 'feeding_meals',
+        bi_toilet: 'toileting_incontinence',
+        bi_bowels: 'toileting_incontinence',
+        bi_bladder: 'toileting_incontinence',
+        iadl_medication: 'medications'
+      };
+      const episodeCategoryKey = categoryForItem[item.id] as InpatientCareTaskCategory | undefined;
+      const episodeStat = episodeCategoryKey ? inpatientObservationStats[episodeCategoryKey] : undefined;
+
+      if (item.id === 'bi_bathing') {
+        const mins = episodeStat ? episodeStat.medianMinutes : bm.spongeBathMinutes;
+        const staff = episodeStat ? episodeStat.staffCount : bm.spongeBathStaffCount;
+        if (mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            staffRequired: staff,
+            episodeCount: episodeStat?.observationCount ?? 1
+          };
+        }
+      } else if (item.id === 'bi_transfer') {
+        const mins = episodeStat ? episodeStat.medianMinutes : bm.bedToChairTransferMinutes;
+        const staff = episodeStat ? episodeStat.staffCount : bm.transferStaffCount;
+        if (mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            staffRequired: staff,
+            episodeCount: episodeStat?.observationCount ?? 1
+          };
+        }
+      } else if (item.id === 'bi_feeding') {
+        const mins = episodeStat ? episodeStat.medianMinutes : bm.mealFeedingMinutesPerMeal;
+        if (mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: bm.mealsRequiringAssistancePerDay,
+            staffRequired: episodeStat?.staffCount ?? 1,
+            episodeCount: episodeStat?.observationCount ?? 1
+          };
+        }
+      } else if (item.id === 'bi_toilet' || item.id === 'bi_bowels' || item.id === 'bi_bladder') {
+        const mins = episodeStat ? episodeStat.medianMinutes : bm.toiletingDiaperMinutes;
+        const staff = episodeStat ? episodeStat.staffCount : bm.toiletingStaffCount;
+        if (mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            staffRequired: staff,
+            episodeCount: episodeStat?.observationCount ?? 1
+          };
+        }
+      } else if (item.id === 'iadl_medication') {
+        const medStat = inpatientObservationStats['medications'];
+        const mins = medStat ? medStat.medianMinutes : bm.medicationAdministrationMinutes;
+        if (mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: bm.medicationSlotsPerDay,
+            staffRequired: medStat?.staffCount ?? 1,
+            episodeCount: medStat?.observationCount ?? 1
+          };
+        }
       }
     }
 

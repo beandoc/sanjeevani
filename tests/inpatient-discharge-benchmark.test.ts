@@ -319,4 +319,121 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
       expect(evaluation.prescriptions.some((p) => p.id === 'rx_two_person_transfer_safety')).toBe(true);
     });
   });
+
+  describe('benchmarkCal — penalty, episode median priority, episodeCount', () => {
+    const dependentBarthel = {
+      bi_feeding: 0, bi_bathing: 0, bi_grooming: 0, bi_dressing: 0,
+      bi_bowels: 0, bi_bladder: 0, bi_toilet: 0,
+      bi_transfer: 0, bi_mobility: 0, bi_stairs: 0
+    };
+
+    it('legacy-summary-v0: applies 1.35x penalty when environmentalPenaltyMultiplier is undefined (old stored record)', () => {
+      const legacyBenchmark = {
+        id: 'legacy-bm', patientUid, recordedAt: new Date().toISOString(),
+        observerRole: 'staff_nurse' as const, observerName: 'Nurse A',
+        // No methodologyVersion and no environmentalPenaltyMultiplier → undefined → must use 1.35
+        spongeBathMinutes: 20, spongeBathStaffCount: 1 as const,
+        bedToChairTransferMinutes: 0, transferStaffCount: 1 as const,
+        transferAssistType: 'one_person_pivot' as const,
+        mealFeedingMinutesPerMeal: 0, mealsRequiringAssistancePerDay: 0,
+        feedingAssistType: 'independent' as const,
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1 as const,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1 as const,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: undefined as unknown as number,
+        inpatientDirectCareMinutesPerDay: 20, homeProjectedDirectCareHoursPerDay: 0.45,
+        requiresTwoPersonTransfers: false
+      } as InpatientDischargeBenchmark;
+
+      const result = estimateCareDemand({
+        barthelResponses: { ...dependentBarthel },
+        inpatientBenchmark: legacyBenchmark,
+        assessmentSource: 'clinician_observed'
+      });
+
+      // 20 min (sponge bath) * 1.35 penalty = 27 min per episode
+      const bathDriver = result.drivers.find((d) => d.itemId === 'bi_bathing');
+      expect(bathDriver).toBeDefined();
+      expect(bathDriver?.minutesPerEpisode).toBe(27);
+      expect(bathDriver?.calibrated).toBe(true);
+      expect(bathDriver?.evidenceSource).toBe('inpatient_observed');
+    });
+
+    it('patient-episode-v1 with summary fields only: uses field verbatim (penalty=1), episodeCount=1', () => {
+      const summaryOnlyBenchmark: InpatientDischargeBenchmark = {
+        id: 'ep-summary-bm', patientUid, recordedAt: new Date().toISOString(),
+        observerRole: 'staff_nurse', observerName: 'Nurse B',
+        methodologyVersion: 'patient-episode-v1',
+        // No observations[] — inpatientObservationStats empty; benchmarkCal fires via summary field
+        spongeBathMinutes: 25, spongeBathStaffCount: 1,
+        bedToChairTransferMinutes: 0, transferStaffCount: 1,
+        transferAssistType: 'one_person_pivot',
+        mealFeedingMinutesPerMeal: 0, mealsRequiringAssistancePerDay: 0,
+        feedingAssistType: 'independent',
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: 1,
+        inpatientDirectCareMinutesPerDay: 25, homeProjectedDirectCareHoursPerDay: 0.4,
+        requiresTwoPersonTransfers: false
+      };
+
+      const result = estimateCareDemand({
+        barthelResponses: { ...dependentBarthel },
+        inpatientBenchmark: summaryOnlyBenchmark,
+        assessmentSource: 'clinician_observed'
+      });
+
+      // 25 min * 1.0 = 25 — must NOT be inflated to 33 (25 * 1.35)
+      const bathDriver = result.drivers.find((d) => d.itemId === 'bi_bathing');
+      expect(bathDriver?.minutesPerEpisode).toBe(25);
+      expect(bathDriver?.calibrationEpisodeCount).toBe(1);
+    });
+
+    it('patient-episode-v1 with observations: episode median beats summary field, episodeCount = observation count', () => {
+      // Nurse entered 3 individual bathing observations; summary field is intentionally stale/wrong
+      const episodeBenchmark: InpatientDischargeBenchmark = {
+        id: 'ep-obs-bm', patientUid, recordedAt: new Date().toISOString(),
+        observerRole: 'staff_nurse', observerName: 'Nurse C',
+        methodologyVersion: 'patient-episode-v1',
+        observations: [
+          { id: 'b1', taskCategory: 'bathing_hygiene', observedAt: '2026-01-01T07:00:00Z', durationMinutes: 30, staffCount: 1 },
+          { id: 'b2', taskCategory: 'bathing_hygiene', observedAt: '2026-01-02T07:00:00Z', durationMinutes: 40, staffCount: 1 },
+          { id: 'b3', taskCategory: 'bathing_hygiene', observedAt: '2026-01-03T07:00:00Z', durationMinutes: 35, staffCount: 1 }
+        ],
+        baselineBarthelResponses: dependentBarthel,
+        // Stale summary field (10 min) must be overridden by episode median (35 min)
+        spongeBathMinutes: 10, spongeBathStaffCount: 1,
+        bedToChairTransferMinutes: 0, transferStaffCount: 1,
+        transferAssistType: 'one_person_pivot',
+        mealFeedingMinutesPerMeal: 0, mealsRequiringAssistancePerDay: 0,
+        feedingAssistType: 'independent',
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: 1,
+        inpatientDirectCareMinutesPerDay: 105, homeProjectedDirectCareHoursPerDay: 1.75,
+        requiresTwoPersonTransfers: false
+      };
+
+      // When observations[] exist, the Barthel loop guard skips addDriver for bi_bathing entirely.
+      // The episode observation block takes over and produces an inpatient_bathing_hygiene driver.
+      const result = estimateCareDemand({
+        barthelResponses: { ...dependentBarthel },
+        inpatientBenchmark: episodeBenchmark,
+        assessmentSource: 'clinician_observed'
+      });
+
+      const bathDriver = result.drivers.find((d) => d.itemId === 'inpatient_bathing_hygiene');
+      expect(bathDriver).toBeDefined();
+      // median([30, 35, 40]) = 35; penalty = 1.0
+      expect(bathDriver?.minutesPerEpisode).toBe(35);
+      expect(bathDriver?.calibrated).toBe(true);   // observationCount (3) >= 2
+      expect(bathDriver?.calibrationEpisodeCount).toBe(3);
+      expect(bathDriver?.evidenceSource).toBe('inpatient_observed');
+
+      // The stale summary field (10 min) must not appear anywhere as a driver
+      expect(result.drivers.find((d) => d.itemId === 'bi_bathing' && d.minutesPerEpisode === 10)).toBeUndefined();
+    });
+  });
 });
