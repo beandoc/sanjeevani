@@ -718,11 +718,12 @@ export function isDemoDyad(patientUid: string): boolean {
   if (!patientUid) return false;
   const lower = patientUid.toLowerCase();
   const upper = patientUid.toUpperCase();
+  if (lower.includes('narayan') || upper.includes('K9UXAU9Y')) return false;
   return (
     lower.startsWith('demo-') ||
-    lower.includes('sarojini') ||
-    lower.includes('ramesh') ||
-    lower.includes('kamla') ||
+    lower.includes('sarojini_devi') ||
+    lower.includes('ramesh_chand') ||
+    lower.includes('kamla_gupta') ||
     upper.includes('SAROJINI81') ||
     upper.includes('RAMESH76')
   );

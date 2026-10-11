@@ -322,22 +322,32 @@ export function getDyadInvite(inviteCode: string) {
   return list.find((i) => i.inviteCode.toUpperCase() === inviteCode.trim().toUpperCase()) || null;
 }
 
-export function purgeAllDemoDyadsFromStorage(): void {
-  const demoIds = [
-    'demo-sarojini',
-    'dyad_sarojini_devi',
-    'sarojini_devi',
-    'SAROJINI81',
-    'dyad_SAROJINI81',
-    'demo-ramesh',
-    'dyad_ramesh_chand',
-    'ramesh_chand',
-    'RAMESH76',
-    'dyad_RAMESH76',
-    'demo-kamla',
-    'kamla_gupta',
-    'dyad_kamla_gupta'
-  ];
+export function purgeAllDemoDyadsFromStorage(extraUids?: string[]): void {
+  const demoIds = Array.from(
+    new Set([
+      'demo-sarojini',
+      'dyad_sarojini_devi',
+      'sarojini_devi',
+      'SAROJINI81',
+      'dyad_SAROJINI81',
+      'demo-ramesh',
+      'dyad_ramesh_chand',
+      'ramesh_chand',
+      'RAMESH76',
+      'dyad_RAMESH76',
+      'demo-kamla',
+      'kamla_gupta',
+      'dyad_kamla_gupta',
+      'dyad_WLU47WFU',
+      'WLU47WFU',
+      'c4WgNrxHbxZSlWSaCTQZAceTIt33',
+      'dyad_D2X5R4CT',
+      'D2X5R4CT',
+      'dyad_J9D8AGCJ',
+      'J9D8AGCJ',
+      ...(extraUids || [])
+    ])
+  );
   for (const id of demoIds) {
     archiveDyad(id);
     removeRegisteredPatient(id);

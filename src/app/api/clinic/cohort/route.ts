@@ -126,7 +126,9 @@ export async function GET(request: NextRequest) {
 const KNOWN_DUMMY_UIDS = [
   'dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81',
   'dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76',
-  'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta'
+  'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta',
+  'dyad_WLU47WFU', 'WLU47WFU', 'c4WgNrxHbxZSlWSaCTQZAceTIt33',
+  'dyad_D2X5R4CT', 'D2X5R4CT', 'dyad_J9D8AGCJ', 'J9D8AGCJ'
 ];
 
 /**

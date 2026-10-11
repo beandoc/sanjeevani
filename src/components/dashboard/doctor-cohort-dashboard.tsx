@@ -155,7 +155,10 @@ export function DoctorCohortDashboard() {
   const handlePurgeDummies = async () => {
     setIsPurgingDummies(true);
     try {
-      await purgeAllDemoDyads();
+      const demoUids = (rows || [])
+        .filter((r) => isDemoDyad(r.patientUid) || isDemoDyad(r.displayName))
+        .map((r) => r.patientUid);
+      await purgeAllDemoDyads(demoUids);
       invalidateCohortCache();
       await load(true);
       toast({

@@ -458,19 +458,24 @@ export async function dischargeOrDeletePatientDyad(patientUid: string): Promise<
  * Permanently purges all seeded demo/sample patient dyads (Sarojini Devi, Ramesh Chand, Kamla Gupta)
  * across local storage, client Firestore, and server-side materialized cohort summaries.
  */
-export async function purgeAllDemoDyads(): Promise<void> {
+export async function purgeAllDemoDyads(extraUids?: string[]): Promise<void> {
   // 1. Purge locally from storage
-  HealthRepository.purgeAllDemoDyadsFromStorage?.();
+  HealthRepository.purgeAllDemoDyadsFromStorage?.(extraUids);
 
   // 2. Client Firestore cleanup
   if (db) {
     try {
       const batch = writeBatch(db);
-      const demoUids = [
-        'dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81',
-        'dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76',
-        'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta'
-      ];
+      const demoUids = Array.from(
+        new Set([
+          'dyad_sarojini_devi', 'demo-sarojini', 'sarojini_devi', 'SAROJINI81', 'dyad_SAROJINI81',
+          'dyad_ramesh_chand', 'demo-ramesh', 'ramesh_chand', 'RAMESH76', 'dyad_RAMESH76',
+          'demo-kamla', 'kamla_gupta', 'dyad_kamla_gupta',
+          'dyad_WLU47WFU', 'WLU47WFU', 'c4WgNrxHbxZSlWSaCTQZAceTIt33',
+          'dyad_D2X5R4CT', 'D2X5R4CT', 'dyad_J9D8AGCJ', 'J9D8AGCJ',
+          ...(extraUids || [])
+        ])
+      );
       const uid = currentUid();
       for (const id of demoUids) {
         batch.delete(doc(db, 'cohortSummaries', id));
