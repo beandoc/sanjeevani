@@ -3,12 +3,17 @@
  * ===================================================
  * Stores empirical pre-discharge care task timings recorded by ward nurses,
  * GDAs, and doctors during the 24-48h pre-discharge window.
- * Acts as the objective gold-standard benchmark ($T_hospital) to calibrate
- * home care demand and the Caregiver Support Matrix.
+ * Provides a patient-specific empirical baseline for care planning. Hospital
+ * observations are contextual measurements, not a validated gold standard for
+ * home care and are retained with their sample size and range.
  */
 
 import { STORAGE_KEYS } from './storage-keys';
-import type { InpatientDischargeBenchmark } from './types';
+import type {
+  InpatientCareEpisodeObservation,
+  InpatientCareTaskCategory,
+  InpatientDischargeBenchmark
+} from './types';
 
 const inMemoryVault: Record<string, string> = {};
 
@@ -44,7 +49,56 @@ function removeStorageItem(key: string): void {
 const keyFor = (patientUid: string) =>
   `${STORAGE_KEYS.INPATIENT_DISCHARGE_BENCHMARK}_${patientUid}`;
 
-export const DEFAULT_ENVIRONMENTAL_PENALTY = 1.35; // 35% time inflation at home
+/** New observations are not inflated by an unvalidated universal home multiplier. */
+export const DEFAULT_ENVIRONMENTAL_PENALTY = 1;
+
+export interface InpatientTaskObservationSummary {
+  taskCategory: InpatientCareTaskCategory;
+  observationCount: number;
+  medianMinutes: number;
+  minMinutes: number;
+  maxMinutes: number;
+  staffCount: 1 | 2;
+}
+
+const median = (values: number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+};
+
+/** Aggregate raw episodes without discarding their range or sample size. */
+export function summarizeInpatientObservations(
+  observations: InpatientCareEpisodeObservation[] = []
+): Partial<Record<InpatientCareTaskCategory, InpatientTaskObservationSummary>> {
+  const out: Partial<Record<InpatientCareTaskCategory, InpatientTaskObservationSummary>> = {};
+  const categories: InpatientCareTaskCategory[] = [
+    'bathing_hygiene',
+    'transfers_mobility',
+    'feeding_meals',
+    'toileting_incontinence',
+    'repositioning',
+    'medications'
+  ];
+  for (const taskCategory of categories) {
+    const rows = observations.filter(
+      (o) => o.taskCategory === taskCategory && o.durationMinutes > 0
+    );
+    if (rows.length === 0) continue;
+    const durations = rows.map((o) => o.durationMinutes);
+    out[taskCategory] = {
+      taskCategory,
+      observationCount: rows.length,
+      medianMinutes: Math.round(median(durations) * 10) / 10,
+      minMinutes: Math.min(...durations),
+      maxMinutes: Math.max(...durations),
+      // If any observed episode required two staff, retain that safety requirement.
+      staffCount: rows.some((o) => o.staffCount === 2) ? 2 : 1
+    };
+  }
+  return out;
+}
 
 /**
  * Computes derived daily direct care minutes and home projected care hours.
@@ -54,6 +108,7 @@ export function calculateBenchmarkSummary(params: {
   spongeBathStaffCount: 1 | 2;
   bedToChairTransferMinutes: number;
   transferStaffCount: 1 | 2;
+  transferEpisodesPerDay?: number;
   mealFeedingMinutesPerMeal: number;
   mealsRequiringAssistancePerDay: number;
   toiletingDiaperMinutes: number;
@@ -65,25 +120,41 @@ export function calculateBenchmarkSummary(params: {
   medicationAdministrationMinutes: number;
   medicationSlotsPerDay: number;
   environmentalPenaltyMultiplier?: number;
+  observations?: InpatientCareEpisodeObservation[];
 }): {
   inpatientDirectCareMinutesPerDay: number;
   homeProjectedDirectCareHoursPerDay: number;
   requiresTwoPersonTransfers: boolean;
 } {
   const penalty = params.environmentalPenaltyMultiplier ?? DEFAULT_ENVIRONMENTAL_PENALTY;
+  const observed = summarizeInpatientObservations(params.observations);
+  const valueFor = (
+    task: InpatientCareTaskCategory,
+    fallbackMinutes: number,
+    fallbackStaff: 1 | 2 = 1
+  ) => ({
+    minutes: observed[task]?.medianMinutes ?? fallbackMinutes,
+    staff: observed[task]?.staffCount ?? fallbackStaff
+  });
 
   // Repositioning episodes per day (24 hours / interval, e.g. 24/2 = 12 turns)
   const interval = Math.max(1, params.repositioningIntervalHours);
   const turnsPerDay = Math.min(24, Math.round(24 / interval));
 
   // Inpatient hands-on caregiver-minutes
-  const bathMin = params.spongeBathMinutes * params.spongeBathStaffCount;
-  // 3 transfers per day typical (morning up, afternoon rest, evening bed)
-  const transferMin = params.bedToChairTransferMinutes * 3 * params.transferStaffCount;
-  const feedingMin = params.mealFeedingMinutesPerMeal * params.mealsRequiringAssistancePerDay;
-  const toiletingMin = params.toiletingDiaperMinutes * params.toiletingEpisodesPerDay * params.toiletingStaffCount;
-  const turnMin = params.repositioningTurnMinutes * turnsPerDay * params.repositioningStaffCount;
-  const medMin = params.medicationAdministrationMinutes * params.medicationSlotsPerDay;
+  const bath = valueFor('bathing_hygiene', params.spongeBathMinutes, params.spongeBathStaffCount);
+  const transfer = valueFor('transfers_mobility', params.bedToChairTransferMinutes, params.transferStaffCount);
+  const feeding = valueFor('feeding_meals', params.mealFeedingMinutesPerMeal);
+  const toileting = valueFor('toileting_incontinence', params.toiletingDiaperMinutes, params.toiletingStaffCount);
+  const turning = valueFor('repositioning', params.repositioningTurnMinutes, params.repositioningStaffCount);
+  const medications = valueFor('medications', params.medicationAdministrationMinutes);
+
+  const bathMin = bath.minutes * bath.staff;
+  const transferMin = transfer.minutes * (params.transferEpisodesPerDay ?? 3) * transfer.staff;
+  const feedingMin = feeding.minutes * params.mealsRequiringAssistancePerDay * feeding.staff;
+  const toiletingMin = toileting.minutes * params.toiletingEpisodesPerDay * toileting.staff;
+  const turnMin = turning.minutes * turnsPerDay * turning.staff;
+  const medMin = medications.minutes * params.medicationSlotsPerDay * medications.staff;
 
   const totalInpatientMinutes = bathMin + transferMin + feedingMin + toiletingMin + turnMin + medMin;
   const homeProjectedMinutes = totalInpatientMinutes * penalty;
@@ -92,7 +163,7 @@ export function calculateBenchmarkSummary(params: {
   return {
     inpatientDirectCareMinutesPerDay: Math.round(totalInpatientMinutes),
     homeProjectedDirectCareHoursPerDay: homeProjectedHours,
-    requiresTwoPersonTransfers: params.transferStaffCount === 2
+    requiresTwoPersonTransfers: transfer.staff === 2
   };
 }
 
@@ -112,6 +183,7 @@ export function saveInpatientDischargeBenchmark(
     spongeBathStaffCount: benchmark.spongeBathStaffCount,
     bedToChairTransferMinutes: benchmark.bedToChairTransferMinutes,
     transferStaffCount: benchmark.transferStaffCount,
+    transferEpisodesPerDay: benchmark.transferEpisodesPerDay,
     mealFeedingMinutesPerMeal: benchmark.mealFeedingMinutesPerMeal,
     mealsRequiringAssistancePerDay: benchmark.mealsRequiringAssistancePerDay,
     toiletingDiaperMinutes: benchmark.toiletingDiaperMinutes,
@@ -122,7 +194,8 @@ export function saveInpatientDischargeBenchmark(
     repositioningStaffCount: benchmark.repositioningStaffCount,
     medicationAdministrationMinutes: benchmark.medicationAdministrationMinutes,
     medicationSlotsPerDay: benchmark.medicationSlotsPerDay,
-    environmentalPenaltyMultiplier: penalty
+    environmentalPenaltyMultiplier: penalty,
+    observations: benchmark.observations
   });
 
   const record: InpatientDischargeBenchmark = {
@@ -130,6 +203,9 @@ export function saveInpatientDischargeBenchmark(
     id: benchmark.id || `inpatient_bm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     recordedAt: benchmark.recordedAt || new Date().toISOString(),
     environmentalPenaltyMultiplier: penalty,
+    methodologyVersion: benchmark.observations?.length
+      ? 'patient-episode-v1'
+      : benchmark.methodologyVersion ?? 'legacy-summary-v0',
     ...derived
   };
 

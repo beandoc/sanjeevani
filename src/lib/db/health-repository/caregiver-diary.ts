@@ -215,23 +215,76 @@ export function clearCaregiverDiaryEntries(patientUid?: string | null): void {
 }
 
 /**
+ * Compute the median of a sorted numeric array. Returns 0 for empty arrays.
+ */
+function computeMedian(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10
+    : sorted[mid];
+}
+
+/**
  * Computes an empirical calibration report aggregating observed caregiver task times.
+ *
+ * Design decisions:
+ *   - **Median, not mean**, is the primary duration estimate. A single rushed
+ *     episode or one outlier should not drag the calibration.
+ *   - **Unsafe episodes excluded from duration estimation.** A `safetyConcern`
+ *     episode was delivered under compromised technique — it may have taken 8
+ *     minutes instead of 20 precisely because corners were cut. Including it
+ *     in the median pulls the estimate down where care is worst. It still
+ *     counts toward `unsafeEntries` and `totalEntries`.
+ *   - **Missed episodes excluded from duration estimation.** A `missed` entry
+ *     records that care was not delivered; its duration (usually 0) must never
+ *     lower the calibration for what the task actually takes.
+ *   - Evidence quality is classified conservatively: 'preliminary' until 7+
+ *     distinct observation days, 'repeated_home_observation' after.
  */
 export function getCaregiverDiaryCalibrationSummary(
   patientUid?: string | null
 ): CaregiverDiaryCalibrationReport {
   const entries = getCaregiverDiaryEntries(patientUid);
 
-  if (entries.length === 0) {
-    return {
-      patientUid: patientUid ?? null,
-      totalEntries: 0,
-      metricsByTask: {},
-      averageDailyHandsOnMinutes: 0,
-      empiricalDirectCareHours: 0
-    };
+  const emptyReport: CaregiverDiaryCalibrationReport = {
+    patientUid: patientUid ?? null,
+    totalEntries: 0,
+    metricsByTask: {},
+    averageDailyHandsOnMinutes: 0,
+    empiricalDirectCareHours: 0,
+    observationDays: 0,
+    deliveredEntries: 0,
+    partiallyDeliveredEntries: 0,
+    missedEntries: 0,
+    unsafeEntries: 0,
+    averageDailyUnmetMinutes: 0,
+    homeReportedUnmetCareHours: 0,
+    concurrentEntries: 0,
+    evidenceQuality: 'none',
+    metricsByCategory: {}
+  };
+
+  if (entries.length === 0) return emptyReport;
+
+  // --- Aggregate counts ---
+  let deliveredEntries = 0;
+  let partiallyDeliveredEntries = 0;
+  let missedEntries = 0;
+  let unsafeEntries = 0;
+  let concurrentEntries = 0;
+
+  for (const e of entries) {
+    if (e.safetyConcern) unsafeEntries++;
+    if (e.concurrentWithOtherActivity) concurrentEntries++;
+    switch (e.careStatus) {
+      case 'partially_delivered': partiallyDeliveredEntries++; break;
+      case 'missed': missedEntries++; break;
+      default: deliveredEntries++; break; // undefined or 'delivered'
+    }
   }
 
+  // --- Group by task × block ---
   const grouped: Record<string, CaregiverDiaryEntry[]> = {};
   for (const entry of entries) {
     const key = `${entry.taskCategory}__${entry.timeBlock}`;
@@ -242,11 +295,26 @@ export function getCaregiverDiaryCalibrationSummary(
   const metricsByTask: Record<string, CaregiverTaskCalibrationMetric> = {};
 
   for (const [key, items] of Object.entries(grouped)) {
-    const durations = items.map((i) => i.durationMinutes);
+    // Duration estimation: exclude missed and unsafe episodes.
+    // A rushed episode (safetyConcern) took less time *because* technique was
+    // compromised — including it would train the model to expect less where
+    // care is worst. A missed episode's duration is zero by definition.
+    const safeDurations = items
+      .filter((i) => i.careStatus !== 'missed' && !i.safetyConcern)
+      .map((i) => i.durationMinutes)
+      .sort((a, b) => a - b);
+
+    // If every episode in this group was unsafe or missed, fall back to all
+    // durations so the metric is not empty — but mark it via the report-level
+    // unsafeEntries count.
+    const allDurations = items.map((i) => i.durationMinutes).sort((a, b) => a - b);
+    const durations = safeDurations.length > 0 ? safeDurations : allDurations;
+
     const sum = durations.reduce((acc, d) => acc + d, 0);
-    const mean = Math.round((sum / items.length) * 10) / 10;
-    const min = Math.min(...durations);
-    const max = Math.max(...durations);
+    const mean = Math.round((sum / durations.length) * 10) / 10;
+    const median = computeMedian(durations);
+    const min = durations[0];
+    const max = durations[durations.length - 1];
     const twoPersonCount = items.filter((i) => i.staffCount === 2).length;
     const twoPersonPercent = Math.round((twoPersonCount / items.length) * 100);
 
@@ -255,6 +323,7 @@ export function getCaregiverDiaryCalibrationSummary(
       timeBlock: items[0].timeBlock,
       sampleCount: items.length,
       meanMinutes: mean,
+      medianMinutes: median,
       minMinutes: min,
       maxMinutes: max,
       twoPersonFrequencyPercent: twoPersonPercent,
@@ -262,19 +331,72 @@ export function getCaregiverDiaryCalibrationSummary(
     };
   }
 
-  // Calculate distinct daily totals to estimate average hands-on minutes/day
-  const byDate: Record<string, number> = {};
+  // --- Per-category aggregate (collapses time blocks) ---
+  const categoryGrouped: Record<string, CaregiverDiaryEntry[]> = {};
   for (const entry of entries) {
-    byDate[entry.date] = (byDate[entry.date] || 0) + entry.durationMinutes * entry.staffCount;
+    if (!categoryGrouped[entry.taskCategory]) categoryGrouped[entry.taskCategory] = [];
+    categoryGrouped[entry.taskCategory].push(entry);
   }
 
-  const days = Object.values(byDate);
+  const metricsByCategory: Partial<Record<CaregiverDiaryTaskCategory, CaregiverTaskCalibrationMetric>> = {};
+  for (const [cat, items] of Object.entries(categoryGrouped)) {
+    const safeDurations = items
+      .filter((i) => i.careStatus !== 'missed' && !i.safetyConcern)
+      .map((i) => i.durationMinutes)
+      .sort((a, b) => a - b);
+    const allDurations = items.map((i) => i.durationMinutes).sort((a, b) => a - b);
+    const durations = safeDurations.length > 0 ? safeDurations : allDurations;
+    const sum = durations.reduce((acc, d) => acc + d, 0);
+    const mean = Math.round((sum / durations.length) * 10) / 10;
+    const median = computeMedian(durations);
+    const twoPersonCount = items.filter((i) => i.staffCount === 2).length;
+
+    metricsByCategory[cat as CaregiverDiaryTaskCategory] = {
+      taskCategory: cat as CaregiverDiaryTaskCategory,
+      timeBlock: items[0].timeBlock, // dominant block — informational only
+      sampleCount: items.length,
+      meanMinutes: mean,
+      medianMinutes: median,
+      minMinutes: durations[0],
+      maxMinutes: durations[durations.length - 1],
+      twoPersonFrequencyPercent: Math.round((twoPersonCount / items.length) * 100),
+      lastLoggedAt: items[0].recordedAt
+    };
+  }
+
+  // --- Daily totals ---
+  const byDate: Record<string, { handsOnMinutes: number; unmetMinutes: number }> = {};
+  for (const entry of entries) {
+    if (!byDate[entry.date]) byDate[entry.date] = { handsOnMinutes: 0, unmetMinutes: 0 };
+    // Only count delivered/partial durations toward hands-on time
+    if (entry.careStatus !== 'missed') {
+      byDate[entry.date].handsOnMinutes += entry.durationMinutes * entry.staffCount;
+    }
+    if (typeof entry.unmetMinutes === 'number' && entry.unmetMinutes > 0) {
+      byDate[entry.date].unmetMinutes += entry.unmetMinutes;
+    }
+  }
+
+  const dayValues = Object.values(byDate);
+  const observationDays = dayValues.length;
   const avgDailyMinutes =
-    days.length > 0
-      ? Math.round(days.reduce((a, b) => a + b, 0) / days.length)
+    observationDays > 0
+      ? Math.round(dayValues.reduce((a, d) => a + d.handsOnMinutes, 0) / observationDays)
+      : 0;
+  const avgDailyUnmetMinutes =
+    observationDays > 0
+      ? Math.round(dayValues.reduce((a, d) => a + d.unmetMinutes, 0) / observationDays * 10) / 10
       : 0;
 
   const empiricalDirectCareHours = Math.round((avgDailyMinutes / 60) * 10) / 10;
+  const homeReportedUnmetCareHours = Math.round((avgDailyUnmetMinutes / 60) * 10) / 10;
+
+  // --- Evidence quality ---
+  // 'none' with no entries (handled above), 'preliminary' until 7 distinct
+  // observation days, 'repeated_home_observation' after. A single interview or
+  // a single day of logging is provisional and labelled as such.
+  const evidenceQuality: 'none' | 'preliminary' | 'repeated_home_observation' =
+    observationDays >= 7 ? 'repeated_home_observation' : 'preliminary';
 
   return {
     patientUid: patientUid ?? null,
@@ -283,7 +405,17 @@ export function getCaregiverDiaryCalibrationSummary(
     lastLoggedAt: entries[0]?.recordedAt,
     metricsByTask,
     averageDailyHandsOnMinutes: avgDailyMinutes,
-    empiricalDirectCareHours
+    empiricalDirectCareHours,
+    observationDays,
+    deliveredEntries,
+    partiallyDeliveredEntries,
+    missedEntries,
+    unsafeEntries,
+    averageDailyUnmetMinutes: avgDailyUnmetMinutes,
+    homeReportedUnmetCareHours,
+    concurrentEntries,
+    evidenceQuality,
+    metricsByCategory
   };
 }
 

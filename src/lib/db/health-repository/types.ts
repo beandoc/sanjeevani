@@ -314,6 +314,14 @@ export interface CaregiverDiaryEntry {
   durationMinutes: number;     // e.g. 10, 22.5, 45, 90, 150
   staffCount: 1 | 2;
   physicalStrain: 'mild' | 'moderate' | 'heavy_strain';
+  careStatus?: 'delivered' | 'partially_delivered' | 'missed';
+  /** Required care still outstanding after this entry. Never treated as delivered time. */
+  unmetMinutes?: number;
+  providerRole?: 'primary_caregiver' | 'family_member' | 'paid_attendant' | 'nurse' | 'other';
+  safetyConcern?: boolean;
+  safetyConcernNote?: string;
+  /** Marks joint production so it can be reviewed rather than silently double-counted. */
+  concurrentWithOtherActivity?: boolean;
   notes?: string;
 }
 
@@ -322,6 +330,7 @@ export interface CaregiverTaskCalibrationMetric {
   timeBlock: CaregiverDiaryTimeBlock;
   sampleCount: number;
   meanMinutes: number;
+  medianMinutes: number;
   minMinutes: number;
   maxMinutes: number;
   twoPersonFrequencyPercent: number;
@@ -336,6 +345,16 @@ export interface CaregiverDiaryCalibrationReport {
   metricsByTask: Record<string, CaregiverTaskCalibrationMetric>;
   averageDailyHandsOnMinutes: number;
   empiricalDirectCareHours: number;
+  observationDays?: number;
+  deliveredEntries?: number;
+  partiallyDeliveredEntries?: number;
+  missedEntries?: number;
+  unsafeEntries?: number;
+  averageDailyUnmetMinutes?: number;
+  homeReportedUnmetCareHours?: number;
+  concurrentEntries?: number;
+  evidenceQuality?: 'none' | 'preliminary' | 'repeated_home_observation';
+  metricsByCategory?: Partial<Record<CaregiverDiaryTaskCategory, CaregiverTaskCalibrationMetric>>;
 }
 
 /* ------------------------------------------------------------------ *
@@ -361,6 +380,25 @@ export type InpatientFeedingAssistType =
   | 'full_spoon_feeding'
   | 'enteral_tube_feeding';
 
+export type InpatientCareTaskCategory =
+  | 'bathing_hygiene'
+  | 'transfers_mobility'
+  | 'feeding_meals'
+  | 'toileting_incontinence'
+  | 'repositioning'
+  | 'medications';
+
+/** One actually observed episode. Defaults and retrospective guesses are never stored here. */
+export interface InpatientCareEpisodeObservation {
+  id: string;
+  taskCategory: InpatientCareTaskCategory;
+  observedAt: string;
+  durationMinutes: number;
+  staffCount: 1 | 2;
+  timeBlock?: 'morning_rush' | 'afternoon' | 'evening' | 'night_watch';
+  note?: string;
+}
+
 export interface InpatientDischargeBenchmark {
   id: string;
   patientUid: string;
@@ -369,11 +407,32 @@ export interface InpatientDischargeBenchmark {
   observerName: string;
   wardOrBedNumber?: string;
 
+  /** Raw, patient-specific nursing observations retained for audit and re-analysis. */
+  observations?: InpatientCareEpisodeObservation[];
+  observationWindowStart?: string;
+  observationWindowEnd?: string;
+  methodologyVersion?: 'legacy-summary-v0' | 'patient-episode-v1';
+
+  /** Functional state against which the observations were collected. Never overwritten. */
+  baselineBarthelResponses?: Record<string, number>;
+  baselineLawtonResponses?: Record<string, number>;
+  baselineKatzAdl?: {
+    bathing: boolean;
+    dressing: boolean;
+    toileting: boolean;
+    transferring: boolean;
+    continence: boolean;
+    feeding: boolean;
+  };
+  baselineIsBedBound?: boolean;
+  baselineFunctionalAssessedAt?: string;
+
   // Actual timed inpatient episodes in last 24-48h pre-discharge
   spongeBathMinutes: number;
   spongeBathStaffCount: 1 | 2;
 
   bedToChairTransferMinutes: number;
+  transferEpisodesPerDay?: number;
   transferStaffCount: 1 | 2;
   transferAssistType: InpatientTransferAssistType;
 
@@ -392,8 +451,8 @@ export interface InpatientDischargeBenchmark {
   medicationAdministrationMinutes: number;
   medicationSlotsPerDay: number;
 
-  // Environmental Translation Multiplier (Hospital -> Home adaptation penalty)
-  // Default is 1.35x (hospital motorized bed -> home domestic bed/narrow doors)
+  // Legacy global adjustment retained for old records. New episode-based records use 1.0;
+  // any home adaptation must be documented task by task after discharge.
   environmentalPenaltyMultiplier: number;
 
   // Derived calculations
@@ -402,4 +461,3 @@ export interface InpatientDischargeBenchmark {
   requiresTwoPersonTransfers: boolean;
   clinicalDischargeNotes?: string;
 }
-

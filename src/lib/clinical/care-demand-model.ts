@@ -122,8 +122,10 @@ import type { DiurnalTimeBlock } from './care-gap-constants';
 import type {
   CaregiverDiaryCalibrationReport,
   CaregiverDiaryTaskCategory,
+  InpatientCareTaskCategory,
   InpatientDischargeBenchmark
 } from '../db/health-repository/types';
+import { summarizeInpatientObservations } from '../db/health-repository/inpatient-benchmark';
 
 export type { DiurnalTimeBlock };
 
@@ -168,6 +170,8 @@ export interface CareDemandDriver {
   calibrated: boolean;
   /** Observed episodes behind a calibrated cell. */
   calibrationEpisodeCount?: number;
+  evidenceSource?: 'consensus_default' | 'inpatient_observed' | 'caregiver_diary';
+  observedRangeMinutes?: { min: number; max: number };
 }
 
 export interface CareDemandBand {
@@ -277,6 +281,21 @@ export interface CareDemandBand {
   inpatientBenchmarkApplied?: boolean;
   /** True when inpatient benchmark demonstrated 2-person transfer requirement. */
   requiresTwoPersonTransfers?: boolean;
+  patientSpecificEstimate?: {
+    baselineRecordedAt: string;
+    baselineFunctionalAssessedAt?: string;
+    currentFunctionalAssessedAt?: string;
+    observationCount: number;
+    observedTaskCount: number;
+    functionAdjustmentApplied: boolean;
+    taskAdjustments: Array<{
+      taskCategory: InpatientCareTaskCategory;
+      baselineCaregiverMinutesPerDay: number;
+      currentCaregiverMinutesPerDay: number;
+      functionalFactor: number;
+      observationCount: number;
+    }>;
+  };
 }
 
 /* ------------------------------------------------------------------ *
@@ -564,6 +583,8 @@ export interface CareDemandInput {
   diaryCalibration?: CaregiverDiaryCalibrationReport;
   /** Inpatient pre-discharge care timing benchmark observed by ward staff. */
   inpatientBenchmark?: InpatientDischargeBenchmark;
+  /** Timestamp of the current functional assessment, for longitudinal provenance. */
+  functionalAssessedAt?: string;
 }
 
 /* ------------------------------------------------------------------ *
@@ -664,6 +685,24 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   const lawton = input.lawtonResponses
     ?? (input.legacyLawtonIadl ? legacyLawtonToResponses(input.legacyLawtonIadl) : {});
 
+  const inpatientObservationStats = summarizeInpatientObservations(
+    input.inpatientBenchmark?.observations
+  );
+  const hasEpisodeObservations = Object.keys(inpatientObservationStats).length > 0;
+  const baselineBarthel = input.inpatientBenchmark?.baselineBarthelResponses
+    ?? (input.inpatientBenchmark?.baselineKatzAdl
+      ? gradedResponsesFromLegacyKatz(input.inpatientBenchmark.baselineKatzAdl)
+      : undefined);
+  const baselineLawton = input.inpatientBenchmark?.baselineLawtonResponses;
+  const empiricalBarthelItems = new Map<string, InpatientCareTaskCategory>([
+    ['bi_bathing', 'bathing_hygiene'],
+    ['bi_transfer', 'transfers_mobility'],
+    ['bi_feeding', 'feeding_meals'],
+    ['bi_toilet', 'toileting_incontinence'],
+    ['bi_bowels', 'toileting_incontinence'],
+    ['bi_bladder', 'toileting_incontinence']
+  ]);
+
   const drivers: CareDemandDriver[] = [];
   // Minutes attributable to measured vs never-measured coefficients. The band
   // widens in proportion to the unmeasured share, so uncertainty tracks this
@@ -699,18 +738,28 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     // the consensus default. A clinician's explicit frequency override still wins over both.
     const registryCal = isCellCalibrated(calibrationKey) ? CALIBRATION_REGISTRY[calibrationKey] : undefined;
 
-    // Check if real-world caregiver 1-tap diary calibration exists for this task category
+    // Check if real-world caregiver 1-tap diary calibration exists for this task category.
+    //
+    // Three defects corrected from the original implementation:
+    //   1. Threshold: sampleCount >= 2 was too low — two observations cannot
+    //      outrank a consensus default. Use MIN_DIARY_EPISODES_FOR_CALIBRATION
+    //      (5), which is lower than the registry's MIN_EPISODES_FOR_CALIBRATION
+    //      (20) because diary entries are direct observation of *this* patient,
+    //      but high enough to require multiple days of evidence.
+    //   2. Median, not mean: a single rushed or outlier episode should not drag
+    //      the calibration. medianMinutes is robust to exactly this.
+    //   3. Cross-block aggregation: the old code used Object.keys().find(k =>
+    //      k.startsWith(category + '__')), which matched whichever key
+    //      enumerated first — a morning bathing observation could silently
+    //      recalibrate the evening episode. Now uses metricsByCategory, which
+    //      aggregates across all time blocks for a given task category.
     const diaryCategory = ITEM_TO_DIARY_TASK_MAP[item.id];
     let diaryCal: { minutesPerEpisode: number; frequencyPerDay?: number; episodeCount: number } | undefined;
-    if (diarySummary?.metricsByTask && diaryCategory) {
-      // Look for a task match across diurnal blocks
-      const matchingKey = Object.keys(diarySummary.metricsByTask).find(
-        (k) => k.startsWith(`${diaryCategory}__`)
-      );
-      const metric = matchingKey ? diarySummary.metricsByTask[matchingKey] : undefined;
-      if (metric && metric.sampleCount >= 2) {
+    if (diarySummary?.metricsByCategory && diaryCategory) {
+      const metric = diarySummary.metricsByCategory[diaryCategory];
+      if (metric && metric.sampleCount >= MIN_DIARY_EPISODES_FOR_CALIBRATION) {
         diaryCal = {
-          minutesPerEpisode: metric.meanMinutes,
+          minutesPerEpisode: metric.medianMinutes,
           episodeCount: metric.sampleCount
         };
       }
@@ -795,6 +844,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
       minutesPerDay,
       blocks: w.blocks,
       calibrated: !!cal,
+      evidenceSource: diaryCal ? 'caregiver_diary' : benchmarkCal ? 'inpatient_observed' : 'consensus_default',
       ...(cal?.episodeCount !== undefined ? { calibrationEpisodeCount: cal.episodeCount } : {}),
       ...(overrides[item.id] !== undefined ? { frequencyOverridden: true } : {})
     });
@@ -821,6 +871,12 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     const table = BARTHEL_TASK_WEIGHTS[item.id];
     if (!table) continue;
     const resolved = resolveWeightWithLevel(table, raw);
+    const empiricalCategory = empiricalBarthelItems.get(item.id);
+    // Raw episode observations replace the corresponding consensus task. The
+    // three continence/toileting items are intentionally replaced by one
+    // observed toileting episode stream so one diaper change is not counted
+    // three times.
+    if (empiricalCategory && inpatientObservationStats[empiricalCategory]) continue;
     if (resolved) addDriver(item, resolved.weight, barthelCalibrationKey(item.id, resolved.level));
   }
 
@@ -834,8 +890,139 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     }
     answered += 1;
     if (raw !== 0) continue; // only full dependence generates demand
+    if (item.id === 'iadl_medication' && inpatientObservationStats.medications) continue;
     const w = LAWTON_TASK_WEIGHTS[item.id];
     if (w) addDriver(item, w, item.id);
+  }
+
+  // ---- Patient-specific inpatient episode observations ----
+  // These are the immutable discharge baseline. Later functional assessments
+  // adjust each matching task independently; the raw observations remain
+  // unchanged and visible for audit.
+  const taskAdjustments: NonNullable<CareDemandBand['patientSpecificEstimate']>['taskAdjustments'] = [];
+  const taskIntensity = (
+    category: InpatientCareTaskCategory,
+    b: Record<string, number> | undefined,
+    l: Record<string, number> | undefined,
+    bedBound: boolean | undefined
+  ): number => {
+    if (category === 'repositioning') return bedBound ? 1 : 0;
+    if (category === 'medications') return l?.iadl_medication === 0 ? 1 : 0;
+    const ids = category === 'bathing_hygiene'
+      ? ['bi_bathing']
+      : category === 'transfers_mobility'
+        ? ['bi_transfer']
+        : category === 'feeding_meals'
+          ? ['bi_feeding']
+          : ['bi_toilet', 'bi_bowels', 'bi_bladder'];
+    return ids.reduce((sum, id) => {
+      const raw = b?.[id];
+      const table = BARTHEL_TASK_WEIGHTS[id];
+      if (typeof raw !== 'number' || !table) return sum;
+      const resolved = resolveWeightWithLevel(table, raw);
+      if (!resolved) return sum;
+      const w = resolved.weight;
+      return sum + w.frequencyPerDay * w.minutesPerEpisode * Math.max(1, w.staffRequired);
+    }, 0);
+  };
+
+  const observedSchedule = (category: InpatientCareTaskCategory): number => {
+    const bm = input.inpatientBenchmark!;
+    if (category === 'bathing_hygiene') return 1;
+    if (category === 'transfers_mobility') return bm.transferEpisodesPerDay ?? 3;
+    if (category === 'feeding_meals') return bm.mealsRequiringAssistancePerDay;
+    if (category === 'toileting_incontinence') return bm.toiletingEpisodesPerDay;
+    if (category === 'repositioning') {
+      return Math.min(24, Math.round(24 / Math.max(1, bm.repositioningIntervalHours)));
+    }
+    return bm.medicationSlotsPerDay;
+  };
+
+  const observedBlocks: Record<InpatientCareTaskCategory, DiurnalTimeBlock[]> = {
+    bathing_hygiene: ['morning_rush'],
+    transfers_mobility: ['morning_rush', 'afternoon', 'evening', 'night_watch'],
+    feeding_meals: ['morning_rush', 'afternoon', 'evening'],
+    toileting_incontinence: ['morning_rush', 'afternoon', 'evening', 'night_watch'],
+    repositioning: ['morning_rush', 'afternoon', 'evening', 'night_watch'],
+    medications: ['morning_rush', 'afternoon', 'evening']
+  };
+
+  const observedLabels: Record<InpatientCareTaskCategory, string> = {
+    bathing_hygiene: 'Observed bathing / hygiene assistance',
+    transfers_mobility: 'Observed transfer assistance',
+    feeding_meals: 'Observed feeding assistance',
+    toileting_incontinence: 'Observed toileting / continence episode',
+    repositioning: 'Observed repositioning',
+    medications: 'Observed medication administration'
+  };
+
+  for (const category of Object.keys(inpatientObservationStats) as InpatientCareTaskCategory[]) {
+    const stat = inpatientObservationStats[category];
+    if (!stat || !input.inpatientBenchmark) continue;
+    const currentIntensity = taskIntensity(category, barthel, lawton, input.isBedBound);
+    const baselineIntensity = taskIntensity(
+      category,
+      baselineBarthel,
+      baselineLawton,
+      input.inpatientBenchmark.baselineIsBedBound
+    );
+
+    // Without a discharge functional snapshot, retain the observed workload
+    // but do not claim that a longitudinal adjustment was possible.
+    let factor = baselineBarthel || baselineLawton || category === 'repositioning'
+      ? (baselineIntensity > 0 ? currentIntensity / baselineIntensity : currentIntensity > 0 ? 1 : 0)
+      : currentIntensity > 0 ? 1 : 0;
+    factor = Math.max(0, Math.min(2, factor));
+    const schedule = observedSchedule(category);
+    const baselineMinutes = schedule * stat.medianMinutes * stat.staffCount;
+    const adjustedMinutes = baselineMinutes * factor;
+    taskAdjustments.push({
+      taskCategory: category,
+      baselineCaregiverMinutesPerDay: Math.round(baselineMinutes),
+      currentCaregiverMinutesPerDay: Math.round(adjustedMinutes),
+      functionalFactor: Math.round(factor * 100) / 100,
+      observationCount: stat.observationCount
+    });
+    if (adjustedMinutes <= 0) continue;
+
+    const blocks = observedBlocks[category];
+    const perBlock = adjustedMinutes / blocks.length;
+    const elapsedPerBlock = perBlock / stat.staffCount;
+    for (const block of blocks) {
+      blockMinutes[block].directCare += perBlock;
+      blockElapsedDirectCare[block] += elapsedPerBlock;
+    }
+    const reliableObservation = stat.observationCount >= 2;
+    if (reliableObservation) calibratedMinutes += adjustedMinutes;
+    else {
+      uncalibratedMinutes += adjustedMinutes;
+      uncalibratedDrivers.push({
+        label: `${observedLabels[category]} (single episode)`,
+        minutesPerDay: adjustedMinutes,
+        key: `inpatient:${category}`
+      });
+    }
+    drivers.push({
+      itemId: `inpatient_${category}`,
+      label: observedLabels[category],
+      domain: category === 'transfers_mobility' || category === 'repositioning'
+        ? 'mobility'
+        : category === 'toileting_incontinence'
+          ? 'continence'
+          : category === 'medications'
+            ? 'cognitive_executive'
+            : 'self_care',
+      timeType: 'directCare',
+      frequencyPerDay: schedule * factor,
+      minutesPerEpisode: stat.medianMinutes,
+      staffRequired: stat.staffCount,
+      minutesPerDay: adjustedMinutes,
+      blocks,
+      calibrated: reliableObservation,
+      calibrationEpisodeCount: stat.observationCount,
+      evidenceSource: 'inpatient_observed',
+      observedRangeMinutes: { min: stat.minMinutes, max: stat.maxMinutes }
+    });
   }
 
   // ---- Shared setup/transfer credit, per block ----
@@ -856,7 +1043,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   // ---- Threshold terms ----
   const thresholdTerms: CareDemandBand['thresholdTerms'] = [];
 
-  if (input.isBedBound) {
+  if (input.isBedBound && !inpatientObservationStats.repositioning) {
     const discount = input.hasMotorizedBedAndRippleMattress ? BED_BOUND_REPOSITIONING.equipmentDiscount : 0;
     const mins = BED_BOUND_REPOSITIONING.episodesPerDay * BED_BOUND_REPOSITIONING.minutesPerEpisode * (1 - discount);
     thresholdTerms.push({ id: 'bed_bound_repositioning', label: '2-hourly repositioning (pressure-injury prevention)', timeType: 'directCare', minutesPerDay: mins });
@@ -958,10 +1145,14 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   if (diarySummary && diarySummary.totalEntries > 0) {
     bandBasis.push(`Calibrated using ${diarySummary.totalEntries} 1-tap caregiver diary observation(s) from daily home routine.`);
   }
-  if (input.inpatientBenchmark) {
-    const penalty = input.inpatientBenchmark.environmentalPenaltyMultiplier || 1.35;
+  if (hasEpisodeObservations && input.inpatientBenchmark) {
+    const observationCount = input.inpatientBenchmark.observations?.length ?? 0;
     bandBasis.push(
-      `Calibrated with Inpatient Pre-Discharge Care Timing Benchmark (${input.inpatientBenchmark.observerRole}, T_hospital adapted with ${penalty}x home environmental multiplier).`
+      `Patient-specific pre-discharge estimate uses ${observationCount} observed nursing episode(s); task medians are adjusted against the discharge functional snapshot when function changes.`
+    );
+  } else if (input.inpatientBenchmark) {
+    bandBasis.push(
+      'Inpatient Pre-Discharge Care Timing Benchmark (legacy summary) applied. Raw episode observations and a discharge functional snapshot were not retained, so longitudinal adjustment is limited.'
     );
   }
   half = Math.min(half, BAND_WIDTH.max);
@@ -1083,7 +1274,18 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     inputGranularity: usingLegacy ? 'legacy_binary' : 'graded',
     provenance: CLINICAL_PROVENANCE.careDemandModel,
     inpatientBenchmarkApplied: !!input.inpatientBenchmark,
-    requiresTwoPersonTransfers: input.inpatientBenchmark?.requiresTwoPersonTransfers
+    requiresTwoPersonTransfers: input.inpatientBenchmark?.requiresTwoPersonTransfers,
+    patientSpecificEstimate: hasEpisodeObservations && input.inpatientBenchmark
+      ? {
+          baselineRecordedAt: input.inpatientBenchmark.recordedAt,
+          baselineFunctionalAssessedAt: input.inpatientBenchmark.baselineFunctionalAssessedAt,
+          currentFunctionalAssessedAt: input.functionalAssessedAt,
+          observationCount: input.inpatientBenchmark.observations?.length ?? 0,
+          observedTaskCount: Object.keys(inpatientObservationStats).length,
+          functionAdjustmentApplied: taskAdjustments.some((t) => Math.abs(t.functionalFactor - 1) > 0.01),
+          taskAdjustments
+        }
+      : undefined
   };
 }
 
@@ -1161,6 +1363,20 @@ export interface CoefficientCalibration {
  * treating it as calibrated would narrow the band on no real evidence.
  */
 export const MIN_EPISODES_FOR_CALIBRATION = 20;
+
+/**
+ * Minimum diary observations before a single patient's caregiver diary
+ * overrides the consensus default for that task.
+ *
+ * Lower than `MIN_EPISODES_FOR_CALIBRATION` (20) because diary entries are
+ * direct observations of *this specific patient*, not cross-patient calibration
+ * cells. But still high enough that two coincidentally fast sponge baths cannot
+ * retrain the model to expect 8-minute care when the consensus is 25 minutes.
+ *
+ * Five episodes span at least two distinct days of logging, which is the
+ * minimum to distinguish a real pattern from a single recording session.
+ */
+export const MIN_DIARY_EPISODES_FOR_CALIBRATION = 5;
 
 /**
  * Per-coefficient calibration registry.

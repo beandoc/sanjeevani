@@ -114,11 +114,28 @@ export function PatientFunctionalAssessmentPanel({
   const katzScore = Object.values(katz).filter(Boolean).length;
   const lawtonScore = Object.values(lawton).filter(Boolean).length;
   const displayFunctionScores = isAssessed ? functionScores : [];
+  const nextFunctionReviewAt = patientProfile?.functionalAssessedAt
+    ? new Date(new Date(patientProfile.functionalAssessedAt).getTime() + 30 * 24 * 60 * 60 * 1000)
+    : null;
+  const functionReviewOverdue = !!nextFunctionReviewAt && nextFunctionReviewAt.getTime() <= Date.now();
 
   const handleToggleKatz = async (item: keyof typeof katz, nextVal: boolean) => {
     if (!patientProfile) return;
     setIsUpdating(true);
     try {
+      const barthelPatchByKatz: Record<keyof typeof katz, Record<string, number>> = {
+        bathing: { bi_bathing: nextVal ? 5 : 0, bi_grooming: nextVal ? 5 : 0 },
+        dressing: { bi_dressing: nextVal ? 10 : 0 },
+        toileting: { bi_toilet: nextVal ? 10 : 0 },
+        transferring: {
+          bi_transfer: nextVal ? 15 : 0,
+          bi_mobility: nextVal ? 15 : 0,
+          bi_stairs: nextVal ? 10 : 0
+        },
+        continence: { bi_bowels: nextVal ? 10 : 0, bi_bladder: nextVal ? 10 : 0 },
+        feeding: { bi_feeding: nextVal ? 10 : 0 }
+      };
+      const currentGraded = patientProfile.gradedFunctionResponses;
       const updatedProfile: PatientDependenceProfile = {
         ...patientProfile,
         isFunctionalAssessmentCompleted: true,
@@ -126,7 +143,15 @@ export function PatientFunctionalAssessmentPanel({
         katzAdl: {
           ...katz,
           [item]: nextVal
-        }
+        },
+        ...(currentGraded?.barthel
+          ? {
+              gradedFunctionResponses: {
+                ...currentGraded,
+                barthel: { ...currentGraded.barthel, ...barthelPatchByKatz[item] }
+              }
+            }
+          : {})
       };
       await onSaveProfile(updatedProfile);
     } finally {
@@ -138,6 +163,12 @@ export function PatientFunctionalAssessmentPanel({
     if (!patientProfile) return;
     setIsUpdating(true);
     try {
+      const lawtonItemIds: Record<keyof typeof lawton, string> = {
+        telephone: 'iadl_phone', shopping: 'iadl_shopping', mealPreparation: 'iadl_food',
+        housekeeping: 'iadl_housekeeping', laundry: 'iadl_laundry', transportation: 'iadl_transport',
+        medicationManagement: 'iadl_medication', finances: 'iadl_finances'
+      };
+      const currentGraded = patientProfile.gradedFunctionResponses;
       const updatedProfile: PatientDependenceProfile = {
         ...patientProfile,
         isFunctionalAssessmentCompleted: true,
@@ -145,7 +176,15 @@ export function PatientFunctionalAssessmentPanel({
         lawtonIadl: {
           ...lawton,
           [item]: nextVal
-        }
+        },
+        ...(currentGraded?.lawton
+          ? {
+              gradedFunctionResponses: {
+                ...currentGraded,
+                lawton: { ...currentGraded.lawton, [lawtonItemIds[item]]: nextVal ? 1 : 0 }
+              }
+            }
+          : {})
       };
       await onSaveProfile(updatedProfile);
     } finally {
@@ -165,7 +204,19 @@ export function PatientFunctionalAssessmentPanel({
         katzAdl: {
           ...katz,
           transferring: nextVal ? false : katz.transferring
-        }
+        },
+        ...(nextVal && patientProfile.gradedFunctionResponses?.barthel
+          ? {
+              gradedFunctionResponses: {
+                ...patientProfile.gradedFunctionResponses,
+                barthel: {
+                  ...patientProfile.gradedFunctionResponses.barthel,
+                  bi_transfer: 0,
+                  bi_mobility: 0
+                }
+              }
+            }
+          : {})
       };
       await onSaveProfile(updatedProfile);
     } finally {
@@ -214,11 +265,23 @@ export function PatientFunctionalAssessmentPanel({
               </div>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Step 1: Patient Functional Assessment (ADL / IADL Baseline)
+                Step 1: Patient Functional Assessment (ADL / IADL)
               </h2>
               <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
                 Assess <strong>{patientName}</strong>&apos;s functional mobility. Katz ADL and Lawton-Brody IADL scores recorded below automatically determine care hours and shift coverage for Step 2 (Monthly Support Matrix).
               </p>
+              {nextFunctionReviewAt && (
+                <p className={cn(
+                  'text-[11px] font-semibold',
+                  functionReviewOverdue
+                    ? 'text-rose-700 dark:text-rose-400'
+                    : 'text-muted-foreground'
+                )}>
+                  {functionReviewOverdue ? 'Functional reassessment due' : 'Next monthly reassessment'}:{' '}
+                  {nextFunctionReviewAt.toLocaleDateString()}. Reassess earlier after a clinical
+                  change or follow-up visit.
+                </p>
+              )}
             </div>
 
             {/* Primary Action Buttons */}
@@ -334,15 +397,32 @@ export function PatientFunctionalAssessmentPanel({
                     </div>
                   )}
                   {patientProfile?.inpatientBenchmark && (
-                    <div className="pt-1.5 mt-1 border-t border-border/50 flex items-center justify-between gap-1.5">
-                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                        <Building2 className="w-3 h-3" />
-                        Inpatient Calibrated (T_hosp × {patientProfile.inpatientBenchmark.environmentalPenaltyMultiplier}x)
-                      </span>
-                      {patientProfile.inpatientBenchmark.requiresTwoPersonTransfers && (
-                        <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1.5 py-0 border-rose-500/30">
-                          2-Staff Required
-                        </Badge>
+                    <div className="pt-1.5 mt-1 border-t border-border/50 space-y-1">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          {careGapResult.careDemandBand.patientSpecificEstimate
+                            ? `${careGapResult.careDemandBand.patientSpecificEstimate.observationCount} observed nursing episodes`
+                            : 'Legacy inpatient timing summary'}
+                        </span>
+                        {patientProfile.inpatientBenchmark.requiresTwoPersonTransfers && (
+                          <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1.5 py-0 border-rose-500/30">
+                            2-Staff Required
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[10px] leading-snug text-muted-foreground">
+                        Patient-specific pre-discharge care-time estimate based on observed nursing
+                        episodes. Intended for care planning and clinician review; reassess after
+                        transition home.
+                      </p>
+                      {careGapResult.careDemandBand.patientSpecificEstimate?.functionAdjustmentApplied && (
+                        <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                          Updated task by task using the latest functional assessment from{' '}
+                          {careGapResult.careDemandBand.patientSpecificEstimate.currentFunctionalAssessedAt
+                            ? new Date(careGapResult.careDemandBand.patientSpecificEstimate.currentFunctionalAssessedAt).toLocaleDateString()
+                            : 'this encounter'}.
+                        </p>
                       )}
                     </div>
                   )}
@@ -992,7 +1072,7 @@ export function PatientFunctionalAssessmentPanel({
                       </Badge>
                       {index === 0 && (
                         <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] border-emerald-500/30">
-                          Latest Baseline
+                          Latest assessment
                         </Badge>
                       )}
                     </div>

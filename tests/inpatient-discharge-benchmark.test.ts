@@ -18,6 +18,26 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
   });
 
   describe('calculateBenchmarkSummary', () => {
+    it('uses episode medians, recorded schedules and no default home inflation for new observations', () => {
+      const observations = [
+        { id: 'f1', taskCategory: 'feeding_meals' as const, observedAt: '2026-01-01T08:00:00.000Z', durationMinutes: 18, staffCount: 1 as const },
+        { id: 'f2', taskCategory: 'feeding_meals' as const, observedAt: '2026-01-01T13:00:00.000Z', durationMinutes: 24, staffCount: 1 as const },
+        { id: 'f3', taskCategory: 'feeding_meals' as const, observedAt: '2026-01-01T19:00:00.000Z', durationMinutes: 30, staffCount: 1 as const }
+      ];
+      const summary = calculateBenchmarkSummary({
+        spongeBathMinutes: 0, spongeBathStaffCount: 1,
+        bedToChairTransferMinutes: 0, transferStaffCount: 1, transferEpisodesPerDay: 0,
+        mealFeedingMinutesPerMeal: 0, mealsRequiringAssistancePerDay: 3,
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        observations
+      });
+
+      expect(summary.inpatientDirectCareMinutesPerDay).toBe(72);
+      expect(summary.homeProjectedDirectCareHoursPerDay).toBe(1.2);
+    });
+
     it('accurately computes inpatient minutes and applies 1.35x environmental penalty', () => {
       const summary = calculateBenchmarkSummary({
         spongeBathMinutes: 30,
@@ -170,6 +190,74 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
       expect(transferDriver?.calibrated).toBe(true);
       // Inpatient 15 mins * 1.35 = ~20 mins per episode
       expect(transferDriver?.minutesPerEpisode).toBe(20);
+    });
+
+    it('anchors observed task time at discharge and updates only that task after reassessment', () => {
+      const benchmark: InpatientDischargeBenchmark = {
+        id: 'episode-bm', patientUid, recordedAt: '2026-01-01T00:00:00.000Z',
+        observerRole: 'staff_nurse', observerName: 'Ward nurse', methodologyVersion: 'patient-episode-v1',
+        observations: [
+          { id: 'f1', taskCategory: 'feeding_meals', observedAt: '2026-01-01T08:00:00.000Z', durationMinutes: 20, staffCount: 1 },
+          { id: 'f2', taskCategory: 'feeding_meals', observedAt: '2026-01-01T13:00:00.000Z', durationMinutes: 30, staffCount: 1 }
+        ],
+        baselineBarthelResponses: dependentBarthel,
+        baselineFunctionalAssessedAt: '2026-01-01T00:00:00.000Z',
+        spongeBathMinutes: 0, spongeBathStaffCount: 1,
+        bedToChairTransferMinutes: 0, transferEpisodesPerDay: 0, transferStaffCount: 1,
+        transferAssistType: 'one_person_pivot', mealFeedingMinutesPerMeal: 25,
+        mealsRequiringAssistancePerDay: 3, feedingAssistType: 'full_spoon_feeding',
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: 1, inpatientDirectCareMinutesPerDay: 75,
+        homeProjectedDirectCareHoursPerDay: 1.3, requiresTwoPersonTransfers: false
+      };
+
+      const baseline = estimateCareDemand({ barthelResponses: dependentBarthel, inpatientBenchmark: benchmark, functionalAssessedAt: '2026-01-01T00:00:00.000Z' });
+      const feeding = baseline.drivers.find((d) => d.itemId === 'inpatient_feeding_meals');
+      expect(feeding?.minutesPerDay).toBe(75);
+      expect(baseline.patientSpecificEstimate?.functionAdjustmentApplied).toBe(false);
+
+      const improved = estimateCareDemand({
+        barthelResponses: { ...dependentBarthel, bi_feeding: 10 },
+        inpatientBenchmark: benchmark,
+        functionalAssessedAt: '2026-02-01T00:00:00.000Z'
+      });
+      expect(improved.drivers.some((d) => d.itemId === 'inpatient_feeding_meals')).toBe(false);
+      expect(improved.patientSpecificEstimate?.functionAdjustmentApplied).toBe(true);
+      expect(improved.patientSpecificEstimate?.taskAdjustments.find((t) => t.taskCategory === 'feeding_meals')?.currentCaregiverMinutesPerDay).toBe(0);
+      expect(improved.activeCare.pointHours).toBeLessThan(baseline.activeCare.pointHours);
+      expect(benchmark.observations?.length).toBe(2);
+    });
+
+    it('also updates an empirical task from a later Katz-only reassessment', () => {
+      const dependentKatz = { bathing: false, dressing: false, toileting: false, transferring: false, continence: false, feeding: false };
+      const benchmark = {
+        id: 'katz-episode-bm', patientUid, recordedAt: '2026-01-01T00:00:00.000Z',
+        observerRole: 'staff_nurse' as const, observerName: 'Ward nurse',
+        methodologyVersion: 'patient-episode-v1' as const,
+        observations: [
+          { id: 'f1', taskCategory: 'feeding_meals' as const, observedAt: '2026-01-01T08:00:00.000Z', durationMinutes: 20, staffCount: 1 as const },
+          { id: 'f2', taskCategory: 'feeding_meals' as const, observedAt: '2026-01-01T13:00:00.000Z', durationMinutes: 20, staffCount: 1 as const }
+        ],
+        baselineKatzAdl: dependentKatz,
+        spongeBathMinutes: 0, spongeBathStaffCount: 1 as const,
+        bedToChairTransferMinutes: 0, transferEpisodesPerDay: 0, transferStaffCount: 1 as const,
+        transferAssistType: 'one_person_pivot' as const, mealFeedingMinutesPerMeal: 20,
+        mealsRequiringAssistancePerDay: 3, feedingAssistType: 'full_spoon_feeding' as const,
+        toiletingDiaperMinutes: 0, toiletingEpisodesPerDay: 0, toiletingStaffCount: 1 as const,
+        repositioningTurnMinutes: 0, repositioningIntervalHours: 24, repositioningStaffCount: 1 as const,
+        medicationAdministrationMinutes: 0, medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: 1, inpatientDirectCareMinutesPerDay: 60,
+        homeProjectedDirectCareHoursPerDay: 1, requiresTwoPersonTransfers: false
+      };
+
+      const improved = estimateCareDemand({
+        legacyKatzAdl: { ...dependentKatz, feeding: true },
+        inpatientBenchmark: benchmark
+      });
+      expect(improved.patientSpecificEstimate?.functionAdjustmentApplied).toBe(true);
+      expect(improved.patientSpecificEstimate?.taskAdjustments[0].currentCaregiverMinutesPerDay).toBe(0);
     });
   });
 

@@ -875,7 +875,8 @@ export class CareGapEngine {
       hasMotorizedBedAndRippleMattress:
         safeDevices.hospitalBed === 'motorized_multichannel' && !!safeDevices.airWaterMattress,
       assessmentSource: safePatient.functionAssessmentSource,
-      inpatientBenchmark: safePatient.inpatientBenchmark
+      inpatientBenchmark: safePatient.inpatientBenchmark,
+      functionalAssessedAt: safePatient.functionalAssessedAt
     });
 
     // Midpoint of ACTIVE care (hands-on + supervision), retained for backward

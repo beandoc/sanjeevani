@@ -108,16 +108,33 @@ describe('Caregiver 1-Tap Diary Feedback & Calibration Loop', () => {
   });
 
   it('incorporates empirical caregiver diary observations directly into care demand estimation', () => {
-    // Create empirical diary summary with 3 observed sponge bath logs
+    // Create empirical diary summary with 6 observed sponge bath logs (above
+    // MIN_DIARY_EPISODES_FOR_CALIBRATION = 5). Uses metricsByCategory which
+    // aggregates across time blocks, not metricsByTask which is per-block.
     const diaryCalibration = {
       patientUid,
-      totalEntries: 3,
+      totalEntries: 6,
       metricsByTask: {
         'bathing_hygiene__morning_rush': {
           taskCategory: 'bathing_hygiene' as const,
           timeBlock: 'morning_rush' as const,
-          sampleCount: 3,
-          meanMinutes: 40, // higher than consensus default 25m
+          sampleCount: 6,
+          meanMinutes: 40,
+          medianMinutes: 40, // median used as calibration value
+          minMinutes: 30,
+          maxMinutes: 50,
+          twoPersonFrequencyPercent: 0,
+          lastLoggedAt: new Date().toISOString()
+        }
+      },
+      // metricsByCategory is what the engine reads — aggregated across blocks
+      metricsByCategory: {
+        bathing_hygiene: {
+          taskCategory: 'bathing_hygiene' as const,
+          timeBlock: 'morning_rush' as const,
+          sampleCount: 6,
+          meanMinutes: 41, // mean deliberately differs from median to prove median is used
+          medianMinutes: 40,
           minMinutes: 30,
           maxMinutes: 50,
           twoPersonFrequencyPercent: 0,
@@ -165,9 +182,10 @@ describe('Caregiver 1-Tap Diary Feedback & Calibration Loop', () => {
     expect(bathDriverUncal?.minutesPerEpisode).toBe(25); // consensus default
     expect(bathDriverUncal?.calibrated).toBe(false);
 
-    expect(bathDriverCal?.minutesPerEpisode).toBe(40); // empirical measured diary mean
+    // The engine should use the MEDIAN (40), not the mean (41)
+    expect(bathDriverCal?.minutesPerEpisode).toBe(40); // empirical measured diary median
     expect(bathDriverCal?.calibrated).toBe(true);
-    expect(bathDriverCal?.calibrationEpisodeCount).toBe(3);
+    expect(bathDriverCal?.calibrationEpisodeCount).toBe(6);
 
     // Calibrated band notes the real-world observation in band basis
     const hasDiaryNote = calibratedResult.bandBasis.some((b) => b.includes('caregiver diary observation'));
