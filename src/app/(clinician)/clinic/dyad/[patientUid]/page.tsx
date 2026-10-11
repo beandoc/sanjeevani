@@ -1293,7 +1293,7 @@ export default function DyadDetailPage() {
       })()}
 
       {/* HORIZONTAL WORKSPACE NAVIGATION TABS - IN LOGICAL CLINICAL DATA FLOW */}
-      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scroll-touch border-b border-border/60">
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 scroll-touch border-b border-border/60 scrollbar-thin">
         {/* GROUP 1: CARE BLUEPRINT (FORMULATION STEPS 1-5) */}
         <div className="flex items-center gap-1.5 shrink-0 pr-1">
           <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground hidden lg:inline mr-1 px-2 py-1 rounded-lg bg-muted/60 border border-border/60">

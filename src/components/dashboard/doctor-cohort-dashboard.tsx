@@ -918,9 +918,8 @@ export function DoctorCohortDashboard() {
                     Reset Filters
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                             <div className="space-y-4">
+                  <div className="space-y-2.5">
                     {paginatedRows.map((row) => {
                       const actionableAlert = getActionableAlert(row.latestAlertSnippet);
                       const workflow = row.workflow || getDyadWorkflow({
@@ -947,12 +946,12 @@ export function DoctorCohortDashboard() {
                       return (
                         <div
                           key={row.patientUid}
-                          className="group p-3.5 rounded-xl transition-all duration-150 border border-border/60 bg-card hover:bg-muted/30 hover:border-border flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs min-h-[220px]"
+                          className="group p-3.5 sm:p-4 rounded-xl transition-all duration-150 border border-border/60 bg-card hover:bg-muted/20 hover:border-border flex flex-col md:flex-row md:items-center justify-between gap-3.5 shadow-2xs hover:shadow-xs"
                         >
-                          {/* Top Content: Patient Acuity & Caregiver Risk Axes */}
-                          <div className="space-y-2 min-w-0">
-                            {/* Two Axes: Patient Acuity & Caregiver Risk */}
-                            <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                          {/* Left: Clinical Status, Patient Demographics, CGA, Caregiver & Conditions */}
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            {/* Line 1: Status Badges, Patient Name, Demographics, CGA Chips */}
+                            <div className="flex items-center gap-2 flex-wrap">
                               {topUrgentSignal ? (
                                 <Badge className="text-xs font-bold gap-1 shrink-0 bg-orange-600 hover:bg-orange-700 text-white border-transparent">
                                   <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -981,117 +980,112 @@ export function DoctorCohortDashboard() {
                               >
                                 Caregiver: {isIntakeInProgress ? 'Intake' : (row.riskBand === 'critical' ? 'High Burnout Risk' : RISK_BAND_LABEL[row.riskBand])}
                               </Badge>
-                            </div>
 
-                            {/* Patient Demographics & CGA Chips (Row line 1) */}
-                            <div className="space-y-1 min-w-0">
-                              <h4 className="text-sm font-bold text-foreground capitalize truncate" title={row.displayName}>
+                              <h4 className="text-sm sm:text-base font-bold text-foreground capitalize flex items-center gap-1.5 truncate">
                                 {row.displayName.replace(/\s*\(\d+\s*yrs?\)/gi, '')}
                                 {(row.age || row.gender) && (
-                                  <span className="text-xs font-semibold text-muted-foreground ml-1.5 font-mono">
-                                    · {row.age ? row.age : ''}{row.gender ? ` ${row.gender}` : ''}
+                                  <span className="text-xs font-semibold text-muted-foreground font-mono">
+                                    · {row.age ? `${row.age}y` : ''}{row.gender ? ` ${row.gender}` : ''}
                                   </span>
                                 )}
                               </h4>
 
-                              {/* CGA Chips: PI, Bedbound, Cognition, Polypharmacy, Falls (only when abnormal) */}
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {row.worstPressureInjuryStage && row.worstPressureInjuryStage !== 'none' && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-800 dark:text-orange-300 border border-orange-500/30">
-                                    PI St {row.worstPressureInjuryStage}
-                                  </span>
-                                )}
-                                {row.isBedBound && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
-                                    <Bed className="w-3 h-3" /> Bed-Bound
-                                  </span>
-                                )}
-                                {row.cognitiveLoad && row.cognitiveLoad !== 'none' && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30">
-                                    {row.cognitiveLoad === 'wandering_agitation'
-                                      ? 'Wandering / Agitation'
-                                      : row.cognitiveLoad === 'severe_sundowning'
-                                      ? 'Sundowning'
-                                      : 'Forgetfulness'}
-                                  </span>
-                                )}
-                                {(row.activeMedicationCount || 0) >= 5 && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/25">
-                                    {row.activeMedicationCount} Meds (Polypharmacy)
-                                  </span>
-                                )}
-                                {(row.fallHistory || 0) >= 1 && (
-                                  <span
-                                    className={cn(
-                                      'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold border',
-                                      (row.fallHistory || 0) >= 2
-                                        ? 'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30'
-                                        : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30'
-                                    )}
-                                  >
-                                    <AlertTriangle className="w-3 h-3" /> {row.fallHistory} fall{(row.fallHistory || 0) === 1 ? '' : 's'} / 6 mo
-                                  </span>
-                                )}
-                              </div>
+                              {/* CGA Chips */}
+                              {row.isBedBound && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                  <Bed className="w-3 h-3" /> Bed-Bound
+                                </span>
+                              )}
+                              {row.worstPressureInjuryStage && row.worstPressureInjuryStage !== 'none' && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-orange-500/15 text-orange-800 dark:text-orange-300 border border-orange-500/30">
+                                  PI St {row.worstPressureInjuryStage}
+                                </span>
+                              )}
+                              {row.cognitiveLoad && row.cognitiveLoad !== 'none' && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30">
+                                  {row.cognitiveLoad === 'wandering_agitation'
+                                    ? 'Wandering / Agitation'
+                                    : row.cognitiveLoad === 'severe_sundowning'
+                                    ? 'Sundowning'
+                                    : 'Forgetfulness'}
+                                </span>
+                              )}
+                              {(row.activeMedicationCount || 0) >= 5 && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary border border-primary/25">
+                                  {row.activeMedicationCount} Meds (Polypharmacy)
+                                </span>
+                              )}
+                              {(row.fallHistory || 0) >= 1 && (
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold border',
+                                    (row.fallHistory || 0) >= 2
+                                      ? 'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30'
+                                      : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30'
+                                  )}
+                                >
+                                  <AlertTriangle className="w-3 h-3" /> {row.fallHistory} fall{(row.fallHistory || 0) === 1 ? '' : 's'} / 6 mo
+                                </span>
+                              )}
                             </div>
 
-                            {/* Caregiver Identity & Daily Log Recency (Row line 2) */}
-                            <div className="space-y-0.5 min-w-0">
-                              <p className="text-xs text-muted-foreground truncate" title={row.caregiverName || undefined}>
+                            {/* Line 2: Caregiver Details & Support Hours */}
+                            <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
+                              <span>
                                 Caregiver: <strong className="text-foreground font-semibold">{row.caregiverName || 'Not yet documented'}</strong>
                                 {row.caregiverKinship && ` (${row.caregiverKinship})`}
-                              </p>
-                              <div className="flex items-center justify-between gap-1 text-[11px]">
-                                {!isIntakeInProgress && (
-                                  <span className="text-muted-foreground font-medium truncate">
-                                    Support: <strong className={cn(row.formalSupportHours === 0 ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-foreground')}>
-                                      {formatFormalSupport(row.formalSupportType, row.formalSupportHours)}
-                                    </strong>
-                                  </span>
-                                )}
-                                {logDaysAgo !== null ? (
-                                  <span className={cn('font-semibold shrink-0', logDaysAgo >= 7 ? 'text-orange-600 dark:text-orange-400' : logDaysAgo >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
-                                    Last log {logDaysAgo === 0 ? 'today' : `${logDaysAgo}d ago`}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground/60 shrink-0">No logs yet</span>
-                                )}
-                              </div>
+                              </span>
+                              <span className="text-border">·</span>
+                              {!isIntakeInProgress && (
+                                <span>
+                                  Support: <strong className={cn(row.formalSupportHours === 0 ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-foreground')}>
+                                    {formatFormalSupport(row.formalSupportType, row.formalSupportHours)}
+                                  </strong>
+                                </span>
+                              )}
+                              <span className="text-border">·</span>
+                              {logDaysAgo !== null ? (
+                                <span className={cn('font-semibold', logDaysAgo >= 7 ? 'text-orange-600 dark:text-orange-400' : logDaysAgo >= 3 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
+                                  Last log {logDaysAgo === 0 ? 'today' : `${logDaysAgo}d ago`}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground/60">No logs yet</span>
+                              )}
                             </div>
 
-                            {/* Conditions */}
+                            {/* Line 3: Conditions */}
                             {row.conditions && row.conditions.length > 0 && (
-                              <p className="text-[11px] text-muted-foreground font-medium line-clamp-1 truncate" title={row.conditions.join(' · ')}>
+                              <p className="text-xs text-muted-foreground font-medium" title={row.conditions.join(' · ')}>
                                 {row.conditions.join(' · ')}
                               </p>
                             )}
 
                             {/* Alert / Workflow Banner */}
                             {isIntakeInProgress ? (
-                              <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-semibold flex items-center gap-1.5">
+                              <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold inline-flex items-center gap-1.5">
                                 <Activity className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate">{workflow.completedSteps}/{workflow.totalSteps} · {workflow.nextAction}</span>
+                                <span>{workflow.completedSteps}/{workflow.totalSteps} · {workflow.nextAction}</span>
                               </div>
                             ) : actionableAlert ? (
-                              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 text-[11px] font-semibold flex items-center gap-1.5" title={actionableAlert}>
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 text-xs font-semibold inline-flex items-center gap-1.5" title={actionableAlert}>
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate">{actionableAlert}</span>
+                                <span>{actionableAlert}</span>
                               </div>
                             ) : workflow.isRespiteEvaluationReady && row.respitePrescription?.needed ? (
-                              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-[11px] font-medium flex items-center gap-1.5">
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs font-medium inline-flex items-center gap-1.5">
                                 <HeartHandshake className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate">Respite: {row.respitePrescription.recommendedDaysPerMonth}d/mo rec.</span>
+                                <span>Respite: {row.respitePrescription.recommendedDaysPerMonth}d/mo rec.</span>
                               </div>
                             ) : null}
                           </div>
 
-                          {/* Bottom Content: Metrics Strip + Action Buttons */}
-                          <div className="pt-2 border-t border-border/60 space-y-2">
-                            {/* Metrics Bar: ZBI (tiered) and Vitals (with recency, greyed if >7d) */}
-                            <div className="flex items-center justify-between gap-1 text-xs font-mono px-2.5 py-1.5 rounded-lg bg-muted/40 border border-border/50">
+                          {/* Right: Telemetry & Actions */}
+                          <div className="flex items-center gap-2.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-border/50 justify-between md:justify-end">
+                            {/* Metrics Strip */}
+                            <div className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-lg bg-muted/40 border border-border/50">
                               {isIntakeInProgress ? (
-                                <div className="flex items-center justify-between w-full">
-                                  <span className="text-[10px] text-muted-foreground font-sans font-semibold uppercase">Next Action</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] text-muted-foreground font-sans font-semibold uppercase">Next</span>
                                   <span className="font-bold text-foreground capitalize">{workflow.nextOwner}</span>
                                 </div>
                               ) : (
@@ -1103,80 +1097,81 @@ export function DoctorCohortDashboard() {
                                     </span>
                                   </div>
                                   {(row.lastVitalBp || row.lastVitalSpo2) && (
-                                    <div className={cn('flex items-center gap-1', isVitalsStale ? 'text-muted-foreground/60 opacity-60' : 'text-foreground')}>
-                                      {row.lastVitalBp && <span className="font-bold">BP {row.lastVitalBp}</span>}
-                                      {row.lastVitalBp && row.lastVitalSpo2 && <span className="text-border">·</span>}
-                                      {row.lastVitalSpo2 && <span className="font-bold">SpO₂ {row.lastVitalSpo2}</span>}
-                                      {vitalDaysAgo !== null && (
-                                        <span className="text-[10px] text-muted-foreground font-sans">
-                                          · {vitalDaysAgo}d
-                                        </span>
-                                      )}
-                                    </div>
+                                    <>
+                                      <span className="text-border">|</span>
+                                      <div className={cn('flex items-center gap-1', isVitalsStale ? 'text-muted-foreground/60 opacity-60' : 'text-foreground')}>
+                                        {row.lastVitalBp && <span className="font-bold">BP {row.lastVitalBp}</span>}
+                                        {row.lastVitalBp && row.lastVitalSpo2 && <span className="text-border">·</span>}
+                                        {row.lastVitalSpo2 && <span className="font-bold">SpO₂ {row.lastVitalSpo2}</span>}
+                                        {vitalDaysAgo !== null && (
+                                          <span className="text-[10px] text-muted-foreground font-sans">
+                                            · {vitalDaysAgo}d
+                                          </span>
+                                        )}
+                                      </div>
+                                    </>
                                   )}
                                 </>
                               )}
                             </div>
 
                             {/* Action Buttons Row */}
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-0.5">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleSendWhatsApp(row)}
-                                  title="WhatsApp message to caregiver"
-                                  className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-500/10 rounded-md"
-                                >
-                                  <Send className="w-3.5 h-3.5" />
-                                </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleSendWhatsApp(row)}
+                                title="WhatsApp message to caregiver"
+                                className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-500/10 rounded-lg"
+                              >
+                                <Send className="w-4 h-4" />
+                              </Button>
 
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleRequestReassessment(row.patientUid, row.displayName)}
-                                  disabled={requestingUids.has(row.patientUid)}
-                                  title="Request Zarit Reassessment"
-                                  className="h-7 w-7 p-0 text-primary hover:bg-primary/10 rounded-md"
-                                >
-                                  <CalendarClock className="w-3.5 h-3.5" />
-                                </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRequestReassessment(row.patientUid, row.displayName)}
+                                disabled={requestingUids.has(row.patientUid)}
+                                title="Request Zarit Reassessment"
+                                className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-lg"
+                              >
+                                <CalendarClock className="w-4 h-4" />
+                              </Button>
 
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      title={`Discharge / Remove ${row.displayName}`}
-                                      disabled={dischargingUids.has(row.patientUid)}
-                                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 rounded-md"
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    title={`Discharge / Remove ${row.displayName}`}
+                                    disabled={dischargingUids.has(row.patientUid)}
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                  >
+                                    <UserMinus className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-2xl">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Discharge {row.displayName}?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-xs leading-relaxed">
+                                      This will remove {row.displayName} from your active clinical worklist, revoke clinician grants, purge summaries, and archive their local record.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                                      onClick={() => handleDischargePatient(row.patientUid, row.displayName)}
                                     >
-                                      <UserMinus className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent className="rounded-2xl">
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Discharge {row.displayName}?</AlertDialogTitle>
-                                      <AlertDialogDescription className="text-xs leading-relaxed">
-                                        This will remove {row.displayName} from your active clinical worklist, revoke clinician grants, purge summaries, and archive their local record.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
-                                        onClick={() => handleDischargePatient(row.patientUid, row.displayName)}
-                                      >
-                                        Discharge Patient
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
+                                      Discharge Patient
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
 
-                              <Button asChild size="sm" className="h-7 text-xs font-bold gap-1 px-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs">
+                              <Button asChild size="sm" className="h-8 text-xs font-bold gap-1 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs">
                                 <Link href={`/clinic/dyad/${row.patientUid}`}>
-                                  Open <ChevronRight className="w-3 h-3" />
+                                  Open <ChevronRight className="w-3.5 h-3.5" />
                                 </Link>
                               </Button>
                             </div>
@@ -1184,7 +1179,7 @@ export function DoctorCohortDashboard() {
                         </div>
                       );
                     })}
-                  </div>
+                  </div>           </div>
 
                   {/* Pagination inserted when number becomes more than 8 */}
                   {sortedRows.length > ITEMS_PER_PAGE && (

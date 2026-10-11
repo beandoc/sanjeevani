@@ -243,8 +243,8 @@ export function PatientFunctionalAssessmentPanel({
       {/* 1. CLINICAL FOUNDATION HERO BANNER */}
       <Card className="rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 via-card to-background shadow-xs overflow-hidden">
         <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-2 max-w-3xl">
+          <div className="space-y-3.5">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge className="bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wider px-2 py-0.5">
                   Step 1 of Care Plan Workflow
@@ -264,10 +264,10 @@ export function PatientFunctionalAssessmentPanel({
                 )}
               </div>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Step 1: Patient Functional Assessment (ADL / IADL)
+                <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span>Step 1: Patient Functional Assessment (ADL / IADL)</span>
               </h2>
-              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed max-w-4xl">
                 Assess <strong>{patientName}</strong>&apos;s functional mobility. Katz ADL and Lawton-Brody IADL scores recorded below automatically determine care hours and shift coverage for Step 2 (Monthly Support Matrix).
               </p>
               {nextFunctionReviewAt && (
@@ -284,14 +284,14 @@ export function PatientFunctionalAssessmentPanel({
               )}
             </div>
 
-            {/* Primary Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Primary Action Buttons Bar */}
+            <div className="pt-2 flex items-center gap-2.5 flex-wrap">
               <FunctionAssessmentForm
                 onComplete={onAssessmentCompleted}
                 trigger={
                   <Button
                     size="sm"
-                    className="h-10 text-xs font-bold gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                    className="h-9 sm:h-10 text-xs font-bold gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
                   >
                     <ClipboardPlus className="w-4 h-4" />
                     <span>Administer Standardized ADL / IADL</span>
@@ -309,7 +309,7 @@ export function PatientFunctionalAssessmentPanel({
                 size="sm"
                 variant="outline"
                 onClick={onProceedToMatrix}
-                className="h-10 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted cursor-pointer"
+                className="h-9 sm:h-10 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted cursor-pointer"
                 title="Proceed to Step 2: Monthly Support Matrix to configure care shifts based on this assessment"
               >
                 <span>Next: Monthly Support Matrix</span>
