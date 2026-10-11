@@ -39,7 +39,7 @@ import {
   MonthlyRotationPolicy,
   isMemberAccepted
 } from './care-gap-engine';
-import { resolveSupportTypes, performsHeavyTransfers, performsMedicationOrWoundCare } from './formal-support';
+import { resolveSupportTypes, resolveFormalStaffCoverage } from './formal-support';
 import { StaffingRecommender, StaffingRecommendationReport } from './staffing-recommender';
 
 export type CaregiverRole = 'primary_caregiver' | 'secondary_family' | 'formal_staff' | 'unassigned';
@@ -495,35 +495,16 @@ export class ShiftAllocator {
     const selectedTypes = resolveSupportTypes(formalSupport);
 
     if (selectedTypes.length > 0 && (baseEval.formalSupportAbsorbedHours ?? 0) > 0) {
-      const coversNight = selectedTypes.some((t) => t.includes('24h'));
-      const coversDay = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
-      const assistantOnly = selectedTypes.every((t) => t === 'medical_assistant' || t === 'multi_family_rotation' || t === 'none');
+      // Blocks and capabilities both come from the shared coverage resolver, which the care-gap
+      // engine also uses for its relief flags. The roster used to derive its own answer from the
+      // type labels; the engine derived a different one, so a plan could show the carer relieved
+      // of the lifting while the roster still had her doing it.
+      const coverage = resolveFormalStaffCoverage(formalSupport);
+      const availableBlocks: DiurnalTimeBlock[] = (
+        ['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]
+      ).filter((b) => coverage.coveredBlocks.has(b));
 
-      const availableBlocks: DiurnalTimeBlock[] = coversNight
-        ? ['morning_rush', 'afternoon', 'evening', 'night_watch']
-        : coversDay
-        ? ['morning_rush', 'afternoon', 'evening']
-        : assistantOnly
-        ? ['morning_rush', 'afternoon']
-        : ['morning_rush', 'evening'];
-
-      const capable = new Set<CareTask>();
-      for (const t of selectedTypes) {
-        if (t.startsWith('trained_nurse_')) {
-          ['heavy_transfers', 'bathing', 'medications', 'feeding', 'night_care'].forEach((x) => capable.add(x as CareTask));
-        } else if (t.startsWith('paid_attendant_')) {
-          ['heavy_transfers', 'bathing', 'feeding', 'night_care', 'logistics_errands'].forEach((x) => capable.add(x as CareTask));
-        } else if (t === 'medical_assistant') {
-          capable.add('medications');
-        }
-        if (performsHeavyTransfers(t)) capable.add('heavy_transfers');
-        if (performsMedicationOrWoundCare(t)) capable.add('medications');
-      }
-      // The clinician's explicit scope toggles override the type defaults.
-      if (formalSupport?.handlesHeavyTransfers === false) capable.delete('heavy_transfers');
-      if (formalSupport?.handlesMedicationWoundCare === false) capable.delete('medications');
-
-      const capableTasks = Array.from(capable);
+      const capableTasks = Array.from(coverage.capableTasks);
       candidates.push({
         id: 'formal_staff_1',
         name: selectedTypes.some((t) => t.includes('nurse')) ? 'Certified Clinical Nurse' : 'Formal Paid Attendant',

@@ -497,3 +497,32 @@ export const DIURNAL_CONCENTRATION_EXPONENT = 1.25;
  * @calibration expert-consensus, uncalibrated
  */
 export const DIURNAL_INDEX_SATURATION_SCALE = 3.5;
+
+/* ------------------------------------------------------------------ *
+ * 9. DIURNAL BLOCK GEOMETRY & FORMAL SHIFT COVERAGE
+ * ------------------------------------------------------------------ */
+
+/**
+ * Real wall-clock length of each diurnal block, in hours. Single source of
+ * truth: `shift-allocator`'s `BLOCK_DURATION_HOURS`, the care-gap engine's
+ * per-block supply ceiling and the formal-shift coverage resolver all read
+ * this, so a block cannot be 3 hours long in one calculation and 4 in another.
+ */
+export const DIURNAL_BLOCK_HOURS: Record<DiurnalTimeBlock, number> = {
+  morning_rush: 3,
+  afternoon: 3,
+  evening: 3,
+  night_watch: 8
+};
+
+/**
+ * Order in which a day shift fills the daytime blocks.
+ *
+ * Coverage is derived by walking this sequence and spending the shift's hours
+ * against each block's wall-clock length, so a block counts as covered only
+ * when the shift is actually long enough to span it. This is a placeholder for
+ * explicit per-hire coverage windows: it assumes a shift that begins at the
+ * morning block, which is the common arrangement for a day attendant but is an
+ * assumption, not a recorded fact.
+ */
+export const FORMAL_DAY_BLOCK_SEQUENCE = ['morning_rush', 'afternoon', 'evening'] as const;

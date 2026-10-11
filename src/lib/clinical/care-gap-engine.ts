@@ -4,7 +4,11 @@
  * and caregiver physical/temporal capacity (Age, Health, Employment, Kinship, Formal Support Infrastructure).
  */
 
-import { performsHeavyTransfers, resolveSupportTypes } from './formal-support';
+import {
+  formalStaffCoversTask,
+  resolveFormalStaffCoverage,
+  resolveSupportTypes
+} from './formal-support';
 import { calculateBiomechanicalLoad } from './biomechanical-load';
 import { MedicationChecker } from './medication-checker';
 import { CLINICAL_PROVENANCE, ClinicalProvenance } from './provenance';
@@ -888,18 +892,18 @@ export class CareGapEngine {
     // Retain it in selectedTypes so team-support checks recognize the family arrangement,
     // while its 0 formal nominal hours ensure zero artificial formal hours are absorbed.
     const selectedTypes = resolveSupportTypes(safeCaregiver.formalSupport);
+
+    // What the configured team actually covers: effective shift hours per hire, the tasks the
+    // clinician has left in scope, and the blocks the shifts are long enough to span. The roster
+    // builds its formal candidate from this same resolver, so the two cannot disagree about who
+    // does what, and relief can no longer be granted by a staff label alone.
+    const staffCoverage = resolveFormalStaffCoverage(safeCaregiver.formalSupport);
     let rawAbsorbed = 0;
 
-    if (selectedTypes.length > 0) {
-      const configuredHours = safeCaregiver.formalSupport?.hoursPerDay;
-      const hasConfiguredHours = typeof configuredHours === 'number' && !isNaN(configuredHours);
-
-      const contributions = selectedTypes.map((t) => {
+    if (staffCoverage.activeTypes.length > 0) {
+      const contributions = staffCoverage.activeTypes.map((t) => {
         const spec = CARE_GAP_MODEL_PARAMS.formalProductivityFactors[t] || { nominalHours: 0, productivityFactor: 0 };
-        const shiftHours = hasConfiguredHours
-          ? Math.min(spec.nominalHours, Math.max(0, configuredHours))
-          : spec.nominalHours;
-        return shiftHours * spec.productivityFactor;
+        return (staffCoverage.scheduledHoursByType[t] ?? 0) * spec.productivityFactor;
       }).sort((a, b) => b - a);
 
       for (let i = 0; i < contributions.length; i++) {
@@ -1046,19 +1050,31 @@ export class CareGapEngine {
       return slots.some((s) => s.allocatedHours > 0) ? 'partial' : 'none';
     };
 
-    const transfersCoveredByStaff = selectedTypes.some(performsHeavyTransfers);
+    //
+    // Staff relief has to be earned. Each of these four used to read a staff *label* — any
+    // 24h type covered the night watch, any attendant covered transfers — regardless of the
+    // hours scheduled, of the clinician's explicit scope toggles, and of whether the shift
+    // reached the block the work falls in. A hire with zero hours shrank the care gap and
+    // lowered the manual-handling tier on no evidence at all.
+    const blocksNeedingTask = (task: CareTask): DiurnalTimeBlock[] =>
+      demandSlots.filter((s) => s.task === task && s.demandHours > 0).map((s) => s.block);
+
+    const staffCovers = (task: CareTask) =>
+      formalStaffCoversTask(staffCoverage, task, blocksNeedingTask(task));
+
+    const transfersCoveredByStaff = staffCovers('heavy_transfers');
     const transfersCoverage: TaskCoverageLevel = transfersCoveredByStaff ? 'complete' : coverageFor('heavy_transfers');
     const isTransfersRelieved = transfersCoverage === 'complete';
 
-    const bathingCoveredByStaff = selectedTypes.some((t) => t === 'paid_attendant_12h' || t === 'paid_attendant_24h' || t === 'trained_nurse_12h' || t === 'trained_nurse_24h');
+    const bathingCoveredByStaff = staffCovers('bathing');
     const bathingCoverage: TaskCoverageLevel = bathingCoveredByStaff ? 'complete' : coverageFor('bathing');
     const isBathingRelieved = bathingCoverage === 'complete';
 
-    const nightCareCoveredByStaff = selectedTypes.some((t) => t.includes('24h'));
+    const nightCareCoveredByStaff = staffCovers('night_care');
     const nightCareCoverage: TaskCoverageLevel = nightCareCoveredByStaff ? 'complete' : coverageFor('night_care');
     const isNightCareRelieved = nightCareCoverage === 'complete';
 
-    const medicationsCoveredByStaff = selectedTypes.some((t) => t.includes('nurse'));
+    const medicationsCoveredByStaff = staffCovers('medications');
     const medicationsCoverage: TaskCoverageLevel = medicationsCoveredByStaff ? 'complete' : coverageFor('medications');
     const isMedsRelieved = medicationsCoverage === 'complete';
 
@@ -1079,10 +1095,11 @@ export class CareGapEngine {
     const medsCoveredByFamilyMembers = getSlotCoveredMemberNames('medications');
 
     // Diurnal Time-Block Coverage & Schedule Conflict Detection
-    let morningCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
-    let afternoonCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h') || t === 'medical_assistant');
-    let eveningCovered = selectedTypes.some((t) => t.includes('12h') || t.includes('24h'));
-    let nightCovered = selectedTypes.some((t) => t.includes('24h'));
+    // Seeded from the blocks the configured shifts actually span, not from the type labels.
+    let morningCovered = staffCoverage.coveredBlocks.has('morning_rush');
+    let afternoonCovered = staffCoverage.coveredBlocks.has('afternoon');
+    let eveningCovered = staffCoverage.coveredBlocks.has('evening');
+    let nightCovered = staffCoverage.coveredBlocks.has('night_watch');
 
     const diurnalConflicts: DiurnalScheduleConflict[] = [];
 
@@ -1246,16 +1263,16 @@ export class CareGapEngine {
         const remaining = formalSupportAbsorbedHours - nightPortion;
         creditBlock('night_watch', nightPortion, 'Formal Night Staff');
         creditBlock('evening', remaining, 'Formal Night Staff');
-      } else if (selectedTypes.some((t) => t.includes('24h'))) {
+      } else if (staffCoverage.coveredBlocks.size > 0) {
+        // Spread only across the blocks the shifts reach, so staff supply cannot land in a block
+        // nobody is rostered for.
+        const staffBlocks = (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[])
+          .filter((b) => staffCoverage.coveredBlocks.has(b));
         spreadAcrossBlocks(
-          ['morning_rush', 'afternoon', 'evening', 'night_watch'],
+          staffBlocks,
           formalSupportAbsorbedHours,
-          'Formal 24h Staff'
+          staffCoverage.coveredBlocks.has('night_watch') ? 'Formal 24h Staff' : 'Formal Day Staff'
         );
-      } else if (selectedTypes.some((t) => t.includes('12h') || t === 'multi_family_rotation')) {
-        spreadAcrossBlocks(['morning_rush', 'afternoon', 'evening'], formalSupportAbsorbedHours, 'Formal Day Staff');
-      } else if (selectedTypes.some((t) => t === 'medical_assistant')) {
-        spreadAcrossBlocks(['morning_rush', 'afternoon'], formalSupportAbsorbedHours, 'Medical Assistant');
       }
     }
 
