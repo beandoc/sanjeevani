@@ -642,3 +642,48 @@ describe('supervision de-overlap must not erase a real need', () => {
     expect(withHeavyCare.supervision.pointHours).toBeGreaterThanOrEqual(floor - 0.11);
   });
 });
+
+describe('dynamic nursing activities domain assistance modulation', () => {
+  it('applies full activity time when patient is dependent in that domain', () => {
+    const bandDependent = estimateCareDemand({
+      ...dependent(),
+      dynamicNursingActivities: [
+        {
+          id: 'dyn_feed',
+          name: 'Oral Dysphagia Feeding Assist',
+          category: 'enteral_nutrition',
+          durationMinutes: 45,
+          frequencyPerDay: 3,
+          staffCount: 1
+        }
+      ],
+      ...clinicianObserved
+    });
+
+    const feedingDriver = bandDependent.drivers.find((d) => d.itemId === 'dynamic_dyn_feed');
+    expect(feedingDriver).toBeDefined();
+    expect(feedingDriver?.minutesPerDay).toBe(135); // 45 * 3 = 135 mins = 2.25 hrs
+  });
+
+  it('zeroes out activity care demand when patient improves to independent in that domain', () => {
+    const indep = independent();
+    const bandIndependent = estimateCareDemand({
+      ...indep,
+      dynamicNursingActivities: [
+        {
+          id: 'dyn_feed',
+          name: 'Oral Dysphagia Feeding Assist',
+          category: 'enteral_nutrition',
+          durationMinutes: 45,
+          frequencyPerDay: 3,
+          staffCount: 1
+        }
+      ],
+      ...clinicianObserved
+    });
+
+    const feedingDriver = bandIndependent.drivers.find((d) => d.itemId === 'dynamic_dyn_feed');
+    expect(feedingDriver).toBeDefined();
+    expect(feedingDriver?.minutesPerDay).toBe(0); // 0 assistance multiplier saves 2.25 hrs!
+  });
+});

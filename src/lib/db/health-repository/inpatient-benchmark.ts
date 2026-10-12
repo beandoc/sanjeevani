@@ -120,6 +120,8 @@ export function calculateBenchmarkSummary(params: {
   repositioningStaffCount: 1 | 2;
   medicationAdministrationMinutes: number;
   medicationSlotsPerDay: number;
+  dressingMinutes?: number;
+  dressingSlotsPerDay?: number;
   environmentalPenaltyMultiplier?: number;
   observations?: InpatientCareEpisodeObservation[];
   dynamicActivities?: DynamicNursingCareActivity[];
@@ -157,6 +159,7 @@ export function calculateBenchmarkSummary(params: {
   const toiletingMin = toileting.minutes * params.toiletingEpisodesPerDay * toileting.staff;
   const turnMin = turning.minutes * turnsPerDay * turning.staff;
   const medMin = medications.minutes * params.medicationSlotsPerDay * medications.staff;
+  const dressMin = (params.dressingMinutes ?? 0) * (params.dressingSlotsPerDay ?? 0);
 
   let dynamicMinutes = 0;
   let dynamicRequiresTwoStaff = false;
@@ -169,7 +172,7 @@ export function calculateBenchmarkSummary(params: {
     }
   }
 
-  const totalInpatientMinutes = bathMin + transferMin + feedingMin + toiletingMin + turnMin + medMin + dynamicMinutes;
+  const totalInpatientMinutes = bathMin + transferMin + feedingMin + toiletingMin + turnMin + medMin + dressMin + dynamicMinutes;
   const homeProjectedMinutes = totalInpatientMinutes * penalty;
   const homeProjectedHours = Math.round((homeProjectedMinutes / 60) * 10) / 10;
 

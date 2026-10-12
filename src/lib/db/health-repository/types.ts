@@ -453,6 +453,9 @@ export interface InpatientDischargeBenchmark {
   spongeBathMinutes: number;
   spongeBathStaffCount: 1 | 2;
 
+  dressingMinutes?: number;
+  dressingSlotsPerDay?: number;
+
   bedToChairTransferMinutes: number;
   transferEpisodesPerDay?: number;
   transferStaffCount: 1 | 2;

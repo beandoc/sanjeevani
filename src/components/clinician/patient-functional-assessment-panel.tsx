@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,10 @@ import {
   Calendar,
   RefreshCw,
   Clock,
-  Building2
+  Building2,
+  CheckCircle2,
+  Edit3,
+  Save
 } from 'lucide-react';
 import { FunctionAssessmentForm } from '@/components/clinical/function-assessment-form';
 import type { PatientDependenceProfile, CareGapEvaluationResult } from '@/lib/clinical/care-gap-engine';
@@ -26,9 +29,303 @@ import type { FunctionEvaluationResult } from '@/lib/clinical/function-scale';
 import { cn } from '@/lib/utils';
 import { CareDemandBandValue } from '@/components/clinical/care-demand-band';
 import { EvidenceLevelBadge } from '@/components/clinical/evidence-level-badge';
-import { HealthRepository, type InpatientDischargeBenchmark } from '@/lib/db/health-repository';
+import {
+  HealthRepository,
+  calculateBenchmarkSummary,
+  type InpatientDischargeBenchmark,
+  type DynamicNursingCareActivity
+} from '@/lib/db/health-repository';
 import { CaregiverDiaryHistoryDialog } from '@/components/caregiver/caregiver-diary-history-dialog';
 import { InpatientDischargeBenchmarkDialog } from './inpatient-discharge-benchmark-dialog';
+
+interface KatzDomainCareTimingCardProps {
+  title: string;
+  icon: React.ReactNode;
+  isIndependent: boolean;
+  isAssessed: boolean;
+  isUpdating: boolean;
+  onToggle: (val: boolean) => void;
+  descriptionIndependent: string;
+  descriptionDependent: string;
+  impactIndependent: string;
+  impactDependent: string;
+  activityName: string;
+  activityCategoryLabel: string;
+  minutes: number;
+  frequency: number;
+  staff: 1 | 2;
+  allowStaffToggle?: boolean;
+  extraTurnHours?: number;
+  extraDynamicActivities?: DynamicNursingCareActivity[];
+  onSaveTiming: (minutes: number, frequency: number, staff: 1 | 2) => Promise<void>;
+}
+
+function KatzDomainCareTimingCard({
+  title,
+  icon,
+  isIndependent,
+  isAssessed,
+  isUpdating,
+  onToggle,
+  descriptionIndependent,
+  descriptionDependent,
+  impactIndependent,
+  impactDependent,
+  activityName,
+  minutes,
+  frequency,
+  staff,
+  allowStaffToggle = false,
+  extraTurnHours = 0,
+  extraDynamicActivities = [],
+  onSaveTiming
+}: KatzDomainCareTimingCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editMinutes, setEditMinutes] = useState(minutes);
+  const [editFrequency, setEditFrequency] = useState(frequency);
+  const [editStaff, setEditStaff] = useState<1 | 2>(staff);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setEditMinutes(minutes);
+    setEditFrequency(frequency);
+    setEditStaff(staff);
+  }, [minutes, frequency, staff]);
+
+  const baseHours = (minutes * frequency * staff) / 60;
+  const extraDynamicHours = extraDynamicActivities.reduce(
+    (acc, act) => acc + (act.durationMinutes * act.frequencyPerDay * (act.staffCount ?? 1)) / 60,
+    0
+  );
+  const totalDemandHours = Math.round((baseHours + extraTurnHours + extraDynamicHours) * 10) / 10;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSaveTiming(Number(editMinutes) || 1, Number(editFrequency) || 1, editStaff);
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'p-3.5 rounded-2xl border transition-all flex flex-col justify-between shadow-2xs',
+        !isAssessed
+          ? 'bg-card border-border/70'
+          : isIndependent
+          ? 'bg-emerald-500/5 border-emerald-500/30 dark:bg-emerald-950/20'
+          : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
+      )}
+    >
+      <div>
+        {/* Top Header: Title, Icon, Toggle Switch */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            {icon}
+            <span className="font-bold text-xs text-foreground">{title}</span>
+          </div>
+          <Switch
+            checked={isIndependent}
+            onCheckedChange={onToggle}
+            disabled={isUpdating}
+            title={`Toggle independent vs dependent ${title}`}
+          />
+        </div>
+
+        {/* Clinical Guidance Text */}
+        <p className="text-xs text-foreground/80 leading-relaxed">
+          {isIndependent ? descriptionIndependent : descriptionDependent}
+        </p>
+
+        {/* Impact On Caregiver Pill */}
+        <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[11px]">
+          <span className="text-muted-foreground font-medium">Caregiver Impact:</span>
+          <span
+            className={cn(
+              'font-bold',
+              !isAssessed
+                ? 'text-muted-foreground'
+                : isIndependent
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-rose-700 dark:text-rose-400'
+            )}
+          >
+            {!isAssessed ? '● Pending Intake' : isIndependent ? impactIndependent : impactDependent}
+          </span>
+        </div>
+
+        {/* ALIGNED NURSING ACTIVITY & TIMING BLOCK */}
+        <div className="mt-3 pt-2.5 border-t border-border/60 space-y-2">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3 text-indigo-500" />
+              <span>Nursing Timing & Care Demand</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsEditing(!isEditing)}
+              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Edit3 className="w-2.5 h-2.5" />
+              <span>{isEditing ? 'Close' : 'Adjust Timing'}</span>
+            </button>
+          </div>
+
+          {/* Quick Edit Form */}
+          {isEditing ? (
+            <div className="p-2.5 rounded-xl border border-indigo-500/30 bg-background/95 space-y-2 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                    Duration (mins)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={180}
+                    value={editMinutes}
+                    onChange={(e) => setEditMinutes(Math.max(1, Number(e.target.value)))}
+                    className="w-full px-2 py-1 text-xs font-mono font-bold rounded-lg border border-border bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                    Freq (times/24h)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={editFrequency}
+                    onChange={(e) => setEditFrequency(Math.max(1, Number(e.target.value)))}
+                    className="w-full px-2 py-1 text-xs font-mono font-bold rounded-lg border border-border bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              {allowStaffToggle && (
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                    Staff Required
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditStaff(1)}
+                      className={cn(
+                        'py-1 rounded-lg text-[11px] font-bold border cursor-pointer',
+                        editStaff === 1
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/50 border-border text-foreground hover:bg-muted'
+                      )}
+                    >
+                      1 Person
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditStaff(2)}
+                      className={cn(
+                        'py-1 rounded-lg text-[11px] font-bold border cursor-pointer',
+                        editStaff === 2
+                          ? 'bg-rose-600 text-white border-rose-600'
+                          : 'bg-muted/50 border-border text-foreground hover:bg-muted'
+                      )}
+                    >
+                      2 Persons (Dual)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsEditing(false)}
+                  className="h-7 text-[11px] px-2"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="h-7 text-[11px] px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                >
+                  <Save className="w-3 h-3 mr-1" />
+                  Save Timing
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="text-[11px] text-foreground/85 flex items-center justify-between">
+                <span className="font-semibold truncate" title={activityName}>
+                  {activityName}
+                </span>
+                {staff === 2 && (
+                  <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1 py-0 border-rose-500/30 shrink-0">
+                    2-Staff Required
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground font-mono">
+                {minutes} mins × {frequency} episodes/day {staff === 2 ? '(2 Staff)' : '(1 Staff)'}
+              </p>
+
+              {extraTurnHours > 0 && (
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">
+                  + 2-hourly turning turns: {extraTurnHours.toFixed(1)} hrs/day
+                </p>
+              )}
+
+              {extraDynamicActivities.map((act) => (
+                <p key={act.id} className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono truncate">
+                  + {act.name}: {act.durationMinutes}m × {act.frequencyPerDay}x
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Dynamic Calculation Strip */}
+          {!isAssessed ? (
+            <div className="p-2 rounded-xl bg-muted/60 border border-border text-center text-[10px] text-muted-foreground font-semibold">
+              Timing calibrated • Awaiting clinical baseline toggle
+            </div>
+          ) : isIndependent ? (
+            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-1 text-[11px]">
+              <span className="text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>0 Assistance Multiplier</span>
+              </span>
+              <div className="text-right">
+                <span className="font-black font-mono text-emerald-900 dark:text-emerald-100">
+                  0.0 h
+                </span>
+                <span className="block text-[9px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  (Saved {totalDemandHours.toFixed(1)}h/day)
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-1 text-[11px]">
+              <span className="text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Active Care Demand:</span>
+              </span>
+              <span className="font-black font-mono text-amber-900 dark:text-amber-100">
+                {totalDemandHours.toFixed(1)} hrs/day
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface PatientFunctionalAssessmentPanelProps {
   patientUid: string;
@@ -60,13 +357,20 @@ export function PatientFunctionalAssessmentPanel({
   // Read caregiver empirical diary summary for live calibration feedback
   const diarySummary = HealthRepository.getCaregiverDiaryCalibrationSummary(patientUid);
 
-  const handleBenchmarkSaved = async (benchmark: InpatientDischargeBenchmark) => {
+  const benchmark = patientProfile?.inpatientBenchmark ?? HealthRepository.getInpatientDischargeBenchmark(patientUid);
+
+  const allDynamicActivities: DynamicNursingCareActivity[] = [
+    ...(patientProfile?.dynamicNursingActivities ?? []),
+    ...(benchmark?.dynamicActivities ?? [])
+  ];
+
+  const handleBenchmarkSaved = async (newBenchmark: InpatientDischargeBenchmark) => {
     if (!patientProfile) return;
     setIsUpdating(true);
     try {
       const updated: PatientDependenceProfile = {
         ...patientProfile,
-        inpatientBenchmark: benchmark
+        inpatientBenchmark: newBenchmark
       };
       await onSaveProfile(updated);
     } finally {
@@ -80,6 +384,84 @@ export function PatientFunctionalAssessmentPanel({
     try {
       const { inpatientBenchmark: _unused, ...rest } = patientProfile;
       await onSaveProfile(rest as PatientDependenceProfile);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateDomainBenchmark = async (patch: Partial<InpatientDischargeBenchmark>) => {
+    if (!patientProfile) return;
+    setIsUpdating(true);
+    try {
+      const existingBm: InpatientDischargeBenchmark = benchmark || {
+        id: `bm_${Date.now()}`,
+        patientUid,
+        recordedAt: new Date().toISOString(),
+        observerRole: 'staff_nurse',
+        observerName: 'Care Team',
+        spongeBathMinutes: 25,
+        spongeBathStaffCount: 1,
+        dressingMinutes: 15,
+        dressingSlotsPerDay: 2,
+        bedToChairTransferMinutes: 12,
+        transferEpisodesPerDay: 3,
+        transferStaffCount: 2,
+        transferAssistType: 'two_person_lift_or_sheet',
+        mealFeedingMinutesPerMeal: 30,
+        mealsRequiringAssistancePerDay: 3,
+        feedingAssistType: 'setup_and_prompting',
+        toiletingDiaperMinutes: 15,
+        toiletingEpisodesPerDay: 4,
+        toiletingStaffCount: 1,
+        repositioningTurnMinutes: 10,
+        repositioningIntervalHours: 3,
+        repositioningStaffCount: 2,
+        medicationAdministrationMinutes: 10,
+        medicationSlotsPerDay: 3,
+        environmentalPenaltyMultiplier: 1,
+        inpatientDirectCareMinutesPerDay: 0,
+        homeProjectedDirectCareHoursPerDay: 0,
+        requiresTwoPersonTransfers: false
+      };
+
+      const updatedBm: InpatientDischargeBenchmark = {
+        ...existingBm,
+        ...patch,
+        recordedAt: new Date().toISOString()
+      };
+
+      const summary = calculateBenchmarkSummary({
+        spongeBathMinutes: updatedBm.spongeBathMinutes,
+        spongeBathStaffCount: updatedBm.spongeBathStaffCount,
+        bedToChairTransferMinutes: updatedBm.bedToChairTransferMinutes,
+        transferStaffCount: updatedBm.transferStaffCount,
+        transferEpisodesPerDay: updatedBm.transferEpisodesPerDay,
+        mealFeedingMinutesPerMeal: updatedBm.mealFeedingMinutesPerMeal,
+        mealsRequiringAssistancePerDay: updatedBm.mealsRequiringAssistancePerDay,
+        toiletingDiaperMinutes: updatedBm.toiletingDiaperMinutes,
+        toiletingEpisodesPerDay: updatedBm.toiletingEpisodesPerDay,
+        toiletingStaffCount: updatedBm.toiletingStaffCount,
+        repositioningTurnMinutes: updatedBm.repositioningTurnMinutes,
+        repositioningIntervalHours: updatedBm.repositioningIntervalHours,
+        repositioningStaffCount: updatedBm.repositioningStaffCount,
+        medicationAdministrationMinutes: updatedBm.medicationAdministrationMinutes,
+        medicationSlotsPerDay: updatedBm.medicationSlotsPerDay,
+        dressingMinutes: updatedBm.dressingMinutes ?? 15,
+        dressingSlotsPerDay: updatedBm.dressingSlotsPerDay ?? 2,
+        environmentalPenaltyMultiplier: updatedBm.environmentalPenaltyMultiplier ?? 1,
+        dynamicActivities: updatedBm.dynamicActivities
+      });
+
+      updatedBm.inpatientDirectCareMinutesPerDay = summary.inpatientDirectCareMinutesPerDay;
+      updatedBm.homeProjectedDirectCareHoursPerDay = summary.homeProjectedDirectCareHoursPerDay;
+      updatedBm.requiresTwoPersonTransfers = summary.requiresTwoPersonTransfers;
+
+      HealthRepository.saveInpatientDischargeBenchmark(updatedBm);
+      const updatedProfile: PatientDependenceProfile = {
+        ...patientProfile,
+        inpatientBenchmark: updatedBm
+      };
+      await onSaveProfile(updatedProfile);
     } finally {
       setIsUpdating(false);
     }
@@ -547,288 +929,194 @@ export function PatientFunctionalAssessmentPanel({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {/* ADL 1: Bed-to-Chair Transfers */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.transferring
-              ? 'bg-card border-border/70'
-              : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <Bed className={cn('w-4 h-4', !isAssessed ? 'text-muted-foreground' : katz.transferring ? 'text-emerald-600' : 'text-rose-600')} />
-                  <span className="font-bold text-xs text-foreground">Bed-to-Chair Transfers</span>
-                </div>
-                <Switch
-                  checked={katz.transferring}
-                  onCheckedChange={(val) => void handleToggleKatz('transferring', val)}
-                  disabled={isUpdating}
-                  title="Toggle independent vs dependent transfers"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.transferring
-                  ? 'Patient moves in and out of bed and chair independently without physical lifting.'
-                  : 'Requires physical assistance or mechanical aid. Drives caregiver lumbar injury risk.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.transferring
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-rose-700 dark:text-rose-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.transferring
-                  ? 'No Solo Lift Strain'
-                  : 'Heavy Lifting Slots'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Bed-to-Chair Transfers"
+            icon={<Bed className={cn('w-4 h-4', !isAssessed ? 'text-muted-foreground' : katz.transferring ? 'text-emerald-600' : 'text-rose-600')} />}
+            isIndependent={katz.transferring}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('transferring', val)}
+            descriptionIndependent="Patient moves in and out of bed and chair independently without physical lifting."
+            descriptionDependent="Requires physical assistance or mechanical aid. Drives caregiver lumbar injury risk."
+            impactIndependent="No Solo Lift Strain"
+            impactDependent="Heavy Lifting Slots"
+            activityName="Bed-to-Chair Pivot Transfer & Turns"
+            activityCategoryLabel="Mobility & Transfers"
+            minutes={benchmark?.bedToChairTransferMinutes ?? 12}
+            frequency={benchmark?.transferEpisodesPerDay ?? 3}
+            staff={benchmark?.transferStaffCount ?? 2}
+            allowStaffToggle={true}
+            extraTurnHours={
+              patientProfile?.isBedBound
+                ? ((benchmark?.repositioningTurnMinutes ?? 10) * Math.round(24 / (benchmark?.repositioningIntervalHours || 3)) * (benchmark?.repositioningStaffCount ?? 2)) / 60
+                : 0
+            }
+            extraDynamicActivities={allDynamicActivities.filter(
+              (a) =>
+                a.category === 'mobility_transfers' ||
+                a.category === 'skin_positioning' ||
+                a.name.toLowerCase().includes('transfer') ||
+                a.name.toLowerCase().includes('pivot') ||
+                a.name.toLowerCase().includes('turn')
+            )}
+            onSaveTiming={async (m, f, s) => {
+              await handleUpdateDomainBenchmark({
+                bedToChairTransferMinutes: m,
+                transferEpisodesPerDay: f,
+                transferStaffCount: s
+              });
+            }}
+          />
 
           {/* ADL 2: Bathing */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.bathing
-              ? 'bg-card border-border/70'
-              : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🛁</span>
-                  <span className="font-bold text-xs text-foreground">Bathing & Hygiene</span>
-                </div>
-                <Switch
-                  checked={katz.bathing}
-                  onCheckedChange={(val) => void handleToggleKatz('bathing', val)}
-                  disabled={isUpdating}
-                  title="Toggle independent vs dependent bathing"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.bathing
-                  ? 'Bathes self completely or needs help only for a single part (e.g. back).'
-                  : 'Needs help bathing more than one part of body, entering/exiting tub, or bed-bath.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.bathing
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-amber-700 dark:text-amber-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.bathing
-                  ? 'Independent Hygiene'
-                  : 'Morning Shift Support'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Bathing & Hygiene"
+            icon={<span className="text-sm">🛁</span>}
+            isIndependent={katz.bathing}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('bathing', val)}
+            descriptionIndependent="Bathes self completely or needs help only for a single part (e.g. back)."
+            descriptionDependent="Needs help bathing more than one part of body, entering/exiting tub, or bed-bath."
+            impactIndependent="Independent Hygiene"
+            impactDependent="Morning Shift Support"
+            activityName="Bed Sponge Bath & Body Hygiene"
+            activityCategoryLabel="Personal Hygiene"
+            minutes={benchmark?.spongeBathMinutes ?? 25}
+            frequency={1}
+            staff={benchmark?.spongeBathStaffCount ?? 1}
+            allowStaffToggle={true}
+            extraDynamicActivities={allDynamicActivities.filter(
+              (a) => a.name.toLowerCase().includes('bath') || a.name.toLowerCase().includes('sponge')
+            )}
+            onSaveTiming={async (m, _f, s) => {
+              await handleUpdateDomainBenchmark({
+                spongeBathMinutes: m,
+                spongeBathStaffCount: s
+              });
+            }}
+          />
 
           {/* ADL 3: Toileting */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.toileting
-              ? 'bg-card border-border/70'
-              : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🚽</span>
-                  <span className="font-bold text-xs text-foreground">Toileting</span>
-                </div>
-                <Switch
-                  checked={katz.toileting}
-                  onCheckedChange={(val) => void handleToggleKatz('toileting', val)}
-                  disabled={isUpdating}
-                  title="Toggle independent vs dependent toileting"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.toileting
-                  ? 'Gets to toilet, cleans self, and arranges clothes without assistance.'
-                  : 'Needs help transferring to toilet, using commode chair, or managing bedpan.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.toileting
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-amber-700 dark:text-amber-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.toileting
-                  ? 'Independent'
-                  : 'Commode / Fall Risk'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Toileting"
+            icon={<span className="text-sm">🚽</span>}
+            isIndependent={katz.toileting}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('toileting', val)}
+            descriptionIndependent="Gets to toilet, cleans self, and arranges clothes without assistance."
+            descriptionDependent="Needs help transferring to toilet, using commode chair, or managing bedpan."
+            impactIndependent="Independent"
+            impactDependent="Commode / Fall Risk"
+            activityName="Commode Transfer & Elimination Assist"
+            activityCategoryLabel="Toileting Assist"
+            minutes={benchmark?.toiletingDiaperMinutes ?? 15}
+            frequency={benchmark?.toiletingEpisodesPerDay ?? 4}
+            staff={benchmark?.toiletingStaffCount ?? 1}
+            allowStaffToggle={false}
+            extraDynamicActivities={allDynamicActivities.filter(
+              (a) => a.name.toLowerCase().includes('commode') || a.name.toLowerCase().includes('toilet')
+            )}
+            onSaveTiming={async (m, f, s) => {
+              await handleUpdateDomainBenchmark({
+                toiletingDiaperMinutes: m,
+                toiletingEpisodesPerDay: f,
+                toiletingStaffCount: s
+              });
+            }}
+          />
 
           {/* ADL 4: Dressing */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.dressing
-              ? 'bg-card border-border/70'
-              : 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">👕</span>
-                  <span className="font-bold text-xs text-foreground">Dressing</span>
-                </div>
-                <Switch
-                  checked={katz.dressing}
-                  onCheckedChange={(val) => void handleToggleKatz('dressing', val)}
-                  disabled={isUpdating}
-                  title="Toggle independent vs dependent dressing"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.dressing
-                  ? 'Gets clothes from closet and dresses completely without help (except tying shoes).'
-                  : 'Needs assistance with buttons, fasteners, or must be partially/fully dressed.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.dressing
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-amber-700 dark:text-amber-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.dressing
-                  ? 'Independent'
-                  : 'Daily Dressing Assist'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Dressing"
+            icon={<span className="text-sm">👕</span>}
+            isIndependent={katz.dressing}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('dressing', val)}
+            descriptionIndependent="Gets clothes from closet and dresses completely without help (except tying shoes)."
+            descriptionDependent="Needs assistance with buttons, fasteners, or must be partially/fully dressed."
+            impactIndependent="Independent"
+            impactDependent="Daily Dressing Assist"
+            activityName="Morning & Evening Dressing Assistance"
+            activityCategoryLabel="Dressing & Grooming"
+            minutes={benchmark?.dressingMinutes ?? 15}
+            frequency={benchmark?.dressingSlotsPerDay ?? 2}
+            staff={1}
+            allowStaffToggle={false}
+            extraDynamicActivities={allDynamicActivities.filter((a) => a.name.toLowerCase().includes('dress'))}
+            onSaveTiming={async (m, f) => {
+              await handleUpdateDomainBenchmark({
+                dressingMinutes: m,
+                dressingSlotsPerDay: f
+              });
+            }}
+          />
 
           {/* ADL 5: Continence */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.continence
-              ? 'bg-card border-border/70'
-              : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">💧</span>
-                  <span className="font-bold text-xs text-foreground">Bladder & Bowel Continence</span>
-                </div>
-                <Switch
-                  checked={katz.continence}
-                  onCheckedChange={(val) => void handleToggleKatz('continence', val)}
-                  disabled={isUpdating}
-                  title="Toggle continence vs incontinence"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.continence
-                  ? 'Exercises complete self-control over urination and defecation.'
-                  : 'Partial or total incontinence; requires diapers, scheduled changes, or catheter care.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.continence
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-rose-700 dark:text-rose-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.continence
-                  ? 'Continent'
-                  : 'Skin Care & Diapering'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Bladder & Bowel Continence"
+            icon={<span className="text-sm">💧</span>}
+            isIndependent={katz.continence}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('continence', val)}
+            descriptionIndependent="Exercises complete self-control over urination and defecation."
+            descriptionDependent="Partial or total incontinence; requires diapers, scheduled changes, or catheter care."
+            impactIndependent="Continent"
+            impactDependent="Skin Care & Diapering"
+            activityName="Adult Diaper Change & Perineal Hygiene"
+            activityCategoryLabel="Continence Care"
+            minutes={benchmark?.toiletingDiaperMinutes ?? 15}
+            frequency={benchmark?.toiletingEpisodesPerDay ?? 4}
+            staff={1}
+            allowStaffToggle={false}
+            extraDynamicActivities={allDynamicActivities.filter(
+              (a) => a.name.toLowerCase().includes('diaper') || a.name.toLowerCase().includes('catheter')
+            )}
+            onSaveTiming={async (m, f) => {
+              await handleUpdateDomainBenchmark({
+                toiletingDiaperMinutes: m,
+                toiletingEpisodesPerDay: f
+              });
+            }}
+          />
 
           {/* ADL 6: Feeding */}
-          <div className={cn(
-            'p-3.5 rounded-2xl border transition-all flex flex-col justify-between',
-            !isAssessed
-              ? 'bg-card border-border/70'
-              : katz.feeding
-              ? 'bg-card border-border/70'
-              : 'bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20'
-          )}>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🍽️</span>
-                  <span className="font-bold text-xs text-foreground">Feeding</span>
-                </div>
-                <Switch
-                  checked={katz.feeding}
-                  onCheckedChange={(val) => void handleToggleKatz('feeding', val)}
-                  disabled={isUpdating}
-                  title="Toggle independent vs dependent feeding"
-                />
-              </div>
-              <p className="text-xs text-foreground/80 leading-relaxed">
-                {katz.feeding
-                  ? 'Gets food from plate into mouth independently (meat pre-cutting allowed).'
-                  : 'Needs help spoon-feeding, drinks from sip-cup, or requires parenteral/tube feeds.'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Impact on Caregiver:</span>
-              <span className={cn(
-                'font-bold',
-                !isAssessed
-                  ? 'text-muted-foreground'
-                  : katz.feeding
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-rose-700 dark:text-rose-400'
-              )}>
-                {!isAssessed
-                  ? '● Pending Intake'
-                  : katz.feeding
-                  ? 'Independent'
-                  : 'Aspiration Precautions'}
-              </span>
-            </div>
-          </div>
+          <KatzDomainCareTimingCard
+            title="Feeding"
+            icon={<span className="text-sm">🍽️</span>}
+            isIndependent={katz.feeding}
+            isAssessed={isAssessed}
+            isUpdating={isUpdating}
+            onToggle={(val) => void handleToggleKatz('feeding', val)}
+            descriptionIndependent="Gets food from plate into mouth independently (meat pre-cutting allowed)."
+            descriptionDependent="Needs help spoon-feeding, drinks from sip-cup, or requires parenteral/tube feeds."
+            impactIndependent="Independent"
+            impactDependent="Aspiration Precautions"
+            activityName="Oral Feeding Assist / Dysphagia Pacing"
+            activityCategoryLabel="Enteral & Nutrition"
+            minutes={benchmark?.mealFeedingMinutesPerMeal ?? 30}
+            frequency={benchmark?.mealsRequiringAssistancePerDay ?? 3}
+            staff={1}
+            allowStaffToggle={false}
+            extraDynamicActivities={allDynamicActivities.filter(
+              (a) =>
+                a.category === 'enteral_nutrition' ||
+                a.name.toLowerCase().includes('feed') ||
+                a.name.toLowerCase().includes('tube') ||
+                a.name.toLowerCase().includes('meal')
+            )}
+            onSaveTiming={async (m, f) => {
+              await handleUpdateDomainBenchmark({
+                mealFeedingMinutesPerMeal: m,
+                mealsRequiringAssistancePerDay: f
+              });
+            }}
+          />
         </CardContent>
       </Card>
 

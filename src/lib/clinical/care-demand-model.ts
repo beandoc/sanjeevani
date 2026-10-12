@@ -912,25 +912,55 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     if (act.durationMinutes <= 0 || act.frequencyPerDay <= 0) continue;
     const staff = act.staffCount ?? 1;
     if (staff === 2) dynamicRequiresTwoStaff = true;
-    const minsPerDay = act.durationMinutes * act.frequencyPerDay * staff;
+
+    // Check if patient's current functional scoring renders them independent for this domain
+    const actNameLower = act.name.toLowerCase();
+    let isDomainIndependent = false;
+    let targetDomainKey: string | null = null;
+
+    if (act.category === 'enteral_nutrition' || actNameLower.includes('feeding') || actNameLower.includes('tube') || actNameLower.includes('meal')) {
+      targetDomainKey = 'bi_feeding';
+      isDomainIndependent = (barthel['bi_feeding'] ?? (input.legacyKatzAdl?.feeding ? 10 : 0)) >= 10;
+    } else if (act.category === 'hygiene_continence' && (actNameLower.includes('bath') || actNameLower.includes('sponge') || actNameLower.includes('shower'))) {
+      targetDomainKey = 'bi_bathing';
+      isDomainIndependent = (barthel['bi_bathing'] ?? (input.legacyKatzAdl?.bathing ? 5 : 0)) >= 5;
+    } else if (act.category === 'hygiene_continence' && (actNameLower.includes('diaper') || actNameLower.includes('toilet') || actNameLower.includes('commode'))) {
+      targetDomainKey = 'bi_toilet';
+      isDomainIndependent = (barthel['bi_toilet'] ?? (input.legacyKatzAdl?.toileting ? 10 : 0)) >= 10 && (barthel['bi_bowels'] ?? (input.legacyKatzAdl?.continence ? 10 : 0)) >= 10;
+    } else if (act.category === 'mobility_transfers' || actNameLower.includes('transfer') || actNameLower.includes('pivot')) {
+      targetDomainKey = 'bi_transfer';
+      isDomainIndependent = (barthel['bi_transfer'] ?? (input.legacyKatzAdl?.transferring ? 15 : 0)) >= 15;
+    } else if (act.category === 'skin_positioning' || actNameLower.includes('reposition') || actNameLower.includes('turn')) {
+      targetDomainKey = 'repositioning';
+      isDomainIndependent = !input.isBedBound && (barthel['bi_transfer'] ?? (input.legacyKatzAdl?.transferring ? 15 : 0)) >= 15;
+    }
+
+    if (targetDomainKey) {
+      coveredDynamicDomains.add(targetDomainKey);
+    }
+
+    const assistanceMultiplier = isDomainIndependent ? 0 : 1;
+    const minsPerDay = act.durationMinutes * act.frequencyPerDay * staff * assistanceMultiplier;
     calibratedMinutes += minsPerDay;
 
     const taskBlocks = (act.diurnalBlocks && act.diurnalBlocks.length > 0) ? act.diurnalBlocks : ALL_BLOCKS;
     const perBlock = minsPerDay / taskBlocks.length;
-    const elapsedPerBlock = (act.durationMinutes * act.frequencyPerDay) / taskBlocks.length;
+    const elapsedPerBlock = (act.durationMinutes * act.frequencyPerDay * assistanceMultiplier) / taskBlocks.length;
 
     for (const b of taskBlocks) {
       blockMinutes[b].directCare += perBlock;
       blockElapsedDirectCare[b] += elapsedPerBlock;
-      blockHandsOnTaskCount[b] += 1;
+      if (minsPerDay > 0) {
+        blockHandsOnTaskCount[b] += 1;
+      }
     }
 
     drivers.push({
       itemId: `dynamic_${act.id}`,
-      label: act.name,
+      label: isDomainIndependent ? `${act.name} (Independent: 0h required)` : act.name,
       domain: 'self_care',
       timeType: 'directCare',
-      frequencyPerDay: act.frequencyPerDay,
+      frequencyPerDay: isDomainIndependent ? 0 : act.frequencyPerDay,
       minutesPerEpisode: act.durationMinutes,
       staffRequired: staff,
       minutesPerDay: minsPerDay,
@@ -938,25 +968,6 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
       calibrated: true,
       evidenceSource: 'inpatient_observed'
     });
-
-    const actNameLower = act.name.toLowerCase();
-    if (act.category === 'enteral_nutrition' || actNameLower.includes('feeding') || actNameLower.includes('tube') || actNameLower.includes('meal')) {
-      coveredDynamicDomains.add('bi_feeding');
-    }
-    if (act.category === 'skin_positioning' || actNameLower.includes('reposition') || actNameLower.includes('turn')) {
-      coveredDynamicDomains.add('repositioning');
-    }
-    if (act.category === 'hygiene_continence' || actNameLower.includes('diaper') || actNameLower.includes('toilet') || actNameLower.includes('catheter')) {
-      coveredDynamicDomains.add('bi_toilet');
-      coveredDynamicDomains.add('bi_bowels');
-      coveredDynamicDomains.add('bi_bladder');
-    }
-    if (act.category === 'hygiene_continence' || actNameLower.includes('bath') || actNameLower.includes('sponge')) {
-      coveredDynamicDomains.add('bi_bathing');
-    }
-    if (act.category === 'mobility_transfers' || actNameLower.includes('transfer')) {
-      coveredDynamicDomains.add('bi_transfer');
-    }
   }
 
   for (const item of BARTHEL_ITEMS) {
