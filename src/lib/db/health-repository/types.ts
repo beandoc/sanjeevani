@@ -399,6 +399,25 @@ export interface InpatientCareEpisodeObservation {
   note?: string;
 }
 
+/** Dynamic patient-specific nursing care activity with clinician-measured duration and 24h frequency. */
+export interface DynamicNursingCareActivity {
+  id: string;
+  name: string;
+  category?:
+    | 'airway_respiratory'
+    | 'enteral_nutrition'
+    | 'skin_positioning'
+    | 'hygiene_continence'
+    | 'mobility_transfers'
+    | 'medication_treatments'
+    | 'custom';
+  durationMinutes: number;
+  staffCount: 1 | 2;
+  frequencyPerDay: number;
+  diurnalBlocks?: Array<'morning_rush' | 'afternoon' | 'evening' | 'night_watch'>;
+  clinicalNote?: string;
+}
+
 export interface InpatientDischargeBenchmark {
   id: string;
   patientUid: string;
@@ -412,6 +431,9 @@ export interface InpatientDischargeBenchmark {
   observationWindowStart?: string;
   observationWindowEnd?: string;
   methodologyVersion?: 'legacy-summary-v0' | 'patient-episode-v1';
+
+  /** Dynamic patient-specific care activities added by doctor/nurse (e.g. suctioning, tube feeds, 2-person turns). */
+  dynamicActivities?: DynamicNursingCareActivity[];
 
   /** Functional state against which the observations were collected. Never overwritten. */
   baselineBarthelResponses?: Record<string, number>;

@@ -24,7 +24,7 @@ import {
   type CareDemandBand
 } from './care-demand-model';
 import type { AssessmentSource } from './function-scale';
-import type { InpatientDischargeBenchmark } from '../db/health-repository/types';
+import type { DynamicNursingCareActivity, InpatientDischargeBenchmark } from '../db/health-repository/types';
 import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
@@ -411,6 +411,7 @@ export interface PatientDependenceProfile {
   currentMedications?: Array<{ name: string; genericName?: string }>;
   assessmentMetadata?: ClinicalAssessmentMetadata;
   inpatientBenchmark?: InpatientDischargeBenchmark;
+  dynamicNursingActivities?: DynamicNursingCareActivity[];
 }
 
 export interface CareGapEvaluationResult {
@@ -876,6 +877,7 @@ export class CareGapEngine {
         safeDevices.hospitalBed === 'motorized_multichannel' && !!safeDevices.airWaterMattress,
       assessmentSource: safePatient.functionAssessmentSource,
       inpatientBenchmark: safePatient.inpatientBenchmark,
+      dynamicNursingActivities: safePatient.dynamicNursingActivities ?? safePatient.inpatientBenchmark?.dynamicActivities,
       functionalAssessedAt: safePatient.functionalAssessedAt
     });
 
@@ -979,6 +981,12 @@ export class CareGapEngine {
           continue;
         }
 
+        if (member.age !== undefined && member.age < 18) {
+          clinicalFindings.push(
+            `Adolescent Helper Safeguarding Alert: Secondary helper ${member.name || 'family helper'} is a minor/student (age ${member.age}). Excluded from heavy physical transfers, bed-bound patient bathing, and overnight vigilance to preserve schooling and spinal integrity.`
+          );
+        }
+
         if (!member.assignedTasks || member.assignedTasks.length === 0) {
           uncreditedFamilyReasons.push(
             `${member.name || 'Helper'} (${memberRawHours}h/day) cannot reduce care gap without specific assigned tasks matching patient deficits.`
@@ -998,8 +1006,11 @@ export class CareGapEngine {
           if (!member.assignedTasks.includes(slot.task)) continue;
           if (!availableBlocks.includes(slot.block)) continue;
 
-          // Physical tasks require physical capability
-          if ((slot.task === 'heavy_transfers' || slot.task === 'bathing') && (member.hasPhysicalLimitation || member.age >= 60)) {
+          // Physical tasks require physical capability & adult age safeguarding
+          if (
+            (slot.task === 'heavy_transfers' || slot.task === 'bathing') &&
+            (member.hasPhysicalLimitation || member.age >= 60 || (member.age !== undefined && member.age < 18))
+          ) {
             continue;
           }
 
@@ -1570,9 +1581,9 @@ export class CareGapEngine {
       });
     }
 
-    if (safePatient.inpatientBenchmark?.requiresTwoPersonTransfers) {
+    if (safePatient.inpatientBenchmark?.requiresTwoPersonTransfers || careDemandBand.requiresTwoPersonTransfers) {
       clinicalFindings.push(
-        'Inpatient Benchmark Safety Alert: Patient required 2-person assistance for bed-to-chair transfers in hospital. Single-caregiver unassisted transfers at home present high spinal load and fall hazards.'
+        'Inpatient Benchmark Safety Alert: Patient required 2-person assistance for bed-to-chair transfers or high-acuity handling. Single-caregiver unassisted handling presents high spinal load and fall hazards.'
       );
       if (!isTransfersRelieved) {
         qualityOfCareWarnings.push(

@@ -918,7 +918,8 @@ export function DoctorCohortDashboard() {
                     Reset Filters
                   </Button>
                 </div>
-                             <div className="space-y-4">
+              ) : (
+                <div className="space-y-4">
                   <div className="space-y-2.5">
                     {paginatedRows.map((row) => {
                       const actionableAlert = getActionableAlert(row.latestAlertSnippet);
@@ -1179,7 +1180,7 @@ export function DoctorCohortDashboard() {
                         </div>
                       );
                     })}
-                  </div>           </div>
+                  </div>
 
                   {/* Pagination inserted when number becomes more than 8 */}
                   {sortedRows.length > ITEMS_PER_PAGE && (

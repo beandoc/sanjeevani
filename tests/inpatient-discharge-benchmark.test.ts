@@ -435,5 +435,111 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
       // The stale summary field (10 min) must not appear anywhere as a driver
       expect(result.drivers.find((d) => d.itemId === 'bi_bathing' && d.minutesPerEpisode === 10)).toBeUndefined();
     });
+
+    it('calculates dynamic patient care activities and narrows prediction band to ±15%', () => {
+      const dynamicActivities = [
+        {
+          id: 'act_suction',
+          name: 'Airway Suctioning',
+          category: 'airway_respiratory' as const,
+          durationMinutes: 10,
+          staffCount: 1 as const,
+          frequencyPerDay: 5 // 50 mins
+        },
+        {
+          id: 'act_ryles',
+          name: "Ryle's Tube Feeding",
+          category: 'enteral_nutrition' as const,
+          durationMinutes: 25,
+          staffCount: 1 as const,
+          frequencyPerDay: 4 // 100 mins
+        },
+        {
+          id: 'act_turns',
+          name: 'Two-Person Bed Repositioning',
+          category: 'skin_positioning' as const,
+          durationMinutes: 10,
+          staffCount: 2 as const,
+          frequencyPerDay: 6 // 10 * 6 * 2 = 120 mins
+        }
+      ];
+
+      const result = estimateCareDemand({
+        dynamicNursingActivities: dynamicActivities,
+        assessmentSource: 'clinician_observed'
+      });
+
+      // Daily staff workload: 50 + 100 + 120 = 270 staff-minutes = 4.5 hours
+      const rawDriverMins = result.drivers
+        .filter((d) => d.itemId.startsWith('dynamic_'))
+        .reduce((sum, d) => sum + d.minutesPerDay, 0);
+      expect(rawDriverMins).toBe(270);
+      // Net active care workload accounts for shared setup credit
+      expect(result.activeCare.pointHours).toBe(3.8);
+      // Prediction interval should be tight (around 0.15, ±15%)
+      expect(result.bandRelativeHalfWidth).toBeLessThanOrEqual(0.20);
+      expect(result.activeCare.lowHours).toBe(3.1);
+      expect(result.activeCare.highHours).toBe(4.6);
+      // 2-person handling requirement must be retained
+      expect(result.requiresTwoPersonTransfers).toBe(true);
+      // Drivers must include the dynamic activities
+      expect(result.drivers.some((d) => d.label === 'Airway Suctioning')).toBe(true);
+      expect(result.drivers.some((d) => d.label === "Ryle's Tube Feeding")).toBe(true);
+      expect(result.drivers.some((d) => d.label === 'Two-Person Bed Repositioning')).toBe(true);
+    });
+
+    it('persists dynamic activities in InpatientDischargeBenchmark and reflects in CareGapEngine', () => {
+      const benchmarkData = {
+        patientUid,
+        observerRole: 'doctor' as const,
+        observerName: 'Dr. Sharma',
+        spongeBathMinutes: 0,
+        spongeBathStaffCount: 1 as const,
+        bedToChairTransferMinutes: 0,
+        transferStaffCount: 1 as const,
+        transferAssistType: 'one_person_pivot' as const,
+        mealFeedingMinutesPerMeal: 0,
+        mealsRequiringAssistancePerDay: 0,
+        feedingAssistType: 'independent' as const,
+        toiletingDiaperMinutes: 0,
+        toiletingEpisodesPerDay: 0,
+        toiletingStaffCount: 1 as const,
+        repositioningTurnMinutes: 0,
+        repositioningIntervalHours: 24,
+        repositioningStaffCount: 1 as const,
+        medicationAdministrationMinutes: 0,
+        medicationSlotsPerDay: 0,
+        environmentalPenaltyMultiplier: 1,
+        dynamicActivities: [
+          {
+            id: 'dyn_1',
+            name: 'Tracheal Suctioning & Secretions',
+            category: 'airway_respiratory' as const,
+            durationMinutes: 12,
+            staffCount: 1 as const,
+            frequencyPerDay: 5
+          }
+        ]
+      };
+
+      const saved = saveInpatientDischargeBenchmark(benchmarkData);
+      expect(saved.dynamicActivities?.length).toBe(1);
+      expect(saved.inpatientDirectCareMinutesPerDay).toBe(60); // 12 * 5 = 60 mins (1.0 hr)
+      expect(saved.homeProjectedDirectCareHoursPerDay).toBe(1.0);
+
+      const retrieved = getInpatientDischargeBenchmark(patientUid);
+      expect(retrieved?.dynamicActivities?.[0].name).toBe('Tracheal Suctioning & Secretions');
+
+      const evaluation = CareGapEngine.evaluate(
+        DEFAULT_CAREGIVER_ATTRIBUTES,
+        {
+          ...DEFAULT_PATIENT_PROFILE,
+          inpatientBenchmark: retrieved!
+        }
+      );
+
+      expect(evaluation.careDemandBand.inpatientBenchmarkApplied).toBe(true);
+      expect(evaluation.careDemandBand.drivers.some((d) => d.label === 'Tracheal Suctioning & Secretions')).toBe(true);
+    });
   });
 });

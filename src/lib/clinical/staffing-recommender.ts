@@ -135,10 +135,33 @@ export class StaffingRecommender {
     const hasCondition = (...tokens: string[]) =>
       conditionsLower.some((c) => tokens.some((t) => c.includes(t)));
 
+    const dynamicActs = [
+      ...(safePatient.dynamicNursingActivities || []),
+      ...(safePatient.inpatientBenchmark?.dynamicActivities || [])
+    ];
+    const hasDynamicAct = (...tokens: string[]) =>
+      dynamicActs.some((act) => {
+        const nameLower = act.name.toLowerCase();
+        return tokens.some((t) => nameLower.includes(t));
+      });
+
     // 1. Invasive clinical procedures requiring a Registered Nurse
-    const hasWoundOrBedSores = hasCondition('bed sore', 'pressure ulcer', 'wound', 'decubitus', 'dressing');
-    const hasCatheterOrStoma = hasCondition('catheter', 'foley', 'stoma', 'colostomy', 'nephrostomy', 'tracheostomy');
-    const hasSuction = !!safePatient.assistiveDevices?.suctionApparatus || hasCondition('suction', 'aspiration', 'dysphagia');
+    const hasWoundOrBedSores =
+      hasCondition('bed sore', 'pressure ulcer', 'wound', 'decubitus', 'dressing') ||
+      hasDynamicAct('wound', 'dressing', 'ulcer', 'bed sore');
+    const hasCatheterOrStoma =
+      hasCondition('catheter', 'foley', 'stoma', 'colostomy', 'nephrostomy', 'tracheostomy') ||
+      hasDynamicAct('catheter', 'foley', 'stoma', 'colostomy', 'nephrostomy', 'tracheostomy');
+    const hasSuction =
+      !!safePatient.assistiveDevices?.suctionApparatus ||
+      hasCondition('suction', 'aspiration', 'dysphagia') ||
+      hasDynamicAct('suction', 'airway');
+    const hasEnteralFeeding =
+      hasCondition('ryle', 'nasogastric', 'ng tube', 'peg tube', 'enteral') ||
+      hasDynamicAct('ryle', 'nasogastric', 'ng tube', 'peg', 'enteral', 'tube feeding');
+    const hasInjectionsOrInfusions =
+      hasCondition('injection', 'iv cannula', 'infusion') ||
+      hasDynamicAct('injection', 'iv', 'cannula', 'infusion');
 
     if (hasWoundOrBedSores) {
       highAcuityProcedures.push('Stage 2+ Pressure Ulcer & Sterile Wound Dressing Protocol');
@@ -150,7 +173,26 @@ export class StaffingRecommender {
     }
     if (hasSuction) {
       highAcuityProcedures.push('Bedside Airway Suctioning & Secretion Management');
-      clinicalReasons.push('High aspiration risk warrants clinician-led swallowing/airway plan and caregiver training.');
+      clinicalReasons.push('High aspiration risk warrants clinician-led swallowing/airway plan and skilled nursing suctioning.');
+    }
+    if (hasEnteralFeeding) {
+      highAcuityProcedures.push("Enteral / Ryle's Tube / PEG Nutritional Delivery & Aspiration Prevention");
+      clinicalReasons.push("Enteral / Ryle's tube feeding requires skilled nursing assessment of tube patency, aspiration risk, and infusion rate.");
+    }
+    if (hasInjectionsOrInfusions) {
+      highAcuityProcedures.push('Parenteral Administration / IV Cannula / Injection Monitoring');
+      clinicalReasons.push('Parenteral medications and IV cannula management mandate a Registered Nurse.');
+    }
+
+    const requires2PersonHandling =
+      !!safePatient.inpatientBenchmark?.requiresTwoPersonTransfers ||
+      !!baseEval.careDemandBand.requiresTwoPersonTransfers ||
+      dynamicActs.some((act) => act.staffCount === 2);
+
+    if (requires2PersonHandling) {
+      clinicalReasons.push(
+        'Dual-Staff / 2-Person Transfer Protocol: Inpatient benchmark documents that bed repositioning or transfers require 2 persons. Solo unassisted lifting by an elderly caregiver poses extreme spinal injury risk.'
+      );
     }
 
     // 2. Pharmacotherapy & Medication Management Acuity
@@ -233,13 +275,20 @@ export class StaffingRecommender {
 
     // Candidate 1: Family Task Redistribution (Family First Ethos)
     const secondaryMembers = safeCaregiver.secondaryMembers || [];
+    const minorMembers = secondaryMembers.filter((m) => m.age !== undefined && m.age < 18);
+    if (minorMembers.length > 0) {
+      clinicalReasons.push(
+        `Adolescent Safeguarding Protection: Minor helper(s) (${minorMembers.map((m) => `${m.name || 'Helper'}, age ${m.age}`).join(', ')}) cannot be assigned heavy bed-bound transfers, bathing, or nocturnal vigils.`
+      );
+    }
+
     const capableUnconflictedMembers = secondaryMembers.filter(
-      (m) => !m.hasPhysicalLimitation && m.age < 60
+      (m) => !m.hasPhysicalLimitation && m.age >= 18 && m.age < 60
     );
 
     if (capableUnconflictedMembers.length > 0) {
       const updatedMembers = secondaryMembers.map((m) => {
-        if (!m.hasPhysicalLimitation && m.age < 60) {
+        if (!m.hasPhysicalLimitation && m.age >= 18 && m.age < 60) {
           return {
             ...m,
             hoursPerDay: Math.max(m.hoursPerDay || 0, 2.5),

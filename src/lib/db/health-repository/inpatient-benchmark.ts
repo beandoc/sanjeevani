@@ -10,6 +10,7 @@
 
 import { STORAGE_KEYS } from './storage-keys';
 import type {
+  DynamicNursingCareActivity,
   InpatientCareEpisodeObservation,
   InpatientCareTaskCategory,
   InpatientDischargeBenchmark
@@ -121,6 +122,7 @@ export function calculateBenchmarkSummary(params: {
   medicationSlotsPerDay: number;
   environmentalPenaltyMultiplier?: number;
   observations?: InpatientCareEpisodeObservation[];
+  dynamicActivities?: DynamicNursingCareActivity[];
 }): {
   inpatientDirectCareMinutesPerDay: number;
   homeProjectedDirectCareHoursPerDay: number;
@@ -156,14 +158,25 @@ export function calculateBenchmarkSummary(params: {
   const turnMin = turning.minutes * turnsPerDay * turning.staff;
   const medMin = medications.minutes * params.medicationSlotsPerDay * medications.staff;
 
-  const totalInpatientMinutes = bathMin + transferMin + feedingMin + toiletingMin + turnMin + medMin;
+  let dynamicMinutes = 0;
+  let dynamicRequiresTwoStaff = false;
+  if (params.dynamicActivities && params.dynamicActivities.length > 0) {
+    for (const act of params.dynamicActivities) {
+      if (act.durationMinutes > 0 && act.frequencyPerDay > 0) {
+        dynamicMinutes += act.durationMinutes * act.frequencyPerDay * (act.staffCount ?? 1);
+        if (act.staffCount === 2) dynamicRequiresTwoStaff = true;
+      }
+    }
+  }
+
+  const totalInpatientMinutes = bathMin + transferMin + feedingMin + toiletingMin + turnMin + medMin + dynamicMinutes;
   const homeProjectedMinutes = totalInpatientMinutes * penalty;
   const homeProjectedHours = Math.round((homeProjectedMinutes / 60) * 10) / 10;
 
   return {
     inpatientDirectCareMinutesPerDay: Math.round(totalInpatientMinutes),
     homeProjectedDirectCareHoursPerDay: homeProjectedHours,
-    requiresTwoPersonTransfers: transfer.staff === 2
+    requiresTwoPersonTransfers: transfer.staff === 2 || dynamicRequiresTwoStaff
   };
 }
 
@@ -195,7 +208,8 @@ export function saveInpatientDischargeBenchmark(
     medicationAdministrationMinutes: benchmark.medicationAdministrationMinutes,
     medicationSlotsPerDay: benchmark.medicationSlotsPerDay,
     environmentalPenaltyMultiplier: penalty,
-    observations: benchmark.observations
+    observations: benchmark.observations,
+    dynamicActivities: benchmark.dynamicActivities
   });
 
   const record: InpatientDischargeBenchmark = {

@@ -285,13 +285,13 @@ export function PatientFunctionalAssessmentPanel({
             </div>
 
             {/* Primary Action Buttons Bar */}
-            <div className="pt-2 flex items-center gap-2.5 flex-wrap">
+            <div className="grid w-full gap-2.5 pt-2 sm:flex sm:flex-wrap sm:items-center">
               <FunctionAssessmentForm
                 onComplete={onAssessmentCompleted}
                 trigger={
                   <Button
                     size="sm"
-                    className="h-9 sm:h-10 text-xs font-bold gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                    className="h-11 w-full gap-2 bg-indigo-600 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 sm:h-10 sm:w-auto"
                   >
                     <ClipboardPlus className="w-4 h-4" />
                     <span>Administer Standardized ADL / IADL</span>
@@ -309,7 +309,7 @@ export function PatientFunctionalAssessmentPanel({
                 size="sm"
                 variant="outline"
                 onClick={onProceedToMatrix}
-                className="h-9 sm:h-10 text-xs font-semibold gap-1.5 border-border bg-background/80 hover:bg-muted cursor-pointer"
+                className="h-11 w-full gap-1.5 border-border bg-background/80 text-xs font-semibold hover:bg-muted sm:h-10 sm:w-auto"
                 title="Proceed to Step 2: Monthly Support Matrix to configure care shifts based on this assessment"
               >
                 <span>Next: Monthly Support Matrix</span>
@@ -359,7 +359,7 @@ export function PatientFunctionalAssessmentPanel({
             </div>
 
             {/* Metric 3: Calculated Care Demand */}
-            <div className="p-3 sm:p-4 rounded-2xl border border-border/70 bg-background/70 shadow-2xs">
+            <div className="col-span-2 p-3 sm:col-span-1 sm:p-4 rounded-2xl border border-border/70 bg-background/70 shadow-2xs">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
                   Estimated Care Demand
@@ -401,11 +401,13 @@ export function PatientFunctionalAssessmentPanel({
                       <div className="flex items-center justify-between gap-1.5">
                         <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
                           <Building2 className="w-3 h-3" />
-                          {careGapResult.careDemandBand.patientSpecificEstimate
+                          {patientProfile.inpatientBenchmark.dynamicActivities?.length
+                            ? `${patientProfile.inpatientBenchmark.dynamicActivities.length} timed nursing activities calibrated`
+                            : careGapResult.careDemandBand.patientSpecificEstimate
                             ? `${careGapResult.careDemandBand.patientSpecificEstimate.observationCount} observed nursing episodes`
-                            : 'Legacy inpatient timing summary'}
+                            : 'Inpatient pre-discharge benchmark active'}
                         </span>
-                        {patientProfile.inpatientBenchmark.requiresTwoPersonTransfers && (
+                        {(patientProfile.inpatientBenchmark.requiresTwoPersonTransfers || careGapResult.careDemandBand.requiresTwoPersonTransfers) && (
                           <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[9px] font-bold px-1.5 py-0 border-rose-500/30">
                             2-Staff Required
                           </Badge>
@@ -438,7 +440,7 @@ export function PatientFunctionalAssessmentPanel({
             </div>
 
             {/* Metric 4: Mobility & Bed Status */}
-            <div className="p-3 sm:p-4 rounded-2xl border border-border/70 bg-background/70 shadow-2xs">
+            <div className="col-span-2 p-3 sm:col-span-1 sm:p-4 rounded-2xl border border-border/70 bg-background/70 shadow-2xs">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
                 Mobility & Fall Profile
               </span>

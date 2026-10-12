@@ -940,8 +940,8 @@ export function CaregiverSupportMatrix({
                 {/* LIVE SIMULATION STRIP — sticky to the top of the scroll container */}
                 <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md px-4 sm:px-6 py-2.5 border-b border-border/70 shadow-xs">
                   <div className="p-3 sm:p-3.5 rounded-2xl bg-primary/10 border border-primary/30 space-y-2.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                    <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
                         <Sparkles className="w-4 h-4 text-primary animate-pulse" /> Live Impact Simulator (Real-Time Sandbox)
                       </span>
                       <Badge
@@ -960,7 +960,7 @@ export function CaregiverSupportMatrix({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                    <div className="grid grid-cols-1 gap-2 text-center min-[420px]:grid-cols-2 sm:grid-cols-4">
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Active Care Demand</span>
                         <CareDemandBandValue estimate={simulatedEval.careDemandBand.activeCare} className="text-sm text-foreground" />
@@ -1009,7 +1009,7 @@ export function CaregiverSupportMatrix({
                     <UserCheck className="w-3.5 h-3.5 text-primary" /> 1. Primary Caregiver Identity & Capacity
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:col-span-2">
                       <div className="space-y-1">
                         <Label className="text-xs">First Name</Label>
                         <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-8 text-xs" />
@@ -1745,11 +1745,11 @@ export function CaregiverSupportMatrix({
 
               {/* FIXED FOOTER: Always accessible at bottom, never buried under 6 sections */}
               <div className="p-3 sm:p-4 border-t border-border/60 shrink-0 bg-background/95 backdrop-blur-sm">
-                <DialogFooter className="flex-row justify-end gap-2 sm:gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} className="text-xs">
+                <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-11 w-full text-xs sm:w-auto">
                     Cancel
                   </Button>
-                  <Button type="button" size="sm" onClick={handleSaveModal} disabled={isSaving} className="text-xs font-bold bg-primary gap-1.5 shadow-sm">
+                  <Button type="button" onClick={handleSaveModal} disabled={isSaving} className="h-11 w-full gap-1.5 bg-primary text-xs font-bold shadow-sm sm:w-auto">
                     <Sparkles className="w-3.5 h-3.5" />
                     {isSaving ? 'Saving Matrix…' : 'Prescribe & Save Monthly Matrix'}
                   </Button>
@@ -1760,7 +1760,7 @@ export function CaregiverSupportMatrix({
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 sm:p-6 space-y-6">
+      <CardContent className="space-y-6 p-3 sm:p-6">
         {/* CLINICAL AUTHORIZATION STATUS — verified against the clinician-only signed record. */}
         {isDyadDocumented && currentCaregiver.careBlueprint && (
           <div
