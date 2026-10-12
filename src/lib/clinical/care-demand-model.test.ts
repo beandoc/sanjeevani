@@ -686,4 +686,88 @@ describe('dynamic nursing activities domain assistance modulation', () => {
     expect(feedingDriver).toBeDefined();
     expect(feedingDriver?.minutesPerDay).toBe(0); // 0 assistance multiplier saves 2.25 hrs!
   });
+
+  it('zeroes out dynamic medication and domestic activities when Lawton domain is independent', () => {
+    const indep = independent();
+    const bandIndependent = estimateCareDemand({
+      ...indep,
+      dynamicNursingActivities: [
+        {
+          id: 'dyn_med',
+          name: 'Injectable Insulin & Medication Administration',
+          category: 'medication_treatments',
+          durationMinutes: 15,
+          frequencyPerDay: 2,
+          staffCount: 1
+        },
+        {
+          id: 'dyn_meal',
+          name: 'Pureed Diet Meal Preparation',
+          category: 'custom',
+          durationMinutes: 30,
+          frequencyPerDay: 3,
+          staffCount: 1
+        }
+      ],
+      ...clinicianObserved
+    });
+
+    const medDriver = bandIndependent.drivers.find((d) => d.itemId === 'dynamic_dyn_med');
+    const mealDriver = bandIndependent.drivers.find((d) => d.itemId === 'dynamic_dyn_meal');
+    expect(medDriver?.minutesPerDay).toBe(0);
+    expect(mealDriver?.minutesPerDay).toBe(0);
+  });
+
+  it('calibrates Lawton domestic tasks from inpatient discharge benchmark', () => {
+    const dep = dependent();
+    dep.lawtonResponses = {
+      ...dep.lawtonResponses,
+      iadl_food: 0,
+      iadl_housekeeping: 0,
+      iadl_laundry: 0
+    };
+
+    const band = estimateCareDemand({
+      ...dep,
+      inpatientBenchmark: {
+        id: 'bm_lawton',
+        patientUid: 'p1',
+        recordedAt: '2026-10-12T00:00:00Z',
+        observerRole: 'staff_nurse',
+        observerName: 'Nurse Lead',
+        spongeBathMinutes: 25,
+        spongeBathStaffCount: 1,
+        bedToChairTransferMinutes: 12,
+        transferStaffCount: 1,
+        mealFeedingMinutesPerMeal: 30,
+        mealsRequiringAssistancePerDay: 3,
+        toiletingDiaperMinutes: 15,
+        toiletingEpisodesPerDay: 4,
+        toiletingStaffCount: 1,
+        repositioningTurnMinutes: 10,
+        repositioningIntervalHours: 3,
+        repositioningStaffCount: 1,
+        medicationAdministrationMinutes: 10,
+        medicationSlotsPerDay: 2,
+        mealPreparationMinutes: 40,
+        mealPreparationSlotsPerDay: 3,
+        housekeepingMinutes: 45,
+        housekeepingSlotsPerDay: 1,
+        environmentalPenaltyMultiplier: 1,
+        inpatientDirectCareMinutesPerDay: 0,
+        homeProjectedDirectCareHoursPerDay: 0,
+        requiresTwoPersonTransfers: false
+      },
+      ...clinicianObserved
+    });
+
+    const foodDriver = band.drivers.find((d) => d.itemId === 'iadl_food');
+    const housekeepingDriver = band.drivers.find((d) => d.itemId === 'iadl_housekeeping');
+    expect(foodDriver?.minutesPerEpisode).toBe(40);
+    expect(foodDriver?.frequencyPerDay).toBe(3);
+    expect(foodDriver?.minutesPerDay).toBe(120); // 40m * 3 = 120 mins = 2 hrs
+    expect(housekeepingDriver?.minutesPerEpisode).toBe(45);
+    expect(housekeepingDriver?.minutesPerDay).toBe(45);
+  });
 });
+

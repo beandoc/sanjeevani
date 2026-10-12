@@ -476,6 +476,22 @@ export interface InpatientDischargeBenchmark {
   medicationAdministrationMinutes: number;
   medicationSlotsPerDay: number;
 
+  // Optional Lawton IADL benchmark timings
+  mealPreparationMinutes?: number;
+  mealPreparationSlotsPerDay?: number;
+  housekeepingMinutes?: number;
+  housekeepingSlotsPerDay?: number;
+  laundryMinutes?: number;
+  laundrySlotsPerWeek?: number;
+  shoppingMinutes?: number;
+  shoppingSlotsPerWeek?: number;
+  transportationMinutes?: number;
+  transportationSlotsPerWeek?: number;
+  telephoneMinutes?: number;
+  telephoneSlotsPerDay?: number;
+  financesMinutes?: number;
+  financesSlotsPerWeek?: number;
+
   // Legacy global adjustment retained for old records. New episode-based records use 1.0;
   // any home adaptation must be documented task by task after discharge.
   environmentalPenaltyMultiplier: number;

@@ -50,13 +50,15 @@ interface KatzDomainCareTimingCardProps {
   impactIndependent: string;
   impactDependent: string;
   activityName: string;
-  activityCategoryLabel: string;
+  activityCategoryLabel?: string;
   minutes: number;
   frequency: number;
-  staff: 1 | 2;
+  frequencyUnit?: 'day' | 'week';
+  staff?: 1 | 2;
   allowStaffToggle?: boolean;
   extraTurnHours?: number;
   extraDynamicActivities?: DynamicNursingCareActivity[];
+  domainType?: 'katz_physical' | 'lawton_iadl';
   onSaveTiming: (minutes: number, frequency: number, staff: 1 | 2) => Promise<void>;
 }
 
@@ -74,10 +76,12 @@ function KatzDomainCareTimingCard({
   activityName,
   minutes,
   frequency,
-  staff,
+  frequencyUnit = 'day',
+  staff = 1,
   allowStaffToggle = false,
   extraTurnHours = 0,
   extraDynamicActivities = [],
+  domainType = 'katz_physical',
   onSaveTiming
 }: KatzDomainCareTimingCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -92,7 +96,8 @@ function KatzDomainCareTimingCard({
     setEditStaff(staff);
   }, [minutes, frequency, staff]);
 
-  const baseHours = (minutes * frequency * staff) / 60;
+  const dailyFreq = frequencyUnit === 'week' ? frequency / 7 : frequency;
+  const baseHours = (minutes * dailyFreq * (staff ?? 1)) / 60;
   const extraDynamicHours = extraDynamicActivities.reduce(
     (acc, act) => acc + (act.durationMinutes * act.frequencyPerDay * (act.staffCount ?? 1)) / 60,
     0
@@ -193,12 +198,12 @@ function KatzDomainCareTimingCard({
                 </div>
                 <div>
                   <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
-                    Freq (times/24h)
+                    {frequencyUnit === 'week' ? 'Freq (times/week)' : 'Freq (times/24h)'}
                   </label>
                   <input
                     type="number"
                     min={1}
-                    max={24}
+                    max={frequencyUnit === 'week' ? 28 : 24}
                     value={editFrequency}
                     onChange={(e) => setEditFrequency(Math.max(1, Number(e.target.value)))}
                     className="w-full px-2 py-1 text-xs font-mono font-bold rounded-lg border border-border bg-card focus:outline-none focus:ring-1 focus:ring-primary"
@@ -273,7 +278,7 @@ function KatzDomainCareTimingCard({
                 )}
               </div>
               <p className="text-[10px] text-muted-foreground font-mono">
-                {minutes} mins × {frequency} episodes/day {staff === 2 ? '(2 Staff)' : '(1 Staff)'}
+                {minutes} mins × {frequency} {frequencyUnit === 'week' ? 'times/wk' : 'episodes/day'} {staff === 2 ? '(2 Staff)' : '(1 Staff)'}
               </p>
 
               {extraTurnHours > 0 && (
@@ -314,7 +319,7 @@ function KatzDomainCareTimingCard({
             <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-1 text-[11px]">
               <span className="text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Active Care Demand:</span>
+                <span>{domainType === 'lawton_iadl' ? 'Active Domestic Demand:' : 'Active Care Demand:'}</span>
               </span>
               <span className="font-black font-mono text-amber-900 dark:text-amber-100">
                 {totalDemandHours.toFixed(1)} hrs/day
@@ -326,6 +331,8 @@ function KatzDomainCareTimingCard({
     </div>
   );
 }
+
+const LawtonDomainCareTimingCard = KatzDomainCareTimingCard;
 
 interface PatientFunctionalAssessmentPanelProps {
   patientUid: string;
@@ -448,6 +455,20 @@ export function PatientFunctionalAssessmentPanel({
         medicationSlotsPerDay: updatedBm.medicationSlotsPerDay,
         dressingMinutes: updatedBm.dressingMinutes ?? 15,
         dressingSlotsPerDay: updatedBm.dressingSlotsPerDay ?? 2,
+        mealPreparationMinutes: updatedBm.mealPreparationMinutes,
+        mealPreparationSlotsPerDay: updatedBm.mealPreparationSlotsPerDay,
+        housekeepingMinutes: updatedBm.housekeepingMinutes,
+        housekeepingSlotsPerDay: updatedBm.housekeepingSlotsPerDay,
+        laundryMinutes: updatedBm.laundryMinutes,
+        laundrySlotsPerWeek: updatedBm.laundrySlotsPerWeek,
+        shoppingMinutes: updatedBm.shoppingMinutes,
+        shoppingSlotsPerWeek: updatedBm.shoppingSlotsPerWeek,
+        transportationMinutes: updatedBm.transportationMinutes,
+        transportationSlotsPerWeek: updatedBm.transportationSlotsPerWeek,
+        telephoneMinutes: updatedBm.telephoneMinutes,
+        telephoneSlotsPerDay: updatedBm.telephoneSlotsPerDay,
+        financesMinutes: updatedBm.financesMinutes,
+        financesSlotsPerWeek: updatedBm.financesSlotsPerWeek,
         environmentalPenaltyMultiplier: updatedBm.environmentalPenaltyMultiplier ?? 1,
         dynamicActivities: updatedBm.dynamicActivities
       });
@@ -1249,7 +1270,7 @@ export function PatientFunctionalAssessmentPanel({
                 <span>Lawton-Brody Instrumental Activities of Daily Living (IADL)</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                Evaluates complex cognitive, organizational, and community tasks necessary for independent domestic living.
+                Evaluates complex cognitive, organizational, and community tasks necessary for independent domestic living. Changes instantly recalculate domestic care and nursing demand hours.
               </CardDescription>
             </div>
             <Badge
@@ -1263,53 +1284,271 @@ export function PatientFunctionalAssessmentPanel({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { key: 'telephone' as const, label: 'Telephone Use', desc: 'Dials numbers and answers independently' },
-            { key: 'shopping' as const, label: 'Shopping & Groceries', desc: 'Takes care of all shopping needs' },
-            { key: 'mealPreparation' as const, label: 'Food Preparation', desc: 'Plans, cooks, and serves adequate meals' },
-            { key: 'housekeeping' as const, label: 'Housekeeping', desc: 'Maintains domestic cleanliness' },
-            { key: 'laundry' as const, label: 'Laundry', desc: 'Does personal laundry completely' },
-            { key: 'transportation' as const, label: 'Transportation', desc: 'Travels independently or arranges cab' },
-            { key: 'medicationManagement' as const, label: 'Medication Management', desc: 'Takes correct doses at correct times' },
-            { key: 'finances' as const, label: 'Financial Management', desc: 'Manages money and bank matters' }
-          ].map(({ key, label, desc }) => {
-            const isIndep = lawton[key];
-            return (
-              <div
-                key={key}
-                className={cn(
-                  'p-3 rounded-2xl border transition-all flex flex-col justify-between',
-                  !isAssessed
-                    ? 'bg-card border-border/70'
-                    : isIndep
-                    ? 'bg-card border-border/70'
-                    : 'bg-muted/40 border-border/60'
+        <CardContent className="pt-4 space-y-6">
+          {/* A. Core High-Impact Domestic & Clinical IADL Workload (Top 4 Heavy Cards) */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1 border-b border-border/40">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Core Clinical & Domestic Workload (Daily Direct Hours)</span>
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Primary time drivers for caregiver & home nursing shifts
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              {/* IADL 1: Medication Management */}
+              <LawtonDomainCareTimingCard
+                title="Medication Management"
+                icon={<span className="text-sm">💊</span>}
+                isIndependent={lawton.medicationManagement}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                onToggle={(val) => void handleToggleLawton('medicationManagement', val)}
+                descriptionIndependent="Takes correct medications in correct dosages and schedules independently."
+                descriptionDependent="Requires nursing/caregiver oversight to prepare pillbox, verify dosages, and administer timely meds."
+                impactIndependent="Self-Administers Correctly"
+                impactDependent="High-Alert Drug Safety & Pill Admin"
+                activityName="Oral / Injectable Med Administration & Pillbox Sort"
+                minutes={benchmark?.medicationAdministrationMinutes ?? 10}
+                frequency={benchmark?.medicationSlotsPerDay ?? 3}
+                staff={1}
+                allowStaffToggle={false}
+                extraDynamicActivities={allDynamicActivities.filter(
+                  (a) =>
+                    a.category === 'medication_treatments' ||
+                    a.name.toLowerCase().includes('med') ||
+                    a.name.toLowerCase().includes('pill')
                 )}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-bold text-xs text-foreground truncate">{label}</span>
-                  <Switch
-                    checked={isIndep}
-                    onCheckedChange={(val) => void handleToggleLawton(key, val)}
-                    disabled={isUpdating}
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-tight mb-2">
-                  {desc}
-                </p>
-                <div className="text-[10px] font-semibold">
-                  {!isAssessed ? (
-                    <span className="text-muted-foreground">● Pending Intake</span>
-                  ) : isIndep ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">✓ Independent</span>
-                  ) : (
-                    <span className="text-muted-foreground">● Caregiver Assisted</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    medicationAdministrationMinutes: m,
+                    medicationSlotsPerDay: f
+                  });
+                }}
+              />
+
+              {/* IADL 2: Food & Meal Preparation */}
+              <LawtonDomainCareTimingCard
+                title="Food & Meal Preparation"
+                icon={<span className="text-sm">🍲</span>}
+                isIndependent={lawton.mealPreparation}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                onToggle={(val) => void handleToggleLawton('mealPreparation', val)}
+                descriptionIndependent="Plans, cooks, and serves adequate meals independently."
+                descriptionDependent="Requires caregiver to prepare specialized soft/diabetic diet, cook meals, and deliver hot food."
+                impactIndependent="Prepares Own Meals"
+                impactDependent="Daily Cooking, Nutrition & Diet Mod"
+                activityName="Meal Preparation & Specialized Diet Cooking"
+                minutes={benchmark?.mealPreparationMinutes ?? 25}
+                frequency={benchmark?.mealPreparationSlotsPerDay ?? 3}
+                staff={1}
+                allowStaffToggle={false}
+                extraDynamicActivities={allDynamicActivities.filter(
+                  (a) =>
+                    a.name.toLowerCase().includes('cook') ||
+                    a.name.toLowerCase().includes('meal prep') ||
+                    a.name.toLowerCase().includes('food prep')
+                )}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    mealPreparationMinutes: m,
+                    mealPreparationSlotsPerDay: f
+                  });
+                }}
+              />
+
+              {/* IADL 3: Laundry & Linen Sanitization */}
+              <LawtonDomainCareTimingCard
+                title="Laundry & Linen Sanitization"
+                icon={<span className="text-sm">🧺</span>}
+                isIndependent={lawton.laundry}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                frequencyUnit="week"
+                onToggle={(val) => void handleToggleLawton('laundry', val)}
+                descriptionIndependent="Does personal laundry and washes small articles completely independently."
+                descriptionDependent="Requires complete assistance with soiled linens, bedclothes, and thermal sanitization."
+                impactIndependent="Does Personal Laundry"
+                impactDependent="Soiled Linen Washing & Thermal Sanitization"
+                activityName="Bed Linen Sanitization & Soiled Wash Cycles"
+                minutes={benchmark?.laundryMinutes ?? 40}
+                frequency={benchmark?.laundrySlotsPerWeek ?? 3}
+                staff={1}
+                allowStaffToggle={false}
+                extraDynamicActivities={allDynamicActivities.filter(
+                  (a) =>
+                    a.name.toLowerCase().includes('laundry') ||
+                    a.name.toLowerCase().includes('linen')
+                )}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    laundryMinutes: m,
+                    laundrySlotsPerWeek: f
+                  });
+                }}
+              />
+
+              {/* IADL 4: Housekeeping & Room Care */}
+              <LawtonDomainCareTimingCard
+                title="Housekeeping & Room Care"
+                icon={<span className="text-sm">🧹</span>}
+                isIndependent={lawton.housekeeping}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                onToggle={(val) => void handleToggleLawton('housekeeping', val)}
+                descriptionIndependent="Maintains house alone or with occasional help for heavy domestic work."
+                descriptionDependent="Requires daily surface cleaning, bed linen changes, room ventilation, and infection control."
+                impactIndependent="Maintains Clean Living Space"
+                impactDependent="Room Sanitation, Bed Linen & Disinfection"
+                activityName="Patient Room Sanitation & Barrier Disinfection"
+                minutes={benchmark?.housekeepingMinutes ?? 30}
+                frequency={benchmark?.housekeepingSlotsPerDay ?? 1}
+                staff={1}
+                allowStaffToggle={false}
+                extraDynamicActivities={allDynamicActivities.filter(
+                  (a) =>
+                    a.name.toLowerCase().includes('clean') ||
+                    a.name.toLowerCase().includes('sanit') ||
+                    a.name.toLowerCase().includes('housekeep')
+                )}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    housekeepingMinutes: m,
+                    housekeepingSlotsPerDay: f
+                  });
+                }}
+              />
+            </div>
+          </div>
+
+          {/* B. Community, Logistics & Cognitive IADL Workload (Remaining 4 Cards) */}
+          <div className="space-y-3 pt-2 border-t border-border/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1 border-b border-border/40">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Logistics, Communication & Community IADL Workload</span>
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Community errands, escorted transit & clinical communication
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              {/* IADL 5: Shopping & Medical Supplies */}
+              <LawtonDomainCareTimingCard
+                title="Shopping & Medical Supplies"
+                icon={<span className="text-sm">🛒</span>}
+                isIndependent={lawton.shopping}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                frequencyUnit="week"
+                onToggle={(val) => void handleToggleLawton('shopping', val)}
+                descriptionIndependent="Takes care of all shopping needs independently and manages transport."
+                descriptionDependent="Needs caregiver to procure pharmacy supplies, groceries, catheters, and adult diapers."
+                impactIndependent="Independent Procurement"
+                impactDependent="Procuring Groceries, Medicines & Consumables"
+                activityName="Pharmacy, Consumables & Grocery Procurement"
+                minutes={benchmark?.shoppingMinutes ?? 60}
+                frequency={benchmark?.shoppingSlotsPerWeek ?? 2}
+                staff={1}
+                allowStaffToggle={false}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    shoppingMinutes: m,
+                    shoppingSlotsPerWeek: f
+                  });
+                }}
+              />
+
+              {/* IADL 6: Transportation */}
+              <LawtonDomainCareTimingCard
+                title="Transportation & Escort"
+                icon={<span className="text-sm">🚗</span>}
+                isIndependent={lawton.transportation}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                frequencyUnit="week"
+                onToggle={(val) => void handleToggleLawton('transportation', val)}
+                descriptionIndependent="Travels independently on public transport or drives personal vehicle."
+                descriptionDependent="Cannot travel without caregiver escort, wheelchair ramp transport, or emergency ambulance."
+                impactIndependent="Travels Independently"
+                impactDependent="Wheelchair Cab / Escorted Hospital Visits"
+                activityName="Escorted Clinical Visits & OPD Mobilization"
+                minutes={benchmark?.transportationMinutes ?? 90}
+                frequency={benchmark?.transportationSlotsPerWeek ?? 1}
+                staff={1}
+                allowStaffToggle={false}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    transportationMinutes: m,
+                    transportationSlotsPerWeek: f
+                  });
+                }}
+              />
+
+              {/* IADL 7: Telephone Use */}
+              <LawtonDomainCareTimingCard
+                title="Telephone & Telehealth"
+                icon={<span className="text-sm">📞</span>}
+                isIndependent={lawton.telephone}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                onToggle={(val) => void handleToggleLawton('telephone', val)}
+                descriptionIndependent="Operates telephone on own initiative, dials and answers independently."
+                descriptionDependent="Unable to dial numbers, operate touchscreen, or requires supervision for doctor teleconsults."
+                impactIndependent="Independent Phone Use"
+                impactDependent="Dialing, Screen Assist & Teleconsult Supervision"
+                activityName="Communication Assistance & Teleconsult Facilitation"
+                minutes={benchmark?.telephoneMinutes ?? 5}
+                frequency={benchmark?.telephoneSlotsPerDay ?? 1}
+                staff={1}
+                allowStaffToggle={false}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    telephoneMinutes: m,
+                    telephoneSlotsPerDay: f
+                  });
+                }}
+              />
+
+              {/* IADL 8: Financial Management */}
+              <LawtonDomainCareTimingCard
+                title="Financial Management & Claims"
+                icon={<span className="text-sm">💳</span>}
+                isIndependent={lawton.finances}
+                isAssessed={isAssessed}
+                isUpdating={isUpdating}
+                domainType="lawton_iadl"
+                frequencyUnit="week"
+                onToggle={(val) => void handleToggleLawton('finances', val)}
+                descriptionIndependent="Manages financial matters independently (writes checks, pays bills, monitors bank)."
+                descriptionDependent="Incapable of handling money, reconciling medical bills, or managing health insurance."
+                impactIndependent="Manages Money Independently"
+                impactDependent="Medical Expenses, Claims & Billing Settlement"
+                activityName="Healthcare Billing, Claims & Resource Management"
+                minutes={benchmark?.financesMinutes ?? 30}
+                frequency={benchmark?.financesSlotsPerWeek ?? 2}
+                staff={1}
+                allowStaffToggle={false}
+                onSaveTiming={async (m, f) => {
+                  await handleUpdateDomainBenchmark({
+                    financesMinutes: m,
+                    financesSlotsPerWeek: f
+                  });
+                }}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

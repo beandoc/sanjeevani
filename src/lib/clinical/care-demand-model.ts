@@ -853,6 +853,56 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
             episodeCount: medStat?.observationCount ?? 1
           };
         }
+      } else if (item.id === 'iadl_food') {
+        const mins = bm.mealPreparationMinutes;
+        if (mins && mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: bm.mealPreparationSlotsPerDay ?? 3,
+            staffRequired: 1,
+            episodeCount: 1
+          };
+        }
+      } else if (item.id === 'iadl_housekeeping') {
+        const mins = bm.housekeepingMinutes;
+        if (mins && mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: bm.housekeepingSlotsPerDay ?? 1,
+            staffRequired: 1,
+            episodeCount: 1
+          };
+        }
+      } else if (item.id === 'iadl_laundry') {
+        const mins = bm.laundryMinutes;
+        if (mins && mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: (bm.laundrySlotsPerWeek ?? 3) / 7,
+            staffRequired: 1,
+            episodeCount: 1
+          };
+        }
+      } else if (item.id === 'iadl_shopping') {
+        const mins = bm.shoppingMinutes;
+        if (mins && mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: (bm.shoppingSlotsPerWeek ?? 2) / 7,
+            staffRequired: 1,
+            episodeCount: 1
+          };
+        }
+      } else if (item.id === 'iadl_transport') {
+        const mins = bm.transportationMinutes;
+        if (mins && mins > 0) {
+          benchmarkCal = {
+            minutesPerEpisode: Math.round(mins * penalty),
+            frequencyPerDay: (bm.transportationSlotsPerWeek ?? 1) / 7,
+            staffRequired: 1,
+            episodeCount: 1
+          };
+        }
       }
     }
 
@@ -933,6 +983,18 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     } else if (act.category === 'skin_positioning' || actNameLower.includes('reposition') || actNameLower.includes('turn')) {
       targetDomainKey = 'repositioning';
       isDomainIndependent = !input.isBedBound && (barthel['bi_transfer'] ?? (input.legacyKatzAdl?.transferring ? 15 : 0)) >= 15;
+    } else if (act.category === 'medication_treatments' || actNameLower.includes('medication') || actNameLower.includes('medicine') || actNameLower.includes('pill')) {
+      targetDomainKey = 'iadl_medication';
+      isDomainIndependent = (lawton['iadl_medication'] ?? (input.legacyLawtonIadl?.medicationManagement ? 1 : 0)) >= 1;
+    } else if (actNameLower.includes('cook') || actNameLower.includes('meal prep') || actNameLower.includes('food prep')) {
+      targetDomainKey = 'iadl_food';
+      isDomainIndependent = (lawton['iadl_food'] ?? (input.legacyLawtonIadl?.mealPreparation ? 1 : 0)) >= 1;
+    } else if (actNameLower.includes('laundry') || actNameLower.includes('linen')) {
+      targetDomainKey = 'iadl_laundry';
+      isDomainIndependent = (lawton['iadl_laundry'] ?? (input.legacyLawtonIadl?.laundry ? 1 : 0)) >= 1;
+    } else if (actNameLower.includes('housekeep') || actNameLower.includes('cleaning') || actNameLower.includes('room sanit')) {
+      targetDomainKey = 'iadl_housekeeping';
+      isDomainIndependent = (lawton['iadl_housekeeping'] ?? (input.legacyLawtonIadl?.housekeeping ? 1 : 0)) >= 1;
     }
 
     if (targetDomainKey) {
@@ -994,6 +1056,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   // ---- Lawton: two-factor routing, premorbid exclusions contribute zero ----
   for (const item of LAWTON_ITEMS) {
     if (excluded.has(item.id)) continue;
+    if (coveredDynamicDomains.has(item.id)) continue;
     const raw = lawton[item.id];
     if (typeof raw !== 'number' || Number.isNaN(raw)) {
       missing.push(item.text.en);
