@@ -59,12 +59,28 @@ export async function POST(request: NextRequest) {
     const db = adminDb();
     const auth = adminAuth();
 
+interface DyadInviteData {
+  inviteCode?: string;
+  dyadUid?: string;
+  clinicianUid?: string;
+  clinicianLabel?: string;
+  patientName?: string;
+  patientAge?: number;
+  primaryConditions?: string[];
+  caregiverName?: string;
+  caregiverEmail?: string;
+  createdAt?: string;
+  claimedAt?: string | null;
+  claimedByUid?: string | null;
+  [key: string]: unknown;
+}
+
     const inviteRef = db.doc(`dyadInvites/${cleanCode}`);
     const inviteSnap = await inviteRef.get();
-    let invite: Record<string, any> = inviteSnap.exists ? (inviteSnap.data() || {}) : {};
+    let invite: DyadInviteData = inviteSnap.exists ? ((inviteSnap.data() as DyadInviteData) || {}) : {};
     if (!inviteSnap.exists) {
       if (cleanCode === 'RAMESH76' || cleanCode === '7DB6BJT7' || cleanCode === 'DEMO76' || cleanCode === 'DEMO1234') {
-        const seedInvite: Record<string, any> = {
+        const seedInvite: DyadInviteData = {
           inviteCode: cleanCode,
           dyadUid: 'dyad_ramesh_chand',
           clinicianUid: 'clinician_demo',

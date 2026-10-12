@@ -394,7 +394,6 @@ export default function LoginPage() {
                     <Input
                       id="invite-code"
                       type="text"
-                      autoFocus
                       autoCapitalize="characters"
                       autoCorrect="off"
                       spellCheck={false}

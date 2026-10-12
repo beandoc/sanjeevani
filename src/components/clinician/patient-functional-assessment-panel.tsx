@@ -184,10 +184,11 @@ function KatzDomainCareTimingCard({
             <div className="p-2.5 rounded-xl border border-indigo-500/30 bg-background/95 space-y-2 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                  <label htmlFor={`duration-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`} className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
                     Duration (mins)
                   </label>
                   <input
+                    id={`duration-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                     type="number"
                     min={1}
                     max={180}
@@ -197,10 +198,11 @@ function KatzDomainCareTimingCard({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                  <label htmlFor={`freq-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`} className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
                     {frequencyUnit === 'week' ? 'Freq (times/week)' : 'Freq (times/24h)'}
                   </label>
                   <input
+                    id={`freq-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                     type="number"
                     min={1}
                     max={frequencyUnit === 'week' ? 28 : 24}
@@ -213,9 +215,9 @@ function KatzDomainCareTimingCard({
 
               {allowStaffToggle && (
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
                     Staff Required
-                  </label>
+                  </span>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       type="button"

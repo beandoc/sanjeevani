@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Building2, CheckCircle2, Clock, Plus, Save, Trash2, Users, ShieldAlert, Sparkles, Activity, Stethoscope, AlertTriangle } from 'lucide-react';
+import { Building2, CheckCircle2, Plus, Save, Trash2, ShieldAlert, Sparkles, Activity, Stethoscope } from 'lucide-react';
 import {
   HealthRepository,
   calculateBenchmarkSummary,
@@ -97,7 +97,7 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
   const [customMinutes, setCustomMinutes] = useState(15);
   const [customStaff, setCustomStaff] = useState<1 | 2>(1);
   const [customFreq, setCustomFreq] = useState(4);
-  const [customCategory, setCustomCategory] = useState<DynamicNursingCareActivity['category']>('custom');
+  const [customCategory] = useState<DynamicNursingCareActivity['category']>('custom');
   const [customNote, setCustomNote] = useState('');
 
   // Observation episode form state
@@ -134,8 +134,8 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
   }, [open, patientUid, patientProfile]);
 
   const stats = useMemo(() => summarizeInpatientObservations(observations), [observations]);
-  const taskValue = (category: InpatientCareTaskCategory) => stats[category]?.medianMinutes ?? 0;
-  const taskStaff = (category: InpatientCareTaskCategory): 1 | 2 => stats[category]?.staffCount ?? 1;
+  const taskValue = React.useCallback((category: InpatientCareTaskCategory) => stats[category]?.medianMinutes ?? 0, [stats]);
+  const taskStaff = React.useCallback((category: InpatientCareTaskCategory): 1 | 2 => stats[category]?.staffCount ?? 1, [stats]);
   const repositioningInterval = schedules.repositioning > 0 ? Math.max(1, 24 / schedules.repositioning) : 24;
 
   const summary = useMemo(() => {
@@ -149,7 +149,7 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
       environmentalPenaltyMultiplier: 1, observations,
       dynamicActivities
     });
-  }, [stats, schedules, observations, dynamicActivities, repositioningInterval]);
+  }, [taskValue, taskStaff, schedules, observations, dynamicActivities, repositioningInterval]);
 
   const totalCalculatedHours = summary.inpatientDirectCareMinutesPerDay / 60;
   const lowHours = Math.max(0, Math.round(totalCalculatedHours * 0.85 * 10) / 10);
@@ -355,8 +355,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
           {/* OBSERVER DETAILS */}
           <div className="grid gap-2.5 sm:grid-cols-3">
             <div>
-              <label className="text-[11px] font-bold text-muted-foreground uppercase">Observer Role</label>
+              <label htmlFor="bm-observer-role" className="text-[11px] font-bold text-muted-foreground uppercase">Observer Role</label>
               <select
+                id="bm-observer-role"
                 value={observerRole}
                 onChange={(e) => setObserverRole(e.target.value as InpatientObserverRole)}
                 className="mt-1 h-9 w-full rounded-xl border bg-background px-2.5 text-xs font-medium"
@@ -369,8 +370,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-bold text-muted-foreground uppercase">Observer Name / Designation</label>
+              <label htmlFor="bm-observer-name" className="text-[11px] font-bold text-muted-foreground uppercase">Observer Name / Designation</label>
               <input
+                id="bm-observer-name"
                 value={observerName}
                 onChange={(e) => setObserverName(e.target.value)}
                 className="mt-1 h-9 w-full rounded-xl border bg-background px-2.5 text-xs"
@@ -378,8 +380,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-muted-foreground uppercase">Ward / Bed Number</label>
+              <label htmlFor="bm-ward-bed" className="text-[11px] font-bold text-muted-foreground uppercase">Ward / Bed Number</label>
               <input
+                id="bm-ward-bed"
                 value={wardOrBedNumber}
                 onChange={(e) => setWardOrBedNumber(e.target.value)}
                 className="mt-1 h-9 w-full rounded-xl border bg-background px-2.5 text-xs"
@@ -433,8 +436,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
               <div className="sm:col-span-4">
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Activity Name</label>
+                <label htmlFor="bm-activity-name" className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Activity Name</label>
                 <input
+                  id="bm-activity-name"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="e.g. Suctioning, Ryle's Tube Feed"
@@ -443,8 +447,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
               </div>
 
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Time (Mins)</label>
+                <label htmlFor="bm-activity-minutes" className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Time (Mins)</label>
                 <input
+                  id="bm-activity-minutes"
                   type="number"
                   min={1}
                   max={180}
@@ -455,8 +460,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
               </div>
 
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Staff Count</label>
+                <label htmlFor="bm-activity-staff" className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">Staff Count</label>
                 <select
+                  id="bm-activity-staff"
                   value={customStaff}
                   onChange={(e) => setCustomStaff(Number(e.target.value) as 1 | 2)}
                   className={`h-10 w-full rounded-xl border px-2 text-xs font-bold ${
@@ -469,8 +475,9 @@ export function InpatientDischargeBenchmarkDialog({ patientUid, patientName, pat
               </div>
 
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">24h Frequency</label>
+                <label htmlFor="bm-activity-freq" className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">24h Frequency</label>
                 <input
+                  id="bm-activity-freq"
                   type="number"
                   min={0.5}
                   max={24}
