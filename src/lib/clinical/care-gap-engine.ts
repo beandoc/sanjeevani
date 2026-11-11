@@ -24,7 +24,7 @@ import {
   type CareDemandBand
 } from './care-demand-model';
 import type { AssessmentSource } from './function-scale';
-import type { DynamicNursingCareActivity, InpatientDischargeBenchmark } from '../db/health-repository/types';
+import type { CaregiverDiaryCalibrationReport, DynamicNursingCareActivity, InpatientDischargeBenchmark } from '../db/health-repository/types';
 import {
   FormalSupportType,
   CARE_GAP_ENGINE_VERSION,
@@ -43,9 +43,7 @@ import {
   INJURY_CRITICAL_THRESHOLD,
   INJURY_HIGH_THRESHOLD,
   INJURY_MODERATE_THRESHOLD,
-  DIURNAL_BLOCK_CRITICALITY,
-  DIURNAL_CONCENTRATION_EXPONENT,
-  DIURNAL_INDEX_SATURATION_SCALE
+  DIURNAL_BLOCK_CRITICALITY
 } from './care-gap-constants';
 
 export * from './care-gap-constants';
@@ -278,6 +276,8 @@ export interface CaregiverAttributes {
   formalSupport?: {
     type: FormalSupportType;
     types?: FormalSupportType[];
+    /** Explicit hours for each hire. Takes precedence over the legacy team total. */
+    staff?: Array<{ id: string; type: FormalSupportType; hoursPerDay: number }>;
     hoursPerDay: number;
     handlesHeavyTransfers: boolean;
     handlesMedicationWoundCare: boolean;
@@ -373,6 +373,7 @@ export interface PatientDependenceProfile {
   careTaskFrequencyOverrides?: Record<string, number>;
   /** Who reported the functional assessment. Widens the band, never the score. */
   functionAssessmentSource?: AssessmentSource;
+  diaryCalibration?: CaregiverDiaryCalibrationReport;
   cognitiveBehavioralLoad: 'none' | 'mild_forgetfulness' | 'wandering_agitation' | 'severe_sundowning';
   fallHistoryLast6Months: number;
   isBedBound: boolean;
@@ -463,7 +464,13 @@ export interface CareGapEvaluationResult {
   formalSupportAbsorbedHours: number;
   familySupportAbsorbedHours: number;
   totalAvailableCapacityHours: number; // Derived: caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours
+  /** Workload capacity available for comparing against the demand band's high edge. */
+  planningCapacityHours: number;
   netCareGapHours: number; // Max(0, Demand - totalAvailableCapacityHours)
+  /** Estimated care work with nobody assigned to deliver it. */
+  unmetCareHours: number;
+  /** Primary caregiver work above the estimated safe limit. */
+  caregiverOverloadHours: number;
   
   teamAllocations: {
     primaryCaregiverHours: number;
@@ -530,10 +537,10 @@ export interface CareGapEvaluationResult {
     }
   >;
 
-  // NIOSH RNLE Lifting Index (real ergonomic metric: Actual Load / Recommended Weight Limit)
-  liftingIndex: number;
-  // Estimated L5/S1 spinal compression force in kN (NIOSH Action Limit: 3.4 kN)
-  spinalCompressionKN: number;
+  /** Deprecated: no valid patient-handling lifting index is calculated. */
+  liftingIndex: null;
+  /** Deprecated: no validated spinal compression estimate is calculated. */
+  spinalCompressionKN: null;
   // Estimated daily transfer & manual repositioning events
   dailyTransferCount: number;
   // Estimated nocturnal micro-sleep interruptions per night
@@ -876,6 +883,7 @@ export class CareGapEngine {
       hasMotorizedBedAndRippleMattress:
         safeDevices.hospitalBed === 'motorized_multichannel' && !!safeDevices.airWaterMattress,
       assessmentSource: safePatient.functionAssessmentSource,
+      diaryCalibration: safePatient.diaryCalibration,
       inpatientBenchmark: safePatient.inpatientBenchmark,
       dynamicNursingActivities: safePatient.dynamicNursingActivities ?? safePatient.inpatientBenchmark?.dynamicActivities,
       functionalAssessedAt: safePatient.functionalAssessedAt
@@ -907,16 +915,11 @@ export class CareGapEngine {
       const contributions = staffCoverage.activeTypes.map((t) => {
         const spec = CARE_GAP_MODEL_PARAMS.formalProductivityFactors[t] || { nominalHours: 0, productivityFactor: 0 };
         return (staffCoverage.scheduledHoursByType[t] ?? 0) * spec.productivityFactor;
-      }).sort((a, b) => b - a);
-
-      for (let i = 0; i < contributions.length; i++) {
-        rawAbsorbed += contributions[i] * (i === 0 ? 1.0 : i === 1 ? 0.5 : 0.25);
-      }
+      });
+      rawAbsorbed = contributions.reduce((sum, hours) => sum + hours, 0);
     }
 
-    const MAX_ABSORBABLE_FRACTION = CARE_GAP_MODEL_PARAMS.maxFormalAbsorbableFraction;
-    const formalSupportAbsorbedHours =
-      Math.round(Math.min(patientCareDemandHours * MAX_ABSORBABLE_FRACTION, rawAbsorbed) * 10) / 10;
+    const formalSupportAbsorbedHours = Math.round(Math.min(patientCareDemandHours, rawAbsorbed) * 10) / 10;
 
     // 4b. Unified Residual Allocation Ledger
     // Break demand into discrete task-by-time-block units.
@@ -926,31 +929,54 @@ export class CareGapEngine {
     // Derive transfer relief and headline capacity strictly from these ledger assignments.
     type TaskBlockDemandSlot = AllocationLedgerEntry;
 
-    const demandSlots: TaskBlockDemandSlot[] = [
-      // Heavy Transfers: Morning wake-up/chair transfer (1.0h) & evening bed transfer (1.0h)
-      { task: 'heavy_transfers', block: 'morning_rush', demandHours: !safeKatz.transferring ? 1.0 : 0, allocatedHours: 0, allocatedTo: [] },
-      { task: 'heavy_transfers', block: 'evening', demandHours: !safeKatz.transferring ? 1.0 : 0, allocatedHours: 0, allocatedTo: [] },
-
-      // Bathing: Morning personal hygiene
-      { task: 'bathing', block: 'morning_rush', demandHours: !safeKatz.bathing ? 1.5 : 0, allocatedHours: 0, allocatedTo: [] },
-
-      // Feeding: Breakfast, lunch, dinner
-      { task: 'feeding', block: 'morning_rush', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
-      { task: 'feeding', block: 'afternoon', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
-      { task: 'feeding', block: 'evening', demandHours: (!safeKatz.feeding || !safeIadl.mealPreparation) ? 0.5 : 0.1, allocatedHours: 0, allocatedTo: [] },
-
-      // Medications: Morning, midday, evening administration
-      { task: 'medications', block: 'morning_rush', demandHours: !safeIadl.medicationManagement ? 0.4 : 0.2, allocatedHours: 0, allocatedTo: [] },
-      { task: 'medications', block: 'afternoon', demandHours: !safeIadl.medicationManagement ? 0.3 : 0.1, allocatedHours: 0, allocatedTo: [] },
-      { task: 'medications', block: 'evening', demandHours: !safeIadl.medicationManagement ? 0.3 : 0.2, allocatedHours: 0, allocatedTo: [] },
-
-      // Logistics & Errands: Midday clinic/pharmacy/groceries (1.5h) & evening logistics (0.5h)
-      { task: 'logistics_errands', block: 'afternoon', demandHours: (!safeIadl.shopping || !safeIadl.transportation || !safeIadl.finances || !safeIadl.housekeeping) ? 1.5 : 0.3, allocatedHours: 0, allocatedTo: [] },
-      { task: 'logistics_errands', block: 'evening', demandHours: (!safeIadl.shopping || !safeIadl.transportation || !safeIadl.finances || !safeIadl.housekeeping) ? 0.5 : 0.2, allocatedHours: 0, allocatedTo: [] },
-
-      // Night Care: Nocturnal repositioning, continence, agitation
-      { task: 'night_care', block: 'night_watch', demandHours: (safePatient.isBedBound || !safeKatz.continence || safePatient.cognitiveBehavioralLoad !== 'none') ? 2.0 : 0, allocatedHours: 0, allocatedTo: [] }
-    ];
+    const taskForDriver = (id: string, label: string, block: DiurnalTimeBlock): CareTask => {
+      const key = `${id} ${label}`.toLowerCase();
+      if (/transfer|mobility|stairs|fall|gait/.test(key)) return 'heavy_transfers';
+      if (/reposition|turning|sundown|supervision/.test(key)) return 'night_care';
+      if (/medication|medicine|wound/.test(key)) return 'medications';
+      if (/feeding|meal|food|nutrition/.test(key)) return 'feeding';
+      if (/toilet|continence|bladder|bowel|bathing|grooming|dressing|hygiene/.test(key))
+        return block === 'night_watch' ? 'night_care' : 'bathing';
+      return 'logistics_errands';
+    };
+    const weightedSlots = new Map<string, number>();
+    const addWeight = (task: CareTask, block: DiurnalTimeBlock, hours: number) => {
+      const key = `${task}:${block}`;
+      weightedSlots.set(key, (weightedSlots.get(key) ?? 0) + hours);
+    };
+    for (const driver of careDemandBand.drivers) {
+      if (driver.timeType === 'onCall' || driver.minutesPerDay <= 0 || driver.blocks.length === 0) continue;
+      for (const block of driver.blocks) {
+        addWeight(taskForDriver(driver.itemId, driver.label, block), block, driver.minutesPerDay / 60 / driver.blocks.length);
+      }
+    }
+    for (const term of careDemandBand.thresholdTerms) {
+      if (term.timeType === 'onCall' || term.minutesPerDay <= 0) continue;
+      const blocks: DiurnalTimeBlock[] = term.id === 'fall_supervision'
+        ? ['morning_rush', 'afternoon', 'evening']
+        : ['morning_rush', 'afternoon', 'evening', 'night_watch'];
+      for (const block of blocks) {
+        addWeight(taskForDriver(term.id, term.label, block), block, term.minutesPerDay / 60 / blocks.length);
+      }
+    }
+    const demandSlots: TaskBlockDemandSlot[] = [];
+    for (const block of ['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]) {
+      const entries = [...weightedSlots.entries()].filter(([key]) => key.endsWith(`:${block}`));
+      const weightTotal = entries.reduce((sum, [, weight]) => sum + weight, 0);
+      const blockHours = careDemandBand.blockDemands[block].pointHours;
+      for (const [key, weight] of entries) {
+        demandSlots.push({
+          task: key.split(':')[0] as CareTask,
+          block,
+          demandHours: weightTotal > 0 ? blockHours * weight / weightTotal : 0,
+          allocatedHours: 0,
+          allocatedTo: []
+        });
+      }
+      if (entries.length === 0 && blockHours > 0) {
+        demandSlots.push({ task: 'night_care', block, demandHours: blockHours, allocatedHours: 0, allocatedTo: [] });
+      }
+    }
 
     const uncreditedFamilyReasons: string[] = [];
     const secondaryMembers = safeCaregiver.secondaryMembers || [];
@@ -1005,6 +1031,9 @@ export class CareGapEngine {
 
           if (!member.assignedTasks.includes(slot.task)) continue;
           if (!availableBlocks.includes(slot.block)) continue;
+          // Do not credit family against a task/block already assigned to a
+          // staffed shift. Formal hours are consumed first in the ledger.
+          if (formalStaffCoversTask(staffCoverage, slot.task, [slot.block])) continue;
 
           // Physical tasks require physical capability & adult age safeguarding
           if (
@@ -1047,7 +1076,7 @@ export class CareGapEngine {
     const remainingDemandAfterStaff = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours);
     const familySupportAbsorbedHours = Math.round(Math.min(remainingDemandAfterStaff, totalEligibleFamilyHours) * 10) / 10;
     const eligibleFamilyCoveredHours = familySupportAbsorbedHours;
-    const uncreditedFamilyHours = Math.max(0, Math.round((rawFamilyHours - totalEligibleFamilyHours) * 10) / 10);
+    const uncreditedFamilyHours = Math.max(0, Math.round((rawFamilyHours - familySupportAbsorbedHours) * 10) / 10);
 
     // Unified Task Delegation Relief derived strictly from the ledger.
     //
@@ -1057,9 +1086,22 @@ export class CareGapEngine {
     const coverageFor = (task: CareTask): TaskCoverageLevel => {
       const slots = demandSlots.filter((s) => s.task === task && s.demandHours > 0);
       if (slots.length === 0) return 'complete';
-      const fullyCovered = slots.every((s) => s.allocatedHours >= s.demandHours - 0.01);
+      const slotCovered = (slot: TaskBlockDemandSlot) =>
+        formalStaffCoversTask(staffCoverage, slot.task, [slot.block]) || slot.allocatedHours >= slot.demandHours - 0.01;
+      const fullyCovered = slots.every(slotCovered);
       if (fullyCovered) return 'complete';
-      return slots.some((s) => s.allocatedHours > 0) ? 'partial' : 'none';
+      return slots.some((slot) => slotCovered(slot) || slot.allocatedHours > 0) ? 'partial' : 'none';
+    };
+    const coverageFractionFor = (task: CareTask): number => {
+      const slots = demandSlots.filter((slot) => slot.task === task && slot.demandHours > 0);
+      const demand = slots.reduce((sum, slot) => sum + slot.demandHours, 0);
+      if (demand <= 0) return 1;
+      const covered = slots.reduce((sum, slot) => sum + (
+        formalStaffCoversTask(staffCoverage, task, [slot.block])
+          ? slot.demandHours
+          : Math.min(slot.demandHours, slot.allocatedHours)
+      ), 0);
+      return Math.min(1, covered / demand);
     };
 
     //
@@ -1075,19 +1117,19 @@ export class CareGapEngine {
       formalStaffCoversTask(staffCoverage, task, blocksNeedingTask(task));
 
     const transfersCoveredByStaff = staffCovers('heavy_transfers');
-    const transfersCoverage: TaskCoverageLevel = transfersCoveredByStaff ? 'complete' : coverageFor('heavy_transfers');
+    const transfersCoverage: TaskCoverageLevel = coverageFor('heavy_transfers');
     const isTransfersRelieved = transfersCoverage === 'complete';
 
     const bathingCoveredByStaff = staffCovers('bathing');
-    const bathingCoverage: TaskCoverageLevel = bathingCoveredByStaff ? 'complete' : coverageFor('bathing');
+    const bathingCoverage: TaskCoverageLevel = coverageFor('bathing');
     const isBathingRelieved = bathingCoverage === 'complete';
 
     const nightCareCoveredByStaff = staffCovers('night_care');
-    const nightCareCoverage: TaskCoverageLevel = nightCareCoveredByStaff ? 'complete' : coverageFor('night_care');
+    const nightCareCoverage: TaskCoverageLevel = coverageFor('night_care');
     const isNightCareRelieved = nightCareCoverage === 'complete';
 
     const medicationsCoveredByStaff = staffCovers('medications');
-    const medicationsCoverage: TaskCoverageLevel = medicationsCoveredByStaff ? 'complete' : coverageFor('medications');
+    const medicationsCoverage: TaskCoverageLevel = coverageFor('medications');
     const isMedsRelieved = medicationsCoverage === 'complete';
 
     const getSlotCoveredMemberNames = (task: CareTask) => {
@@ -1157,9 +1199,6 @@ export class CareGapEngine {
       }
     }
 
-    // Residual Patient Demand after Formal Staff & Family absorption
-    const residualDemandOnPrimary = Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours - familySupportAbsorbedHours);
-
     // 5. Compute Primary Caregiver Safe Daily Capacity (Hours/Day)
     let capacityHours = safeCaregiver.dailyHoursCommitted;
 
@@ -1185,10 +1224,11 @@ export class CareGapEngine {
 
     // Caregiver's Own Health Reductions with task relief credits
     let healthDeduction = 0;
-    if (safeHealth.hasBackPain) healthDeduction += isTransfersRelieved ? 0.5 : 1.5;
-    if (safeHealth.hasArthritis) healthDeduction += isBathingRelieved ? 0.3 : 1.0;
-    if (safeHealth.hasInsomnia) healthDeduction += isNightCareRelieved ? 0.3 : 1.0;
-    if (safeCaregiver.age >= 65) healthDeduction += 1.5;
+    if (safeHealth.hasBackPain) healthDeduction += 1.5 - coverageFractionFor('heavy_transfers');
+    if (safeHealth.hasArthritis) healthDeduction += 1.0 - 0.7 * coverageFractionFor('bathing');
+    if (safeHealth.hasInsomnia) healthDeduction += 1.0 - 0.7 * coverageFractionFor('night_care');
+    // Avoid charging the same age-related limitation twice for a senior spouse.
+    if (safeCaregiver.age >= 65 && !(safeCaregiver.kinship === 'spouse' && safeCaregiver.age >= 65)) healthDeduction += 1.5;
 
     const caregiverSafeCapacityHours = safeCaregiver.dailyHoursCommitted <= 0
       ? 0
@@ -1201,7 +1241,17 @@ export class CareGapEngine {
     const totalAvailableCapacityHours = Math.round(
       (caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours) * 10
     ) / 10;
-    const netCareGapHours = Math.max(0, Math.round((patientCareDemandHours - totalAvailableCapacityHours) * 10) / 10);
+    const planningCapacityHours = Math.round(
+      (caregiverSafeCapacityHours + rawAbsorbed + familySupportAbsorbedHours) * 10
+    ) / 10;
+    const primaryDeliveredHours = Math.min(
+      Math.max(0, safeCaregiver.dailyHoursCommitted),
+      Math.max(0, patientCareDemandHours - formalSupportAbsorbedHours - familySupportAbsorbedHours)
+    );
+    const caregiverOverloadHours = Math.max(0, Math.round((primaryDeliveredHours - caregiverSafeCapacityHours) * 10) / 10);
+    const unmetCareHours = Math.max(0, Math.round((patientCareDemandHours - formalSupportAbsorbedHours - familySupportAbsorbedHours - primaryDeliveredHours) * 10) / 10);
+    // Deprecated compatibility alias: historical consumers used this as overload.
+    const netCareGapHours = caregiverOverloadHours;
 
     // 6b. Diurnal Per-Block Demand Distribution — ELAPSED COVERAGE
     //
@@ -1261,31 +1311,10 @@ export class CareGapEngine {
       blockSupplies[block].contributors.push(contributor);
     };
 
-    /** Spreads one person's absorbed hours over the blocks they cover, capping each block. */
-    const spreadAcrossBlocks = (blocks: DiurnalTimeBlock[], totalHours: number, contributor: string) => {
-      if (blocks.length === 0 || totalHours <= 0) return;
-      const perBlock = totalHours / blocks.length;
-      blocks.forEach((b) => creditBlock(b, perBlock, contributor));
-    };
-
-    // Formal Staff Supply
-    if (formalSupportAbsorbedHours > 0) {
-      if (safeCaregiver.rotationPolicy?.nightShiftArrangement === 'formal_night_nurse') {
-        const nightPortion = Math.min(blockDemands.night_watch, formalSupportAbsorbedHours * 0.75);
-        const remaining = formalSupportAbsorbedHours - nightPortion;
-        creditBlock('night_watch', nightPortion, 'Formal Night Staff');
-        creditBlock('evening', remaining, 'Formal Night Staff');
-      } else if (staffCoverage.coveredBlocks.size > 0) {
-        // Spread only across the blocks the shifts reach, so staff supply cannot land in a block
-        // nobody is rostered for.
-        const staffBlocks = (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[])
-          .filter((b) => staffCoverage.coveredBlocks.has(b));
-        spreadAcrossBlocks(
-          staffBlocks,
-          formalSupportAbsorbedHours,
-          staffCoverage.coveredBlocks.has('night_watch') ? 'Formal 24h Staff' : 'Formal Day Staff'
-        );
-      }
+    // Block demand is elapsed presence, so a rostered hire supplies the whole
+    // covered block even though workload absorption is productivity-discounted.
+    for (const block of staffCoverage.coveredBlocks) {
+      creditBlock(block, BLOCK_LENGTH_HOURS[block], 'Formal staff');
     }
 
     // Secondary Family Supply — read straight off the ledger. Each credited allocation lands in
@@ -1312,12 +1341,23 @@ export class CareGapEngine {
       }
     }
 
-    // Primary Caregiver Safe Capacity Supply
-    if (caregiverSafeCapacityHours > 0) {
-      const primaryBlocks: DiurnalTimeBlock[] = safeCaregiver.employment === 'full_time'
-        ? ['morning_rush', 'evening', 'night_watch']
-        : ['morning_rush', 'afternoon', 'evening', 'night_watch'];
-      spreadAcrossBlocks(primaryBlocks, caregiverSafeCapacityHours, 'Primary Caregiver');
+    // Primary caregiver supply is presence in their committed windows, not a
+    // workload estimate divided equally across unequal blocks. The form stores
+    // daily commitment without a shift schedule, so only daytime availability
+    // can be inferred; never infer overnight presence from a workload number.
+    if (safeCaregiver.dailyHoursCommitted > 0) {
+      const availableDayBlocks: DiurnalTimeBlock[] = safeCaregiver.employment === 'full_time'
+        ? ['morning_rush', 'evening']
+        : ['morning_rush', 'afternoon', 'evening'];
+      let remainingPresence = Math.min(safeCaregiver.dailyHoursCommitted, 9);
+      for (const block of availableDayBlocks) {
+        const supplied = Math.min(BLOCK_LENGTH_HOURS[block], remainingPresence);
+        creditBlock(block, supplied, 'Primary caregiver (schedule not recorded)');
+        remainingPresence -= supplied;
+      }
+      if (safeCaregiver.coResidence === 'lives_together') {
+        creditBlock('night_watch', BLOCK_LENGTH_HOURS.night_watch, 'Co-resident primary (on-call presence)');
+      }
     }
 
     // Calculate Per-Block Gaps: gap_b = max(0, demand_b - supply_b)
@@ -1351,26 +1391,21 @@ export class CareGapEngine {
       }
     };
 
-    // Calculate The Diurnal Care Gap Index (0-100 non-linear saturating score)
+    // Fraction of weighted presence demand without a rostered person.
     let weightedDeficit = 0;
+    let weightedDemand = 0;
     (['morning_rush', 'afternoon', 'evening', 'night_watch'] as DiurnalTimeBlock[]).forEach((b) => {
       const g = blockGaps[b].gapHours;
-      if (g > 0) {
-        const crit = DIURNAL_BLOCK_CRITICALITY[b] ?? 1.0;
-        weightedDeficit += crit * Math.pow(g, DIURNAL_CONCENTRATION_EXPONENT);
-      }
+      const crit = DIURNAL_BLOCK_CRITICALITY[b] ?? 1.0;
+      weightedDeficit += crit * g;
+      weightedDemand += crit * blockGaps[b].demandHours;
     });
+    const careGapIndex = weightedDemand > 0
+      ? Math.min(100, Math.max(0, Math.round(100 * weightedDeficit / weightedDemand)))
+      : 0;
 
-    const careGapIndex = Math.min(
-      100,
-      Math.max(
-        0,
-        Math.round(100 * (1 - Math.exp(-weightedDeficit / DIURNAL_INDEX_SATURATION_SCALE)))
-      )
-    );
-
-    const primaryAbsorbedHours = Math.min(caregiverSafeCapacityHours, residualDemandOnPrimary);
-    const unmetGapHours = netCareGapHours;
+    const primaryAbsorbedHours = primaryDeliveredHours;
+    const unmetGapHours = unmetCareHours;
 
     const teamAllocations = {
       primaryCaregiverHours: Math.round(primaryAbsorbedHours * 10) / 10,
@@ -1463,13 +1498,12 @@ export class CareGapEngine {
         ? FINANCIAL_STRAIN_MULTIPLIERS.moderate_strain
         : FINANCIAL_STRAIN_MULTIPLIERS.manageable;
 
-    const effectiveGap = netCareGapHours * financialMultiplier;
     const effectiveInjury = caregiverInjuryRiskScore * financialMultiplier;
 
     let caregiverBurnoutRiskLevel: CareGapEvaluationResult['caregiverBurnoutRiskLevel'] = 'low';
-    if (effectiveGap > GAP_CRITICAL_THRESHOLD || effectiveInjury >= INJURY_CRITICAL_THRESHOLD) {
+    if (caregiverOverloadHours > GAP_CRITICAL_THRESHOLD || effectiveInjury >= INJURY_CRITICAL_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'critical';
-    } else if (effectiveGap > GAP_HIGH_THRESHOLD || effectiveInjury >= INJURY_HIGH_THRESHOLD) {
+    } else if (caregiverOverloadHours > GAP_HIGH_THRESHOLD || effectiveInjury >= INJURY_HIGH_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'high';
     } else if (netCareGapHours > 0.0 || caregiverInjuryRiskScore > INJURY_MODERATE_THRESHOLD) {
       caregiverBurnoutRiskLevel = 'moderate';
@@ -1523,25 +1557,38 @@ export class CareGapEngine {
       );
     }
 
-    if (netCareGapHours > 0) {
+    if (unmetCareHours > 0) {
       clinicalFindings.push(
-        `Patient requires ${patientCareDemandHours} hrs/day of direct assistance (Katz ADL: ${katzAdlScore}/6). Net unmet care gap after formal support and caregiver capacity is ${netCareGapHours} hrs/day.`
+        `Estimated active care demand is ${patientCareDemandHours} hrs/day (Katz ADL: ${katzAdlScore}/6). Estimated unassigned care work is ${unmetCareHours} hrs/day; primary caregiver work above the modelled safe limit is ${caregiverOverloadHours} hrs/day.`
       );
-      const prescribedHours = Math.ceil(netCareGapHours + 0.5);
+      const prescribedHours = Math.ceil(unmetCareHours + 0.5);
       prescriptions.push({
         id: 'rx_staffing_respite_prescription',
         title: 'Draft Respite & Staffing Option for Clinician Review',
-        action: `Consider ${prescribedHours} hours/day of trained attendant or caregiver support to address the estimated unmet care gap of ${netCareGapHours} hours/day. Focus this shift on high-physical-load care activities such as transfers, sponge bathing, or toilet hygiene.`,
+        action: `Consider ${prescribedHours} hours/day of trained attendant or caregiver support to address the estimated unassigned care work of ${unmetCareHours} hours/day. Focus this shift on high-physical-load care activities such as transfers, sponge bathing, or toilet hygiene.`,
         impact: 'May reduce unmet care demand and caregiver strain; final staffing should be individualized by the clinical team and family.',
-        urgency: netCareGapHours >= 4.0 ? 'urgent' : netCareGapHours >= 2.0 ? 'priority' : 'routine'
+        urgency: unmetCareHours >= 4.0 ? 'urgent' : unmetCareHours >= 2.0 ? 'priority' : 'routine'
       });
     } else {
-      const totalCoveredCapacity = Math.round(
-        (caregiverSafeCapacityHours + formalSupportAbsorbedHours + familySupportAbsorbedHours) * 10
+      const totalDeliveredHours = Math.round(
+        (primaryDeliveredHours + formalSupportAbsorbedHours + familySupportAbsorbedHours) * 10
       ) / 10;
       clinicalFindings.push(
-        `Combined family capacity and formal care support (${totalCoveredCapacity} hrs/day) successfully covers patient care demand (${patientCareDemandHours} hrs/day).`
+        `Assigned care hours (${totalDeliveredHours} hrs/day) meet the point estimate (${patientCareDemandHours} hrs/day); the demand range remains ${careDemandBand.activeCare.lowHours}–${careDemandBand.activeCare.highHours} hrs/day and does not establish certain coverage.`
       );
+    }
+
+    if (caregiverOverloadHours > 0 && unmetCareHours === 0) {
+      clinicalFindings.push(
+        `No care work is unassigned at the point estimate, but the primary caregiver is estimated to deliver ${caregiverOverloadHours} hrs/day above the modelled safe limit.`
+      );
+      prescriptions.push({
+        id: 'rx_overload_respite_review',
+        title: 'Clinician Review: Primary Caregiver Workload',
+        action: `Review whether approximately ${caregiverOverloadHours} hours/day of primary caregiver work can be reassigned or supported to reduce work above the modelled safe limit. Confirm actual task timing, caregiver preference, and available help before changing the care plan.`,
+        impact: 'May reduce primary caregiver overload while maintaining assigned patient care.',
+        urgency: caregiverOverloadHours >= 4 ? 'urgent' : caregiverOverloadHours >= 2 ? 'priority' : 'routine'
+      });
     }
 
     // Assistive Equipment Prescriptions
@@ -1660,14 +1707,17 @@ export class CareGapEngine {
       patientCoverageHours: careDemandBand.coverage.pointHours,
       careGapClassification: classifyAgainstCapacity(
         careDemandBand.activeCare,
-        totalAvailableCapacityHours
+        planningCapacityHours
       ),
       patientCareDemandHours,
       caregiverSafeCapacityHours,
       formalSupportAbsorbedHours,
       familySupportAbsorbedHours,
       totalAvailableCapacityHours,
+      planningCapacityHours,
       netCareGapHours,
+      unmetCareHours,
+      caregiverOverloadHours,
       teamAllocations,
       taskDelegationStatus,
       allocationLedger,

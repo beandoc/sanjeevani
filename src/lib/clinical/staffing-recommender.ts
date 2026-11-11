@@ -52,6 +52,8 @@ export interface SimulatedStaffingOption {
   resolvedTasks: string[];
   simulatedResult: {
     netCareGapHours: number;
+    unmetCareHours: number;
+    caregiverOverloadHours: number;
     /**
      * Active-care hours this option's staff would actually absorb — not the
      * shift length. A 12-hour shift does not absorb 12 hours of work: part is
@@ -61,8 +63,8 @@ export interface SimulatedStaffingOption {
      */
     formalSupportAbsorbedHours: number;
     careGapIndex: number;
-    liftingIndex: number;
-    spinalCompressionKN: number;
+    liftingIndex: null;
+    spinalCompressionKN: null;
     caregiverInjuryRiskScore: number;
     caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
     manualHandlingHazardTier: 'low' | 'moderate' | 'high' | 'severe';
@@ -485,7 +487,11 @@ export class StaffingRecommender {
       const unresolvedMorningGap = sim.blockGaps.morning_rush.gapHours > 0 ? CLINICAL_POLICY.staffingRanking.unresolvedMorningGap : 0;
       const safetyPenalty = unresolvedNightGap + unresolvedMorningGap;
 
-      const gapPenalty = sim.netCareGapHours * CLINICAL_POLICY.staffingRanking.residualGapPerHour;
+      const safetyDemand = CLINICAL_POLICY.staffingRanking.bandEdgeForSafetyCoverage === 'high'
+        ? sim.careDemandBand.activeCare.highHours
+        : sim.careDemandBand.activeCare.pointHours;
+      const safetyShortfall = Math.max(0, safetyDemand - sim.planningCapacityHours);
+      const gapPenalty = (safetyShortfall + sim.caregiverOverloadHours) * CLINICAL_POLICY.staffingRanking.residualGapPerHour;
       const ergonomicPenalty = CLINICAL_POLICY.staffingRanking.manualHandlingHazardTier[sim.manualHandlingHazardTier] ?? 0;
       const costPenalty = cand.costTierRank * CLINICAL_POLICY.staffingRanking.costTier;
 
@@ -495,6 +501,8 @@ export class StaffingRecommender {
         ...cand,
         simulatedResult: {
           netCareGapHours: sim.netCareGapHours,
+          unmetCareHours: sim.unmetCareHours,
+          caregiverOverloadHours: sim.caregiverOverloadHours,
           formalSupportAbsorbedHours: sim.formalSupportAbsorbedHours,
           careGapIndex: sim.careGapIndex,
           liftingIndex: sim.liftingIndex,
@@ -538,8 +546,10 @@ export class StaffingRecommender {
         const bn = coversNightWindow(b) ? 0 : 1;
         if (an !== bn) return an - bn;
       }
-      if (a.simulatedResult.netCareGapHours !== b.simulatedResult.netCareGapHours) {
-        return a.simulatedResult.netCareGapHours - b.simulatedResult.netCareGapHours;
+      const aGap = a.simulatedResult.unmetCareHours + a.simulatedResult.caregiverOverloadHours;
+      const bGap = b.simulatedResult.unmetCareHours + b.simulatedResult.caregiverOverloadHours;
+      if (aGap !== bGap) {
+        return aGap - bGap;
       }
       const hz = HAZARD_ORDER[a.simulatedResult.manualHandlingHazardTier] - HAZARD_ORDER[b.simulatedResult.manualHandlingHazardTier];
       if (hz !== 0) return hz;

@@ -207,7 +207,7 @@ export default function FamilyViewPage() {
                   <div className="text-lg font-black text-white mt-1">
                     {evaluation
                       ? evaluation.careGapClassification === 'deficit'
-                        ? `${evaluation.netCareGapHours}h short`
+                        ? `${evaluation.unmetCareHours}h unassigned`
                         : evaluation.careGapClassification === 'indeterminate'
                           ? 'Needs review'
                           : 'Covered'
@@ -353,10 +353,10 @@ export default function FamilyViewPage() {
                     </span>
                   </div>
                   <div className="p-2 rounded-xl bg-muted/30 border border-border/60">
-                    <span className="text-[10px] text-muted-foreground block">Net Gap</span>
+                    <span className="text-[10px] text-muted-foreground block">Unassigned Work</span>
                     <CareGapVerdict
                       classification={evaluation.careGapClassification}
-                      gapHours={evaluation.netCareGapHours}
+                      gapHours={evaluation.unmetCareHours}
                       className="text-[11px]"
                     />
                   </div>

@@ -59,6 +59,7 @@ export function resolveSupportTypes(
   formalSupport: FormalSupport | null | undefined
 ): FormalSupportType[] {
   if (!formalSupport) return [];
+  if (formalSupport.staff?.length) return [...new Set(formalSupport.staff.map((hire) => hire.type).filter((type) => type !== 'none'))];
   const fromArray = (formalSupport.types || []).filter((t) => t && t !== 'none');
   if (fromArray.length > 0) return fromArray;
   if (formalSupport.type && formalSupport.type !== 'none') return [formalSupport.type];
@@ -171,6 +172,7 @@ const TYPE_CAPABILITIES: Record<FormalSupportType, readonly CareTask[]> = {
 export interface FormalStaffCoverage {
   /** Hires with a positive scheduled shift. A hire with no hours is not a hire. */
   activeTypes: FormalSupportType[];
+  activeStaff: Array<{ id: string; type: FormalSupportType; hoursPerDay: number; coveredBlocks: Set<DiurnalTimeBlock> }>;
   /** Effective shift length per active hire, clamped to that type's own shift. */
   scheduledHoursByType: Partial<Record<FormalSupportType, number>>;
   /** Total scheduled staff hours across the team. */
@@ -214,38 +216,44 @@ export function resolveFormalStaffCoverage(
 
   const scheduledHoursByType: Partial<Record<FormalSupportType, number>> = {};
   const activeTypes: FormalSupportType[] = [];
+  const activeStaff: FormalStaffCoverage['activeStaff'] = [];
   let totalScheduledHours = 0;
+  const configuredStaff = formalSupport?.staff?.length
+    ? formalSupport.staff
+    : selected.map((type) => ({ id: type, type, hoursPerDay: 0 }));
+  const totalNominal = configuredStaff.reduce((sum, hire) => sum + (NOMINAL_SHIFT_HOURS[hire.type] ?? 0), 0);
+  let remainingLegacyHours = Math.max(0, hasConfigured ? configured! : totalNominal);
 
-  for (const type of selected) {
+  for (const hire of configuredStaff) {
+    const type = hire.type;
     const shiftLength = NOMINAL_SHIFT_HOURS[type] ?? 0;
-    // Clamped to the type's own shift length: a 12h hire cannot be stretched to
-    // 20 by typing a larger number. Spreading one figure across several hires is
-    // the ambiguity flagged below, not a licence to multiply it.
-    const hours = hasConfigured ? Math.min(shiftLength, Math.max(0, configured)) : shiftLength;
+    // Legacy hoursPerDay is the total team budget, allocated in selection
+    // order. Explicit per-hire entries take precedence and can repeat a type.
+    const hours = formalSupport?.staff?.length
+      ? Math.min(shiftLength, Math.max(0, hire.hoursPerDay))
+      : Math.min(shiftLength, remainingLegacyHours);
+    if (!formalSupport?.staff?.length) remainingLegacyHours -= hours;
     if (hours <= 0) continue;
-    scheduledHoursByType[type] = hours;
-    activeTypes.push(type);
+    scheduledHoursByType[type] = (scheduledHoursByType[type] ?? 0) + hours;
+    if (!activeTypes.includes(type)) activeTypes.push(type);
     totalScheduledHours += hours;
+    const hireBlocks = new Set<DiurnalTimeBlock>();
+    let remaining = hours;
+    for (const block of FORMAL_DAY_BLOCK_SEQUENCE) {
+      if (remaining < DIURNAL_BLOCK_HOURS[block]) break;
+      hireBlocks.add(block);
+      remaining -= DIURNAL_BLOCK_HOURS[block];
+    }
+    if (shiftLength >= 24 && remaining >= DIURNAL_BLOCK_HOURS.night_watch) hireBlocks.add('night_watch');
+    activeStaff.push({ id: hire.id, type, hoursPerDay: hours, coveredBlocks: hireBlocks });
   }
 
   const capableTasks = new Set<CareTask>();
   const coveredBlocks = new Set<DiurnalTimeBlock>();
 
-  for (const type of activeTypes) {
-    for (const task of TYPE_CAPABILITIES[type]) capableTasks.add(task);
-
-    let remaining = scheduledHoursByType[type] ?? 0;
-    for (const block of FORMAL_DAY_BLOCK_SEQUENCE) {
-      if (remaining < DIURNAL_BLOCK_HOURS[block]) break;
-      coveredBlocks.add(block);
-      remaining -= DIURNAL_BLOCK_HOURS[block];
-    }
-    // The night watch belongs to a round-the-clock hire with the hours to prove
-    // it — never to a 24h label whose shift was shortened to a day.
-    const isRoundTheClock = (NOMINAL_SHIFT_HOURS[type] ?? 0) >= 24;
-    if (isRoundTheClock && remaining >= DIURNAL_BLOCK_HOURS.night_watch) {
-      coveredBlocks.add('night_watch');
-    }
+  for (const hire of activeStaff) {
+    for (const task of TYPE_CAPABILITIES[hire.type]) capableTasks.add(task);
+    for (const block of hire.coveredBlocks) coveredBlocks.add(block);
   }
 
   // The clinician's explicit scope toggles override the type defaults. The
@@ -261,11 +269,12 @@ export function resolveFormalStaffCoverage(
 
   return {
     activeTypes,
+    activeStaff,
     scheduledHoursByType,
     totalScheduledHours,
     capableTasks,
     coveredBlocks,
-    hoursAttributionIsAmbiguous: hasConfigured && activeTypes.length > 1
+    hoursAttributionIsAmbiguous: !formalSupport?.staff?.length && hasConfigured && activeTypes.length > 1
   };
 }
 
@@ -281,5 +290,7 @@ export function formalStaffCoversTask(
 ): boolean {
   if (!coverage.capableTasks.has(task)) return false;
   if (demandBlocks.length === 0) return true;
-  return demandBlocks.every((block) => coverage.coveredBlocks.has(block));
+  return demandBlocks.every((block) => coverage.activeStaff.some((hire) =>
+    TYPE_CAPABILITIES[hire.type].includes(task) && hire.coveredBlocks.has(block)
+  ));
 }

@@ -15,6 +15,18 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.uid in circleData.memberUids);
     }
 
+    function hasCareCircleLink(userId) {
+      return isAuthenticated()
+          && exists(/databases/$(database)/documents/users/$(userId)/careCircle/current)
+          && request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/careCircle/current).data.get('memberUids', []);
+    }
+
+    function hasAttendanceCaregiverLink(userId) {
+      return isAuthenticated()
+          && exists(/databases/$(database)/documents/users/$(userId)/careCircle/current)
+          && request.auth.uid in get(/databases/$(database)/documents/users/$(userId)/careCircle/current).data.get('caregiverUids', []);
+    }
+
     // A pre-claim dyad pseudo-account (`dyad_{inviteCode}`) created by
     // createDyadInvite before the caregiver has signed up. Its only content
     // is what the issuing doctor entered, gated behind an unguessable invite
@@ -361,12 +373,45 @@ service cloud.firestore {
       // at all, so a home nurse or family member's task assignments were
       // invisible to the doctor and to any other device.
       match /careCircle/{docId} {
-        allow read: if isOwner(userId) || hasActiveGrant(userId);
+        allow read: if isOwner(userId) || hasActiveGrant(userId) || hasCareCircleLink(userId);
         allow create, update: if (isOwner(userId) || hasActiveGrant(userId))
                               && request.resource.data.members is list
                               && request.resource.data.tasks is list
                               && request.resource.data.updatedAt is string;
         allow delete: if isOwner(userId);
+      }
+
+      // Explicitly consented home point and caregiver attendance. Family access is
+      // granted only to account UIDs listed by the dyad owner in careCircle/current.
+      // Punch events are immutable; only the current status document is updated.
+      match /homeLocation/{docId} {
+        allow read: if isOwner(userId) || hasCareCircleLink(userId) || hasAttendanceCaregiverLink(userId) || hasActiveGrant(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.latitude is number
+          && request.resource.data.longitude is number
+          && request.resource.data.radiusMeters is number
+          && request.resource.data.radiusMeters >= 50
+          && request.resource.data.radiusMeters <= 500;
+        allow delete: if isOwner(userId);
+      }
+
+      match /caregiverAttendance/{docId} {
+        allow read: if isOwner(userId) || hasCareCircleLink(userId) || hasAttendanceCaregiverLink(userId) || hasActiveGrant(userId);
+        allow create, update: if (isOwner(userId) || hasAttendanceCaregiverLink(userId))
+          && request.resource.data.caregiverUid == request.auth.uid
+          && request.resource.data.status in ['off_duty', 'at_home', 'temporarily_away'];
+        allow delete: if false;
+
+        match /events/{eventId} {
+          allow read: if isOwner(userId) || hasCareCircleLink(userId) || hasAttendanceCaregiverLink(userId) || hasActiveGrant(userId);
+          allow create: if (isOwner(userId) || hasAttendanceCaregiverLink(userId))
+            && request.resource.data.caregiverUid == request.auth.uid
+            && request.resource.data.type in ['arrived', 'left_temporarily', 'returned', 'departed']
+            && request.resource.data.distanceMeters is number
+            && request.resource.data.accuracyMeters is number
+            && request.resource.data.serverRecordedAt == request.time;
+          allow update, delete: if false;
+        }
       }
 
       // Subcollection: Bedside nursing procedure checklists (one document per

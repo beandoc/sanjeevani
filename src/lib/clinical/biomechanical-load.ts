@@ -1,23 +1,11 @@
 /**
  * Sanjeevani Clinical Biomechanical Load & Ergonomic Constraint Engine
  * 
- * Replaces static/ad-hoc injury scoring with physics-based, dyadic event modeling
- * anchored on:
- * 1. NIOSH Revised Lifting Equation (RNLE) (Waters et al., Ergonomics 1993).
- * 2. Movement and Assistance of Hospital Patients (MAPO) index (Battevi et al., Ergonomics 2006).
- * 
- * Models each manual patient transfer event (bed-to-chair, turning, commode, sit-to-stand)
- * from patient mass, transfer geometry, caregiver constraints (age, lumbar pathology,
- * arthritis, nocturnal micro-sleep interruptions), and equipment modifier terms.
+ * Qualitative patient-handling hazard and caregiver workload screen.
+ * No NIOSH lifting index or spinal compression force is estimated for a person.
  */
 
-import {
-  NIOSH_RNLE_LOAD_CONSTANT_KG,
-  NIOSH_SPINAL_COMPRESSION_ACTION_LIMIT_KN,
-  NIOSH_SPINAL_COMPRESSION_MAX_LIMIT_KN,
-  MAPO_PATIENT_HANDLING_PARAMS,
-  INJURY_INDEX_BASELINE
-} from './care-gap-constants';
+import { INJURY_INDEX_BASELINE } from './care-gap-constants';
 import type {
   CaregiverAttributes,
   PatientDependenceProfile,
@@ -36,17 +24,17 @@ export interface BiomechanicalAssessmentInput {
 }
 
 export interface BiomechanicalAssessmentResult {
-  /** NIOSH Lifting Index (LI = Actual Load / Recommended Weight Limit). >1.0 indicates elevated musculoskeletal hazard. */
-  liftingIndex: number;
-  /** Estimated peak L5/S1 spinal compressive force in kiloNewtons (NIOSH action limit: 3.4 kN). */
-  spinalCompressionKN: number;
+  /** Deprecated: patient handling is outside the RNLE scope. */
+  liftingIndex: null;
+  /** Deprecated: no validated spinal compression estimate is available. */
+  spinalCompressionKN: null;
   /** Estimated total manual patient handling transfer & repositioning events per 24h. */
   dailyTransferCount: number;
   /** Estimated nocturnal sleep fragmentation events per night due to caregiving & insomnia. */
   nocturnalSleepInterruptions: number;
   /** Standardized Biomechanical Lumbar Strain Index (0–100) mapped monotonically for dashboard compatibility. */
   caregiverInjuryRiskScore: number;
-  /** Clinical Risk Tier based on RNLE / MAPO index thresholds. */
+  /** Qualitative operational hazard tier. */
   caregiverInjuryRiskCategory: 'low' | 'moderate' | 'high' | 'severe';
   /** Qualitative manual-handling hazard tier for bounded planning without spurious precision. */
   manualHandlingHazardTier: 'low' | 'moderate' | 'high' | 'severe';
@@ -113,9 +101,6 @@ export function calculateBiomechanicalLoad(
   }
 
   // If transfers are relieved by staff or capable family members, caregiver's solo events drop
-  const caregiverSoloTransfers = isTransfersRelievedByStaffOrFamily
-    ? Math.max(0, Math.round(dailyTransferCount * 0.2))
-    : dailyTransferCount;
 
   // 2. Calculate Nocturnal Sleep Interruptions
   // Sourced from hasInsomnia + nocturnal turning/toileting caregiving events
@@ -136,81 +121,8 @@ export function calculateBiomechanicalLoad(
   }
   nocturnalSleepInterruptions = Math.round(nocturnalSleepInterruptions * 10) / 10;
 
-  // 3. Compute NIOSH RNLE Multipliers & Recommended Weight Limit (RWL)
-  // Base LC = 23 kg
-  const LC = NIOSH_RNLE_LOAD_CONSTANT_KG;
-  const HM = 0.75; // Standard reach distance (~33 cm from body)
-
-  // Vertical Multiplier (VM): Motorized bed adjusts to optimal waist height (75 cm)
-  let VM: number = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.standardLowBedVM;
-  if (safeDevices.hospitalBed === 'motorized_multichannel') {
-    VM = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.motorizedBedVM;
-    ergonomicMechanisms.push('Motorized profiling bed adjusts origin to waist height (RNLE Vertical Multiplier: 0.95 vs 0.78).');
-  } else if (safeDevices.hospitalBed === 'manual_adjustable') {
-    VM = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.manualAdjustableBedVM;
-    ergonomicMechanisms.push('Manual adjustable bed reduces vertical trunk flexion (RNLE VM: 0.88).');
-  }
-
-  // Asymmetry Multiplier (AM) & Coupling Multiplier (CM): Transfer aids eliminate trunk rotation
-  let AM: number = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.standardManualLiftAM;
-  let CM: number = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.standardManualLiftCM;
-  if (safeDevices.transferAids) {
-    AM = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.transferAidsAM;
-    CM = MAPO_PATIENT_HANDLING_PARAMS.equipmentModifiers.transferAidsCM;
-    ergonomicMechanisms.push('Swivel pivot disc & gait belt eliminate spinal twisting torque and optimize grip coupling (AM=1.0, CM=1.0).');
-  }
-
-  const DM = 0.85; // Standard vertical displacement (~50 cm lift)
-  // Frequency Multiplier (FM) derived from daily transfer count
-  const liftsPerHour = caregiverSoloTransfers / 16.0; // Over 16h waking day
-  const FM = Math.max(0.45, Math.min(1.0, 1.0 - liftsPerHour * 0.12));
-
-  const RWL = LC * HM * VM * DM * AM * FM * CM;
-
-  // 4. Actual Patient Load Handled per Transfer Event
-  // MAPO effective mass fraction for bed-to-chair transfer is 60% of patient weight
-  let effectiveLiftFraction: number = MAPO_PATIENT_HANDLING_PARAMS.effectiveTransferMassFractions.bedToChair;
-  if (patient.isBedBound && !patient.katzAdl.transferring) {
-    effectiveLiftFraction = 0.50;
-  }
-  if (isHighBmi) {
-    effectiveLiftFraction += 0.05; // Extra inertial bulk resistance
-  }
-
-  // Actual load in kg handled during primary lift
-  const actualLoadKg = patientWeightKg * effectiveLiftFraction;
-
-  // 5. NIOSH Lifting Index (LI)
-  // If no transfers needed (fully independent), LI is nominal 0.2
-  let liftingIndex = dailyTransferCount === 0
-    ? 0.2
-    : Math.round((actualLoadKg / RWL) * 100) / 100;
-
-  if (isTransfersRelievedByStaffOrFamily) {
-    liftingIndex = Math.round(liftingIndex * 0.4 * 100) / 100; // 60% load reduction from shared handling
-  }
-
-  // NOTE: a `caregiverTolerance` multiplicative factor (age, back pain,
-  // arthritis, sleep-interruption discounts via MAPO_PATIENT_HANDLING_PARAMS
-  // .caregiverToleranceFactors) was computed here but never applied to any
-  // downstream value — removed as dead code during a lint cleanup rather than
-  // guessed into strainScore below, which already applies flat point
-  // penalties for the same four factors (age >= 60, hasBackPain, hasArthritis
-  // via the transferring/bathing branches, nocturnalSleepInterruptions). If
-  // the multiplicative model was the intended one instead of (or in addition
-  // to) those additive penalties, that's a clinical-logic decision for
-  // someone who owns this scoring model, not a lint fix.
-
-  // Estimate L5/S1 spinal compression force in kN (Chaffin & Andersson 1991, Waters 1993):
-  // Upper body torso baseline compression ~1.2 kN.
-  // Dynamic load moment: (Load * g * moment_arm_0.35m) / (erector_spinae_lever_arm_0.05m * 1000)
-  const muscleLeverArmM = 0.05; // 5 cm erector spinae lever arm
-  const horizontalMomentArmM = 0.35; // 35 cm horizontal distance from L5/S1
-  const loadForceKN = (actualLoadKg * 9.81 * horizontalMomentArmM) / (muscleLeverArmM * 1000);
-  let spinalCompressionKN = Math.round((1.2 + loadForceKN / (AM * VM)) * 10) / 10;
-  if (isTransfersRelievedByStaffOrFamily) {
-    spinalCompressionKN = Math.round((1.2 + (loadForceKN * 0.35) / (AM * VM)) * 10) / 10;
-  }
+  if (safeDevices.hospitalBed !== 'none') ergonomicMechanisms.push('Adjustable bed is available for handling review.');
+  if (safeDevices.transferAids) ergonomicMechanisms.push('Transfer aids are available; safe technique requires individual assessment.');
 
   // 7. Calculate Standardized 0-100 Biomechanical Lumbar Strain Score
   let strainScore = INJURY_INDEX_BASELINE;
@@ -243,15 +155,8 @@ export function calculateBiomechanicalLoad(
     strainScore += isTransfersRelievedByStaffOrFamily ? 3 : 10;
   }
 
-  if (nocturnalSleepInterruptions >= 3.0) {
-    strainScore += 10;
-  }
-
-  if (netCareGapHours > 3.0) {
-    strainScore += 10;
-  }
-
-  // Apply device discounts to the final strain tally
+  // Equipment can affect handling exposure; it cannot erase insomnia or
+  // unassigned work. Apply the heuristic adjustment only to handling points.
   let discountPct = 0;
   if (safeDevices.hospitalBed === 'motorized_multichannel') discountPct += 25;
   else if (safeDevices.hospitalBed === 'manual_adjustable') discountPct += 15;
@@ -260,31 +165,28 @@ export function calculateBiomechanicalLoad(
   if (safeDevices.airWaterMattress) discountPct += 10;
   discountPct = Math.min(50, discountPct);
 
-  if (discountPct > 0) {
-    strainScore = Math.max(10, Math.round(strainScore * (1 - discountPct / 100)));
-  }
+  if (discountPct > 0) strainScore = INJURY_INDEX_BASELINE + Math.round((strainScore - INJURY_INDEX_BASELINE) * (1 - discountPct / 100));
+  if (nocturnalSleepInterruptions >= 3.0) strainScore += 10;
+  if (netCareGapHours > 3.0) strainScore += 10;
 
   const caregiverInjuryRiskScore = Math.min(100, Math.max(10, strainScore));
 
-  // Risk categorization based on Lifting Index and Spinal Compression
+  // Operational category uses task exposure and caregiver limitations only.
   let caregiverInjuryRiskCategory: BiomechanicalAssessmentResult['caregiverInjuryRiskCategory'] = 'low';
-  if (liftingIndex >= 3.0 || spinalCompressionKN >= NIOSH_SPINAL_COMPRESSION_MAX_LIMIT_KN || caregiverInjuryRiskScore >= 75) {
+  if (caregiverInjuryRiskScore >= 75) {
     caregiverInjuryRiskCategory = 'severe';
-  } else if (liftingIndex >= 2.0 || spinalCompressionKN >= NIOSH_SPINAL_COMPRESSION_ACTION_LIMIT_KN || caregiverInjuryRiskScore >= 55) {
+  } else if (caregiverInjuryRiskScore >= 55) {
     caregiverInjuryRiskCategory = 'high';
-  } else if (liftingIndex >= 1.0 || caregiverInjuryRiskScore >= 30) {
+  } else if (caregiverInjuryRiskScore >= 30) {
     caregiverInjuryRiskCategory = 'moderate';
   }
 
   const manualHandlingHazardTier = caregiverInjuryRiskCategory;
-  const isSafetyLimitExceeded = liftingIndex > 1.0 || spinalCompressionKN > NIOSH_SPINAL_COMPRESSION_ACTION_LIMIT_KN;
+  const isSafetyLimitExceeded = caregiverInjuryRiskCategory === 'high' || caregiverInjuryRiskCategory === 'severe';
 
-  // CDC RNLE / NIOSH Patient Handling Scope Disclaimer:
-  // The Revised NIOSH Lifting Equation was principally developed for two-handed manual lifting of stable,
-  // inanimate objects. NIOSH explicitly excluded general patient-handling tasks because patients are variable,
-  // non-rigid, and may move unpredictably. Calculated values are qualitative indicators, not exact bio-physics.
+  // Patient handling requires an individual safe handling assessment.
   ergonomicMechanisms.push(
-    'CDC/NIOSH Scope Note: The NIOSH RNLE was developed for inanimate objects; human patient transfers involve unpredictable biomechanics. Quantitative values represent bounded planning heuristics.'
+    'Patient handling is outside the NIOSH lifting equation scope; review technique and equipment with PT/OT or a safe patient handling specialist.'
   );
 
   const requiresClinicalPtOtReferral = !patient.katzAdl.transferring || patient.isBedBound || manualHandlingHazardTier === 'high' || manualHandlingHazardTier === 'severe';
@@ -293,8 +195,8 @@ export function calculateBiomechanicalLoad(
     : undefined;
 
   return {
-    liftingIndex,
-    spinalCompressionKN,
+    liftingIndex: null,
+    spinalCompressionKN: null,
     dailyTransferCount,
     nocturnalSleepInterruptions,
     caregiverInjuryRiskScore,

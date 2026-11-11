@@ -966,7 +966,7 @@ ${clinicalReviewHeader}
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Patient:* ${patientDisplayName}
 🤝 *Primary Caregiver:* ${caregiverDisplayName}
-📊 *Care Demand:* ${evaluation.patientCareDemandHours}h/day | *Care Gap:* ${evaluation.netCareGapHours > 0 ? `${evaluation.netCareGapHours}h Deficit ⚠️` : '0h (Fully Covered ✅)'}
+📊 *Care Demand:* ${evaluation.patientCareDemandHours}h/day | *Unassigned work:* ${evaluation.unmetCareHours}h/day | *Primary above safe-limit estimate:* ${evaluation.caregiverOverloadHours}h/day
 🩺 *Manual Handling Hazard:* ${hazardTier} HAZARD${ptOtNote}
 📈 *Estimated Capacity Strain:* ${strainTier} (Operational Schedule Model)
 

@@ -76,7 +76,7 @@ export default function PrivacyPolicyPage() {
             2. Emergency Features & Geolocation Permissions
           </h2>
           <p>
-            The Emergency SOS and National Helpline features utilize the browser Geolocation API strictly on user demand to assist the caregiver in identifying nearby clinics or sharing coordinates during an acute medical crisis. Location coordinates are never persisted on remote servers.
+            Emergency SOS and National Helpline use browser location only when requested. Caregiver Attendance also requests a one-time location reading when a caregiver saves the home point or records a punch. With the caregiver&apos;s consent, the home point and attendance time, geofence distance, and accuracy are saved to the patient&apos;s account and shared only with explicitly linked Care Circle accounts and authorized clinicians. Punch-time coordinates are not retained and location is not tracked between punches. Access can be revoked by the account owner.
           </p>
         </section>
 

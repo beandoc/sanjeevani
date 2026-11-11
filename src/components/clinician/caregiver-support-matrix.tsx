@@ -72,6 +72,7 @@ import {
   formatBand
 } from '@/components/clinical/care-demand-band';
 import { CLINICAL_PROVENANCE } from '@/lib/clinical/provenance';
+import { HealthRepository, type CaregiverDiaryCalibrationReport } from '@/lib/db/health-repository';
 
 interface CaregiverSupportMatrixProps {
   patientUid: string;
@@ -182,6 +183,10 @@ export function CaregiverSupportMatrix({
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [diaryCalibration, setDiaryCalibration] = useState<CaregiverDiaryCalibrationReport | undefined>();
+  useEffect(() => {
+    if (patientUid) setDiaryCalibration(HealthRepository.getCaregiverDiaryCalibrationSummary(patientUid));
+  }, [patientUid, open]);
 
   // Sharing & Export Dialog States (the dialogs themselves live in ConsentedExportDialogs)
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
@@ -274,6 +279,16 @@ export function CaregiverSupportMatrix({
     () => resolveSupportTypes(caregiver?.formalSupport)
   );
   const [supportHours, setSupportHours] = useState(caregiver?.formalSupport?.hoursPerDay || 0);
+  const [supportStaffHours, setSupportStaffHours] = useState<Record<string, number>>(() => {
+    const support = caregiver?.formalSupport;
+    if (support?.staff?.length) return Object.fromEntries(support.staff.map((hire) => [hire.type, hire.hoursPerDay]));
+    let remaining = Math.max(0, support?.hoursPerDay ?? 0);
+    return Object.fromEntries(resolveSupportTypes(support).map((type) => {
+      const hours = Math.min(buildFormalSupport([type]).hoursPerDay, remaining);
+      remaining -= hours;
+      return [type, hours];
+    }));
+  });
   const [handlesTransfers, setHandlesTransfers] = useState(caregiver?.formalSupport?.handlesHeavyTransfers || false);
   const [handlesMeds, setHandlesMeds] = useState(caregiver?.formalSupport?.handlesMedicationWoundCare || false);
 
@@ -331,9 +346,9 @@ export function CaregiverSupportMatrix({
   const currentPatient: PatientDependenceProfile = useMemo(
     () =>
       patient
-        ? { ...patient, assistiveDevices: patient.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES }
+        ? { ...patient, diaryCalibration, assistiveDevices: patient.assistiveDevices || DEFAULT_ASSISTIVE_DEVICES }
         : PLACEHOLDER_PATIENT,
-    [patient]
+    [patient, diaryCalibration]
   );
 
   const currentEval = useMemo(
@@ -425,6 +440,13 @@ export function CaregiverSupportMatrix({
       // hours and scope toggles below are the clinician's overrides on top of the type defaults.
       ...buildFormalSupport(supportTypes),
       hoursPerDay: Number(supportHours) || 0,
+      staff: supportTypes.map((type) => ({
+        id: type,
+        type,
+        hoursPerDay: supportTypes.length === 1
+          ? Number(supportHours) || 0
+          : Number(supportStaffHours[type]) || 0
+      })),
       handlesHeavyTransfers: handlesTransfers,
       handlesMedicationWoundCare: handlesMeds
     }
@@ -479,6 +501,7 @@ export function CaregiverSupportMatrix({
       notes,
       supportTypes,
       supportHours,
+      supportStaffHours,
       handlesTransfers,
       handlesMeds,
       hospitalBed,
@@ -532,6 +555,16 @@ export function CaregiverSupportMatrix({
 
     setSupportTypes(resolveSupportTypes(cg?.formalSupport));
     setSupportHours(cg?.formalSupport?.hoursPerDay ?? 0);
+    if (cg?.formalSupport?.staff?.length) {
+      setSupportStaffHours(Object.fromEntries(cg.formalSupport.staff.map((hire) => [hire.type, hire.hoursPerDay])));
+    } else {
+      let remaining = Math.max(0, cg?.formalSupport?.hoursPerDay ?? 0);
+      setSupportStaffHours(Object.fromEntries(resolveSupportTypes(cg?.formalSupport).map((type) => {
+        const hours = Math.min(buildFormalSupport([type]).hoursPerDay, remaining);
+        remaining -= hours;
+        return [type, hours];
+      })));
+    }
     setHandlesTransfers(cg?.formalSupport?.handlesHeavyTransfers ?? false);
     setHandlesMeds(cg?.formalSupport?.handlesMedicationWoundCare ?? false);
 
@@ -570,7 +603,12 @@ export function CaregiverSupportMatrix({
     // Keep the derived hours and scope in step with the selection, so the clinician sees a
     // self-consistent team without having to re-enter the defaults by hand.
     const derived = buildFormalSupport(next);
-    setSupportHours(derived.hoursPerDay);
+    const nextStaffHours = Object.fromEntries(next.map((selectedType) => [
+      selectedType,
+      supportStaffHours[selectedType] ?? buildFormalSupport([selectedType]).hoursPerDay
+    ]));
+    setSupportStaffHours(nextStaffHours);
+    setSupportHours(Object.values(nextStaffHours).reduce((sum, hours) => sum + hours, 0));
     setHandlesTransfers(derived.handlesHeavyTransfers);
     setHandlesMeds(derived.handlesMedicationWoundCare);
   };
@@ -960,24 +998,30 @@ export function CaregiverSupportMatrix({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2 text-center min-[420px]:grid-cols-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-2 text-center min-[420px]:grid-cols-2 sm:grid-cols-5">
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Active Care Demand</span>
                         <CareDemandBandValue estimate={simulatedEval.careDemandBand.activeCare} className="text-sm text-foreground" />
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
-                        <span className="text-[10px] text-muted-foreground block">Team Absorbed</span>
+                        <span className="text-[10px] text-muted-foreground block">Formal + Family Delivered</span>
                         <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                           {(simulatedEval.formalSupportAbsorbedHours + simulatedEval.familySupportAbsorbedHours).toFixed(1)}h/day
                         </span>
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
-                        <span className="text-[10px] text-muted-foreground block">Net Care Gap</span>
+                        <span className="text-[10px] text-muted-foreground block">Unassigned Work</span>
                         <CareGapVerdict
                           classification={simulatedEval.careGapClassification}
-                          gapHours={simulatedEval.netCareGapHours}
+                          gapHours={simulatedEval.unmetCareHours}
                           className="text-xs"
                         />
+                      </div>
+                      <div className="p-2 rounded-xl bg-card border border-border/60">
+                        <span className="text-[10px] text-muted-foreground block">Primary Above Safe Limit</span>
+                        <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                          {simulatedEval.caregiverOverloadHours.toFixed(1)}h/day
+                        </span>
                       </div>
                       <div className="p-2 rounded-xl bg-card border border-border/60">
                         <span className="text-[10px] text-muted-foreground block">Manual Handling</span>
@@ -1514,14 +1558,28 @@ export function CaregiverSupportMatrix({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Attendant Hours / Day</Label>
-                      <Input
-                        type="number"
-                        value={supportHours}
-                        onChange={(e) => setSupportHours(Number(e.target.value))}
-                        className="h-8 text-xs font-mono"
-                        placeholder="e.g. 10"
-                      />
+                      <Label className="text-xs font-semibold">Total Staff Hours / Day: {supportHours}</Label>
+                      {supportTypes.length <= 1 ? (
+                        <Input
+                          type="number" min={0} max={24}
+                          value={supportHours}
+                          onChange={(e) => setSupportHours(Number(e.target.value))}
+                          className="h-8 text-xs font-mono"
+                          placeholder="e.g. 10"
+                        />
+                      ) : supportTypes.map((type) => (
+                        <div key={type} className="flex items-center gap-2">
+                          <Label className="flex-1 text-[11px]">{type.replaceAll('_', ' ')}</Label>
+                          <Input type="number" min={0} max={buildFormalSupport([type]).hoursPerDay}
+                            value={supportStaffHours[type] ?? 0}
+                            onChange={(e) => {
+                              const next = { ...supportStaffHours, [type]: Math.max(0, Number(e.target.value) || 0) };
+                              setSupportStaffHours(next);
+                              setSupportHours(supportTypes.reduce((sum, selectedType) => sum + (next[selectedType] ?? 0), 0));
+                            }}
+                            className="h-8 w-20 text-xs font-mono" aria-label={`${type.replaceAll('_', ' ')} hours per day`} />
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2068,6 +2126,18 @@ export function CaregiverSupportMatrix({
               <p className="text-xs text-muted-foreground mt-0.5">
                 Estimated relief: <strong className="text-foreground">{currentEval.familySupportAbsorbedHours.toFixed(1)}h/day</strong>
               </p>
+              {currentEval.uncreditedFamilyHours > 0 && (
+                <details className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+                  <summary className="cursor-pointer font-semibold">
+                    {currentEval.uncreditedFamilyHours.toFixed(1)}h/day offered but not credited
+                  </summary>
+                  <ul className="list-disc pl-4 pt-1 space-y-0.5 text-muted-foreground">
+                    {currentEval.uncreditedFamilyReasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/50">
               {currentCaregiver.secondaryMembers && currentCaregiver.secondaryMembers.length > 0 ? (
@@ -2143,7 +2213,7 @@ export function CaregiverSupportMatrix({
             <div>
               <CareGapVerdict
                 classification={currentEval.careGapClassification}
-                gapHours={currentEval.netCareGapHours}
+                gapHours={currentEval.unmetCareHours}
                 className="text-base font-mono block"
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">

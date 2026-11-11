@@ -553,7 +553,7 @@ export default function DashboardClient() {
                     {careGap ? (
                       <CareGapVerdict
                         classification={careGap.careGapClassification}
-                        gapHours={careGap.netCareGapHours}
+                        gapHours={careGap.unmetCareHours}
                         className="text-sm"
                       />
                     ) : (

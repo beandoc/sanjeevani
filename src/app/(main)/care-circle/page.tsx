@@ -50,6 +50,7 @@ import {
 } from '@/lib/db/health-repository';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/use-auth-user';
+import { CareCircleAttendanceAccess } from '@/components/caregiver/care-circle-attendance-access';
 import {
   CaregiverAttributes,
   PatientDependenceProfile,
@@ -519,6 +520,7 @@ export default function CareCirclePage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto p-3.5 sm:p-6">
+      <CareCircleAttendanceAccess />
       {/* Top Banner Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-primary/10 via-background to-blue-500/10 p-5 rounded-3xl border border-primary/20 shadow-xs">
         <div>

@@ -436,7 +436,7 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
       expect(result.drivers.find((d) => d.itemId === 'bi_bathing' && d.minutesPerEpisode === 10)).toBeUndefined();
     });
 
-    it('calculates dynamic patient care activities and narrows prediction band to ±15%', () => {
+    it('calculates dynamic patient care activities without claiming a calibrated prediction interval', () => {
       const dynamicActivities = [
         {
           id: 'act_suction',
@@ -476,10 +476,11 @@ describe('Inpatient Pre-Discharge Care Timing Benchmark', () => {
       expect(rawDriverMins).toBe(270);
       // Net active care workload accounts for shared setup credit
       expect(result.activeCare.pointHours).toBe(3.8);
-      // Prediction interval should be tight (around 0.15, ±15%)
-      expect(result.bandRelativeHalfWidth).toBeLessThanOrEqual(0.20);
-      expect(result.activeCare.lowHours).toBe(3.1);
-      expect(result.activeCare.highHours).toBe(4.6);
+      // Observed timings change the point estimate, but no local calibration study
+      // exists, so the band keeps the uncalibrated base width.
+      expect(result.activeCare.pointHours).toBe(3.8);
+      expect(result.bandRelativeHalfWidth).toBeGreaterThanOrEqual(0.4);
+      expect(result.bandBasis.join(' ')).not.toMatch(/prediction interval of|±15%/);
       // 2-person handling requirement must be retained
       expect(result.requiresTwoPersonTransfers).toBe(true);
       // Drivers must include the dynamic activities

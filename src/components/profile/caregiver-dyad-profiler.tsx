@@ -219,7 +219,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                 >
                   Care Gap:{' '}
                   {evaluation.careGapClassification === 'deficit'
-                    ? `+${evaluation.netCareGapHours} hrs deficit`
+                    ? `+${evaluation.unmetCareHours} hrs unassigned`
                     : evaluation.careGapClassification === 'indeterminate'
                       ? 'Indeterminate'
                       : 'Within capacity'}
@@ -332,7 +332,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
             <Card className="border-border bg-card shadow-xs">
               <CardContent className="p-4 space-y-1">
                 <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Available Capacity Estimate</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Primary Safe Limit + Team</span>
                   <div className="flex items-center gap-1">
                     {evaluation.familySupportAbsorbedHours > 0 && (
                       <Badge variant="secondary" className="text-[9px] font-mono">
@@ -360,13 +360,13 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
               </CardContent>
             </Card>
 
-            <Card className={`border shadow-xs ${evaluation.netCareGapHours > 2 ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+            <Card className={`border shadow-xs ${evaluation.unmetCareHours > 2 ? 'border-rose-500/30 bg-rose-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
               <CardContent className="p-4 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground">Net Care Gap Estimate</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Unassigned Care Work</span>
                 <div className="py-1">
                   <CareGapVerdict
                     classification={evaluation.careGapClassification}
-                    gapHours={evaluation.netCareGapHours}
+                    gapHours={evaluation.unmetCareHours}
                     className="text-base"
                   />
                 </div>
@@ -553,7 +553,7 @@ export function CaregiverDyadProfiler({ defaultTab = 'caregiver' }: CaregiverDya
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Residual Gap:</span>
                           <span className="font-bold text-foreground">
-                            {option.simulatedResult.netCareGapHours > 0 ? `+${option.simulatedResult.netCareGapHours}h/day` : '0.0h (Fully Covered)'}
+                            {option.simulatedResult.unmetCareHours}h unassigned; {option.simulatedResult.caregiverOverloadHours}h above safe limit
                           </span>
                         </div>
                         <div className="flex justify-between">

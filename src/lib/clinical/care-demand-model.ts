@@ -118,6 +118,7 @@ import {
   type FunctionItem
 } from './function-scale';
 import { CLINICAL_PROVENANCE, type ClinicalProvenance } from './provenance';
+import { CLINICAL_POLICY } from './clinical-policy';
 import type { DiurnalTimeBlock } from './care-gap-constants';
 import type {
   CaregiverDiaryCalibrationReport,
@@ -517,9 +518,9 @@ export const FALL_SUPERVISION = { baseHours: 1.0, perRepeatHours: 0.5, maxHours:
  */
 export const BAND_WIDTH = {
   /** Base when no nursing observations are available (questionnaire-only survey). */
-  base: 0.25,
-  /** Measured nursing baseline uncertainty (natural daily clinical variation around timed routines). */
-  measuredNursingBase: 0.15,
+  base: 0.40,
+  /** No local calibration supports a narrower baseline, including observed episodes. */
+  measuredNursingBase: 0.40,
   /** Added per unanswered assessment item. */
   perMissingItem: 0.05,
   /** Added by reporting source; proxies overestimate assistance time (Cotter 2002). */
@@ -531,11 +532,11 @@ export const BAND_WIDTH = {
     not_recorded: 0.15
   } as Record<AssessmentSource, number>,
   /** Multiplied by uncalibrated share of estimated minutes. */
-  perUncalibratedShare: 0.05,
+  perUncalibratedShare: 0.15,
   /** Added when only legacy binary Katz data exists instead of graded Barthel. */
   legacyBinaryInput: 0.2,
   /** Hard cap; beyond this the estimate is not informative and should say so. */
-  max: 0.70
+  max: 0.75
 } as const;
 
 /* ------------------------------------------------------------------ *
@@ -668,8 +669,7 @@ function legacyLawtonToResponses(flags: Record<string, boolean>): Record<string,
  * not present `pointHours` alone.
  */
 export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
-  const hasDynamicNursingInput = (input.dynamicNursingActivities?.length ?? 0) > 0 || (input.inpatientBenchmark?.dynamicActivities?.length ?? 0) > 0;
-  const defaultSource: AssessmentSource = hasDynamicNursingInput || !!input.inpatientBenchmark ? 'clinician_observed' : 'not_recorded';
+  const defaultSource: AssessmentSource = 'not_recorded';
   const source: AssessmentSource = input.assessmentSource ?? defaultSource;
   const excluded = new Set(input.premorbidlyNotPerformed ?? []);
   const overrides = input.frequencyOverrides ?? {};
@@ -1050,6 +1050,24 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
     // observed toileting episode stream so one diaper change is not counted
     // three times.
     if (empiricalCategory && inpatientObservationStats[empiricalCategory]) continue;
+    // Legacy Katz conflates continence and toilet transfer. Count one combined
+    // continence/toileting stream when the person is dependent in either field.
+    // Retain the bowel/bladder item only as the representative consensus item.
+    if (usingLegacy && item.id === 'bi_toilet') continue;
+    if (usingLegacy && item.id === 'bi_bladder') continue;
+    if (usingLegacy && item.id === 'bi_bowels') {
+      const continenceDependent = barthel.bi_bowels === 0 || barthel.bi_bladder === 0;
+      const toiletingDependent = barthel.bi_toilet === 0;
+      if (!continenceDependent && !toiletingDependent) continue;
+      const candidates = [
+        resolveWeightWithLevel(BARTHEL_TASK_WEIGHTS.bi_bowels, barthel.bi_bowels),
+        resolveWeightWithLevel(BARTHEL_TASK_WEIGHTS.bi_bladder, barthel.bi_bladder),
+        resolveWeightWithLevel(BARTHEL_TASK_WEIGHTS.bi_toilet, barthel.bi_toilet)
+      ].filter((candidate) => candidate !== undefined);
+      const combined = candidates.sort((a, b) => b.weight.frequencyPerDay * b.weight.minutesPerEpisode - a.weight.frequencyPerDay * a.weight.minutesPerEpisode)[0];
+      if (combined) addDriver(item, combined.weight, 'legacy_toileting_continence');
+      continue;
+    }
     if (resolved) addDriver(item, resolved.weight, barthelCalibrationKey(item.id, resolved.level));
   }
 
@@ -1239,6 +1257,8 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
 
   const cogLoad = input.cognitiveBehavioralLoad ?? 'none';
   const cogHours = SUPERVISION_HOURS_BY_COGNITIVE_LOAD[cogLoad] ?? 0;
+  // Applies to bed-bound patients too: agitation, line-pulling and nocturnal
+  // calling need directed attention whether or not the person can walk.
   if (cogHours > 0) {
     const mins = cogHours * 60;
     thresholdTerms.push({ id: 'cognitive_supervision', label: `Active supervision (${cogLoad.replace(/_/g, ' ')})`, timeType: 'supervision', minutesPerDay: mins });
@@ -1250,7 +1270,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   }
 
   const falls = Math.max(0, input.fallHistoryLast6Months ?? 0);
-  if (falls > 0) {
+  if (falls > 0 && !input.isBedBound && (barthel.bi_mobility ?? 0) > 0) {
     const hours = Math.min(FALL_SUPERVISION.maxHours, FALL_SUPERVISION.baseHours + (falls - 1) * FALL_SUPERVISION.perRepeatHours);
     const mins = hours * 60;
     thresholdTerms.push({ id: 'fall_supervision', label: 'Post-fall escort and gait supervision', timeType: 'supervision', minutesPerDay: mins });
@@ -1280,10 +1300,11 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   bandBasis.push(
     'Purpose-built home-care case-mix systems explain only 16-24% of individual care-hour variance (Parsons 2018; Bolster-Foucault 2023), so a wide band is the honest output.'
   );
+  bandBasis.push('This range is a model-based sensitivity interval. It has not been locally calibrated as a statistical prediction interval.');
 
   if (hasDynamicNursing) {
     bandBasis.push(
-      `Patient-specific dynamic nursing assessment active (${dynamicNursingList.length} timed activities): tasks, durations, staff ratios (1 vs 2 persons), and 24h frequencies are empirically calibrated, producing a tight ±15% to ±20% clinical prediction interval.`
+      `Patient-specific dynamic nursing assessment active (${dynamicNursingList.length} timed activities); uncertainty remains uncalibrated.`
     );
   }
 
@@ -1350,10 +1371,14 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   }
   half = Math.min(half, BAND_WIDTH.max);
 
-  const toEstimate = (minutesPerDay: number): CareTimeEstimate => {
+  const hardPhysicalFloorMinutes = thresholdTerms
+    .filter((term) => term.id === 'bed_bound_repositioning')
+    .reduce((sum, term) => sum + term.minutesPerDay, 0)
+    + drivers.filter((driver) => driver.itemId === 'bi_transfer').reduce((sum, driver) => sum + driver.minutesPerDay, 0);
+  const toEstimate = (minutesPerDay: number, lowFloorMinutes = 0): CareTimeEstimate => {
     const point = minutesPerDay / 60;
     return {
-      lowHours: round1(Math.max(0, point * (1 - half))),
+      lowHours: round1(Math.min(point, Math.max(0, point * (1 - half), lowFloorMinutes / 60))),
       pointHours: round1(point),
       highHours: round1(point * (1 + half))
     };
@@ -1421,7 +1446,7 @@ export function estimateCareDemand(input: CareDemandInput): CareDemandBand {
   const directCare = toEstimate(totalByType.directCare);
   const supervision = toEstimate(totalByType.supervision);
   const onCall = toEstimate(totalByType.onCall);
-  const activeCare = toEstimate(totalByType.directCare + totalByType.supervision);
+  const activeCare = toEstimate(totalByType.directCare + totalByType.supervision, hardPhysicalFloorMinutes * 0.8);
   const coverage = toEstimate(totalCoverageMinutes);
   const combined = toEstimate(totalByType.directCare + totalByType.supervision + totalByType.onCall);
 
@@ -1497,7 +1522,9 @@ export function classifyAgainstCapacity(
   capacityHours: number
 ): 'covered' | 'indeterminate' | 'deficit' {
   if (band.highHours <= capacityHours) return 'covered';
-  if (band.lowHours > capacityHours) return 'deficit';
+  if (CLINICAL_POLICY.gapRequiresWholeBandAboveCapacity
+    ? band.lowHours > capacityHours
+    : band.pointHours > capacityHours) return 'deficit';
   return 'indeterminate';
 }
 

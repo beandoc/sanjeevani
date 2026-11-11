@@ -144,7 +144,7 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
     // Before adoption: Baseline gap without formal support
     const baseEval = CareGapEngine.evaluate(initialCaregiver, dependentPatient);
     assert.ok(baseEval.netCareGapHours > 4, 'Baseline unassisted care gap should be high');
-    assert.ok(baseEval.liftingIndex > 1.5, 'Caregiver lifting index should be hazardous');
+    assert.strictEqual(baseEval.liftingIndex, null, 'RNLE is not reported for patient handling');
 
     // Family Adopts Blueprint:
     const formalTypes =
@@ -177,8 +177,8 @@ describe("Doctor's Home Care Blueprint & Family Prescription Lifecycle", () => {
       'Adopting blueprint must significantly reduce net care gap'
     );
     assert.ok(
-      assistedEval.liftingIndex < baseEval.liftingIndex,
-      'Motorized bed and transfer staff must significantly relieve caregiver lifting strain'
+      assistedEval.caregiverInjuryRiskScore < baseEval.caregiverInjuryRiskScore,
+      'Motorized bed and transfer staff must relieve operational handling exposure'
     );
   });
 });

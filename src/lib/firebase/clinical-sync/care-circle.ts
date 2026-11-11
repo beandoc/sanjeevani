@@ -25,9 +25,13 @@ export async function syncCareCircle(
   const uid = currentUid();
   if (!uid || !db) return { queued: false };
   try {
+    const ref = doc(db, 'users', uid, 'careCircle', 'current');
+    const existing = await getDoc(ref);
     await setDoc(doc(db, 'users', uid, 'careCircle', 'current'), {
       members,
       tasks,
+      memberUids: Array.isArray(existing.data()?.memberUids) ? existing.data()!.memberUids : [],
+      caregiverUids: Array.isArray(existing.data()?.caregiverUids) ? existing.data()!.caregiverUids : [],
       updatedAt: new Date().toISOString()
     });
     return { queued: true };

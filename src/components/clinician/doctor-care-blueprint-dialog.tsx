@@ -476,7 +476,7 @@ export function DoctorCareBlueprintDialog({
                     </div>
                     <div className="pt-1 border-t border-border/60 flex items-center justify-between text-[10px] font-mono">
                       <span className="text-emerald-600 font-semibold">
-                        Residual workload gap: {opt.simulatedResult.netCareGapHours}h
+                        Unassigned work: {opt.simulatedResult.unmetCareHours}h; primary above safe limit: {opt.simulatedResult.caregiverOverloadHours}h
                       </span>
                       <span className="text-muted-foreground">{opt.affordabilityFit.split('/')[0]}</span>
                     </div>

@@ -182,7 +182,8 @@ describe('Care roster regressions', () => {
       ...DEFAULT_CAREGIVER_ATTRIBUTES,
       // Zero primary capacity isolates the family contribution under test.
       dailyHoursCommitted: 0,
-      secondaryMembers: [member({ id: 'a' }), member({ id: 'b' }), member({ id: 'c' })]
+      // Errand work lives in the afternoon block of the demand model.
+      secondaryMembers: ['a', 'b', 'c'].map((id) => member({ id, availableTimeBlocks: ['afternoon', 'evening'] }))
     };
 
     const result = CareGapEngine.evaluate(caregiver, dependentPatient);

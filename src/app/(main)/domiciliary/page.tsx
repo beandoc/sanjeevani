@@ -8,6 +8,7 @@ import { HomeReadinessSafetyGate } from '@/components/discharge/home-readiness-s
 import { First72HoursCommandCenter } from '@/components/discharge/first-72h-command-center';
 import { ActiveDutyRoster } from '@/components/caregiver/active-duty-roster';
 import { CaregiverDailyPulseModal } from '@/components/caregiver/caregiver-daily-pulse-modal';
+import { CaregiverAttendancePanel } from '@/components/caregiver/caregiver-attendance-panel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Bed,
@@ -68,6 +69,7 @@ export default function DomiciliaryHubPage() {
       </div>
 
       {/* Navigation Tabs */}
+      <CaregiverAttendancePanel />
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="w-full overflow-x-auto no-scrollbar pb-1">
           <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-6 max-w-4xl min-h-[44px] h-auto p-1 bg-muted/60 rounded-xl border border-border/50">

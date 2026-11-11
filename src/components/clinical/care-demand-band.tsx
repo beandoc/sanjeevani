@@ -175,7 +175,7 @@ export function CareGapVerdict({
   if (classification === 'deficit') {
     return (
       <span className={cn('font-bold text-rose-600 dark:text-rose-400', className)}>
-        Shortfall ≈ {gapHours.toFixed(1)} h/day
+        Safe-limit deficit; unassigned work ≈ {gapHours.toFixed(1)} h/day
       </span>
     );
   }

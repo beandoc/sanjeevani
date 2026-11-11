@@ -1346,10 +1346,10 @@ export default function OnboardingIntakePage() {
                 </div>
 
                 <div className="p-3.5 rounded-2xl border border-border bg-card text-center shadow-xs">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Net Care Gap</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">Unassigned Care Work</span>
                   <CareGapVerdict
                     classification={evaluation.careGapClassification}
-                    gapHours={evaluation.netCareGapHours}
+                    gapHours={evaluation.unmetCareHours}
                     className="text-xs block py-1"
                   />
                   <Badge variant="outline" className="text-[9px] uppercase font-mono mt-0.5">

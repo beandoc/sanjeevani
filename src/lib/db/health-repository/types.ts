@@ -134,6 +134,8 @@ export interface CareCircleMember {
   phone: string;
   isSelf: boolean;
   avatarColor: string;
+  /** Firebase account explicitly linked by the circle owner for shared status access. */
+  accountUid?: string;
 }
 
 /** Display name used when a task's owner is no longer in the circle. */

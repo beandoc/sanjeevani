@@ -181,10 +181,8 @@ describe('A. unsupported relief from a staff label (step 2)', () => {
     // and evening transfer blocks. This is the behaviour A2 and A4 must not regress.
     const r = evaluate(seniorSpouse({ formalSupport: team(['paid_attendant_12h'], 12) }));
     assert.strictEqual(r.taskDelegationStatus.nightCareCovered, false, '12h day cover is not night cover');
-    assert.ok(
-      r.taskDelegationStatus.transfersCoverage === 'complete',
-      'a day attendant scheduled for 12h does cover the morning and evening transfers'
-    );
+    assert.strictEqual(r.taskDelegationStatus.transfersCoverage, 'partial',
+      'the demand model includes night transfers, which a day attendant cannot cover');
   });
 
   test('A4: a 24h type cut back to a 12h shift loses its night coverage claim', () => {
@@ -245,7 +243,7 @@ describe('B. formal-support scope toggles (step 2)', () => {
  * ------------------------------------------------------------------ */
 
 describe('C. shared staff-hours scalar (step 3)', () => {
-  test.fails('C1: absorbed care never exceeds the hours the team is scheduled for', () => {
+  test('C1: absorbed care never exceeds the hours the team is scheduled for', () => {
     // The field reads "Attendant Hours / Day". Entering 6 and selecting three hires currently
     // gives each hire 6h, so the team absorbs more care than anybody was paid to deliver.
     const r = evaluate(
@@ -259,7 +257,7 @@ describe('C. shared staff-hours scalar (step 3)', () => {
     );
   });
 
-  test.fails('C2: the hours field is not inert once several hires are selected', () => {
+  test('C2: the hours field is not inert once several hires are selected', () => {
     const types: FormalSupportType[] = ['trained_nurse_12h', 'paid_attendant_12h', 'medical_assistant'];
     const lean = evaluate(seniorSpouse({ formalSupport: team(types, 6) }));
     const full = evaluate(seniorSpouse({ formalSupport: team(types, types.reduce((s, t) => s + NOMINAL[t], 0)) }));
@@ -283,7 +281,7 @@ describe('C. shared staff-hours scalar (step 3)', () => {
  * ------------------------------------------------------------------ */
 
 describe('D. family hour reconciliation (step 4)', () => {
-  test.fails('D1: committed family hours equal credited plus uncredited', () => {
+  test('D1: committed family hours equal credited plus uncredited', () => {
     // With a 12h hire absorbing most of the demand, the ledger credits the helper all 10 of his
     // hours and the aggregate clamp then keeps 1.7 of them. The other 8.3 are reported nowhere:
     // uncreditedFamilyHours is computed before the clamp, so it reads 0.
@@ -302,7 +300,7 @@ describe('D. family hour reconciliation (step 4)', () => {
     );
   });
 
-  test.fails('D2: every uncredited hour carries a stated reason', () => {
+  test('D2: every uncredited hour carries a stated reason', () => {
     const r = evaluate(
       seniorSpouse({
         otherFamilyMembersCount: 1,
@@ -331,7 +329,7 @@ describe('D. family hour reconciliation (step 4)', () => {
     }
   });
 
-  test.fails('D4: the allocation ledger is built from the same demand as the headline figure', () => {
+  test('D4: the allocation ledger is built from the same demand as the headline figure', () => {
     // The ledger's task/time table is hand-authored (≈10.0 h for a fully dependent patient) while
     // the headline demand comes from the graded demand model (≈11.6 h). Family hours can never be
     // credited against the difference, and no screen explains why.
@@ -359,7 +357,7 @@ const gradedLawton = (over: Record<string, number> = {}) => ({
 });
 
 describe('E. conflicting Katz and Barthel inputs (step 4)', () => {
-  test.fails('E1: graded dependence drives the ledger even when a stale Katz boolean says otherwise', () => {
+  test('E1: graded dependence drives the ledger even when a stale Katz boolean says otherwise', () => {
     const patient: PatientDependenceProfile = {
       ...dependentPatient,
       // Graded Barthel: fully dependent for transfers. This is the authoritative instrument.
@@ -380,7 +378,7 @@ describe('E. conflicting Katz and Barthel inputs (step 4)', () => {
     );
   });
 
-  test.fails('E2: a stale Katz boolean cannot invent work the graded assessment rules out', () => {
+  test('E2: a stale Katz boolean cannot invent work the graded assessment rules out', () => {
     const patient: PatientDependenceProfile = {
       ...dependentPatient,
       gradedFunctionResponses: { barthel: gradedBarthel(), lawton: gradedLawton() },
@@ -416,13 +414,26 @@ describe('F. diary calibration end to end (step 6)', () => {
 
   const bathingDiary = {
     patientUid: 'p1',
-    totalEntries: 3,
+    totalEntries: 5,
     metricsByTask: {
       bathing_hygiene__morning_rush: {
         taskCategory: 'bathing_hygiene',
         timeBlock: 'morning_rush',
-        sampleCount: 3,
+        sampleCount: 5,
         meanMinutes: 55, // measured, well above the 25 min consensus default
+        minMinutes: 50,
+        maxMinutes: 60,
+        twoPersonFrequencyPercent: 0,
+        lastLoggedAt: FIXED_NOW.toISOString()
+      }
+    },
+    metricsByCategory: {
+      bathing_hygiene: {
+        taskCategory: 'bathing_hygiene',
+        timeBlock: 'morning_rush',
+        sampleCount: 5,
+        medianMinutes: 55,
+        meanMinutes: 55,
         minMinutes: 50,
         maxMinutes: 60,
         twoPersonFrequencyPercent: 0,
@@ -433,7 +444,7 @@ describe('F. diary calibration end to end (step 6)', () => {
     empiricalDirectCareHours: 0.9
   };
 
-  test.fails('F1: a qualifying diary observation moves the demand the simulator shows', () => {
+  test('F1: a qualifying diary observation moves the demand the simulator shows', () => {
     const uncalibrated = CareGapEngine.evaluate(seniorSpouse(), dependentPatient, FIXED_NOW);
     const calibrated = CareGapEngine.evaluate(
       seniorSpouse(),
@@ -454,7 +465,9 @@ describe('F. diary calibration end to end (step 6)', () => {
   // stands. It only becomes a real assertion once F1 is wired; keep both and it cannot regress
   // into "any observation recalibrates everything".
   test('F2: too few observations keep the consensus fallback and say so', () => {
-    const thin = { ...bathingDiary, totalEntries: 1, metricsByTask: {
+    const thin = { ...bathingDiary, totalEntries: 1, metricsByCategory: {
+      bathing_hygiene: { ...bathingDiary.metricsByCategory.bathing_hygiene, sampleCount: 1 }
+    }, metricsByTask: {
       bathing_hygiene__morning_rush: { ...bathingDiary.metricsByTask.bathing_hygiene__morning_rush, sampleCount: 1 }
     } };
     const uncalibrated = CareGapEngine.evaluate(seniorSpouse(), dependentPatient, FIXED_NOW);

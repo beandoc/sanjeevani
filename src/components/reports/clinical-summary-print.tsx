@@ -166,7 +166,7 @@ export function ClinicalSummaryPrint({
                 {careGapEval.formalSupportAbsorbedHours > 0 && ` (estimated ${careGapEval.formalSupportAbsorbedHours}h/day relief)`}
               </p>
               <p className="text-xs font-medium text-slate-800">
-                Net Care Gap Estimate: <strong>{careGapEval.netCareGapHours > 0 ? `+${careGapEval.netCareGapHours} hrs/day` : 'Balanced'}</strong> ({careGapEval.careGapSeverity.replace('_', ' ')})
+                Unassigned care work: <strong>{careGapEval.unmetCareHours > 0 ? `${careGapEval.unmetCareHours} hrs/day` : 'None at the point estimate'}</strong>; primary work above safe-limit estimate: <strong>{careGapEval.caregiverOverloadHours} hrs/day</strong>.
               </p>
             </>
           ) : (
